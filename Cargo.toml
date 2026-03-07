@@ -1,0 +1,30 @@
+[package]
+name = "fin-primitives"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# tokio: async runtime — core dependency
+tokio = { version = "1.40", features = ["full"] }
+# serde: serialization framework
+serde = { version = "1", features = ["derive"] }
+# serde_json: JSON support
+serde_json = "1"
+# chrono: datetime handling with serde support
+chrono = { version = "0.4", features = ["serde"] }
+# rust_decimal: exact decimal arithmetic for financial values — never use f64 for prices
+rust_decimal = { version = "1", features = ["serde-with-str"] }
+# rust_decimal_macros: dec!() macro for decimal literals in tests
+rust_decimal_macros = "1"
+# thiserror: zero-cost error derive — replaces manual Display impls
+thiserror = "1"
+
+[dev-dependencies]
+# proptest: property-based testing — required for algorithmic correctness guarantees
+proptest = "1"
+tokio = { version = "1.40", features = ["full", "test-util"] }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "tick_bench"
+harness = false
