@@ -59,6 +59,12 @@ for b in &breaches {
 fin-primitives = { git = "https://github.com/Mattbusel/fin-primitives" }
 ```
 
+Or one-liner:
+
+```ash
+cargo add --git https://github.com/Mattbusel/fin-primitives
+```
+
 ## Test coverage
 
 242 tests across unit, integration, and property suites. Run with:
