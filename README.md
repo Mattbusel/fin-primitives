@@ -1,6 +1,6 @@
 # fin-primitives
 
-Financial market primitives for Rust — the foundational layer for high-frequency trading and quantitative systems.
+Financial market primitives for Rust -- the foundational layer for high-frequency trading and quantitative systems.
 
 ## What's inside
 
@@ -10,16 +10,16 @@ Financial market primitives for Rust — the foundational layer for high-frequen
 | `orderbook` | Lock-free BTreeMap order book with `apply_delta`, spread, top-N levels, sequence tracking |
 | `tick` | `Tick` ingestion, `TickFilter` (symbol/price/volume gates), `TickReplayer` for backtesting |
 | `ohlcv` | OHLCV bar construction and aggregation from tick streams, multi-timeframe support |
-| `signals` | SMA, EMA, RSI — streaming indicators with configurable periods |
+| `signals` | SMA, EMA, RSI -- streaming indicators with configurable periods |
 | `position` | `Position` ledger with average-cost tracking, realized/unrealized PnL, commission handling |
 | `risk` | `DrawdownTracker`, `MaxDrawdownRule`, `MinEquityRule`, composable `RiskMonitor` |
 
 ## Features
 
-- **Zero panics** — every fallible operation returns `Result`
-- **Decimal precision** — all prices and quantities use `rust_decimal` to eliminate floating-point drift
-- **Nanosecond timestamps** — native `NanoTimestamp` newtype for microsecond-accurate event ordering
-- **Composable risk rules** — chain multiple risk monitors; each breach is typed and detailed
+- **Zero panics** -- every fallible operation returns `Result`
+- **Decimal precision** -- all prices and quantities use `rust_decimal` to eliminate floating-point drift
+- **Nanosecond timestamps** -- native `NanoTimestamp` newtype for microsecond-accurate event ordering
+- **Composable risk rules** -- chain multiple risk monitors; each breach is typed and detailed
 
 ## Quick start
 
@@ -31,16 +31,16 @@ use rust_decimal_macros::dec;
 
 let mut ledger = PositionLedger::new(dec!(100_000));
 let mut monitor = RiskMonitor::new(dec!(100_000))
-    .add_rule(MaxDrawdownRule { threshold_pct: dec!(10) });
+ .add_rule(MaxDrawdownRule { threshold_pct: dec!(10) });
 
 // Apply a fill
 ledger.apply_fill(Fill {
-    symbol: Symbol::new("AAPL").unwrap(),
-    side: Side::Bid,
-    quantity: Quantity::new(dec!(100)).unwrap(),
-    price: Price::new(dec!(175)).unwrap(),
-    timestamp: NanoTimestamp(0),
-    commission: dec!(1),
+ symbol: Symbol::new("AAPL").unwrap(),
+ side: Side::Bid,
+ quantity: Quantity::new(dec!(100)).unwrap(),
+ price: Price::new(dec!(175)).unwrap(),
+ timestamp: NanoTimestamp(0),
+ commission: dec!(1),
 }).unwrap();
 
 // Check risk after price move
@@ -48,7 +48,7 @@ let prices = [("AAPL".to_string(), Price::new(dec!(155)).unwrap())].into();
 let equity = ledger.equity(&prices).unwrap();
 let breaches = monitor.update(equity);
 for b in &breaches {
-    println!("Risk breach [{}]: {}", b.rule, b.detail);
+ println!("Risk breach [{}]: {}", b.rule, b.detail);
 }
 ```
 
