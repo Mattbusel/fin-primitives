@@ -62,4 +62,8 @@ pub enum FinError {
     /// A Decimal arithmetic operation overflowed.
     #[error("Arithmetic overflow in financial calculation")]
     ArithmeticOverflow,
+
+    /// Order book ended up with an inverted spread after a delta was applied.
+    #[error("Inverted spread: best_bid {best_bid} >= best_ask {best_ask}")]
+    InvertedSpread { best_bid: Decimal, best_ask: Decimal },
 }

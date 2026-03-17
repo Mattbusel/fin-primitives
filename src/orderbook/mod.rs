@@ -101,6 +101,33 @@ impl OrderBook {
             }
         }
         self.sequence = delta.sequence;
+
+        // Guard against inverted spreads that would corrupt VWAP and mid-price.
+        // Copy the prices out before any mutable borrow.
+        let maybe_inversion = {
+            let best_bid_p = self.bids.keys().next_back().copied();
+            let best_ask_p = self.asks.keys().next().copied();
+            match (best_bid_p, best_ask_p) {
+                (Some(b), Some(a)) if b >= a => Some((b, a)),
+                _ => None,
+            }
+        };
+        if let Some((best_bid_p, best_ask_p)) = maybe_inversion {
+            // Roll back the mutation to keep the book consistent.
+            match delta.action {
+                DeltaAction::Set => match delta.side {
+                    Side::Bid => { self.bids.remove(&delta.price.value()); }
+                    Side::Ask => { self.asks.remove(&delta.price.value()); }
+                },
+                DeltaAction::Remove => match delta.side {
+                    Side::Bid => { self.bids.insert(delta.price.value(), delta.quantity.value()); }
+                    Side::Ask => { self.asks.insert(delta.price.value(), delta.quantity.value()); }
+                },
+            }
+            self.sequence = expected - 1;
+            return Err(FinError::InvertedSpread { best_bid: best_bid_p, best_ask: best_ask_p });
+        }
+
         Ok(())
     }
 
@@ -181,12 +208,12 @@ impl OrderBook {
         };
 
         for (price, avail_qty) in levels {
-            if remaining <= Decimal::ZERO {
-                break;
-            }
             let fill = remaining.min(*avail_qty);
             total_cost += fill * price;
             remaining -= fill;
+            if remaining <= Decimal::ZERO {
+                break;
+            }
         }
 
         if remaining > Decimal::ZERO {
@@ -391,5 +418,40 @@ mod tests {
         book.apply_delta(set_delta(Side::Ask, "100", "10", 1)).unwrap();
         let vwap = book.vwap_for_qty(Side::Ask, Quantity::zero()).unwrap();
         assert_eq!(vwap, Decimal::ZERO);
+    }
+
+    // ── Inverted spread guard ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_apply_delta_rejects_inverted_spread() {
+        let mut book = make_book();
+        // Set ask at 100
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        // Try to set bid at 101 (would cross the ask) — must fail
+        let result = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
+        assert!(
+            matches!(result, Err(FinError::InvertedSpread { .. })),
+            "expected InvertedSpread, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_apply_delta_inverted_spread_rolls_back_sequence() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        assert_eq!(book.sequence(), 1);
+        // This should fail and leave sequence unchanged
+        let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
+        assert_eq!(book.sequence(), 1, "sequence must not advance on rejected delta");
+    }
+
+    #[test]
+    fn test_apply_delta_inverted_spread_rolled_back_book_state() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        // Rejected bid at 101 must not persist in the book
+        let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
+        assert!(book.best_bid().is_none(), "rejected bid must not appear in book");
     }
 }
