@@ -6,17 +6,31 @@ use crate::signals::{Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Relative Strength Index over `period` bars.
+/// Relative Strength Index over `period` bars using Wilder's smoothing.
 ///
 /// Returns `SignalValue::Unavailable` until `period + 1` bars have been processed
 /// (one extra bar is needed to compute the first price change).
+///
+/// Wilder's algorithm:
+/// 1. Seed: simple average of the first `period` gains/losses.
+/// 2. Every subsequent bar: `avg = (avg * (period - 1) + new_value) / period`.
+///
+/// The previous implementation used a rolling SMA window recomputed each bar,
+/// which produces different values than the Wilder EMA used by every real RSI
+/// implementation (e.g. TradingView, Bloomberg, MetaTrader).
 ///
 /// Result is always in `[0, 100]`.
 pub struct Rsi {
     name: String,
     period: usize,
-    gains: VecDeque<Decimal>,
-    losses: VecDeque<Decimal>,
+    /// Seed accumulator — collects raw gains for the first `period` bars.
+    seed_gains: VecDeque<Decimal>,
+    /// Seed accumulator — collects raw losses for the first `period` bars.
+    seed_losses: VecDeque<Decimal>,
+    /// Wilder smoothed average gain (None until seed phase complete).
+    avg_gain: Option<Decimal>,
+    /// Wilder smoothed average loss (None until seed phase complete).
+    avg_loss: Option<Decimal>,
     prev_close: Option<Decimal>,
     count: usize,
 }
@@ -27,8 +41,10 @@ impl Rsi {
         Self {
             name: name.into(),
             period,
-            gains: VecDeque::with_capacity(period),
-            losses: VecDeque::with_capacity(period),
+            seed_gains: VecDeque::with_capacity(period),
+            seed_losses: VecDeque::with_capacity(period),
+            avg_gain: None,
+            avg_loss: None,
             prev_close: None,
             count: 0,
         }
@@ -50,29 +66,51 @@ impl Signal for Rsi {
             } else {
                 (Decimal::ZERO, change.abs())
             };
-            self.gains.push_back(gain);
-            self.losses.push_back(loss);
-            if self.gains.len() > self.period {
-                self.gains.pop_front();
+
+            let period_dec = Decimal::from(self.period as u32);
+
+            if self.count < self.period {
+                // Seed phase: accumulate raw values.
+                self.seed_gains.push_back(gain);
+                self.seed_losses.push_back(loss);
+                self.count += 1;
+
+                if self.count == self.period {
+                    // Initialise with simple average of seed window.
+                    let sum_g: Decimal = self.seed_gains.iter().copied().sum();
+                    let sum_l: Decimal = self.seed_losses.iter().copied().sum();
+                    self.avg_gain = Some(
+                        sum_g.checked_div(period_dec).ok_or(FinError::ArithmeticOverflow)?,
+                    );
+                    self.avg_loss = Some(
+                        sum_l.checked_div(period_dec).ok_or(FinError::ArithmeticOverflow)?,
+                    );
+                }
+            } else {
+                // Smoothing phase: Wilder EMA — avg = (avg*(period-1) + new) / period.
+                let prev_gain = self.avg_gain.ok_or(FinError::ArithmeticOverflow)?;
+                let prev_loss = self.avg_loss.ok_or(FinError::ArithmeticOverflow)?;
+                let period_m1 = Decimal::from((self.period - 1) as u32);
+                self.avg_gain = Some(
+                    (prev_gain * period_m1 + gain)
+                        .checked_div(period_dec)
+                        .ok_or(FinError::ArithmeticOverflow)?,
+                );
+                self.avg_loss = Some(
+                    (prev_loss * period_m1 + loss)
+                        .checked_div(period_dec)
+                        .ok_or(FinError::ArithmeticOverflow)?,
+                );
+                self.count += 1;
             }
-            if self.losses.len() > self.period {
-                self.losses.pop_front();
-            }
-            self.count += 1;
         }
 
         self.prev_close = Some(close);
 
-        if self.count < self.period {
-            return Ok(SignalValue::Unavailable);
-        }
-
-        let avg_gain: Decimal = self.gains.iter().copied().sum::<Decimal>()
-            .checked_div(Decimal::from(self.period as u32))
-            .ok_or(FinError::ArithmeticOverflow)?;
-        let avg_loss: Decimal = self.losses.iter().copied().sum::<Decimal>()
-            .checked_div(Decimal::from(self.period as u32))
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let (avg_gain, avg_loss) = match (self.avg_gain, self.avg_loss) {
+            (Some(g), Some(l)) => (g, l),
+            _ => return Ok(SignalValue::Unavailable),
+        };
 
         if avg_loss == Decimal::ZERO {
             // All gains, no losses → RSI = 100
@@ -87,13 +125,13 @@ impl Signal for Rsi {
                 .checked_div(Decimal::ONE + rs)
                 .ok_or(FinError::ArithmeticOverflow)?;
 
-        // Clamp to [0, 100] to guard against floating-point-style precision edge cases.
+        // Clamp to [0, 100] to guard against precision edge cases.
         let rsi = rsi.max(Decimal::ZERO).min(Decimal::ONE_HUNDRED);
         Ok(SignalValue::Scalar(rsi))
     }
 
     fn is_ready(&self) -> bool {
-        self.count >= self.period
+        self.avg_gain.is_some()
     }
 
     fn period(&self) -> usize {
