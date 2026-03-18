@@ -25,10 +25,13 @@ pub struct SignalPipeline {
 impl SignalPipeline {
     /// Creates an empty `SignalPipeline`.
     pub fn new() -> Self {
-        Self { signals: Vec::new() }
+        Self {
+            signals: Vec::new(),
+        }
     }
 
     /// Adds a signal to the pipeline (builder pattern).
+    #[must_use]
     #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, signal: impl Signal + 'static) -> Self {
         self.signals.push(Box::new(signal));

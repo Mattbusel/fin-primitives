@@ -7,7 +7,6 @@
 /// - PnL accounting identity: sum of fills equals position value
 /// - Invalid price construction
 /// - Duplicate price level (order "ID" equivalents)
-
 use fin_primitives::error::FinError;
 use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
 use fin_primitives::position::{Fill, Position, PositionLedger};
@@ -84,7 +83,9 @@ fn bar(close: Decimal) -> fin_primitives::ohlcv::OhlcvBar {
 #[test]
 fn zero_quantity_buy_fill_leaves_position_flat() {
     let mut pos = Position::new(sym("AAPL"));
-    let pnl = pos.apply_fill(&fill("AAPL", Side::Bid, dec!(0), dec!(100), dec!(0))).unwrap();
+    let pnl = pos
+        .apply_fill(&fill("AAPL", Side::Bid, dec!(0), dec!(100), dec!(0)))
+        .unwrap();
     assert_eq!(pnl, dec!(0));
     assert!(pos.is_flat());
     assert_eq!(pos.quantity, dec!(0));
@@ -94,10 +95,15 @@ fn zero_quantity_buy_fill_leaves_position_flat() {
 #[test]
 fn zero_quantity_sell_fill_does_not_change_long_position() {
     let mut pos = Position::new(sym("AAPL"));
-    pos.apply_fill(&fill("AAPL", Side::Bid, dec!(10), dec!(100), dec!(0))).unwrap();
+    pos.apply_fill(&fill("AAPL", Side::Bid, dec!(10), dec!(100), dec!(0)))
+        .unwrap();
     let qty_before = pos.quantity;
-    pos.apply_fill(&fill("AAPL", Side::Ask, dec!(0), dec!(110), dec!(0))).unwrap();
-    assert_eq!(pos.quantity, qty_before, "zero-quantity sell must not reduce position");
+    pos.apply_fill(&fill("AAPL", Side::Ask, dec!(0), dec!(110), dec!(0)))
+        .unwrap();
+    assert_eq!(
+        pos.quantity, qty_before,
+        "zero-quantity sell must not reduce position"
+    );
 }
 
 /// A zero-quantity fill via the ledger still succeeds and keeps cash unchanged.
@@ -105,15 +111,21 @@ fn zero_quantity_sell_fill_does_not_change_long_position() {
 fn zero_quantity_fill_ledger_cash_unchanged() {
     let mut ledger = PositionLedger::new(dec!(10_000));
     let cash_before = ledger.cash();
-    ledger.apply_fill(Fill {
-        symbol: sym("BTC"),
-        side: Side::Bid,
-        quantity: q(dec!(0)),
-        price: p(dec!(50_000)),
-        timestamp: NanoTimestamp(0),
-        commission: dec!(0),
-    }).unwrap();
-    assert_eq!(ledger.cash(), cash_before, "zero-quantity buy must not debit cash");
+    ledger
+        .apply_fill(Fill {
+            symbol: sym("BTC"),
+            side: Side::Bid,
+            quantity: q(dec!(0)),
+            price: p(dec!(50_000)),
+            timestamp: NanoTimestamp(0),
+            commission: dec!(0),
+        })
+        .unwrap();
+    assert_eq!(
+        ledger.cash(),
+        cash_before,
+        "zero-quantity buy must not debit cash"
+    );
 }
 
 // ── Crossed book state rejection ──────────────────────────────────────────────
@@ -122,7 +134,8 @@ fn zero_quantity_fill_ledger_cash_unchanged() {
 #[test]
 fn crossed_book_bid_above_ask_rejected() {
     let mut book = OrderBook::new(sym("BTC"));
-    book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+    book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+        .unwrap();
     let result = book.apply_delta(set_delta(Side::Bid, "100", "5", 2));
     assert!(
         matches!(result, Err(FinError::InvertedSpread { .. })),
@@ -135,7 +148,8 @@ fn crossed_book_bid_above_ask_rejected() {
 #[test]
 fn crossed_book_ask_below_bid_rejected() {
     let mut book = OrderBook::new(sym("ETH"));
-    book.apply_delta(set_delta(Side::Bid, "200", "3", 1)).unwrap();
+    book.apply_delta(set_delta(Side::Bid, "200", "3", 1))
+        .unwrap();
     let result = book.apply_delta(set_delta(Side::Ask, "200", "3", 2));
     assert!(
         matches!(result, Err(FinError::InvertedSpread { .. })),
@@ -148,7 +162,8 @@ fn crossed_book_ask_below_bid_rejected() {
 #[test]
 fn crossed_book_sequence_does_not_advance_on_rejection() {
     let mut book = OrderBook::new(sym("X"));
-    book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+    book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+        .unwrap();
     let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
     assert_eq!(
         book.sequence(),
@@ -161,7 +176,8 @@ fn crossed_book_sequence_does_not_advance_on_rejection() {
 #[test]
 fn crossed_book_rejected_bid_not_in_book() {
     let mut book = OrderBook::new(sym("X"));
-    book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+    book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+        .unwrap();
     let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
     assert!(
         book.best_bid().is_none(),
@@ -175,20 +191,32 @@ fn crossed_book_rejected_bid_not_in_book() {
 #[test]
 fn duplicate_price_level_update_replaces_quantity() {
     let mut book = OrderBook::new(sym("AAPL"));
-    book.apply_delta(set_delta(Side::Bid, "150", "10", 1)).unwrap();
-    book.apply_delta(set_delta(Side::Bid, "150", "25", 2)).unwrap();
+    book.apply_delta(set_delta(Side::Bid, "150", "10", 1))
+        .unwrap();
+    book.apply_delta(set_delta(Side::Bid, "150", "25", 2))
+        .unwrap();
     let best = book.best_bid().unwrap();
     assert_eq!(best.price.value(), dec!(150));
-    assert_eq!(best.quantity.value(), dec!(25), "second set at same price must overwrite quantity");
-    assert_eq!(book.bid_count(), 1, "should still have exactly one bid level");
+    assert_eq!(
+        best.quantity.value(),
+        dec!(25),
+        "second set at same price must overwrite quantity"
+    );
+    assert_eq!(
+        book.bid_count(),
+        1,
+        "should still have exactly one bid level"
+    );
 }
 
 /// Setting the same ask price twice is valid; the second call updates the quantity.
 #[test]
 fn duplicate_ask_price_level_update_replaces_quantity() {
     let mut book = OrderBook::new(sym("MSFT"));
-    book.apply_delta(set_delta(Side::Ask, "300", "5", 1)).unwrap();
-    book.apply_delta(set_delta(Side::Ask, "300", "20", 2)).unwrap();
+    book.apply_delta(set_delta(Side::Ask, "300", "5", 1))
+        .unwrap();
+    book.apply_delta(set_delta(Side::Ask, "300", "20", 2))
+        .unwrap();
     let best = book.best_ask().unwrap();
     assert_eq!(best.price.value(), dec!(300));
     assert_eq!(best.quantity.value(), dec!(20));
@@ -242,18 +270,33 @@ fn symbol_tab_character_returns_invalid_symbol_error() {
 fn rsi_period_14_unavailable_for_first_14_bars() {
     let mut rsi = Rsi::new("rsi14", 14);
     let prices = [
-        dec!(44), dec!(44), dec!(44), dec!(44), dec!(44),
-        dec!(44), dec!(44), dec!(44), dec!(44), dec!(44),
-        dec!(44), dec!(44), dec!(44), dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
+        dec!(44),
     ];
     for price in &prices {
         let val = rsi.update(&bar(*price)).unwrap();
         assert!(
             matches!(val, SignalValue::Unavailable),
-            "expected Unavailable for < period bars, got {:?}", val
+            "expected Unavailable for < period bars, got {:?}",
+            val
         );
     }
-    assert!(!rsi.is_ready(), "RSI must not be ready after exactly 14 bars (need period+1 changes)");
+    assert!(
+        !rsi.is_ready(),
+        "RSI must not be ready after exactly 14 bars (need period+1 changes)"
+    );
 }
 
 /// After period + 1 bars the RSI must return a Scalar.
@@ -321,27 +364,32 @@ fn pnl_accounting_identity_buy_then_sell_net_cash_change() {
     let mut ledger = PositionLedger::new(initial_cash);
 
     // Buy 10 shares at 100 with $1 commission.
-    ledger.apply_fill(Fill {
-        symbol: sym("AAPL"),
-        side: Side::Bid,
-        quantity: q(dec!(10)),
-        price: p(dec!(100)),
-        timestamp: NanoTimestamp(0),
-        commission: dec!(1),
-    }).unwrap();
+    ledger
+        .apply_fill(Fill {
+            symbol: sym("AAPL"),
+            side: Side::Bid,
+            quantity: q(dec!(10)),
+            price: p(dec!(100)),
+            timestamp: NanoTimestamp(0),
+            commission: dec!(1),
+        })
+        .unwrap();
 
     // Sell 10 shares at 110 with $1 commission.
-    ledger.apply_fill(Fill {
-        symbol: sym("AAPL"),
-        side: Side::Ask,
-        quantity: q(dec!(10)),
-        price: p(dec!(110)),
-        timestamp: NanoTimestamp(0),
-        commission: dec!(1),
-    }).unwrap();
+    ledger
+        .apply_fill(Fill {
+            symbol: sym("AAPL"),
+            side: Side::Ask,
+            quantity: q(dec!(10)),
+            price: p(dec!(110)),
+            timestamp: NanoTimestamp(0),
+            commission: dec!(1),
+        })
+        .unwrap();
 
     // Expected: cash = 10_000 - (10*100 + 1) + (10*110 - 1) = 10_000 - 1001 + 1099 = 10_098
-    let expected_cash = initial_cash - (dec!(10) * dec!(100) + dec!(1)) + (dec!(10) * dec!(110) - dec!(1));
+    let expected_cash =
+        initial_cash - (dec!(10) * dec!(100) + dec!(1)) + (dec!(10) * dec!(110) - dec!(1));
     assert_eq!(ledger.cash(), expected_cash);
 
     // Position is flat.
@@ -382,7 +430,8 @@ fn pnl_accounting_identity_multiple_buys_avg_cost_invariant() {
             price: p(*price_val),
             timestamp: NanoTimestamp(0),
             commission: dec!(0),
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     // avg_cost must equal total_notional / total_qty.
@@ -396,11 +445,17 @@ fn pnl_accounting_identity_multiple_buys_avg_cost_invariant() {
     // market_value at avg_cost ≈ total_notional (within Decimal rounding of repeating fraction).
     let mv = pos.market_value(p(expected_avg_cost));
     let mv_diff = (mv - total_notional).abs();
-    assert!(mv_diff < dec!(0.01), "market_value must be within 0.01 of total_notional, diff={mv_diff}");
+    assert!(
+        mv_diff < dec!(0.01),
+        "market_value must be within 0.01 of total_notional, diff={mv_diff}"
+    );
 
     // unrealized_pnl at avg_cost ≈ 0 (within Decimal rounding of repeating fraction).
     let upnl = pos.unrealized_pnl(p(expected_avg_cost));
-    assert!(upnl.abs() < dec!(0.01), "unrealized_pnl at avg_cost must be near 0, got {upnl}");
+    assert!(
+        upnl.abs() < dec!(0.01),
+        "unrealized_pnl at avg_cost must be near 0, got {upnl}"
+    );
 }
 
 /// Realized PnL identity: the sum of all per-fill realized P&L equals the
@@ -409,10 +464,14 @@ fn pnl_accounting_identity_multiple_buys_avg_cost_invariant() {
 fn pnl_accounting_identity_realized_pnl_sums_correctly() {
     let mut pos = Position::new(sym("X"));
     pos.apply_fill(&Fill {
-        symbol: sym("X"), side: Side::Bid,
-        quantity: q(dec!(20)), price: p(dec!(50)),
-        timestamp: NanoTimestamp(0), commission: dec!(0),
-    }).unwrap();
+        symbol: sym("X"),
+        side: Side::Bid,
+        quantity: q(dec!(20)),
+        price: p(dec!(50)),
+        timestamp: NanoTimestamp(0),
+        commission: dec!(0),
+    })
+    .unwrap();
 
     // Sell in three batches.
     let sell_fills: Vec<(Decimal, Decimal)> = vec![
@@ -423,11 +482,16 @@ fn pnl_accounting_identity_realized_pnl_sums_correctly() {
 
     let mut expected_realized = dec!(0);
     for (qty_val, price_val) in &sell_fills {
-        let pnl = pos.apply_fill(&Fill {
-            symbol: sym("X"), side: Side::Ask,
-            quantity: q(*qty_val), price: p(*price_val),
-            timestamp: NanoTimestamp(0), commission: dec!(0),
-        }).unwrap();
+        let pnl = pos
+            .apply_fill(&Fill {
+                symbol: sym("X"),
+                side: Side::Ask,
+                quantity: q(*qty_val),
+                price: p(*price_val),
+                timestamp: NanoTimestamp(0),
+                commission: dec!(0),
+            })
+            .unwrap();
         expected_realized += pnl;
     }
 
@@ -438,7 +502,8 @@ fn pnl_accounting_identity_realized_pnl_sums_correctly() {
 
     // Manually compute: each sell realizes qty * (sell_price - avg_cost).
     // avg_cost = 50 throughout (only sells here).
-    let manual: Decimal = sell_fills.iter()
+    let manual: Decimal = sell_fills
+        .iter()
         .map(|(qty_val, price_val)| qty_val * (price_val - dec!(50)))
         .sum();
     assert_eq!(pos.realized_pnl, manual);

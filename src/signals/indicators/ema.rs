@@ -25,10 +25,9 @@ pub struct Ema {
 impl Ema {
     /// Constructs a new `Ema` with the given name and period.
     pub fn new(name: impl Into<String>, period: usize) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
         let denom = Decimal::from((period + 1) as u32);
-        let multiplier = Decimal::TWO
-            .checked_div(denom)
-            .unwrap_or(Decimal::ONE);
+        let multiplier = Decimal::TWO.checked_div(denom).unwrap_or(Decimal::ONE);
         Self {
             name: name.into(),
             period,
@@ -53,7 +52,9 @@ impl Signal for Ema {
             // SMA seed phase.
             self.seed_sum += close;
             if self.count == self.period {
-                let seed = self.seed_sum
+                #[allow(clippy::cast_possible_truncation)]
+                let seed = self
+                    .seed_sum
                     .checked_div(Decimal::from(self.period as u32))
                     .ok_or(FinError::ArithmeticOverflow)?;
                 self.current = Some(seed);
@@ -70,7 +71,10 @@ impl Signal for Ema {
         let ema = close
             .checked_mul(self.multiplier)
             .ok_or(FinError::ArithmeticOverflow)?
-            .checked_add(prev.checked_mul(one_minus_k).ok_or(FinError::ArithmeticOverflow)?)
+            .checked_add(
+                prev.checked_mul(one_minus_k)
+                    .ok_or(FinError::ArithmeticOverflow)?,
+            )
             .ok_or(FinError::ArithmeticOverflow)?;
         self.current = Some(ema);
         Ok(SignalValue::Scalar(ema))
@@ -255,7 +259,10 @@ mod tests {
         // Use very small positive decimals (Price validation ensures > 0).
         for p in &["0.001", "0.002", "0.003", "0.004"] {
             let result = ema.update(&bar(p));
-            assert!(result.is_ok(), "EMA must not error on small positive values");
+            assert!(
+                result.is_ok(),
+                "EMA must not error on small positive values"
+            );
         }
     }
 }

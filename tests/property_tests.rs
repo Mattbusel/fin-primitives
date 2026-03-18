@@ -5,8 +5,8 @@ use fin_primitives::signals::indicators::{Rsi, Sma};
 use fin_primitives::signals::Signal;
 use fin_primitives::signals::SignalValue;
 use fin_primitives::types::*;
-use rust_decimal::Decimal;
 use proptest::prelude::*;
+use rust_decimal::Decimal;
 
 fn bar(close: Decimal) -> OhlcvBar {
     let p = Price::new(close).unwrap_or_else(|_| Price::new(Decimal::ONE).unwrap());

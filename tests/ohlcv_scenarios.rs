@@ -152,10 +152,13 @@ fn aggregator_three_consecutive_bars() {
     assert_eq!(bar0.close.value(), dec!(1010));
 
     // Another tick in bar 1
-    agg.push_tick(&tick("ETH", "1020", "3", nps + nps / 3)).unwrap();
+    agg.push_tick(&tick("ETH", "1020", "3", nps + nps / 3))
+        .unwrap();
 
     // Bar 2 starts: triggers bar 1
-    let r5 = agg.push_tick(&tick("ETH", "1000", "1", 2 * nps + 1)).unwrap();
+    let r5 = agg
+        .push_tick(&tick("ETH", "1000", "1", 2 * nps + 1))
+        .unwrap();
     let bar1 = r5.unwrap();
     assert_eq!(bar1.tick_count, 2);
     assert_eq!(bar1.high.value(), dec!(1020));
@@ -171,7 +174,12 @@ fn aggregator_high_low_tracked_correctly() {
     let nps = 60_000_000_000_i64;
     let mut agg = OhlcvAggregator::new(sym("BTC"), Timeframe::Seconds(60)).unwrap();
 
-    for (p, ts) in &[("500", 0i64), ("450", nps / 4), ("600", nps / 2), ("550", 3 * nps / 4)] {
+    for (p, ts) in &[
+        ("500", 0i64),
+        ("450", nps / 4),
+        ("600", nps / 2),
+        ("550", 3 * nps / 4),
+    ] {
         agg.push_tick(&tick("BTC", p, "1", *ts)).unwrap();
     }
 
@@ -329,7 +337,8 @@ fn aggregator_5min_bar_test() {
 
     // Fill first bar with 10 ticks
     for i in 0..10i64 {
-        agg.push_tick(&tick("NVDA", "800", "1", i * (nps / 10))).unwrap();
+        agg.push_tick(&tick("NVDA", "800", "1", i * (nps / 10)))
+            .unwrap();
     }
 
     // Trigger completion

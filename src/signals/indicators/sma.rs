@@ -48,6 +48,7 @@ impl Signal for Sma {
             return Ok(SignalValue::Unavailable);
         }
         let sum: Decimal = self.values.iter().copied().sum();
+        #[allow(clippy::cast_possible_truncation)]
         let avg = sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
@@ -149,7 +150,10 @@ mod tests {
     #[test]
     fn test_sma_empty_input_not_ready() {
         let sma = Sma::new("sma3", 3);
-        assert!(!sma.is_ready(), "SMA must not be ready before any bars are fed");
+        assert!(
+            !sma.is_ready(),
+            "SMA must not be ready before any bars are fed"
+        );
     }
 
     /// SMA window larger than data: with only 2 bars fed into SMA(10), result is Unavailable.

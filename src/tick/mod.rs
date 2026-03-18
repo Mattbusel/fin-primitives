@@ -47,7 +47,13 @@ impl Tick {
         side: Side,
         timestamp: NanoTimestamp,
     ) -> Self {
-        Self { symbol, price, quantity, side, timestamp }
+        Self {
+            symbol,
+            price,
+            quantity,
+            side,
+            timestamp,
+        }
     }
 
     /// Returns the notional value of this tick: `price * quantity`.
@@ -61,7 +67,7 @@ impl Tick {
 
 /// Filters ticks by optional symbol, side, and minimum quantity predicates.
 ///
-/// All predicates are ANDed together. Unset predicates always pass.
+/// All predicates are `ANDed` together. Unset predicates always pass.
 pub struct TickFilter {
     symbol: Option<Symbol>,
     side: Option<Side>,
@@ -71,22 +77,29 @@ pub struct TickFilter {
 impl TickFilter {
     /// Creates a new `TickFilter` with no predicates set (matches everything).
     pub fn new() -> Self {
-        Self { symbol: None, side: None, min_qty: None }
+        Self {
+            symbol: None,
+            side: None,
+            min_qty: None,
+        }
     }
 
     /// Restrict matches to ticks with this symbol.
+    #[must_use]
     pub fn symbol(mut self, s: Symbol) -> Self {
         self.symbol = Some(s);
         self
     }
 
     /// Restrict matches to ticks on this side.
+    #[must_use]
     pub fn side(mut self, s: Side) -> Self {
         self.side = Some(s);
         self
     }
 
     /// Restrict matches to ticks with quantity >= `q`.
+    #[must_use]
     pub fn min_quantity(mut self, q: Quantity) -> Self {
         self.min_qty = Some(q);
         self
@@ -224,7 +237,10 @@ mod tests {
     fn test_tick_filter_combined_predicates() {
         let sym = Symbol::new("AAPL").unwrap();
         let min_qty = Quantity::new(dec!(5)).unwrap();
-        let f = TickFilter::new().symbol(sym).side(Side::Bid).min_quantity(min_qty);
+        let f = TickFilter::new()
+            .symbol(sym)
+            .side(Side::Bid)
+            .min_quantity(min_qty);
         let ok = make_tick("AAPL", "1", "10", Side::Bid, 0);
         let wrong_sym = make_tick("TSLA", "1", "10", Side::Bid, 0);
         let wrong_side = make_tick("AAPL", "1", "10", Side::Ask, 0);

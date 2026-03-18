@@ -59,7 +59,7 @@ pub struct BookDelta {
 pub struct OrderBook {
     /// The instrument this book tracks.
     pub symbol: Symbol,
-    /// Bid levels: price → quantity. Iterated in ascending key order by BTreeMap;
+    /// Bid levels: price → quantity. Iterated in ascending key order by `BTreeMap`;
     /// we use `.iter().rev()` to get descending (best bid first).
     bids: BTreeMap<Decimal, Decimal>,
     /// Ask levels: price → quantity. Iterated in ascending key order (best ask first).
@@ -83,10 +83,14 @@ impl OrderBook {
     ///
     /// # Errors
     /// Returns [`FinError::SequenceMismatch`] if `delta.sequence != self.sequence + 1`.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn apply_delta(&mut self, delta: BookDelta) -> Result<(), FinError> {
         let expected = self.sequence + 1;
         if delta.sequence != expected {
-            return Err(FinError::SequenceMismatch { expected, got: delta.sequence });
+            return Err(FinError::SequenceMismatch {
+                expected,
+                got: delta.sequence,
+            });
         }
         let book_side = match delta.side {
             Side::Bid => &mut self.bids,
@@ -116,16 +120,29 @@ impl OrderBook {
             // Roll back the mutation to keep the book consistent.
             match delta.action {
                 DeltaAction::Set => match delta.side {
-                    Side::Bid => { self.bids.remove(&delta.price.value()); }
-                    Side::Ask => { self.asks.remove(&delta.price.value()); }
+                    Side::Bid => {
+                        self.bids.remove(&delta.price.value());
+                    }
+                    Side::Ask => {
+                        self.asks.remove(&delta.price.value());
+                    }
                 },
                 DeltaAction::Remove => match delta.side {
-                    Side::Bid => { self.bids.insert(delta.price.value(), delta.quantity.value()); }
-                    Side::Ask => { self.asks.insert(delta.price.value(), delta.quantity.value()); }
+                    Side::Bid => {
+                        self.bids
+                            .insert(delta.price.value(), delta.quantity.value());
+                    }
+                    Side::Ask => {
+                        self.asks
+                            .insert(delta.price.value(), delta.quantity.value());
+                    }
                 },
             }
             self.sequence = expected - 1;
-            return Err(FinError::InvertedSpread { best_bid: best_bid_p, best_ask: best_ask_p });
+            return Err(FinError::InvertedSpread {
+                best_bid: best_bid_p,
+                best_ask: best_ask_p,
+            });
         }
 
         Ok(())
@@ -281,7 +298,8 @@ mod tests {
     #[test]
     fn test_orderbook_apply_delta_updates_bid() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
         let best = book.best_bid().unwrap();
         assert_eq!(best.price.value(), dec!(100));
         assert_eq!(best.quantity.value(), dec!(10));
@@ -290,7 +308,8 @@ mod tests {
     #[test]
     fn test_orderbook_apply_delta_updates_ask() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 1))
+            .unwrap();
         let best = book.best_ask().unwrap();
         assert_eq!(best.price.value(), dec!(101));
         assert_eq!(best.quantity.value(), dec!(5));
@@ -300,24 +319,35 @@ mod tests {
     fn test_orderbook_sequence_mismatch_returns_error() {
         let mut book = make_book();
         let result = book.apply_delta(set_delta(Side::Bid, "100", "10", 2));
-        assert!(matches!(result, Err(FinError::SequenceMismatch { expected: 1, got: 2 })));
+        assert!(matches!(
+            result,
+            Err(FinError::SequenceMismatch {
+                expected: 1,
+                got: 2
+            })
+        ));
     }
 
     #[test]
     fn test_orderbook_sequence_advances_correctly() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
         assert_eq!(book.sequence(), 1);
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2))
+            .unwrap();
         assert_eq!(book.sequence(), 2);
     }
 
     #[test]
     fn test_orderbook_best_bid_max_price() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "99", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "100", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "98", "20", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "98", "20", 3))
+            .unwrap();
         let best = book.best_bid().unwrap();
         assert_eq!(best.price.value(), dec!(100));
     }
@@ -325,9 +355,12 @@ mod tests {
     #[test]
     fn test_orderbook_best_ask_min_price() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "102", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "103", "20", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "103", "20", 3))
+            .unwrap();
         let best = book.best_ask().unwrap();
         assert_eq!(best.price.value(), dec!(101));
     }
@@ -335,8 +368,10 @@ mod tests {
     #[test]
     fn test_orderbook_spread_positive() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2))
+            .unwrap();
         let spread = book.spread().unwrap();
         assert_eq!(spread, dec!(1));
         assert!(spread > Decimal::ZERO);
@@ -345,8 +380,10 @@ mod tests {
     #[test]
     fn test_orderbook_mid_price() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "102", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "5", 2))
+            .unwrap();
         let mid = book.mid_price().unwrap();
         assert_eq!(mid, dec!(101));
     }
@@ -360,7 +397,8 @@ mod tests {
     #[test]
     fn test_orderbook_vwap_insufficient_liquidity() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 1))
+            .unwrap();
         let result = book.vwap_for_qty(Side::Ask, Quantity::new(dec!(100)).unwrap());
         assert!(matches!(result, Err(FinError::InsufficientLiquidity(_))));
     }
@@ -368,25 +406,33 @@ mod tests {
     #[test]
     fn test_orderbook_vwap_single_level() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "100", "10", 1)).unwrap();
-        let vwap = book.vwap_for_qty(Side::Ask, Quantity::new(dec!(5)).unwrap()).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "10", 1))
+            .unwrap();
+        let vwap = book
+            .vwap_for_qty(Side::Ask, Quantity::new(dec!(5)).unwrap())
+            .unwrap();
         assert_eq!(vwap, dec!(100));
     }
 
     #[test]
     fn test_orderbook_vwap_multi_level() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2))
+            .unwrap();
         // 5 @ 100 + 5 @ 101 = 1005 / 10 = 100.5
-        let vwap = book.vwap_for_qty(Side::Ask, Quantity::new(dec!(10)).unwrap()).unwrap();
+        let vwap = book
+            .vwap_for_qty(Side::Ask, Quantity::new(dec!(10)).unwrap())
+            .unwrap();
         assert_eq!(vwap, dec!(100.5));
     }
 
     #[test]
     fn test_orderbook_remove_level_delta() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
         book.apply_delta(remove_delta(Side::Bid, "100", 2)).unwrap();
         assert!(book.best_bid().is_none());
     }
@@ -394,9 +440,12 @@ mod tests {
     #[test]
     fn test_orderbook_top_bids_order() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "98", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "100", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "99", "20", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "98", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "20", 3))
+            .unwrap();
         let top = book.top_bids(2);
         assert_eq!(top[0].price.value(), dec!(100));
         assert_eq!(top[1].price.value(), dec!(99));
@@ -405,9 +454,12 @@ mod tests {
     #[test]
     fn test_orderbook_top_asks_order() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "103", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "102", "20", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "103", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "20", 3))
+            .unwrap();
         let top = book.top_asks(2);
         assert_eq!(top[0].price.value(), dec!(101));
         assert_eq!(top[1].price.value(), dec!(102));
@@ -416,8 +468,10 @@ mod tests {
     #[test]
     fn test_orderbook_bid_count_ask_count() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "1", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "101", "1", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "1", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "1", 2))
+            .unwrap();
         assert_eq!(book.bid_count(), 1);
         assert_eq!(book.ask_count(), 1);
     }
@@ -425,7 +479,8 @@ mod tests {
     #[test]
     fn test_orderbook_vwap_zero_qty_returns_zero() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "10", 1))
+            .unwrap();
         let vwap = book.vwap_for_qty(Side::Ask, Quantity::zero()).unwrap();
         assert_eq!(vwap, Decimal::ZERO);
     }
@@ -436,7 +491,8 @@ mod tests {
     fn test_apply_delta_rejects_inverted_spread() {
         let mut book = make_book();
         // Set ask at 100
-        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+            .unwrap();
         // Try to set bid at 101 (would cross the ask): must fail
         let result = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
         assert!(
@@ -449,27 +505,39 @@ mod tests {
     #[test]
     fn test_apply_delta_inverted_spread_rolls_back_sequence() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+            .unwrap();
         assert_eq!(book.sequence(), 1);
         // This should fail and leave sequence unchanged
         let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
-        assert_eq!(book.sequence(), 1, "sequence must not advance on rejected delta");
+        assert_eq!(
+            book.sequence(),
+            1,
+            "sequence must not advance on rejected delta"
+        );
     }
 
     #[test]
     fn test_apply_delta_inverted_spread_rolled_back_book_state() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1))
+            .unwrap();
         // Rejected bid at 101 must not persist in the book
         let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
-        assert!(book.best_bid().is_none(), "rejected bid must not appear in book");
+        assert!(
+            book.best_bid().is_none(),
+            "rejected bid must not appear in book"
+        );
     }
 
     /// Empty book mid_price returns None.
     #[test]
     fn test_empty_book_mid_price_returns_none() {
         let book = make_book();
-        assert!(book.mid_price().is_none(), "empty book mid_price must be None");
+        assert!(
+            book.mid_price().is_none(),
+            "empty book mid_price must be None"
+        );
     }
 
     /// Empty book best_bid returns None.
@@ -490,32 +558,47 @@ mod tests {
     #[test]
     fn test_best_bid_after_many_inserts_and_removes() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "105", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Bid, "103", "8", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "105", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Bid, "103", "8", 3))
+            .unwrap();
         // Remove 105 (was best bid)
         book.apply_delta(remove_delta(Side::Bid, "105", 4)).unwrap();
         let best = book.best_bid().unwrap();
-        assert_eq!(best.price.value(), dec!(103), "best bid after removing top level must be 103");
+        assert_eq!(
+            best.price.value(),
+            dec!(103),
+            "best bid after removing top level must be 103"
+        );
     }
 
     #[test]
     fn test_best_ask_after_many_inserts_and_removes() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Ask, "110", "10", 1)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "108", "5", 2)).unwrap();
-        book.apply_delta(set_delta(Side::Ask, "109", "8", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "110", "10", 1))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "108", "5", 2))
+            .unwrap();
+        book.apply_delta(set_delta(Side::Ask, "109", "8", 3))
+            .unwrap();
         // Remove 108 (was best ask)
         book.apply_delta(remove_delta(Side::Ask, "108", 4)).unwrap();
         let best = book.best_ask().unwrap();
-        assert_eq!(best.price.value(), dec!(109), "best ask after removing top level must be 109");
+        assert_eq!(
+            best.price.value(),
+            dec!(109),
+            "best ask after removing top level must be 109"
+        );
     }
 
     /// Crossed book detection: ask <= bid must return InvertedSpread.
     #[test]
     fn test_crossed_book_ask_at_bid_price_rejected() {
         let mut book = make_book();
-        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1))
+            .unwrap();
         let result = book.apply_delta(set_delta(Side::Ask, "100", "5", 2));
         assert!(
             matches!(result, Err(FinError::InvertedSpread { .. })),

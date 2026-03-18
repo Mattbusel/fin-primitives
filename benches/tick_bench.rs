@@ -29,7 +29,8 @@ fn bench_orderbook_delta(c: &mut Criterion) {
                     quantity: Quantity::new(dec!(5)).unwrap(),
                     action: DeltaAction::Set,
                     sequence: 1,
-                }).unwrap();
+                })
+                .unwrap();
                 book
             },
             |mut book| {
@@ -64,5 +65,10 @@ fn bench_ohlcv_push_tick(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_tick_filter, bench_orderbook_delta, bench_ohlcv_push_tick);
+criterion_group!(
+    benches,
+    bench_tick_filter,
+    bench_orderbook_delta,
+    bench_ohlcv_push_tick
+);
 criterion_main!(benches);

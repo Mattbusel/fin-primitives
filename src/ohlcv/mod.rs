@@ -77,8 +77,7 @@ impl OhlcvBar {
 
     /// Returns the typical price: `(high + low + close) / 3`.
     pub fn typical_price(&self) -> Decimal {
-        (self.high.value() + self.low.value() + self.close.value())
-            / Decimal::from(3u32)
+        (self.high.value() + self.low.value() + self.close.value()) / Decimal::from(3u32)
     }
 
     /// Returns the price range: `high - low`.
@@ -112,14 +111,15 @@ impl Timeframe {
     /// Returns [`FinError::InvalidTimeframe`] if the duration is zero.
     pub fn to_nanos(&self) -> Result<i64, FinError> {
         let secs: u64 = match self {
-            Timeframe::Seconds(n) => *n as u64,
-            Timeframe::Minutes(n) => *n as u64 * 60,
-            Timeframe::Hours(n) => *n as u64 * 3600,
-            Timeframe::Days(n) => *n as u64 * 86400,
+            Timeframe::Seconds(n) => u64::from(*n),
+            Timeframe::Minutes(n) => u64::from(*n) * 60,
+            Timeframe::Hours(n) => u64::from(*n) * 3600,
+            Timeframe::Days(n) => u64::from(*n) * 86400,
         };
         if secs == 0 {
             return Err(FinError::InvalidTimeframe);
         }
+        #[allow(clippy::cast_possible_wrap)]
         Ok((secs * 1_000_000_000) as i64)
     }
 
@@ -150,7 +150,12 @@ impl OhlcvAggregator {
     pub fn new(symbol: Symbol, timeframe: Timeframe) -> Result<Self, FinError> {
         // Validate timeframe eagerly.
         timeframe.to_nanos()?;
-        Ok(Self { symbol, timeframe, current_bar: None, current_bucket_start: None })
+        Ok(Self {
+            symbol,
+            timeframe,
+            current_bar: None,
+            current_bucket_start: None,
+        })
     }
 
     /// Processes a single tick, returning a completed bar when the timeframe boundary is crossed.
@@ -222,8 +227,8 @@ impl OhlcvAggregator {
                 bar.low = tick.price;
             }
             bar.close = tick.price;
-            bar.volume = Quantity::new(bar.volume.value() + tick.quantity.value())
-                .unwrap_or(bar.volume);
+            bar.volume =
+                Quantity::new(bar.volume.value() + tick.quantity.value()).unwrap_or(bar.volume);
             bar.ts_close = tick.timestamp;
             bar.tick_count += 1;
         }

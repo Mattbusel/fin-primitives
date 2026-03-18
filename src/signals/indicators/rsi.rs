@@ -59,7 +59,7 @@ impl Rsi {
 
     /// Computes RSI from average gain and average loss.
     ///
-    /// Returns 100 when avg_loss is zero (all gains), 0 when avg_gain is zero (all losses).
+    /// Returns 100 when `avg_loss` is zero (all gains), 0 when `avg_gain` is zero (all losses).
     fn compute_rsi(avg_gain: Decimal, avg_loss: Decimal) -> Result<Decimal, FinError> {
         if avg_loss == Decimal::ZERO {
             return Ok(Decimal::ONE_HUNDRED);
@@ -89,19 +89,24 @@ impl Signal for Rsi {
     fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
         let close = bar.close.value();
 
-        let prev = match self.prev_close {
-            None => {
-                // First bar: just record close, no change yet.
-                self.prev_close = Some(close);
-                return Ok(SignalValue::Unavailable);
-            }
-            Some(p) => p,
+        let Some(prev) = self.prev_close else {
+            // First bar: just record close, no change yet.
+            self.prev_close = Some(close);
+            return Ok(SignalValue::Unavailable);
         };
         self.prev_close = Some(close);
 
         let change = close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_gain.is_none() {
             // Seed phase: accumulate `period` changes.
@@ -114,11 +119,14 @@ impl Signal for Rsi {
             }
 
             // Seed complete: compute initial averages.
+            #[allow(clippy::cast_possible_truncation)]
             let period_d = Decimal::from(self.period as u32);
-            let ag = self.seed_gain
+            let ag = self
+                .seed_gain
                 .checked_div(period_d)
                 .ok_or(FinError::ArithmeticOverflow)?;
-            let al = self.seed_loss
+            let al = self
+                .seed_loss
                 .checked_div(period_d)
                 .ok_or(FinError::ArithmeticOverflow)?;
             self.avg_gain = Some(ag);
@@ -129,14 +137,17 @@ impl Signal for Rsi {
         }
 
         // Wilder smoothing phase.
-        let prev_ag = self.avg_gain.unwrap_or(Decimal::ZERO);
-        let prev_al = self.avg_loss.unwrap_or(Decimal::ZERO);
+        #[allow(clippy::similar_names)]
+        let prev_avg_gain = self.avg_gain.unwrap_or(Decimal::ZERO);
+        #[allow(clippy::similar_names)]
+        let prev_avg_loss = self.avg_loss.unwrap_or(Decimal::ZERO);
+        #[allow(clippy::cast_possible_truncation)]
         let period_d = Decimal::from(self.period as u32);
         let period_minus_1 = period_d
             .checked_sub(Decimal::ONE)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let ag = prev_ag
+        let ag = prev_avg_gain
             .checked_mul(period_minus_1)
             .ok_or(FinError::ArithmeticOverflow)?
             .checked_add(gain)
@@ -144,7 +155,7 @@ impl Signal for Rsi {
             .checked_div(period_d)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let al = prev_al
+        let al = prev_avg_loss
             .checked_mul(period_minus_1)
             .ok_or(FinError::ArithmeticOverflow)?
             .checked_add(loss)
@@ -249,7 +260,9 @@ mod tests {
     #[test]
     fn test_rsi_in_bounds() {
         let mut rsi = Rsi::new("rsi5", 5);
-        let closes = ["100", "102", "101", "103", "102", "104", "103", "105", "104", "106"];
+        let closes = [
+            "100", "102", "101", "103", "102", "104", "103", "105", "104", "106",
+        ];
         for &c in &closes {
             if let SignalValue::Scalar(v) = rsi.update(&bar(c)).unwrap() {
                 assert!(v >= dec!(0), "RSI < 0: {v}");
@@ -277,8 +290,10 @@ mod tests {
     fn test_rsi_equal_up_down_moves_stays_in_range() {
         let mut rsi = Rsi::new("rsi4", 4);
         // Alternating +10/-10: balanced gains and losses.
-        let prices = ["100", "110", "100", "110", "100", "110", "100", "110",
-                      "100", "110", "100", "110", "100", "110", "100", "110"];
+        let prices = [
+            "100", "110", "100", "110", "100", "110", "100", "110", "100", "110", "100", "110",
+            "100", "110", "100", "110",
+        ];
         let mut last_val: Option<Decimal> = None;
         for p in &prices {
             if let SignalValue::Scalar(v) = rsi.update(&bar(p)).unwrap() {
@@ -305,7 +320,10 @@ mod tests {
         // One more upward bar to trigger the smoothing phase.
         let v = rsi.update(&bar("116")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val >= dec!(70), "all-up RSI should be >= 70 (overbought), got {val}");
+            assert!(
+                val >= dec!(70),
+                "all-up RSI should be >= 70 (overbought), got {val}"
+            );
         } else {
             panic!("expected Scalar after period+1 bars, got Unavailable");
         }
@@ -321,7 +339,10 @@ mod tests {
                 any_scalar = true;
             }
         }
-        assert!(!any_scalar, "RSI must return Unavailable for fewer than period+1 bars");
+        assert!(
+            !any_scalar,
+            "RSI must return Unavailable for fewer than period+1 bars"
+        );
         assert!(!rsi.is_ready());
     }
 }

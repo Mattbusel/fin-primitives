@@ -37,7 +37,7 @@ impl Symbol {
     /// Returns [`FinError::InvalidSymbol`] if the string is empty or contains whitespace.
     pub fn new(s: impl Into<String>) -> Result<Self, FinError> {
         let s = s.into();
-        if s.is_empty() || s.chars().any(|c| c.is_whitespace()) {
+        if s.is_empty() || s.chars().any(char::is_whitespace) {
             return Err(FinError::InvalidSymbol(s));
         }
         Ok(Self(s))
@@ -64,7 +64,9 @@ impl std::fmt::Display for Symbol {
 /// let p = Price::new(dec!(100.50)).unwrap();
 /// assert_eq!(p.value(), dec!(100.50));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct Price(Decimal);
 
 impl Price {
@@ -94,7 +96,9 @@ impl Price {
 /// let q = Quantity::zero();
 /// assert_eq!(q.value(), dec!(0));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct Quantity(Decimal);
 
 impl Quantity {
@@ -132,7 +136,9 @@ pub enum Side {
 /// Exchange-epoch timestamp with nanosecond resolution.
 ///
 /// Stores nanoseconds since the Unix epoch (UTC).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct NanoTimestamp(pub i64);
 
 impl NanoTimestamp {
@@ -146,10 +152,13 @@ impl NanoTimestamp {
     /// Converts this timestamp to a [`DateTime<Utc>`].
     pub fn to_datetime(&self) -> DateTime<Utc> {
         let secs = self.0 / 1_000_000_000;
+        #[allow(clippy::cast_sign_loss)]
         let nanos = (self.0 % 1_000_000_000) as u32;
-        Utc.timestamp_opt(secs, nanos)
-            .single()
-            .unwrap_or_else(|| Utc.timestamp_opt(0, 0).single().unwrap_or(DateTime::<Utc>::MIN_UTC))
+        Utc.timestamp_opt(secs, nanos).single().unwrap_or_else(|| {
+            Utc.timestamp_opt(0, 0)
+                .single()
+                .unwrap_or(DateTime::<Utc>::MIN_UTC)
+        })
     }
 }
 
@@ -276,6 +285,9 @@ mod tests {
     fn test_nano_timestamp_to_datetime_roundtrip() {
         let ts = NanoTimestamp(1_700_000_000_000_000_000_i64);
         let dt = ts.to_datetime();
-        assert_eq!(dt.timestamp_nanos_opt().unwrap_or(0), 1_700_000_000_000_000_000_i64);
+        assert_eq!(
+            dt.timestamp_nanos_opt().unwrap_or(0),
+            1_700_000_000_000_000_000_i64
+        );
     }
 }

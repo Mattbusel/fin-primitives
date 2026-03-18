@@ -24,7 +24,10 @@ fn bar(close: &str) -> OhlcvBar {
 }
 
 fn feed_bars(signal: &mut impl Signal, prices: &[&str]) -> Vec<SignalValue> {
-    prices.iter().map(|p| signal.update(&bar(p)).unwrap()).collect()
+    prices
+        .iter()
+        .map(|p| signal.update(&bar(p)).unwrap())
+        .collect()
 }
 
 fn scalar(v: SignalValue) -> Decimal {
@@ -144,7 +147,13 @@ fn ema_monotone_increasing_sequence_tracks_uptrend() {
     let v1 = scalar(ema.update(&bar("40")).unwrap()); // 30
     let v2 = scalar(ema.update(&bar("50")).unwrap()); // 40
     let v3 = scalar(ema.update(&bar("60")).unwrap()); // 50
-    assert!(v1 < v2 && v2 < v3, "EMA should increase: {} {} {}", v1, v2, v3);
+    assert!(
+        v1 < v2 && v2 < v3,
+        "EMA should increase: {} {} {}",
+        v1,
+        v2,
+        v3
+    );
 }
 
 // ── RSI correctness ───────────────────────────────────────────────────────
@@ -198,9 +207,8 @@ fn rsi_always_in_0_to_100() {
     let mut rsi = Rsi::new("rsi14", 14);
     // Volatile prices
     let prices = [
-        "44.34", "44.09", "44.15", "43.61", "44.83", "45.10",
-        "45.15", "43.61", "44.33", "44.83", "45.10", "43.15",
-        "42.90", "43.00", "44.00", "43.50", "44.50",
+        "44.34", "44.09", "44.15", "43.61", "44.83", "45.10", "45.15", "43.61", "44.33", "44.83",
+        "45.10", "43.15", "42.90", "43.00", "44.00", "43.50", "44.50",
     ];
     for p in &prices {
         if let SignalValue::Scalar(v) = rsi.update(&bar(p)).unwrap() {
@@ -283,8 +291,10 @@ fn pipeline_empty_has_zero_ready() {
 fn sma_single_data_point_period_1() {
     let mut sma = Sma::new("sma1", 1);
     let v = sma.update(&bar("77")).unwrap();
-    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(77)),
-        "SMA(1) of a single data point must equal the data point");
+    assert!(
+        matches!(v, SignalValue::Scalar(d) if d == dec!(77)),
+        "SMA(1) of a single data point must equal the data point"
+    );
     assert!(sma.is_ready());
 }
 
@@ -294,8 +304,10 @@ fn sma_single_data_point_period_1() {
 fn ema_single_data_point_period_1() {
     let mut ema = Ema::new("ema1", 1);
     let v = ema.update(&bar("55")).unwrap();
-    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(55)),
-        "EMA(1) of a single data point must equal the data point");
+    assert!(
+        matches!(v, SignalValue::Scalar(d) if d == dec!(55)),
+        "EMA(1) of a single data point must equal the data point"
+    );
     assert!(ema.is_ready());
 }
 
@@ -333,8 +345,10 @@ fn rsi_all_same_prices_returns_100_by_convention() {
     rsi.update(&bar("100")).unwrap();
     let v = rsi.update(&bar("100")).unwrap();
     // avg_gain = 0, avg_loss = 0 → avg_loss == 0 branch → RSI = 100
-    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(100)),
-        "RSI with all-same prices: avg_loss=0 path must return 100");
+    assert!(
+        matches!(v, SignalValue::Scalar(d) if d == dec!(100)),
+        "RSI with all-same prices: avg_loss=0 path must return 100"
+    );
 }
 
 /// SMA with all-same prices equals that price exactly.
@@ -358,8 +372,10 @@ fn ema_all_same_values_returns_that_value() {
     // After seed phase, feed a few more identical bars.
     for _ in 0..5 {
         let v = ema.update(&bar("33")).unwrap();
-        assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(33)),
-            "EMA with all-same prices must equal that price");
+        assert!(
+            matches!(v, SignalValue::Scalar(d) if d == dec!(33)),
+            "EMA with all-same prices must equal that price"
+        );
     }
 }
 
@@ -378,7 +394,10 @@ fn rsi_overbought_boundary_above_70() {
     rsi.update(&bar("120")).unwrap();
     let v = rsi.update(&bar("130")).unwrap();
     if let SignalValue::Scalar(val) = v {
-        assert!(val >= dec!(70), "strongly uptrending RSI should be >= 70, got {val}");
+        assert!(
+            val >= dec!(70),
+            "strongly uptrending RSI should be >= 70, got {val}"
+        );
     } else {
         panic!("expected Scalar");
     }
@@ -394,7 +413,10 @@ fn rsi_oversold_boundary_below_30() {
     rsi.update(&bar("110")).unwrap();
     let v = rsi.update(&bar("100")).unwrap();
     if let SignalValue::Scalar(val) = v {
-        assert!(val <= dec!(30), "strongly downtrending RSI should be <= 30, got {val}");
+        assert!(
+            val <= dec!(30),
+            "strongly downtrending RSI should be <= 30, got {val}"
+        );
     } else {
         panic!("expected Scalar");
     }
@@ -418,13 +440,24 @@ fn sma_ema_converge_to_constant_price() {
     let mut last_sma = dec!(0);
     let mut last_ema = dec!(0);
     for _ in 0..20 {
-        if let SignalValue::Scalar(s) = sma.update(&bar("200")).unwrap() { last_sma = s; }
-        if let SignalValue::Scalar(e) = ema.update(&bar("200")).unwrap() { last_ema = e; }
+        if let SignalValue::Scalar(s) = sma.update(&bar("200")).unwrap() {
+            last_sma = s;
+        }
+        if let SignalValue::Scalar(e) = ema.update(&bar("200")).unwrap() {
+            last_ema = e;
+        }
     }
-    assert_eq!(last_sma, dec!(200), "SMA must be exactly 200 after 20 bars at 200");
+    assert_eq!(
+        last_sma,
+        dec!(200),
+        "SMA must be exactly 200 after 20 bars at 200"
+    );
     // EMA approaches 200 asymptotically; after 20 bars at 200 it must be very close.
     let diff = (last_ema - dec!(200)).abs();
-    assert!(diff < dec!(1), "EMA must be within 1 of 200 after 20 bars at that price, got {last_ema}");
+    assert!(
+        diff < dec!(1),
+        "EMA must be within 1 of 200 after 20 bars at that price, got {last_ema}"
+    );
 }
 
 // ── OhlcvSeries + Signal pipeline end-to-end ─────────────────────────────

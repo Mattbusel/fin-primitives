@@ -37,12 +37,12 @@
 #![deny(missing_docs)]
 
 pub mod error;
-pub mod types;
-pub mod tick;
-pub mod orderbook;
 pub mod ohlcv;
-pub mod signals;
+pub mod orderbook;
 pub mod position;
 pub mod risk;
+pub mod signals;
+pub mod tick;
+pub mod types;
 
 pub use error::FinError;

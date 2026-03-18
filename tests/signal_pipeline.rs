@@ -28,7 +28,9 @@ fn test_signal_pipeline_all_ready_after_period() {
         .add(Ema::new("ema", period))
         .add(Rsi::new("rsi", period));
 
-    let prices = ["100", "102", "101", "103", "105", "107", "104", "106", "108", "110"];
+    let prices = [
+        "100", "102", "101", "103", "105", "107", "104", "106", "108", "110",
+    ];
     let mut last_map = None;
     for p in &prices {
         last_map = Some(pipeline.update(&bar(p)).unwrap());
@@ -47,8 +49,7 @@ fn test_signal_pipeline_all_ready_after_period() {
 
 #[test]
 fn test_signal_pipeline_not_ready_before_period() {
-    let mut pipeline = SignalPipeline::new()
-        .add(Sma::new("sma5", 5));
+    let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5));
 
     // Feed only 4 bars.
     for p in &["100", "102", "104", "106"] {

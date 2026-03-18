@@ -41,7 +41,10 @@ fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
 #[test]
 fn test_nano_timestamp_now_is_positive() {
     let ts = NanoTimestamp::now();
-    assert!(ts.0 > 0, "NanoTimestamp::now() should return a positive value");
+    assert!(
+        ts.0 > 0,
+        "NanoTimestamp::now() should return a positive value"
+    );
 }
 
 #[test]

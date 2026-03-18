@@ -5,7 +5,7 @@
 //! Computes realized and unrealized P&L from fills.
 //!
 //! ## Guarantees
-//! - `Position::apply_fill` returns realized PnL (non-zero only when reducing position)
+//! - `Position::apply_fill` returns realized `PnL` (non-zero only when reducing position)
 //! - `PositionLedger::apply_fill` debits/credits cash correctly including commissions
 //! - `Position::is_flat` is true iff `quantity == 0`
 //!
@@ -59,7 +59,7 @@ impl Position {
         }
     }
 
-    /// Applies a fill, updating quantity, avg_cost, and realized_pnl.
+    /// Applies a fill, updating quantity, `avg_cost`, and `realized_pnl`.
     ///
     /// # Returns
     /// The realized P&L contributed by this fill (0 if position is increasing).
@@ -91,8 +91,8 @@ impl Position {
         } else if (self.quantity >= Decimal::ZERO && fill_qty > Decimal::ZERO)
             || (self.quantity <= Decimal::ZERO && fill_qty < Decimal::ZERO)
         {
-            let total_cost = self.avg_cost * self.quantity.abs()
-                + fill.price.value() * fill_qty.abs();
+            let total_cost =
+                self.avg_cost * self.quantity.abs() + fill.price.value() * fill_qty.abs();
             self.avg_cost = total_cost
                 .checked_div(new_qty.abs())
                 .ok_or(FinError::ArithmeticOverflow)?;
@@ -134,13 +134,17 @@ pub struct PositionLedger {
 impl PositionLedger {
     /// Creates a new `PositionLedger` with the given initial cash balance.
     pub fn new(initial_cash: Decimal) -> Self {
-        Self { positions: HashMap::new(), cash: initial_cash }
+        Self {
+            positions: HashMap::new(),
+            cash: initial_cash,
+        }
     }
 
     /// Applies a fill to the appropriate position and updates cash.
     ///
     /// # Errors
     /// Returns [`FinError::InsufficientFunds`] if a buy would require more cash than available.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn apply_fill(&mut self, fill: Fill) -> Result<(), FinError> {
         let cost = match fill.side {
             Side::Bid => -(fill.quantity.value() * fill.price.value() + fill.commission),
@@ -229,7 +233,8 @@ mod tests {
     #[test]
     fn test_position_apply_fill_long() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert_eq!(pos.quantity, dec!(10));
         assert_eq!(pos.avg_cost, dec!(100));
     }
@@ -237,16 +242,21 @@ mod tests {
     #[test]
     fn test_position_apply_fill_reduces_position() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        pos.apply_fill(&make_fill("AAPL", Side::Ask, "5", "110", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Ask, "5", "110", "0"))
+            .unwrap();
         assert_eq!(pos.quantity, dec!(5));
     }
 
     #[test]
     fn test_position_realized_pnl_on_close() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        let pnl = pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let pnl = pos
+            .apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         assert_eq!(pnl, dec!(100));
         assert!(pos.is_flat());
     }
@@ -254,15 +264,19 @@ mod tests {
     #[test]
     fn test_position_commission_reduces_realized_pnl() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        let pnl = pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "5")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let pnl = pos
+            .apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "5"))
+            .unwrap();
         assert_eq!(pnl, dec!(95));
     }
 
     #[test]
     fn test_position_unrealized_pnl() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let upnl = pos.unrealized_pnl(Price::new(dec!(115)).unwrap());
         assert_eq!(upnl, dec!(150));
     }
@@ -270,7 +284,8 @@ mod tests {
     #[test]
     fn test_position_market_value() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert_eq!(pos.market_value(Price::new(dec!(120)).unwrap()), dec!(1200));
     }
 
@@ -283,23 +298,29 @@ mod tests {
     #[test]
     fn test_position_is_flat_after_full_close() {
         let mut pos = Position::new(sym("AAPL"));
-        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         assert!(pos.is_flat());
     }
 
     #[test]
     fn test_position_avg_cost_weighted_after_two_buys() {
         let mut pos = Position::new(sym("X"));
-        pos.apply_fill(&make_fill("X", Side::Bid, "10", "100", "0")).unwrap();
-        pos.apply_fill(&make_fill("X", Side::Bid, "10", "120", "0")).unwrap();
+        pos.apply_fill(&make_fill("X", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        pos.apply_fill(&make_fill("X", Side::Bid, "10", "120", "0"))
+            .unwrap();
         assert_eq!(pos.avg_cost, dec!(110));
     }
 
     #[test]
     fn test_position_ledger_apply_fill_updates_cash() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "1")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "1"))
+            .unwrap();
         assert_eq!(ledger.cash(), dec!(8999));
     }
 
@@ -313,7 +334,9 @@ mod tests {
     #[test]
     fn test_position_ledger_equity_calculation() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_owned(), Price::new(dec!(110)).unwrap());
         // equity = cash + unrealized = 9000 + (110-100)*10 = 9100
@@ -324,15 +347,21 @@ mod tests {
     #[test]
     fn test_position_ledger_sell_increases_cash() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         assert_eq!(ledger.cash(), dec!(10100));
     }
 
     #[test]
     fn test_position_ledger_unrealized_pnl_total() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_owned(), Price::new(dec!(105)).unwrap());
         let upnl = ledger.unrealized_pnl_total(&prices).unwrap();
