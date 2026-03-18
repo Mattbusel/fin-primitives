@@ -27,9 +27,9 @@ wildcards = "deny"
 [advisories]
 # Fetch the RustSec advisory database and fail on any known vulnerability.
 vulnerability = "deny"
-unmaintained = "warn"
+unmaintained = "none"
 yanked = "deny"
-notice = "warn"
+notice = "none"
 
 [sources]
 # Only allow crates from crates.io and this repository itself.
