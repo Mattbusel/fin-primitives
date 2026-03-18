@@ -72,7 +72,7 @@ jobs:
       - name: Compile benchmarks
         run: cargo bench --no-run --all-features
       - name: Run benchmarks (single sample for CI timing check)
-        run: cargo bench -- --sample-size 10
+        run: cargo bench
 
   doc:
     name: Docs

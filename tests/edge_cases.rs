@@ -52,6 +52,7 @@ fn set_delta(side: Side, price: &str, qty: &str, seq: u64) -> BookDelta {
     }
 }
 
+#[allow(dead_code)]
 fn remove_delta(side: Side, price: &str, seq: u64) -> BookDelta {
     BookDelta {
         side,
