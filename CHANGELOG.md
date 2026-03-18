@@ -6,11 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-03-18
+
+### Added
+- `[profile.release]`: `opt-level = 3`, `lto = "thin"`, `codegen-units = 1`,
+  `strip = "debuginfo"`, `panic = "abort"` for maximum release performance.
+- `[profile.bench]`: dedicated bench profile with `lto = "thin"`.
+- `[lints.clippy]`: crate-level lint configuration (`unwrap_used`, `expect_used`,
+  `panic`, `todo` as `warn`; full `pedantic` group enabled; common false-positive
+  pedantic lints explicitly `allow`ed).
+- `rust-version = "1.75"` declared in `Cargo.toml` (MSRV).
+- `include` field in `Cargo.toml` to control published crate contents.
+- CI `bench` job split into its own dedicated job (compile + `--sample-size 10` run).
+- README: complete rewrite with mathematical definitions for all indicators and
+  types, OHLCV invariant table, precision/accuracy notes, full API reference with
+  examples for every module, and custom `Signal`/`RiskRule` implementation guides.
+
 ### Changed
+- Version bumped to `1.1.0`.
+- CI `bench` step promoted from the `test` job to a dedicated `bench` job.
+- README restructured with "What Is Included" table, mathematical definitions
+  section, full API reference, and precision/accuracy section.
 - Production-readiness pass: doc comments, error handling, CI, tests, and README reviewed.
   All existing tests continue to pass (341 total across unit, integration, and property suites).
 
-### Added
+---
+
+### Added (originally [Unreleased])
 - **RSI implementation**: `src/signals/indicators/rsi.rs` fully implemented with Wilder
   smoothing. Seed phase uses SMA over `period` changes; subsequent bars apply Wilder
   smoothing. Returns `Unavailable` until `period + 1` bars; value always in `[0, 100]`.
@@ -92,7 +116,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 242 tests across unit, integration, and property suites.
 - Benchmark harness via Criterion (`benches/tick_bench.rs`).
 
-[Unreleased]: https://github.com/Mattbusel/fin-primitives/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Mattbusel/fin-primitives/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Mattbusel/fin-primitives/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Mattbusel/fin-primitives/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/Mattbusel/fin-primitives/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Mattbusel/fin-primitives/releases/tag/v0.1.0
