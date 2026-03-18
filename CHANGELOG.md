@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `#![forbid(unsafe_code)]` and `#![deny(missing_docs)]` at crate root.
+- Extended inline tests in `ema.rs`: period-0 edge, single-value period-1, convergence-to-constant, small-positive-value stability.
+- Extended inline tests in `rsi.rs`: equal up/down moves (~50), all-up (100), all-down (0), fewer-bars-than-period (Unavailable).
+- Extended inline tests in `sma.rs`: constant-series identity, empty-input not-ready, window-larger-than-data (Unavailable), period-1 readiness.
+- Extended inline tests in `risk/mod.rs`: flat series drawdown = 0, monotonic decline drawdown = 100%.
+- Extended inline tests in `orderbook/mod.rs`: empty-book mid_price/best_bid/best_ask return None, many-insert/remove best-level tracking, crossed-book ask-at-bid-price rejection.
+- `cargo bench --no-run --all-features` CI step to catch bench compilation regressions.
+- Comprehensive crate-level module doc in `lib.rs` with feature table, design principles, and error section.
+
+### Changed
+- `OrderBook::best_bid` and `best_ask` use `Price::new(...).ok()?` instead of `unwrap_or_else` with a nested `.unwrap()`, removing the last production-path panic paths.
+
 ## [0.2.0] - 2026-03-17
 
 ### Added

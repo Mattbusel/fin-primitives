@@ -51,6 +51,8 @@ jobs:
         run: cargo test --all-features
         env:
           PROPTEST_CASES: 1000
+      - name: Ensure benches compile
+        run: cargo bench --no-run --all-features
       - name: Security audit
         run: |
           cargo install cargo-audit --quiet

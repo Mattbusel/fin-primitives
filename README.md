@@ -275,6 +275,57 @@ for b in &breaches {
 }
 ```
 
+## Indicator Reference
+
+### Accuracy Table
+
+| Indicator | Formula | Warm-up bars | Notes |
+|-----------|---------|-------------|-------|
+| **SMA(n)** | `Σ close[i] / n` over last n bars | n | Rolling `VecDeque` capped at `n`. Exactly equal to the arithmetic mean. |
+| **EMA(n)** | `close × k + prev_EMA × (1 − k)`, `k = 2 / (n + 1)` | n | First n bars produce an SMA seed; subsequent bars apply the multiplier. Matches standard EMA convention (e.g. TradingView). |
+| **RSI(n)** | `100 − 100 / (1 + RS)`, `RS = avg_gain / avg_loss` using Wilder smoothing: `avg = (prev_avg × (n−1) + new) / n` | n + 1 | One extra bar is required to compute the first price change. All-gain → 100; all-loss → 0; always clamped to [0, 100]. Matches Wilder (1978), TradingView, and Bloomberg. |
+
+### Risk Module
+
+`RiskMonitor` evaluates `Vec<Box<dyn RiskRule>>` on each equity update and returns every triggered breach.
+
+| Rule | Trigger condition | Field |
+|------|------------------|-------|
+| `MaxDrawdownRule` | `drawdown_pct > threshold_pct` (strictly greater) | `threshold_pct: Decimal` |
+| `MinEquityRule` | `equity < floor` (strictly less) | `floor: Decimal` |
+
+Custom rules implement the `RiskRule` trait:
+
+```rust
+use fin_primitives::risk::{RiskBreach, RiskRule};
+use rust_decimal::Decimal;
+
+struct HaltOnLoss { limit: Decimal }
+
+impl RiskRule for HaltOnLoss {
+    fn name(&self) -> &str { "halt_on_loss" }
+    fn check(&self, equity: Decimal, _dd: Decimal) -> Option<RiskBreach> {
+        if equity < self.limit {
+            Some(RiskBreach { rule: self.name().into(), detail: format!("equity {equity} < halt limit {}", self.limit) })
+        } else {
+            None
+        }
+    }
+}
+```
+
+`DrawdownTracker` can be used standalone:
+
+```rust
+use fin_primitives::risk::DrawdownTracker;
+use rust_decimal_macros::dec;
+
+let mut tracker = DrawdownTracker::new(dec!(100_000));
+tracker.update(dec!(85_000));
+println!("drawdown: {}%", tracker.current_drawdown_pct()); // 15%
+println!("peak: {}", tracker.peak()); // 100000
+```
+
 ## Performance Notes
 
 - **Lock-free order book** — `OrderBook` uses a `BTreeMap` with no internal synchronisation. The hot path (apply_delta) allocates only when inserting a new price level; updates to existing levels are in-place.
