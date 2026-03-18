@@ -132,18 +132,28 @@ impl OrderBook {
     }
 
     /// Returns the best bid (highest price) or `None` if the bid side is empty.
+    ///
+    /// Returns `None` if the book is empty or if the stored price is somehow
+    /// non-positive (which is structurally prevented by `apply_delta`).
     pub fn best_bid(&self) -> Option<PriceLevel> {
-        self.bids.iter().next_back().map(|(p, q)| PriceLevel {
-            price: Price::new(*p).unwrap_or_else(|_| Price::new(Decimal::ONE).unwrap()),
-            quantity: Quantity::new(*q).unwrap_or_else(|_| Quantity::zero()),
+        self.bids.iter().next_back().and_then(|(p, q)| {
+            Some(PriceLevel {
+                price: Price::new(*p).ok()?,
+                quantity: Quantity::new(*q).unwrap_or_else(|_| Quantity::zero()),
+            })
         })
     }
 
     /// Returns the best ask (lowest price) or `None` if the ask side is empty.
+    ///
+    /// Returns `None` if the book is empty or if the stored price is somehow
+    /// non-positive (which is structurally prevented by `apply_delta`).
     pub fn best_ask(&self) -> Option<PriceLevel> {
-        self.asks.iter().next().map(|(p, q)| PriceLevel {
-            price: Price::new(*p).unwrap_or_else(|_| Price::new(Decimal::ONE).unwrap()),
-            quantity: Quantity::new(*q).unwrap_or_else(|_| Quantity::zero()),
+        self.asks.iter().next().and_then(|(p, q)| {
+            Some(PriceLevel {
+                price: Price::new(*p).ok()?,
+                quantity: Quantity::new(*q).unwrap_or_else(|_| Quantity::zero()),
+            })
         })
     }
 
@@ -453,5 +463,70 @@ mod tests {
         // Rejected bid at 101 must not persist in the book
         let _ = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
         assert!(book.best_bid().is_none(), "rejected bid must not appear in book");
+    }
+
+    /// Empty book mid_price returns None.
+    #[test]
+    fn test_empty_book_mid_price_returns_none() {
+        let book = make_book();
+        assert!(book.mid_price().is_none(), "empty book mid_price must be None");
+    }
+
+    /// Empty book best_bid returns None.
+    #[test]
+    fn test_empty_book_best_bid_returns_none() {
+        let book = make_book();
+        assert!(book.best_bid().is_none());
+    }
+
+    /// Empty book best_ask returns None.
+    #[test]
+    fn test_empty_book_best_ask_returns_none() {
+        let book = make_book();
+        assert!(book.best_ask().is_none());
+    }
+
+    /// Best bid/ask after many inserts and removes reflects only surviving levels.
+    #[test]
+    fn test_best_bid_after_many_inserts_and_removes() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "105", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "103", "8", 3)).unwrap();
+        // Remove 105 (was best bid)
+        book.apply_delta(remove_delta(Side::Bid, "105", 4)).unwrap();
+        let best = book.best_bid().unwrap();
+        assert_eq!(best.price.value(), dec!(103), "best bid after removing top level must be 103");
+    }
+
+    #[test]
+    fn test_best_ask_after_many_inserts_and_removes() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "110", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "108", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "109", "8", 3)).unwrap();
+        // Remove 108 (was best ask)
+        book.apply_delta(remove_delta(Side::Ask, "108", 4)).unwrap();
+        let best = book.best_ask().unwrap();
+        assert_eq!(best.price.value(), dec!(109), "best ask after removing top level must be 109");
+    }
+
+    /// Crossed book detection: ask <= bid must return InvertedSpread.
+    #[test]
+    fn test_crossed_book_ask_at_bid_price_rejected() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        let result = book.apply_delta(set_delta(Side::Ask, "100", "5", 2));
+        assert!(
+            matches!(result, Err(FinError::InvertedSpread { .. })),
+            "ask at bid price must produce InvertedSpread"
+        );
+    }
+
+    /// Empty book spread returns None.
+    #[test]
+    fn test_empty_book_spread_returns_none() {
+        let book = make_book();
+        assert!(book.spread().is_none());
     }
 }

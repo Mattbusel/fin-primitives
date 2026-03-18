@@ -5,7 +5,9 @@ use crate::ohlcv::OhlcvBar;
 use crate::signals::{Signal, SignalValue};
 use std::collections::HashMap;
 
-/// A named map of signal output values for a single bar update.
+/// A named map of signal output values produced by a single [`SignalPipeline::update`] call.
+///
+/// Keys are the signal names as returned by [`crate::signals::Signal::name`].
 pub struct SignalMap(HashMap<String, SignalValue>);
 
 impl SignalMap {

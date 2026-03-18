@@ -153,6 +153,136 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ---
 
+## Module Hierarchy
+
+Modules are layered from primitive validated types upward. Each module depends only on modules below it in this chain:
+
+```
+types  →  tick  →  orderbook
+                →  ohlcv  →  signals  →  position  →  risk
+```
+
+- **types**: `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` — no dependencies within the crate
+- **orderbook**: depends on `types` for `Price`, `Quantity`, `Side`, `Symbol`
+- **tick**: depends on `types`; provides `Tick`, `TickFilter`, `TickReplayer`
+- **ohlcv**: depends on `tick` and `types`; produces `OhlcvBar` from tick streams
+- **signals**: depends on `ohlcv`; `Signal` trait + `Sma`, `Ema`, `Rsi`, `SignalPipeline`
+- **position**: depends on `types`; `Fill`, `Position`, `PositionLedger`
+- **risk**: depends on `position` types indirectly via `PositionLedger::equity`; `DrawdownTracker`, `RiskMonitor`, `RiskRule`
+
+### Creating a Price
+
+```rust
+use fin_primitives::types::{Price, Quantity, Symbol};
+use rust_decimal_macros::dec;
+
+let price = Price::new(dec!(150.25)).unwrap();  // strictly positive
+let qty   = Quantity::new(dec!(10)).unwrap();   // non-negative
+let sym   = Symbol::new("AAPL").unwrap();       // non-empty, no whitespace
+println!("{}  qty={}  @ {}", sym, qty.value(), price.value());
+```
+
+### Pushing ticks to an OrderBook
+
+```rust
+use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
+use fin_primitives::types::{Price, Quantity, Side, Symbol};
+use rust_decimal_macros::dec;
+
+let mut book = OrderBook::new(Symbol::new("AAPL").unwrap());
+book.apply_delta(BookDelta {
+    side: Side::Bid, price: Price::new(dec!(150)).unwrap(),
+    quantity: Quantity::new(dec!(100)).unwrap(),
+    action: DeltaAction::Set, sequence: 1,
+}).unwrap();
+book.apply_delta(BookDelta {
+    side: Side::Ask, price: Price::new(dec!(151)).unwrap(),
+    quantity: Quantity::new(dec!(50)).unwrap(),
+    action: DeltaAction::Set, sequence: 2,
+}).unwrap();
+println!("spread={} mid={}", book.spread().unwrap(), book.mid_price().unwrap());
+```
+
+### Streaming OHLCV bars
+
+```rust
+use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
+use fin_primitives::tick::Tick;
+use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
+use rust_decimal_macros::dec;
+
+let sym = Symbol::new("AAPL").unwrap();
+let mut agg = OhlcvAggregator::new(sym.clone(), Timeframe::Seconds(60)).unwrap();
+let nanos_per_min = 60_000_000_000_i64;
+
+// Two ticks within minute 0 — no bar completed yet.
+agg.push_tick(&Tick::new(sym.clone(), Price::new(dec!(150)).unwrap(), Quantity::new(dec!(10)).unwrap(), Side::Ask, NanoTimestamp(0))).unwrap();
+agg.push_tick(&Tick::new(sym.clone(), Price::new(dec!(152)).unwrap(), Quantity::new(dec!(5)).unwrap(),  Side::Bid, NanoTimestamp(30_000_000_000))).unwrap();
+
+// Tick in minute 1 — triggers completion of minute-0 bar.
+if let Some(bar) = agg.push_tick(&Tick::new(sym, Price::new(dec!(153)).unwrap(), Quantity::new(dec!(8)).unwrap(), Side::Ask, NanoTimestamp(nanos_per_min + 1))).unwrap() {
+    println!("O={} H={} L={} C={} ticks={}", bar.open.value(), bar.high.value(), bar.low.value(), bar.close.value(), bar.tick_count);
+}
+```
+
+### Computing RSI
+
+```rust
+use fin_primitives::signals::indicators::Rsi;
+use fin_primitives::signals::{Signal, SignalValue};
+use fin_primitives::ohlcv::OhlcvBar;
+use fin_primitives::types::{NanoTimestamp, Price, Quantity, Symbol};
+
+let mut rsi = Rsi::new("rsi14", 14);
+let closes = [44.34_f64, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.15,
+              43.61, 44.33, 44.83, 45.10, 45.15, 43.61, 44.34];
+for &c in &closes {
+    let p = Price::new(c.to_string().parse().unwrap()).unwrap();
+    let bar = OhlcvBar { symbol: Symbol::new("X").unwrap(), open: p, high: p, low: p, close: p,
+        volume: Quantity::zero(), ts_open: NanoTimestamp(0), ts_close: NanoTimestamp(1), tick_count: 1 };
+    if let SignalValue::Scalar(v) = rsi.update(&bar).unwrap() {
+        println!("RSI(14) = {:.2}", v);
+    }
+}
+```
+
+### Tracking position PnL
+
+```rust
+use fin_primitives::position::{Fill, PositionLedger};
+use fin_primitives::risk::{MaxDrawdownRule, MinEquityRule, RiskMonitor};
+use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
+use rust_decimal_macros::dec;
+use std::collections::HashMap;
+
+let mut ledger  = PositionLedger::new(dec!(100_000));
+let mut monitor = RiskMonitor::new(dec!(100_000))
+    .add_rule(MaxDrawdownRule { threshold_pct: dec!(10) })
+    .add_rule(MinEquityRule   { floor: dec!(90_000) });
+
+ledger.apply_fill(Fill {
+    symbol: Symbol::new("AAPL").unwrap(), side: Side::Bid,
+    quantity: Quantity::new(dec!(100)).unwrap(), price: Price::new(dec!(175)).unwrap(),
+    timestamp: NanoTimestamp(0), commission: dec!(1),
+}).unwrap();
+
+let mut prices = HashMap::new();
+prices.insert("AAPL".to_owned(), Price::new(dec!(165)).unwrap());
+let equity   = ledger.equity(&prices).unwrap();
+let breaches = monitor.update(equity);
+for b in &breaches {
+    println!("breach [{}]: {}", b.rule, b.detail);
+}
+```
+
+## Performance Notes
+
+- **Lock-free order book** — `OrderBook` uses a `BTreeMap` with no internal synchronisation. The hot path (apply_delta) allocates only when inserting a new price level; updates to existing levels are in-place.
+- **Exact arithmetic** — `rust_decimal` is used for every price and quantity. Floating-point drift is structurally impossible.
+- **O(1) streaming indicators** — `Ema` and `Rsi` maintain a constant-size state regardless of history length. `Sma` uses a `VecDeque` capped at `period` elements.
+- **Zero-copy tick replay** — `TickReplayer` sorts once at construction and returns shared references on each `next_tick` call; no per-tick heap allocation.
+- **Composable risk without boxing** — `RiskMonitor::add_rule` boxes rules once into `Vec<Box<dyn RiskRule>>`. Evaluation is a simple linear scan; no dynamic dispatch per field access.
+
 ## Running Tests
 
 ```bash

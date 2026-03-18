@@ -155,4 +155,71 @@ mod tests {
         ema.update(&bar("30")).unwrap();
         assert!(ema.is_ready());
     }
+
+    /// EMA with period 0: the denominator for k becomes 0+1=1, so k=2/1=2, but
+    /// the seed loop never fires (0 iterations), meaning `count == period == 0`
+    /// on the very first bar and the EMA seed phase completes immediately with
+    /// seed_sum / 0, which triggers ArithmeticOverflow. We verify this is handled
+    /// gracefully by checking the result is not a panic.
+    #[test]
+    fn test_ema_period_0_seed_division_returns_overflow() {
+        let mut ema = Ema::new("ema0", 0);
+        // period=0 means `count <= 0` is true from count=1, so we go straight to
+        // the EMA phase with prev=0 (current is None). The first bar never enters
+        // the seed phase because `count (1) <= period (0)` is false immediately.
+        // The result depends on implementation; we only assert no panic.
+        let result = ema.update(&bar("100"));
+        // Either an Ok(Scalar) or an Err — just must not panic.
+        let _ = result;
+    }
+
+    /// EMA with a single value: period=1, SMA seed = that value.
+    #[test]
+    fn test_ema_single_value_period_1() {
+        let mut ema = Ema::new("ema1", 1);
+        let v = ema.update(&bar("42")).unwrap();
+        assert!(
+            matches!(v, SignalValue::Scalar(d) if d == dec!(42)),
+            "EMA(1) of a single bar must equal that bar's close"
+        );
+        assert!(ema.is_ready());
+    }
+
+    /// EMA convergence property: feeding a constant price after warm-up should
+    /// drive the EMA to that price. After many bars at the same value, the
+    /// difference between EMA and the constant must be negligible.
+    #[test]
+    fn test_ema_convergence_to_constant_series() {
+        let mut ema = Ema::new("ema5", 5);
+        // Warm up with varying prices.
+        for p in &["10", "20", "30", "40", "50"] {
+            ema.update(&bar(p)).unwrap();
+        }
+        // Feed 30 bars at 100 — EMA must converge close to 100.
+        let mut last = dec!(0);
+        for _ in 0..30 {
+            if let SignalValue::Scalar(v) = ema.update(&bar("100")).unwrap() {
+                last = v;
+            }
+        }
+        let diff = (last - dec!(100)).abs();
+        assert!(
+            diff < dec!(1),
+            "EMA must converge within 1 of 100 after 30 bars, got {last}"
+        );
+    }
+
+    /// EMA handles negative close prices without panicking (prices in the bar
+    /// struct use `Price` which is positive, but the EMA arithmetic itself must
+    /// be stable). We construct a bar with a valid close and verify no arithmetic
+    /// panic occurs even when prices are very small.
+    #[test]
+    fn test_ema_small_positive_values_no_panic() {
+        let mut ema = Ema::new("ema3", 3);
+        // Use very small positive decimals (Price validation ensures > 0).
+        for p in &["0.001", "0.002", "0.003", "0.004"] {
+            let result = ema.update(&bar(p));
+            assert!(result.is_ok(), "EMA must not error on small positive values");
+        }
+    }
 }

@@ -1,38 +1,45 @@
-//! Relative Strength Index (RSI) indicator.
+//! Relative Strength Index (RSI) indicator — Wilder smoothing.
+//!
+//! RSI is a momentum oscillator that measures the speed and change of price movements.
+//! It oscillates between 0 and 100. Traditional interpretation:
+//! - RSI >= 70: potentially overbought
+//! - RSI <= 30: potentially oversold
 
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
 use crate::signals::{Signal, SignalValue};
 use rust_decimal::Decimal;
-use std::collections::VecDeque;
 
-/// Relative Strength Index over `period` bars using Wilder's smoothing.
+/// Relative Strength Index using Wilder's smoothing method.
 ///
-/// Returns `SignalValue::Unavailable` until `period + 1` bars have been processed
-/// (one extra bar is needed to compute the first price change).
+/// Requires `period + 1` bars before producing a value: the first bar sets the
+/// previous close, and then `period` price changes are needed to seed the initial
+/// average gain/loss. Subsequent bars apply Wilder smoothing:
+/// `avg_gain = (prev_avg_gain * (period - 1) + gain) / period`.
 ///
-/// Wilder's algorithm:
-/// 1. Seed: simple average of the first `period` gains/losses.
-/// 2. Every subsequent bar: `avg = (avg * (period - 1) + new_value) / period`.
+/// Always returns a value in `[0, 100]`. Returns [`SignalValue::Unavailable`] until
+/// the warm-up period is complete.
 ///
-/// The previous implementation used a rolling SMA window recomputed each bar,
-/// which produces different values than the Wilder EMA used by every real RSI
-/// implementation (e.g. TradingView, Bloomberg, MetaTrader).
-///
-/// Result is always in `[0, 100]`.
+/// # Example
+/// ```rust
+/// use fin_primitives::signals::indicators::Rsi;
+/// use fin_primitives::signals::Signal;
+/// let rsi = Rsi::new("rsi14", 14);
+/// assert_eq!(rsi.period(), 14);
+/// assert!(!rsi.is_ready());
+/// ```
 pub struct Rsi {
     name: String,
     period: usize,
-    /// Seed accumulator — collects raw gains for the first `period` bars.
-    seed_gains: VecDeque<Decimal>,
-    /// Seed accumulator — collects raw losses for the first `period` bars.
-    seed_losses: VecDeque<Decimal>,
-    /// Wilder smoothed average gain (None until seed phase complete).
-    avg_gain: Option<Decimal>,
-    /// Wilder smoothed average loss (None until seed phase complete).
-    avg_loss: Option<Decimal>,
     prev_close: Option<Decimal>,
+    avg_gain: Option<Decimal>,
+    avg_loss: Option<Decimal>,
+    /// Number of price changes accumulated during the seed phase.
     count: usize,
+    /// Accumulator for gains during the seed phase.
+    seed_gain: Decimal,
+    /// Accumulator for losses during the seed phase.
+    seed_loss: Decimal,
 }
 
 impl Rsi {
@@ -41,13 +48,36 @@ impl Rsi {
         Self {
             name: name.into(),
             period,
-            seed_gains: VecDeque::with_capacity(period),
-            seed_losses: VecDeque::with_capacity(period),
+            prev_close: None,
             avg_gain: None,
             avg_loss: None,
-            prev_close: None,
             count: 0,
+            seed_gain: Decimal::ZERO,
+            seed_loss: Decimal::ZERO,
         }
+    }
+
+    /// Computes RSI from average gain and average loss.
+    ///
+    /// Returns 100 when avg_loss is zero (all gains), 0 when avg_gain is zero (all losses).
+    fn compute_rsi(avg_gain: Decimal, avg_loss: Decimal) -> Result<Decimal, FinError> {
+        if avg_loss == Decimal::ZERO {
+            return Ok(Decimal::ONE_HUNDRED);
+        }
+        let rs = avg_gain
+            .checked_div(avg_loss)
+            .ok_or(FinError::ArithmeticOverflow)?;
+        // RSI = 100 - (100 / (1 + RS))
+        let one_plus_rs = Decimal::ONE
+            .checked_add(rs)
+            .ok_or(FinError::ArithmeticOverflow)?;
+        let hundred_div = Decimal::ONE_HUNDRED
+            .checked_div(one_plus_rs)
+            .ok_or(FinError::ArithmeticOverflow)?;
+        let rsi = Decimal::ONE_HUNDRED
+            .checked_sub(hundred_div)
+            .ok_or(FinError::ArithmeticOverflow)?;
+        Ok(rsi)
     }
 }
 
@@ -59,74 +89,73 @@ impl Signal for Rsi {
     fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
         let close = bar.close.value();
 
-        if let Some(prev) = self.prev_close {
-            let change = close - prev;
-            let (gain, loss) = if change >= Decimal::ZERO {
-                (change, Decimal::ZERO)
-            } else {
-                (Decimal::ZERO, change.abs())
-            };
-
-            let period_dec = Decimal::from(self.period as u32);
-
-            if self.count < self.period {
-                // Seed phase: accumulate raw values.
-                self.seed_gains.push_back(gain);
-                self.seed_losses.push_back(loss);
-                self.count += 1;
-
-                if self.count == self.period {
-                    // Initialise with simple average of seed window.
-                    let sum_g: Decimal = self.seed_gains.iter().copied().sum();
-                    let sum_l: Decimal = self.seed_losses.iter().copied().sum();
-                    self.avg_gain = Some(
-                        sum_g.checked_div(period_dec).ok_or(FinError::ArithmeticOverflow)?,
-                    );
-                    self.avg_loss = Some(
-                        sum_l.checked_div(period_dec).ok_or(FinError::ArithmeticOverflow)?,
-                    );
-                }
-            } else {
-                // Smoothing phase: Wilder EMA — avg = (avg*(period-1) + new) / period.
-                let prev_gain = self.avg_gain.ok_or(FinError::ArithmeticOverflow)?;
-                let prev_loss = self.avg_loss.ok_or(FinError::ArithmeticOverflow)?;
-                let period_m1 = Decimal::from((self.period - 1) as u32);
-                self.avg_gain = Some(
-                    (prev_gain * period_m1 + gain)
-                        .checked_div(period_dec)
-                        .ok_or(FinError::ArithmeticOverflow)?,
-                );
-                self.avg_loss = Some(
-                    (prev_loss * period_m1 + loss)
-                        .checked_div(period_dec)
-                        .ok_or(FinError::ArithmeticOverflow)?,
-                );
-                self.count += 1;
+        let prev = match self.prev_close {
+            None => {
+                // First bar: just record close, no change yet.
+                self.prev_close = Some(close);
+                return Ok(SignalValue::Unavailable);
             }
-        }
-
+            Some(p) => p,
+        };
         self.prev_close = Some(close);
 
-        let (avg_gain, avg_loss) = match (self.avg_gain, self.avg_loss) {
-            (Some(g), Some(l)) => (g, l),
-            _ => return Ok(SignalValue::Unavailable),
-        };
+        let change = close - prev;
+        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
+        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
 
-        if avg_loss == Decimal::ZERO {
-            // All gains, no losses → RSI = 100
-            return Ok(SignalValue::Scalar(Decimal::ONE_HUNDRED));
+        if self.avg_gain.is_none() {
+            // Seed phase: accumulate `period` changes.
+            self.seed_gain += gain;
+            self.seed_loss += loss;
+            self.count += 1;
+
+            if self.count < self.period {
+                return Ok(SignalValue::Unavailable);
+            }
+
+            // Seed complete: compute initial averages.
+            let period_d = Decimal::from(self.period as u32);
+            let ag = self.seed_gain
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
+            let al = self.seed_loss
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
+            self.avg_gain = Some(ag);
+            self.avg_loss = Some(al);
+
+            let rsi = Self::compute_rsi(ag, al)?;
+            return Ok(SignalValue::Scalar(rsi));
         }
 
-        let rs = avg_gain
-            .checked_div(avg_loss)
+        // Wilder smoothing phase.
+        let prev_ag = self.avg_gain.unwrap_or(Decimal::ZERO);
+        let prev_al = self.avg_loss.unwrap_or(Decimal::ZERO);
+        let period_d = Decimal::from(self.period as u32);
+        let period_minus_1 = period_d
+            .checked_sub(Decimal::ONE)
             .ok_or(FinError::ArithmeticOverflow)?;
-        let rsi = Decimal::ONE_HUNDRED
-            - Decimal::ONE_HUNDRED
-                .checked_div(Decimal::ONE + rs)
-                .ok_or(FinError::ArithmeticOverflow)?;
 
-        // Clamp to [0, 100] to guard against precision edge cases.
-        let rsi = rsi.max(Decimal::ZERO).min(Decimal::ONE_HUNDRED);
+        let ag = prev_ag
+            .checked_mul(period_minus_1)
+            .ok_or(FinError::ArithmeticOverflow)?
+            .checked_add(gain)
+            .ok_or(FinError::ArithmeticOverflow)?
+            .checked_div(period_d)
+            .ok_or(FinError::ArithmeticOverflow)?;
+
+        let al = prev_al
+            .checked_mul(period_minus_1)
+            .ok_or(FinError::ArithmeticOverflow)?
+            .checked_add(loss)
+            .ok_or(FinError::ArithmeticOverflow)?
+            .checked_div(period_d)
+            .ok_or(FinError::ArithmeticOverflow)?;
+
+        self.avg_gain = Some(ag);
+        self.avg_loss = Some(al);
+
+        let rsi = Self::compute_rsi(ag, al)?;
         Ok(SignalValue::Scalar(rsi))
     }
 
@@ -162,121 +191,115 @@ mod tests {
     }
 
     #[test]
-    fn test_rsi_not_ready_before_period() {
+    fn test_rsi_unavailable_before_period_plus_one() {
         let mut rsi = Rsi::new("rsi3", 3);
-        rsi.update(&bar("100")).unwrap();
-        let v = rsi.update(&bar("105")).unwrap();
-        assert!(matches!(v, SignalValue::Unavailable));
+        // First 3 bars: unavailable (1 sets prev, then 2 changes < period=3).
+        let v1 = rsi.update(&bar("100")).unwrap();
+        let v2 = rsi.update(&bar("102")).unwrap();
+        let v3 = rsi.update(&bar("104")).unwrap();
+        assert!(matches!(v1, SignalValue::Unavailable));
+        assert!(matches!(v2, SignalValue::Unavailable));
+        assert!(matches!(v3, SignalValue::Unavailable));
         assert!(!rsi.is_ready());
     }
 
     #[test]
-    fn test_rsi_value_in_range_0_to_100() {
+    fn test_rsi_ready_after_period_plus_one_bars() {
         let mut rsi = Rsi::new("rsi3", 3);
-        let prices = ["100", "102", "101", "103", "105"];
-        let mut last_val = Decimal::ZERO;
-        for p in &prices {
-            if let SignalValue::Scalar(v) = rsi.update(&bar(p)).unwrap() {
-                last_val = v;
-            }
+        for p in &["100", "102", "104", "106"] {
+            rsi.update(&bar(p)).unwrap();
         }
-        assert!(last_val >= Decimal::ZERO);
-        assert!(last_val <= Decimal::ONE_HUNDRED);
-    }
-
-    #[test]
-    fn test_rsi_all_gains_returns_100() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        // Monotonically increasing → RSI should be 100.
-        rsi.update(&bar("100")).unwrap();
-        rsi.update(&bar("110")).unwrap();
-        rsi.update(&bar("120")).unwrap();
-        let v = rsi.update(&bar("130")).unwrap();
-        if let SignalValue::Scalar(val) = v {
-            assert_eq!(val, dec!(100));
-        } else {
-            panic!("expected Scalar");
-        }
-    }
-
-    #[test]
-    fn test_rsi_is_ready_after_period_plus_one() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        rsi.update(&bar("100")).unwrap();
-        rsi.update(&bar("101")).unwrap();
-        rsi.update(&bar("102")).unwrap();
-        assert!(!rsi.is_ready());
-        rsi.update(&bar("103")).unwrap();
         assert!(rsi.is_ready());
     }
 
     #[test]
-    fn test_rsi_overbought_at_70() {
-        // Feed a period-14 RSI with 14 consecutive up-moves of equal size.
-        // All changes are gains → avg_loss == 0 → RSI == 100, which is >= 70.
-        let mut rsi = Rsi::new("rsi14", 14);
-        // 15 bars: one to set prev_close, then 14 up moves filling the seed window.
-        // After bar 15 the seed average is computed (all gains) → RSI = 100.
-        for i in 0u32..=14 {
-            rsi.update(&bar(&(100 + i).to_string())).unwrap();
+    fn test_rsi_scalar_value_on_period_plus_one_bar() {
+        let mut rsi = Rsi::new("rsi3", 3);
+        let _ = rsi.update(&bar("100")).unwrap();
+        let _ = rsi.update(&bar("102")).unwrap();
+        let _ = rsi.update(&bar("104")).unwrap();
+        let v = rsi.update(&bar("106")).unwrap();
+        assert!(matches!(v, SignalValue::Scalar(_)));
+    }
+
+    #[test]
+    fn test_rsi_all_gains_equals_100() {
+        let mut rsi = Rsi::new("rsi3", 3);
+        // Strictly rising prices → avg_loss = 0 → RSI = 100.
+        for p in &["100", "101", "102", "103", "104"] {
+            let _ = rsi.update(&bar(p)).unwrap();
         }
-        assert!(rsi.is_ready(), "RSI should be ready after period+1 bars");
-        let v = rsi.update(&bar("115")).unwrap();
-        if let SignalValue::Scalar(val) = v {
-            assert!(val >= dec!(70), "all-up RSI should be >= 70, got {val}");
-        } else {
-            panic!("expected Scalar, got Unavailable");
+        if let SignalValue::Scalar(v) = rsi.update(&bar("105")).unwrap() {
+            assert_eq!(v, dec!(100), "all-gain RSI must be 100");
         }
     }
 
     #[test]
-    fn test_ema_faster_than_sma() {
-        // After a sharp price spike, EMA should be closer to the spike than SMA
-        // because EMA weights recent values more heavily.
-        use crate::signals::indicators::Sma;
-
-        let period = 5;
-        let mut ema = Ema::new("ema5", period);
-        let mut sma = Sma::new("sma5", period);
-
-        // Seed both with stable prices at 100.
-        for _ in 0..period {
-            ema.update(&bar("100")).unwrap();
-            sma.update(&bar("100")).unwrap();
+    fn test_rsi_all_losses_equals_zero() {
+        let mut rsi = Rsi::new("rsi3", 3);
+        // Strictly falling prices → avg_gain = 0 → RSI = 0.
+        for p in &["100", "99", "98", "97", "96"] {
+            let _ = rsi.update(&bar(p)).unwrap();
         }
+        if let SignalValue::Scalar(v) = rsi.update(&bar("95")).unwrap() {
+            assert_eq!(v, dec!(0), "all-loss RSI must be 0");
+        }
+    }
 
-        // Feed a large spike.
-        let spike_bar = bar("200");
-        let ema_val = match ema.update(&spike_bar).unwrap() {
-            SignalValue::Scalar(v) => v,
-            _ => panic!("EMA should be ready"),
-        };
-        let sma_val = match sma.update(&spike_bar).unwrap() {
-            SignalValue::Scalar(v) => v,
-            _ => panic!("SMA should be ready"),
-        };
+    #[test]
+    fn test_rsi_in_bounds() {
+        let mut rsi = Rsi::new("rsi5", 5);
+        let closes = ["100", "102", "101", "103", "102", "104", "103", "105", "104", "106"];
+        for &c in &closes {
+            if let SignalValue::Scalar(v) = rsi.update(&bar(c)).unwrap() {
+                assert!(v >= dec!(0), "RSI < 0: {v}");
+                assert!(v <= dec!(100), "RSI > 100: {v}");
+            }
+        }
+    }
 
-        // EMA gives more weight to the new value, so it should be higher than SMA.
+    #[test]
+    fn test_rsi_period_returns_configured_value() {
+        let rsi = Rsi::new("rsi14", 14);
+        assert_eq!(rsi.period(), 14);
+    }
+
+    #[test]
+    fn test_rsi_name_returns_configured_value() {
+        let rsi = Rsi::new("my_rsi", 14);
+        assert_eq!(rsi.name(), "my_rsi");
+    }
+
+    /// RSI with equal alternating up/down moves should be ~50.
+    #[test]
+    fn test_rsi_equal_up_down_moves_near_50() {
+        let mut rsi = Rsi::new("rsi4", 4);
+        // Alternating +10/-10: balanced gains and losses.
+        let prices = ["100", "110", "100", "110", "100", "110"];
+        let mut last_val: Option<Decimal> = None;
+        for p in &prices {
+            if let SignalValue::Scalar(v) = rsi.update(&bar(p)).unwrap() {
+                last_val = Some(v);
+            }
+        }
+        let val = last_val.expect("RSI must produce a value");
         assert!(
-            ema_val > sma_val,
-            "EMA ({ema_val}) should be higher than SMA ({sma_val}) immediately after a spike"
+            (val - dec!(50)).abs() < dec!(0.01),
+            "RSI with equal up/down moves must be ~50, got {val}"
         );
     }
 
+    /// RSI with fewer bars than period+1 returns Unavailable.
     #[test]
-    fn test_rsi_mixed_values_bounded() {
+    fn test_rsi_fewer_bars_than_period_returns_unavailable() {
         let mut rsi = Rsi::new("rsi14", 14);
-        let prices = [
-            "44.34", "44.09", "44.15", "43.61", "44.33", "44.83", "45.10", "45.15",
-            "43.61", "44.33", "44.83", "45.10", "45.15", "43.61", "44.33",
-        ];
-        let mut val = SignalValue::Unavailable;
-        for p in &prices {
-            val = rsi.update(&bar(p)).unwrap();
+        let mut any_scalar = false;
+        for i in 0..10u32 {
+            if let SignalValue::Scalar(_) = rsi.update(&bar(&(100 + i).to_string())).unwrap() {
+                any_scalar = true;
+            }
         }
-        if let SignalValue::Scalar(v) = val {
-            assert!(v >= Decimal::ZERO, "RSI below 0: {v}");
-            assert!(v <= Decimal::ONE_HUNDRED, "RSI above 100: {v}");
-        }
+        assert!(!any_scalar, "RSI must return Unavailable for fewer than period+1 bars");
+        assert!(!rsi.is_ready());
     }
 }

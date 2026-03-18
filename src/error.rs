@@ -22,7 +22,12 @@ pub enum FinError {
 
     /// Order book delta arrived out of sequence.
     #[error("Order book sequence mismatch: expected {expected}, got {got}")]
-    SequenceMismatch { expected: u64, got: u64 },
+    SequenceMismatch {
+        /// The next sequence number the book expected.
+        expected: u64,
+        /// The sequence number that was actually received.
+        got: u64,
+    },
 
     /// Not enough resting liquidity to fill the requested quantity.
     #[error("No liquidity available for requested quantity {0}")]
@@ -35,8 +40,11 @@ pub enum FinError {
     /// A signal has not accumulated enough bars to produce a value.
     #[error("Signal '{name}' not ready (requires {required} periods, have {have})")]
     SignalNotReady {
+        /// Name of the signal that is not ready.
         name: String,
+        /// Number of bars required before the signal produces a value.
         required: usize,
+        /// Number of bars seen so far.
         have: usize,
     },
 
@@ -47,7 +55,9 @@ pub enum FinError {
     /// Ledger cash balance insufficient to cover the fill cost.
     #[error("Insufficient funds: need {need}, have {have}")]
     InsufficientFunds {
+        /// Amount of cash required for the fill (cost + commission).
         need: Decimal,
+        /// Current cash balance in the ledger.
         have: Decimal,
     },
 
@@ -65,5 +75,10 @@ pub enum FinError {
 
     /// Order book ended up with an inverted spread after a delta was applied.
     #[error("Inverted spread: best_bid {best_bid} >= best_ask {best_ask}")]
-    InvertedSpread { best_bid: Decimal, best_ask: Decimal },
+    InvertedSpread {
+        /// Best bid price at the time the spread inversion was detected.
+        best_bid: Decimal,
+        /// Best ask price at the time the spread inversion was detected.
+        best_ask: Decimal,
+    },
 }

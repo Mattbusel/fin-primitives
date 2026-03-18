@@ -130,4 +130,50 @@ mod tests {
             panic!("expected Scalar");
         }
     }
+
+    /// SMA of a constant series must equal that constant exactly.
+    #[test]
+    fn test_sma_constant_series_equals_constant() {
+        let mut sma = Sma::new("sma5", 5);
+        for _ in 0..4 {
+            sma.update(&bar("77")).unwrap();
+        }
+        let v = sma.update(&bar("77")).unwrap();
+        assert!(
+            matches!(v, SignalValue::Scalar(d) if d == dec!(77)),
+            "SMA of constant series must equal that constant"
+        );
+    }
+
+    /// SMA with empty input (no bars fed) must not be ready.
+    #[test]
+    fn test_sma_empty_input_not_ready() {
+        let sma = Sma::new("sma3", 3);
+        assert!(!sma.is_ready(), "SMA must not be ready before any bars are fed");
+    }
+
+    /// SMA window larger than data: with only 2 bars fed into SMA(10), result is Unavailable.
+    #[test]
+    fn test_sma_window_larger_than_data_returns_unavailable() {
+        let mut sma = Sma::new("sma10", 10);
+        sma.update(&bar("100")).unwrap();
+        let v = sma.update(&bar("200")).unwrap();
+        assert!(
+            matches!(v, SignalValue::Unavailable),
+            "SMA with fewer bars than window must return Unavailable"
+        );
+        assert!(!sma.is_ready());
+    }
+
+    /// SMA period 1 is always ready after one bar.
+    #[test]
+    fn test_sma_period_1_immediate_readiness() {
+        let mut sma = Sma::new("sma1", 1);
+        let v = sma.update(&bar("55")).unwrap();
+        assert!(
+            matches!(v, SignalValue::Scalar(d) if d == dec!(55)),
+            "SMA(1) must equal the single bar's close"
+        );
+        assert!(sma.is_ready());
+    }
 }

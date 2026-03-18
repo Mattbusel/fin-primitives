@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-17
+
+### Added
+- **Tests**: partial fill sequence tests for `vwap_for_qty` — single-level fill, multi-level sweep, exact exhaustion, insufficient liquidity error
+- **Tests**: order cancellation — cancel best bid, cancel non-best level, cancel all levels, re-book after cancel
+- **Tests**: book reconstruction from a sequential delta stream (snapshot followed by incremental updates)
+- **Tests**: RSI overbought (>= 70) and oversold (<= 30) boundary assertions
+- **Tests**: SMA, EMA, RSI with single data point (period 1) and all-same price values
+- **Tests**: average-cost basis across two and three buys at different prices
+- **Tests**: short position unrealized PnL (profit when price falls, loss when price rises)
+- **Tests**: flat → long → flat → short lifecycle, and direct long-to-short flip in one oversized fill
+- **Tests**: SMA/EMA convergence rate — both converge to a stable price after 20 identical bars
+- **Tests**: `MaxDrawdownRule` and `MinEquityRule` exact-boundary assertions (at threshold = no breach; one unit over = breach)
+- **Tests**: two-rule scenario where only one fires (equity between the two thresholds)
+- **Tests**: three-rule scenario where all fire simultaneously
+- **Property tests**: price arithmetic closure — sum of two positive prices is always positive
+- **Property tests**: OHLCV ordering invariant — H >= max(O,C) >= min(O,C) >= L for any valid bar
+- **Property tests**: position quantity non-negative after an arbitrary sequence of buy-only fills
+- **CI**: `cargo test --release` step to verify numeric correctness at optimisation level
+- **CI**: `PROPTEST_CASES=1000` environment variable for increased property test coverage
+- **CI**: `cargo audit` security vulnerability scan
+- **CI**: separate jobs for `rustfmt`, `clippy`, `test`, `doc`, and `coverage` (cargo-tarpaulin + Codecov upload)
+- **Cargo.toml**: `description`, `authors`, `repository`, `documentation`, `readme`, `license`, `keywords`, `categories` metadata fields
+
+### Changed
+- Version bumped to `0.2.0`
+- README expanded with code examples for price arithmetic, order book operations, and position tracking; performance characteristics; indicator formula notes; integration guide
+
+---
+
 ## [0.1.0] - 2026-03-17
 
 ### Added

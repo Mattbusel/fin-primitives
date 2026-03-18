@@ -284,6 +284,28 @@ mod tests {
         assert!(breaches.is_empty(), "small dip from new peak should not breach");
     }
 
+    /// max_drawdown of a flat equity series is 0.
+    #[test]
+    fn test_drawdown_flat_series_is_zero() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        for _ in 0..10 {
+            t.update(dec!(10000));
+        }
+        assert_eq!(t.current_drawdown_pct(), dec!(0));
+    }
+
+    /// max_drawdown of a monotonically declining series equals full loss.
+    #[test]
+    fn test_drawdown_monotonic_decline_full_loss() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(5000));
+        t.update(dec!(2500));
+        t.update(dec!(1000));
+        t.update(dec!(0));
+        // drawdown = (10000 - 0) / 10000 * 100 = 100
+        assert_eq!(t.current_drawdown_pct(), dec!(100));
+    }
+
     #[test]
     fn test_risk_monitor_multiple_rules_all_must_pass() {
         // Both rules must be satisfied independently; a state that satisfies
