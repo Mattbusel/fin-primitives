@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 rust-version = "1.81"
 description = "Financial market primitives: validated price/quantity types, lock-free order book, OHLCV aggregation, technical indicators (SMA/EMA/RSI), position ledger, and risk monitoring."
