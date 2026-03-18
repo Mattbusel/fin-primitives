@@ -59,7 +59,7 @@ jobs:
         run: cargo bench --no-run --all-features
       - name: Security audit
         run: |
-          cargo install cargo-audit --quiet
+          cargo install cargo-audit --locked
           cargo audit
 
   bench:
