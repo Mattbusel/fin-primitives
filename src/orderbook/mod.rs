@@ -10,7 +10,7 @@
 //! - Bids are maintained in descending price order (best bid = highest price)
 //! - Asks are maintained in ascending price order (best ask = lowest price)
 //! - `vwap_for_qty` returns `InsufficientLiquidity` when the book cannot fill `qty`
-//! - Thread-safe: `OrderBook` implements neither `Send` nor `Sync` by default (use Arc<Mutex> externally)
+//! - Thread-safe: `OrderBook` implements neither `Send` nor `Sync` by default (use `Arc<Mutex>` externally)
 //!
 //! ## NOT Responsible For
 //! - Cross-symbol aggregation

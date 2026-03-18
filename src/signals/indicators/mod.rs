@@ -1,4 +1,4 @@
-//! Built-in technical indicators implementing the [`Signal`] trait.
+//! Built-in technical indicators implementing the [`crate::signals::Signal`] trait.
 //!
 //! All indicators return [`crate::signals::SignalValue::Unavailable`] until they have
 //! accumulated enough bars to produce a meaningful value.
