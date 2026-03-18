@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Production-readiness pass: doc comments, error handling, CI, tests, and README reviewed.
+  All existing tests continue to pass (341 total across unit, integration, and property suites).
+
 ### Added
 - **RSI implementation**: `src/signals/indicators/rsi.rs` fully implemented with Wilder
   smoothing. Seed phase uses SMA over `period` changes; subsequent bars apply Wilder

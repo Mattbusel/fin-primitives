@@ -1,15 +1,17 @@
 [package]
 name = "fin-primitives"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
+rust-version = "1.75"
 description = "Financial market primitives: validated price/quantity types, lock-free order book, OHLCV aggregation, technical indicators (SMA/EMA/RSI), position ledger, and risk monitoring."
-authors = ["Matt Busel"]
+authors = ["Matt Busel <matt@busel.dev>"]
 repository = "https://github.com/Mattbusel/fin-primitives"
 documentation = "https://docs.rs/fin-primitives"
 readme = "README.md"
 license = "MIT"
 keywords = ["finance", "trading", "hft", "orderbook", "market-data"]
 categories = ["finance", "data-structures", "algorithms"]
+include = ["src/**/*", "benches/**/*", "tests/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [dependencies]
 # tokio: async runtime, core dependency
@@ -36,3 +38,29 @@ criterion = { version = "0.5", features = ["async_tokio"] }
 [[bench]]
 name = "tick_bench"
 harness = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+panic = "abort"
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[lints.clippy]
+# Correctness
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+# Style
+pedantic = "warn"
+# Allow common false-positive pedantic lints
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
