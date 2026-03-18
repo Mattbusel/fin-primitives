@@ -1,5 +1,6 @@
 use fin_primitives::ohlcv::OhlcvBar;
 use fin_primitives::position::{Fill, Position};
+#[allow(unused_imports)]
 use fin_primitives::risk::{DrawdownTracker, MaxDrawdownRule, RiskRule};
 use fin_primitives::signals::indicators::{Rsi, Sma};
 use fin_primitives::signals::Signal;

@@ -8,13 +8,13 @@ allow = [
     "Apache-2.0",
     "ISC",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "BSD-2-Clause",
     "BSD-3-Clause",
 ]
 # Warn on unlicensed crates rather than hard-failing (useful during audits).
 unlicensed = "deny"
 # Allow AND / OR expressions as long as each component is in the allow list.
-allow-osi-fsf-free = "neither"
 copyleft = "deny"
 default = "deny"
 
@@ -27,9 +27,9 @@ wildcards = "deny"
 [advisories]
 # Fetch the RustSec advisory database and fail on any known vulnerability.
 vulnerability = "deny"
-unmaintained = "none"
+unmaintained = "allow"
 yanked = "deny"
-notice = "none"
+notice = "allow"
 
 [sources]
 # Only allow crates from crates.io and this repository itself.
