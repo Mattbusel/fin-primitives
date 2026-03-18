@@ -1,7 +1,15 @@
 [package]
 name = "fin-primitives"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "Financial market primitives: validated price/quantity types, lock-free order book, OHLCV aggregation, technical indicators (SMA/EMA/RSI), position ledger, and risk monitoring."
+authors = ["Matt Busel"]
+repository = "https://github.com/Mattbusel/fin-primitives"
+documentation = "https://docs.rs/fin-primitives"
+readme = "README.md"
+license = "MIT"
+keywords = ["finance", "trading", "hft", "orderbook", "market-data"]
+categories = ["finance", "data-structures", "algorithms"]
 
 [dependencies]
 # tokio: async runtime — core dependency

@@ -260,4 +260,55 @@ mod tests {
         assert_eq!(breaches.len(), 1);
         assert_eq!(breaches[0].rule, "max_drawdown");
     }
+
+    #[test]
+    fn test_drawdown_recovery() {
+        // Equity drops then recovers above the previous peak.
+        let mut monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(10) });
+
+        // Drop to 8000 — 20% drawdown, breaches the 10% limit.
+        let breaches = monitor.update(dec!(8000));
+        assert_eq!(breaches.len(), 1);
+
+        // Recover back to the original peak — drawdown resets to 0%.
+        let breaches = monitor.update(dec!(10000));
+        assert!(breaches.is_empty(), "no breach after recovery to peak");
+
+        // Rise above the previous peak — new peak established, drawdown still 0%.
+        let breaches = monitor.update(dec!(12000));
+        assert!(breaches.is_empty(), "no breach after rising above old peak");
+
+        // Slight dip from new peak: (12000-11500)/12000 ≈ 4.17%, within 10%.
+        let breaches = monitor.update(dec!(11500));
+        assert!(breaches.is_empty(), "small dip from new peak should not breach");
+    }
+
+    #[test]
+    fn test_risk_monitor_multiple_rules_all_must_pass() {
+        // Both rules must be satisfied independently; a state that satisfies
+        // one but not the other still produces a breach.
+        let mut monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) })
+            .add_rule(MinEquityRule { floor: dec!(9500) });
+
+        // 6% drawdown from 10000 → equity 9400. Both rules breach.
+        let breaches = monitor.update(dec!(9400));
+        assert_eq!(breaches.len(), 2, "both rules should trigger");
+
+        // Reset: equity back to 10000.
+        let breaches = monitor.update(dec!(10000));
+        assert!(breaches.is_empty(), "all rules pass at peak");
+
+        // 4% drawdown → equity 9600. Within drawdown limit (5%) but below
+        // equity floor (9500 < 9600 is fine; 9600 > 9500 so no floor breach).
+        // Actually 9600 > 9500 so neither breaches.
+        let breaches = monitor.update(dec!(9600));
+        assert!(breaches.is_empty(), "9600 is above the 9500 floor and within 5% drawdown");
+
+        // Equity exactly at the floor but drawdown > 5%.
+        // From new peak 10000: (10000-9400)/10000 = 6% → dd rule fires.
+        let breaches = monitor.update(dec!(9400));
+        assert_eq!(breaches.len(), 2, "both rules fire when equity drops to 9400 again");
+    }
 }

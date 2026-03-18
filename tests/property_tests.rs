@@ -1,4 +1,5 @@
 use fin_primitives::ohlcv::OhlcvBar;
+use fin_primitives::position::{Fill, Position};
 use fin_primitives::risk::{DrawdownTracker, MaxDrawdownRule, RiskRule};
 use fin_primitives::signals::indicators::{Rsi, Sma};
 use fin_primitives::signals::Signal;
@@ -97,5 +98,71 @@ proptest! {
     fn test_symbol_roundtrip_display(s in "[A-Z]{1,8}") {
         let sym = Symbol::new(s.clone()).unwrap();
         prop_assert_eq!(format!("{sym}"), s);
+    }
+
+    /// Price arithmetic is closed: adding two positive Decimals and wrapping back through
+    /// Price::new should succeed only when the result is positive.
+    #[test]
+    fn test_price_add_stays_positive(
+        a in 1u32..=100_000,
+        b in 1u32..=100_000,
+    ) {
+        let pa = Decimal::from(a);
+        let pb = Decimal::from(b);
+        let sum = pa + pb;
+        prop_assert!(sum > Decimal::ZERO, "sum of two positive prices must be positive");
+        prop_assert!(Price::new(sum).is_ok(), "Price::new should accept the sum");
+    }
+
+    /// OHLCV invariant: H >= max(O, C) >= min(O, C) >= L for any valid bar.
+    #[test]
+    fn test_ohlcv_price_ordering(
+        low_cents in 1u32..=10_000,
+        open_delta in 0u32..=5_000,
+        close_delta in 0u32..=5_000,
+        range_cents in 0u32..=5_000,
+    ) {
+        let low = Decimal::from(low_cents);
+        let open = low + Decimal::from(open_delta);
+        let close = low + Decimal::from(close_delta);
+        let high = low + Decimal::from(range_cents) + open.max(close) - low;
+        let bar = OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: Price::new(open).unwrap(),
+            high: Price::new(high).unwrap(),
+            low: Price::new(low).unwrap(),
+            close: Price::new(close).unwrap(),
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp(0),
+            ts_close: NanoTimestamp(1),
+            tick_count: 1,
+        };
+        prop_assert!(bar.validate().is_ok());
+        prop_assert!(bar.high.value() >= bar.open.value().max(bar.close.value()));
+        prop_assert!(bar.low.value() <= bar.open.value().min(bar.close.value()));
+        prop_assert!(bar.high.value() >= bar.low.value());
+    }
+
+    /// Position quantity is always non-negative after a sequence of buy fills.
+    #[test]
+    fn test_position_size_non_negative_with_only_buys(
+        quantities in prop::collection::vec(1u32..=1000, 1..=20),
+        prices in prop::collection::vec(1u32..=10_000, 1..=20),
+    ) {
+        let mut pos = Position::new(Symbol::new("X").unwrap());
+        let len = quantities.len().min(prices.len());
+        for i in 0..len {
+            let fill = Fill {
+                symbol: Symbol::new("X").unwrap(),
+                side: Side::Bid,
+                quantity: Quantity::new(Decimal::from(quantities[i])).unwrap(),
+                price: Price::new(Decimal::from(prices[i])).unwrap(),
+                timestamp: NanoTimestamp(0),
+                commission: Decimal::ZERO,
+            };
+            pos.apply_fill(&fill).unwrap();
+        }
+        prop_assert!(pos.quantity >= Decimal::ZERO,
+            "position quantity must be non-negative after only buys: {}", pos.quantity);
     }
 }

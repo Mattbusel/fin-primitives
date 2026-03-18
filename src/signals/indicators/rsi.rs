@@ -211,6 +211,59 @@ mod tests {
     }
 
     #[test]
+    fn test_rsi_overbought_at_70() {
+        // Feed a period-14 RSI with 14 consecutive up-moves of equal size.
+        // All changes are gains → avg_loss == 0 → RSI == 100, which is >= 70.
+        let mut rsi = Rsi::new("rsi14", 14);
+        // 15 bars: one to set prev_close, then 14 up moves filling the seed window.
+        // After bar 15 the seed average is computed (all gains) → RSI = 100.
+        for i in 0u32..=14 {
+            rsi.update(&bar(&(100 + i).to_string())).unwrap();
+        }
+        assert!(rsi.is_ready(), "RSI should be ready after period+1 bars");
+        let v = rsi.update(&bar("115")).unwrap();
+        if let SignalValue::Scalar(val) = v {
+            assert!(val >= dec!(70), "all-up RSI should be >= 70, got {val}");
+        } else {
+            panic!("expected Scalar, got Unavailable");
+        }
+    }
+
+    #[test]
+    fn test_ema_faster_than_sma() {
+        // After a sharp price spike, EMA should be closer to the spike than SMA
+        // because EMA weights recent values more heavily.
+        use crate::signals::indicators::Sma;
+
+        let period = 5;
+        let mut ema = Ema::new("ema5", period);
+        let mut sma = Sma::new("sma5", period);
+
+        // Seed both with stable prices at 100.
+        for _ in 0..period {
+            ema.update(&bar("100")).unwrap();
+            sma.update(&bar("100")).unwrap();
+        }
+
+        // Feed a large spike.
+        let spike_bar = bar("200");
+        let ema_val = match ema.update(&spike_bar).unwrap() {
+            SignalValue::Scalar(v) => v,
+            _ => panic!("EMA should be ready"),
+        };
+        let sma_val = match sma.update(&spike_bar).unwrap() {
+            SignalValue::Scalar(v) => v,
+            _ => panic!("SMA should be ready"),
+        };
+
+        // EMA gives more weight to the new value, so it should be higher than SMA.
+        assert!(
+            ema_val > sma_val,
+            "EMA ({ema_val}) should be higher than SMA ({sma_val}) immediately after a spike"
+        );
+    }
+
+    #[test]
     fn test_rsi_mixed_values_bounded() {
         let mut rsi = Rsi::new("rsi14", 14);
         let prices = [

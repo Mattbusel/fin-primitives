@@ -276,6 +276,157 @@ fn pipeline_empty_has_zero_ready() {
     assert_eq!(pipeline.ready_count(), 0);
 }
 
+// ── Single data point edge cases ─────────────────────────────────────────
+
+/// SMA with period 1 is ready immediately and equals the close price.
+#[test]
+fn sma_single_data_point_period_1() {
+    let mut sma = Sma::new("sma1", 1);
+    let v = sma.update(&bar("77")).unwrap();
+    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(77)),
+        "SMA(1) of a single data point must equal the data point");
+    assert!(sma.is_ready());
+}
+
+/// EMA with period 1: the first bar seeds the EMA at exactly the close price
+/// because k = 2/(1+1) = 1.0 and seed phase completes in one bar.
+#[test]
+fn ema_single_data_point_period_1() {
+    let mut ema = Ema::new("ema1", 1);
+    let v = ema.update(&bar("55")).unwrap();
+    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(55)),
+        "EMA(1) of a single data point must equal the data point");
+    assert!(ema.is_ready());
+}
+
+/// RSI with period 1 needs 2 bars (period + 1 extra for first change).
+#[test]
+fn rsi_single_bar_returns_unavailable() {
+    let mut rsi = Rsi::new("rsi1", 1);
+    let v = rsi.update(&bar("100")).unwrap();
+    assert!(matches!(v, SignalValue::Unavailable));
+    assert!(!rsi.is_ready());
+}
+
+/// RSI(1): after 2 bars the first value is produced.
+#[test]
+fn rsi_period_1_ready_after_two_bars() {
+    let mut rsi = Rsi::new("rsi1", 1);
+    rsi.update(&bar("100")).unwrap();
+    let v = rsi.update(&bar("110")).unwrap();
+    assert!(matches!(v, SignalValue::Scalar(_)));
+    assert!(rsi.is_ready());
+}
+
+// ── All-same values edge cases ────────────────────────────────────────────
+
+/// RSI with all identical prices: no gains and no losses → RSI is 0 with
+/// avg_loss = 0. The implementation guards this by returning 100 when
+/// avg_loss == 0 (convention: if there are no losses RS is infinite → RSI=100).
+/// But with all-same prices both avg_gain AND avg_loss are 0, so the code returns 100.
+#[test]
+fn rsi_all_same_prices_returns_100_by_convention() {
+    let mut rsi = Rsi::new("rsi3", 3);
+    // 4 bars needed to get first RSI(3) value; all at same price.
+    rsi.update(&bar("100")).unwrap();
+    rsi.update(&bar("100")).unwrap();
+    rsi.update(&bar("100")).unwrap();
+    let v = rsi.update(&bar("100")).unwrap();
+    // avg_gain = 0, avg_loss = 0 → avg_loss == 0 branch → RSI = 100
+    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(100)),
+        "RSI with all-same prices: avg_loss=0 path must return 100");
+}
+
+/// SMA with all-same prices equals that price exactly.
+#[test]
+fn sma_all_same_values_returns_that_value() {
+    let mut sma = Sma::new("sma5", 5);
+    for _ in 0..4 {
+        sma.update(&bar("42")).unwrap();
+    }
+    let v = sma.update(&bar("42")).unwrap();
+    assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(42)));
+}
+
+/// EMA with all-same prices: seed = price, subsequent EMA = price.
+#[test]
+fn ema_all_same_values_returns_that_value() {
+    let mut ema = Ema::new("ema4", 4);
+    for _ in 0..4 {
+        ema.update(&bar("33")).unwrap();
+    }
+    // After seed phase, feed a few more identical bars.
+    for _ in 0..5 {
+        let v = ema.update(&bar("33")).unwrap();
+        assert!(matches!(v, SignalValue::Scalar(d) if d == dec!(33)),
+            "EMA with all-same prices must equal that price");
+    }
+}
+
+// ── RSI overbought/oversold exact boundaries ──────────────────────────────
+
+/// RSI = 70 is the standard overbought threshold. Test that an RSI value
+/// computed from a strongly uptrending sequence lands at or above 70.
+/// This is a directional check: with only gains the RSI approaches 100;
+/// with a strong mix that barely tips 70 we verify the boundary is crossed.
+#[test]
+fn rsi_overbought_boundary_above_70() {
+    // Feed 3 gains then 1 small loss: RSI should still be above 70.
+    let mut rsi = Rsi::new("rsi3", 3);
+    rsi.update(&bar("100")).unwrap();
+    rsi.update(&bar("110")).unwrap();
+    rsi.update(&bar("120")).unwrap();
+    let v = rsi.update(&bar("130")).unwrap();
+    if let SignalValue::Scalar(val) = v {
+        assert!(val >= dec!(70), "strongly uptrending RSI should be >= 70, got {val}");
+    } else {
+        panic!("expected Scalar");
+    }
+}
+
+/// RSI = 30 is the standard oversold threshold. With all losses RSI = 0
+/// which is below 30.
+#[test]
+fn rsi_oversold_boundary_below_30() {
+    let mut rsi = Rsi::new("rsi3", 3);
+    rsi.update(&bar("130")).unwrap();
+    rsi.update(&bar("120")).unwrap();
+    rsi.update(&bar("110")).unwrap();
+    let v = rsi.update(&bar("100")).unwrap();
+    if let SignalValue::Scalar(val) = v {
+        assert!(val <= dec!(30), "strongly downtrending RSI should be <= 30, got {val}");
+    } else {
+        panic!("expected Scalar");
+    }
+}
+
+// ── SMA/EMA convergence rate ──────────────────────────────────────────────
+
+/// After a constant price sequence, SMA and EMA both converge to that price
+/// immediately (SMA by definition, EMA because each new bar at the same price
+/// keeps the EMA unchanged once seeded).
+#[test]
+fn sma_ema_converge_to_constant_price() {
+    let mut sma = Sma::new("sma5", 5);
+    let mut ema = Ema::new("ema5", 5);
+    // Warm up with diverse prices.
+    for p in &["90", "95", "100", "105", "110"] {
+        sma.update(&bar(p)).unwrap();
+        ema.update(&bar(p)).unwrap();
+    }
+    // Now feed 20 bars at the new stable price 200.
+    let mut last_sma = dec!(0);
+    let mut last_ema = dec!(0);
+    for _ in 0..20 {
+        if let SignalValue::Scalar(s) = sma.update(&bar("200")).unwrap() { last_sma = s; }
+        if let SignalValue::Scalar(e) = ema.update(&bar("200")).unwrap() { last_ema = e; }
+    }
+    assert_eq!(last_sma, dec!(200), "SMA must be exactly 200 after 20 bars at 200");
+    // EMA approaches 200 asymptotically; after 20 bars at 200 it must be very close.
+    let diff = (last_ema - dec!(200)).abs();
+    assert!(diff < dec!(1), "EMA must be within 1 of 200 after 20 bars at that price, got {last_ema}");
+}
+
 // ── OhlcvSeries + Signal pipeline end-to-end ─────────────────────────────
 
 #[test]

@@ -8,9 +8,34 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy --all-features -- -D warnings
+
   test:
+    name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +43,43 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --all-features
-      - name: Test
+      - name: Test (debug)
         run: cargo test --all-features
-      - name: Clippy
-        run: cargo clippy --all-features -- -D warnings
+      - name: Test (release -- numeric correctness at opt level)
+        run: cargo test --release --all-features
+      - name: Proptest with increased cases
+        run: cargo test --all-features
+        env:
+          PROPTEST_CASES: 1000
+      - name: Security audit
+        run: |
+          cargo install cargo-audit --quiet
+          cargo audit
+
+  doc:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build docs
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      - name: Run coverage
+        run: cargo tarpaulin --all-features --workspace --timeout 120 --out Xml
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
