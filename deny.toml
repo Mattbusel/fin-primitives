@@ -1,0 +1,38 @@
+# cargo-deny configuration
+# https://embarkstudios.github.io/cargo-deny/
+
+[licenses]
+# Fail the check if any dependency uses a license not in this list.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "ISC",
+    "Unicode-DFS-2016",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+]
+# Warn on unlicensed crates rather than hard-failing (useful during audits).
+unlicensed = "deny"
+# Allow AND / OR expressions as long as each component is in the allow list.
+allow-osi-fsf-free = "neither"
+copyleft = "deny"
+default = "deny"
+
+[bans]
+# Deny multiple versions of the same crate to prevent supply-chain confusion.
+multiple-versions = "warn"
+# Deny wildcard dependencies.
+wildcards = "deny"
+
+[advisories]
+# Fetch the RustSec advisory database and fail on any known vulnerability.
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "deny"
+notice = "warn"
+
+[sources]
+# Only allow crates from crates.io and this repository itself.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

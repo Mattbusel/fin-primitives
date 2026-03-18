@@ -6,36 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-03-18
+
 ### Added
-- `#![forbid(unsafe_code)]` and `#![deny(missing_docs)]` at crate root.
-- Extended inline tests in `ema.rs`: period-0 edge, single-value period-1, convergence-to-constant, small-positive-value stability.
-- Extended inline tests in `rsi.rs`: equal up/down moves (~50), all-up (100), all-down (0), fewer-bars-than-period (Unavailable).
-- Extended inline tests in `sma.rs`: constant-series identity, empty-input not-ready, window-larger-than-data (Unavailable), period-1 readiness.
-- Extended inline tests in `risk/mod.rs`: flat series drawdown = 0, monotonic decline drawdown = 100%.
-- Extended inline tests in `orderbook/mod.rs`: empty-book mid_price/best_bid/best_ask return None, many-insert/remove best-level tracking, crossed-book ask-at-bid-price rejection.
-- `cargo bench --no-run --all-features` CI step to catch bench compilation regressions.
-- Comprehensive crate-level module doc in `lib.rs` with feature table, design principles, and error section.
+- `deny.toml` with license allow-list (MIT, Apache-2.0, ISC, Unicode-DFS-2016, BSD-2-Clause, BSD-3-Clause).
+- CI test matrix extended to include Windows and macOS runners.
+- `cargo-deny` check step added to CI.
+- All public items verified to carry `///` doc comments; every `Result`-returning function documents a `# Errors` section.
 
 ### Changed
-- `OrderBook::best_bid` and `best_ask` use `Price::new(...).ok()?` instead of `unwrap_or_else` with a nested `.unwrap()`, removing the last production-path panic paths.
+- Version bumped to `1.0.0` (stable public API).
+- CI test job expanded to a matrix of `ubuntu-latest`, `windows-latest`, and `macos-latest`.
 
 ## [0.2.0] - 2026-03-17
 
 ### Added
-- **Tests**: partial fill sequence tests for `vwap_for_qty` — single-level fill, multi-level sweep, exact exhaustion, insufficient liquidity error
-- **Tests**: order cancellation — cancel best bid, cancel non-best level, cancel all levels, re-book after cancel
+- **Tests**: partial fill sequence tests for `vwap_for_qty` (single-level fill, multi-level sweep, exact exhaustion, insufficient liquidity error)
+- **Tests**: order cancellation (cancel best bid, cancel non-best level, cancel all levels, re-book after cancel)
 - **Tests**: book reconstruction from a sequential delta stream (snapshot followed by incremental updates)
 - **Tests**: RSI overbought (>= 70) and oversold (<= 30) boundary assertions
 - **Tests**: SMA, EMA, RSI with single data point (period 1) and all-same price values
 - **Tests**: average-cost basis across two and three buys at different prices
 - **Tests**: short position unrealized PnL (profit when price falls, loss when price rises)
 - **Tests**: flat → long → flat → short lifecycle, and direct long-to-short flip in one oversized fill
-- **Tests**: SMA/EMA convergence rate — both converge to a stable price after 20 identical bars
+- **Tests**: SMA/EMA convergence rate (both converge to a stable price after 20 identical bars)
 - **Tests**: `MaxDrawdownRule` and `MinEquityRule` exact-boundary assertions (at threshold = no breach; one unit over = breach)
 - **Tests**: two-rule scenario where only one fires (equity between the two thresholds)
 - **Tests**: three-rule scenario where all fire simultaneously
-- **Property tests**: price arithmetic closure — sum of two positive prices is always positive
-- **Property tests**: OHLCV ordering invariant — H >= max(O,C) >= min(O,C) >= L for any valid bar
+- **Property tests**: price arithmetic closure (sum of two positive prices is always positive)
+- **Property tests**: OHLCV ordering invariant (H >= max(O,C) >= min(O,C) >= L for any valid bar)
 - **Property tests**: position quantity non-negative after an arbitrary sequence of buy-only fills
 - **CI**: `cargo test --release` step to verify numeric correctness at optimisation level
 - **CI**: `PROPTEST_CASES=1000` environment variable for increased property test coverage
@@ -77,5 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 242 tests across unit, integration, and property suites.
 - Benchmark harness via Criterion (`benches/tick_bench.rs`).
 
-[Unreleased]: https://github.com/Mattbusel/fin-primitives/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Mattbusel/fin-primitives/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Mattbusel/fin-primitives/compare/v0.2.0...v1.0.0
+[0.2.0]: https://github.com/Mattbusel/fin-primitives/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Mattbusel/fin-primitives/releases/tag/v0.1.0

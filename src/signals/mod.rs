@@ -31,9 +31,9 @@ pub enum SignalValue {
 /// A stateful indicator that updates on each new OHLCV bar.
 ///
 /// # Implementors
-/// - [`indicators::Sma`] — simple moving average
-/// - [`indicators::Ema`] — exponential moving average
-/// - [`indicators::Rsi`] — relative strength index
+/// - [`indicators::Sma`]: simple moving average
+/// - [`indicators::Ema`]: exponential moving average
+/// - [`indicators::Rsi`]: relative strength index
 pub trait Signal: Send {
     /// Returns the name of this signal (unique within a pipeline).
     fn name(&self) -> &str;

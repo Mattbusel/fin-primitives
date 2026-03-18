@@ -437,7 +437,7 @@ mod tests {
         let mut book = make_book();
         // Set ask at 100
         book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
-        // Try to set bid at 101 (would cross the ask) — must fail
+        // Try to set bid at 101 (would cross the ask): must fail
         let result = book.apply_delta(set_delta(Side::Bid, "101", "5", 2));
         assert!(
             matches!(result, Err(FinError::InvertedSpread { .. })),

@@ -169,7 +169,7 @@ mod tests {
         // the seed phase because `count (1) <= period (0)` is false immediately.
         // The result depends on implementation; we only assert no panic.
         let result = ema.update(&bar("100"));
-        // Either an Ok(Scalar) or an Err — just must not panic.
+        // Either an Ok(Scalar) or an Err: just must not panic.
         let _ = result;
     }
 
@@ -195,7 +195,7 @@ mod tests {
         for p in &["10", "20", "30", "40", "50"] {
             ema.update(&bar(p)).unwrap();
         }
-        // Feed 30 bars at 100 — EMA must converge close to 100.
+        // Feed 30 bars at 100: EMA must converge close to 100.
         let mut last = dec!(0);
         for _ in 0..30 {
             if let SignalValue::Scalar(v) = ema.update(&bar("100")).unwrap() {
@@ -206,6 +206,42 @@ mod tests {
         assert!(
             diff < dec!(1),
             "EMA must converge within 1 of 100 after 30 bars, got {last}"
+        );
+    }
+
+    /// EMA responds faster to a sudden price spike than SMA of the same period.
+    ///
+    /// After both indicators are seeded at 100, a spike to 200 should pull the
+    /// EMA higher than the SMA because EMA applies an exponential weight to the
+    /// most recent bar.
+    #[test]
+    fn test_ema_faster_than_sma() {
+        use crate::signals::indicators::Sma;
+
+        let period = 5;
+        let mut ema = Ema::new("ema5", period);
+        let mut sma = Sma::new("sma5", period);
+
+        // Seed both with stable prices at 100.
+        for _ in 0..period {
+            ema.update(&bar("100")).unwrap();
+            sma.update(&bar("100")).unwrap();
+        }
+
+        // Feed a large spike to 200.
+        let ema_val = match ema.update(&bar("200")).unwrap() {
+            SignalValue::Scalar(v) => v,
+            _ => panic!("EMA should be ready after period bars"),
+        };
+        let sma_val = match sma.update(&bar("200")).unwrap() {
+            SignalValue::Scalar(v) => v,
+            _ => panic!("SMA should be ready after period bars"),
+        };
+
+        // EMA gives more weight to the newest value so it should be higher than SMA.
+        assert!(
+            ema_val > sma_val,
+            "EMA ({ema_val}) should exceed SMA ({sma_val}) immediately after a spike"
         );
     }
 

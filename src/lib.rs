@@ -31,7 +31,7 @@
 //! All error variants live in [`FinError`] (re-exported at the crate root).
 //! Every public fallible function documents which variant it may return.
 //!
-//! All prices and quantities use [`rust_decimal::Decimal`] — never `f64`.
+//! All prices and quantities use [`rust_decimal::Decimal`]; never `f64`.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]

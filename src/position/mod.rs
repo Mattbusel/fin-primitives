@@ -97,7 +97,7 @@ impl Position {
                 .checked_div(new_qty.abs())
                 .ok_or(FinError::ArithmeticOverflow)?;
         } else if new_qty.abs() <= self.quantity.abs() {
-            // Partial close — avg_cost unchanged.
+            // Partial close: avg_cost unchanged.
         } else {
             // Position flipped.
             self.avg_cost = fill.price.value();

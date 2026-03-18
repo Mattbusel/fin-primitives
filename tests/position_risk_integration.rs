@@ -90,7 +90,7 @@ fn risk_monitor_max_drawdown_fires_at_correct_level() {
     let mut monitor = RiskMonitor::new(dec!(10000))
         .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
 
-    // 14% drawdown — no breach
+    // 14% drawdown : no breach
     let b1 = monitor.update(dec!(8600));
     assert!(b1.is_empty());
 
@@ -199,7 +199,7 @@ fn ledger_equity_drives_risk_monitor() {
     let mut monitor = RiskMonitor::new(dec!(10000))
         .add_rule(MaxDrawdownRule { threshold_pct: dec!(20) });
 
-    // Buy 10 AAPL at 100 — cash drops to 9000
+    // Buy 10 AAPL at 100 : cash drops to 9000
     ledger.apply_fill(Fill {
         symbol: sym("AAPL"),
         side: Side::Bid,
@@ -216,24 +216,24 @@ fn ledger_equity_drives_risk_monitor() {
     let b = monitor.update(equity);
     assert!(b.is_empty()); // equity is 9000 + 100 unrealized = 9100, no drawdown
 
-    // Price crashes to 70 — equity = 9000 + (70-100)*10 = 8700 → 13% DD
+    // Price crashes to 70 : equity = 9000 + (70-100)*10 = 8700 → 13% DD
     prices.insert("AAPL".to_string(), price(dec!(70)));
     let equity2 = ledger.equity(&prices).unwrap();
     let b2 = monitor.update(equity2);
-    assert!(b2.is_empty(), "13% < 20% threshold — no breach");
+    assert!(b2.is_empty(), "13% < 20% threshold : no breach");
 
-    // Price crashes to 50 — equity = 9000 + (50-100)*10 = 8500 → 15% DD
+    // Price crashes to 50 : equity = 9000 + (50-100)*10 = 8500 → 15% DD
     prices.insert("AAPL".to_string(), price(dec!(50)));
     let equity3 = ledger.equity(&prices).unwrap();
     monitor.update(equity3); // still < 20%
 
-    // Price crashes to 30 — equity = 9000 + (30-100)*10 = 8300 — already past peak
+    // Price crashes to 30 : equity = 9000 + (30-100)*10 = 8300 : already past peak
     // Actually peak equity tracked by monitor = 10000 (initial)
     // Wait, monitor was updated with equity=9100 first... peak is 10000 still
-    // equity at 70 = 8700 → DD = (10000-8700)/10000*100 = 13% — no breach
-    // Crash to 10: equity = 9000 + (10-100)*10 = 8100 → DD = 19% — no breach
-    // Crash to 0: equity = 9000 + (0-100)*10 = 8000 → DD = 20% — no breach (at boundary)
-    // Crash to -1: equity < 8000 → DD > 20% — breach
+    // equity at 70 = 8700 → DD = (10000-8700)/10000*100 = 13% : no breach
+    // Crash to 10: equity = 9000 + (10-100)*10 = 8100 → DD = 19% : no breach
+    // Crash to 0: equity = 9000 + (0-100)*10 = 8000 → DD = 20% : no breach (at boundary)
+    // Crash to -1: equity < 8000 → DD > 20% : breach
 }
 
 #[test]

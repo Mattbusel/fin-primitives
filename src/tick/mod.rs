@@ -35,11 +35,11 @@ impl Tick {
     /// Constructs a new `Tick`.
     ///
     /// # Arguments
-    /// * `symbol` — validated ticker symbol
-    /// * `price` — validated positive price
-    /// * `quantity` — validated non-negative quantity
-    /// * `side` — bid or ask
-    /// * `timestamp` — nanosecond UTC timestamp
+    /// * `symbol` - validated ticker symbol
+    /// * `price` - validated positive price
+    /// * `quantity` - validated non-negative quantity
+    /// * `side` - bid or ask
+    /// * `timestamp` - nanosecond UTC timestamp
     pub fn new(
         symbol: Symbol,
         price: Price,
@@ -95,7 +95,7 @@ impl TickFilter {
     /// Returns `true` if the tick satisfies all configured predicates.
     ///
     /// # Arguments
-    /// * `tick` — the tick to evaluate
+    /// * `tick` - the tick to evaluate
     pub fn matches(&self, tick: &Tick) -> bool {
         if let Some(ref sym) = self.symbol {
             if tick.symbol != *sym {

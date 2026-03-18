@@ -156,8 +156,8 @@ impl OhlcvAggregator {
     /// Processes a single tick, returning a completed bar when the timeframe boundary is crossed.
     ///
     /// # Returns
-    /// - `Ok(Some(bar))` — a bar was completed (the tick belongs to the next bucket)
-    /// - `Ok(None)` — the tick was incorporated into the current bar
+    /// - `Ok(Some(bar))`: a bar was completed (the tick belongs to the next bucket)
+    /// - `Ok(None)`: the tick was incorporated into the current bar
     ///
     /// # Errors
     /// Returns [`FinError::InvalidTimeframe`] if `timeframe.bucket_start` fails.
@@ -174,12 +174,12 @@ impl OhlcvAggregator {
                 Ok(None)
             }
             Some(current_bucket) if bucket == current_bucket => {
-                // Same bucket — update existing bar.
+                // Same bucket: update existing bar.
                 self.update_bar(tick);
                 Ok(None)
             }
             Some(_) => {
-                // New bucket — complete the current bar and start a new one.
+                // New bucket: complete the current bar and start a new one.
                 let completed = self.current_bar.take();
                 self.current_bucket_start = Some(bucket);
                 self.current_bar = Some(self.new_bar(tick));
@@ -435,7 +435,7 @@ mod tests {
         // First minute
         let t1 = make_tick("X", "100", "1", 0);
         let t2 = make_tick("X", "105", "2", nanos_per_min / 2);
-        // Second minute — triggers completion of first bar
+        // Second minute: triggers completion of first bar
         let t3 = make_tick("X", "110", "1", nanos_per_min + 1);
 
         let r1 = agg.push_tick(&t1).unwrap();

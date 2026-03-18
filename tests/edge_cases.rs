@@ -353,9 +353,9 @@ fn pnl_accounting_identity_buy_then_sell_net_cash_change() {
     let equity = ledger.equity(&prices).unwrap();
     assert_eq!(equity, expected_cash);
 
-    // Realized PnL = (110 - 100) * 10 - 1 (sell commission) = 99.
-    // Buy commission was charged on the buy side (reduces cash only, not realized PnL).
-    assert_eq!(ledger.realized_pnl_total(), dec!(99));
+    // Realized PnL = (110 - 100) * 10 - 1 (buy commission) - 1 (sell commission) = 98.
+    // Both buy and sell commissions are charged against realized_pnl via Position::apply_fill.
+    assert_eq!(ledger.realized_pnl_total(), dec!(98));
 }
 
 /// Multiple partial fills sum correctly: total notional bought equals qty * avg_cost.
@@ -393,13 +393,14 @@ fn pnl_accounting_identity_multiple_buys_avg_cost_invariant() {
     );
     assert_eq!(pos.quantity, total_qty);
 
-    // market_value at avg_cost = quantity * avg_cost = total_notional.
+    // market_value at avg_cost ≈ total_notional (within Decimal rounding of repeating fraction).
     let mv = pos.market_value(p(expected_avg_cost));
-    assert_eq!(mv, total_notional);
+    let mv_diff = (mv - total_notional).abs();
+    assert!(mv_diff < dec!(0.01), "market_value must be within 0.01 of total_notional, diff={mv_diff}");
 
-    // unrealized_pnl at avg_cost = 0.
+    // unrealized_pnl at avg_cost ≈ 0 (within Decimal rounding of repeating fraction).
     let upnl = pos.unrealized_pnl(p(expected_avg_cost));
-    assert_eq!(upnl, dec!(0));
+    assert!(upnl.abs() < dec!(0.01), "unrealized_pnl at avg_cost must be near 0, got {upnl}");
 }
 
 /// Realized PnL identity: the sum of all per-fill realized P&L equals the

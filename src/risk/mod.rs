@@ -71,8 +71,8 @@ pub trait RiskRule: Send {
     /// Returns `Some(RiskBreach)` if the rule is violated, or `None` if compliant.
     ///
     /// # Arguments
-    /// * `equity` — current portfolio equity
-    /// * `drawdown_pct` — current drawdown percentage from peak
+    /// * `equity` - current portfolio equity
+    /// * `drawdown_pct` - current drawdown percentage from peak
     fn check(&self, equity: Decimal, drawdown_pct: Decimal) -> Option<RiskBreach>;
 }
 
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn test_drawdown_tracker_never_negative() {
         let mut t = DrawdownTracker::new(dec!(10000));
-        // Equity rises above peak — drawdown should still be 0.
+        // Equity rises above peak: drawdown should still be 0.
         t.update(dec!(11000));
         assert_eq!(t.current_drawdown_pct(), dec!(0));
     }
@@ -267,15 +267,15 @@ mod tests {
         let mut monitor = RiskMonitor::new(dec!(10000))
             .add_rule(MaxDrawdownRule { threshold_pct: dec!(10) });
 
-        // Drop to 8000 — 20% drawdown, breaches the 10% limit.
+        // Drop to 8000: 20% drawdown, breaches the 10% limit.
         let breaches = monitor.update(dec!(8000));
         assert_eq!(breaches.len(), 1);
 
-        // Recover back to the original peak — drawdown resets to 0%.
+        // Recover back to the original peak: drawdown resets to 0%.
         let breaches = monitor.update(dec!(10000));
         assert!(breaches.is_empty(), "no breach after recovery to peak");
 
-        // Rise above the previous peak — new peak established, drawdown still 0%.
+        // Rise above the previous peak: new peak established, drawdown still 0%.
         let breaches = monitor.update(dec!(12000));
         assert!(breaches.is_empty(), "no breach after rising above old peak");
 

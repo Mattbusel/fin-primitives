@@ -1,4 +1,4 @@
-//! Relative Strength Index (RSI) indicator — Wilder smoothing.
+//! Relative Strength Index (RSI) indicator, Wilder smoothing.
 //!
 //! RSI is a momentum oscillator that measures the speed and change of price movements.
 //! It oscillates between 0 and 100. Traditional interpretation:
@@ -288,6 +288,27 @@ mod tests {
         let val = last_val.expect("RSI must produce a value");
         assert!(val >= dec!(0), "RSI must be >= 0, got {val}");
         assert!(val <= dec!(100), "RSI must be <= 100, got {val}");
+    }
+
+    /// RSI produced by an all-up price series must be >= 70.
+    ///
+    /// With no losses in the seed window, `avg_loss == 0` which makes RSI = 100,
+    /// satisfying the overbought threshold (>= 70).
+    #[test]
+    fn test_rsi_overbought_at_70() {
+        let mut rsi = Rsi::new("rsi14", 14);
+        // Feed 15 strictly increasing bars (period + 1 extra to leave seed phase).
+        for i in 0u32..=14 {
+            rsi.update(&bar(&(100 + i).to_string())).unwrap();
+        }
+        assert!(rsi.is_ready(), "RSI must be ready after period+1 bars");
+        // One more upward bar to trigger the smoothing phase.
+        let v = rsi.update(&bar("116")).unwrap();
+        if let SignalValue::Scalar(val) = v {
+            assert!(val >= dec!(70), "all-up RSI should be >= 70 (overbought), got {val}");
+        } else {
+            panic!("expected Scalar after period+1 bars, got Unavailable");
+        }
     }
 
     /// RSI with fewer bars than period+1 returns Unavailable.

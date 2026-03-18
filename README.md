@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![codecov](https://codecov.io/gh/Mattbusel/fin-primitives/branch/main/graph/badge.svg)](https://codecov.io/gh/Mattbusel/fin-primitives)
 
-A zero-panic, decimal-precise foundation for high-frequency trading and quantitative systems in Rust. `fin-primitives` provides the building blocks -- validated types, order book, OHLCV aggregation, streaming technical indicators, position ledger, and composable risk monitoring -- so that upstream crates and applications can focus on strategy rather than infrastructure.
+A zero-panic, decimal-precise foundation for high-frequency trading and quantitative systems in Rust. `fin-primitives` provides the building blocks (validated types, order book, OHLCV aggregation, streaming technical indicators, position ledger, and composable risk monitoring) so that upstream crates and applications can focus on strategy rather than infrastructure.
 
 ---
 
@@ -162,7 +162,7 @@ types  →  tick  →  orderbook
                 →  ohlcv  →  signals  →  position  →  risk
 ```
 
-- **types**: `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` — no dependencies within the crate
+- **types**: `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` - no dependencies within the crate
 - **orderbook**: depends on `types` for `Price`, `Quantity`, `Side`, `Symbol`
 - **tick**: depends on `types`; provides `Tick`, `TickFilter`, `TickReplayer`
 - **ohlcv**: depends on `tick` and `types`; produces `OhlcvBar` from tick streams
@@ -215,11 +215,11 @@ let sym = Symbol::new("AAPL").unwrap();
 let mut agg = OhlcvAggregator::new(sym.clone(), Timeframe::Seconds(60)).unwrap();
 let nanos_per_min = 60_000_000_000_i64;
 
-// Two ticks within minute 0 — no bar completed yet.
+// Two ticks within minute 0: no bar completed yet.
 agg.push_tick(&Tick::new(sym.clone(), Price::new(dec!(150)).unwrap(), Quantity::new(dec!(10)).unwrap(), Side::Ask, NanoTimestamp(0))).unwrap();
 agg.push_tick(&Tick::new(sym.clone(), Price::new(dec!(152)).unwrap(), Quantity::new(dec!(5)).unwrap(),  Side::Bid, NanoTimestamp(30_000_000_000))).unwrap();
 
-// Tick in minute 1 — triggers completion of minute-0 bar.
+// Tick in minute 1: triggers completion of minute-0 bar.
 if let Some(bar) = agg.push_tick(&Tick::new(sym, Price::new(dec!(153)).unwrap(), Quantity::new(dec!(8)).unwrap(), Side::Ask, NanoTimestamp(nanos_per_min + 1))).unwrap() {
     println!("O={} H={} L={} C={} ticks={}", bar.open.value(), bar.high.value(), bar.low.value(), bar.close.value(), bar.tick_count);
 }
@@ -328,11 +328,11 @@ println!("peak: {}", tracker.peak()); // 100000
 
 ## Performance Notes
 
-- **Lock-free order book** — `OrderBook` uses a `BTreeMap` with no internal synchronisation. The hot path (apply_delta) allocates only when inserting a new price level; updates to existing levels are in-place.
-- **Exact arithmetic** — `rust_decimal` is used for every price and quantity. Floating-point drift is structurally impossible.
-- **O(1) streaming indicators** — `Ema` and `Rsi` maintain a constant-size state regardless of history length. `Sma` uses a `VecDeque` capped at `period` elements.
-- **Zero-copy tick replay** — `TickReplayer` sorts once at construction and returns shared references on each `next_tick` call; no per-tick heap allocation.
-- **Composable risk without boxing** — `RiskMonitor::add_rule` boxes rules once into `Vec<Box<dyn RiskRule>>`. Evaluation is a simple linear scan; no dynamic dispatch per field access.
+- **Lock-free order book**: `OrderBook` uses a `BTreeMap` with no internal synchronisation. The hot path (apply_delta) allocates only when inserting a new price level; updates to existing levels are in-place.
+- **Exact arithmetic**: `rust_decimal` is used for every price and quantity. Floating-point drift is structurally impossible.
+- **O(1) streaming indicators**: `Ema` and `Rsi` maintain a constant-size state regardless of history length. `Sma` uses a `VecDeque` capped at `period` elements.
+- **Zero-copy tick replay**: `TickReplayer` sorts once at construction and returns shared references on each `next_tick` call; no per-tick heap allocation.
+- **Composable risk without boxing**: `RiskMonitor::add_rule` boxes rules once into `Vec<Box<dyn RiskRule>>`. Evaluation is a simple linear scan; no dynamic dispatch per field access.
 
 ## Running Tests
 
