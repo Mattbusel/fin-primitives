@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **RSI implementation**: `src/signals/indicators/rsi.rs` fully implemented with Wilder
+  smoothing. Seed phase uses SMA over `period` changes; subsequent bars apply Wilder
+  smoothing. Returns `Unavailable` until `period + 1` bars; value always in `[0, 100]`.
+- **Safety attributes**: `#![forbid(unsafe_code)]` and `#![deny(missing_docs)]` added to
+  `lib.rs` — enforced at compile time.
+- **CI `bench` job**: runs `cargo bench -- --sample-size 10` on every push/PR so
+  benchmark compilation is always validated.
+- **Release workflow**: `.github/workflows/release.yml` triggers on `v*.*.*` tags,
+  validates (fmt/clippy/test/doc), verifies Cargo.toml version matches the tag,
+  publishes to crates.io, and creates a GitHub release with changelog notes.
+
 ## [1.0.0] - 2026-03-18
 
 ### Added

@@ -83,6 +83,16 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
 
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benchmarks (single sample for CI timing check)
+        run: cargo bench -- --sample-size 10
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
