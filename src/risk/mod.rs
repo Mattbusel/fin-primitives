@@ -53,6 +53,15 @@ pub struct DrawdownTracker {
     /// Most negative single-step equity change seen (0.0 until first loss).
     #[serde(default)]
     min_equity_delta: f64,
+    /// Longest run of consecutive updates where equity increased.
+    #[serde(default)]
+    max_gain_streak: usize,
+    /// Sum of all positive per-update equity changes.
+    #[serde(default)]
+    total_gain_sum: f64,
+    /// Sum of the absolute values of all negative per-update equity changes.
+    #[serde(default)]
+    total_loss_sum: f64,
 }
 
 impl DrawdownTracker {
@@ -74,6 +83,9 @@ impl DrawdownTracker {
             equity_change_m2: 0.0,
             equity_change_count: 0,
             min_equity_delta: 0.0,
+            max_gain_streak: 0,
+            total_gain_sum: 0.0,
+            total_loss_sum: 0.0,
         }
     }
 
