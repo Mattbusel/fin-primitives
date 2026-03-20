@@ -664,6 +664,86 @@ impl PositionLedger {
         }
         Ok(map)
     }
+
+    /// Returns `true` if the portfolio is approximately delta-neutral.
+    ///
+    /// Delta-neutral: `|net_exposure| / gross_exposure < 0.01` (within 1%).
+    /// Returns `true` when there are no open positions.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn delta_neutral_check(&self, prices: &HashMap<String, Price>) -> Result<bool, FinError> {
+        let mut net = Decimal::ZERO;
+        let mut gross = Decimal::ZERO;
+        for (symbol, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(symbol.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(symbol.to_string()))?;
+            let exposure = pos.quantity * price.value();
+            net += exposure;
+            gross += exposure.abs();
+        }
+        if gross == Decimal::ZERO {
+            return Ok(true);
+        }
+        Ok((net / gross).abs() < Decimal::new(1, 2)) // < 0.01
+    }
+
+    /// Returns the allocation percentage of a symbol within the total portfolio value.
+    ///
+    /// `allocation = |qty * price| / total_market_value * 100`.
+    /// Returns `None` if the symbol has no open position, the price is not provided,
+    /// or total market value is zero.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::PositionNotFound`] if `symbol` is unknown.
+    pub fn allocation_pct(
+        &self,
+        symbol: &Symbol,
+        prices: &HashMap<String, Price>,
+    ) -> Result<Option<Decimal>, crate::error::FinError> {
+        let pos = self
+            .positions
+            .get(symbol)
+            .ok_or_else(|| crate::error::FinError::PositionNotFound(symbol.to_string()))?;
+        if pos.quantity == Decimal::ZERO {
+            return Ok(None);
+        }
+        let price = match prices.get(symbol.as_str()) {
+            Some(p) => *p,
+            None => return Ok(None),
+        };
+        let notional = (pos.quantity * price.value()).abs();
+        let total = self.total_market_value(prices)?;
+        if total.is_zero() {
+            return Ok(None);
+        }
+        Ok(Some(notional / total * Decimal::ONE_HUNDRED))
+    }
+
+    /// Returns open positions sorted descending by unrealized PnL.
+    ///
+    /// Positions not in `prices` are assigned a PnL of zero for sorting purposes.
+    pub fn positions_sorted_by_pnl(&self, prices: &HashMap<String, Price>) -> Vec<&Position> {
+        let mut open: Vec<&Position> = self
+            .positions
+            .values()
+            .filter(|p| p.quantity != Decimal::ZERO)
+            .collect();
+        open.sort_by(|a, b| {
+            let pnl_a = prices
+                .get(a.symbol.as_str())
+                .map_or(Decimal::ZERO, |&p| a.unrealized_pnl(p));
+            let pnl_b = prices
+                .get(b.symbol.as_str())
+                .map_or(Decimal::ZERO, |&p| b.unrealized_pnl(p));
+            pnl_b.cmp(&pnl_a)
+        });
+        open
+    }
 }
 
 #[cfg(test)]
@@ -843,6 +923,35 @@ mod tests {
         ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         let prices: HashMap<String, Price> = HashMap::new();
         assert!(ledger.pnl_by_symbol(&prices).is_err());
+    }
+
+    #[test]
+    fn test_position_ledger_delta_neutral_no_positions() {
+        let ledger = PositionLedger::new(dec!(10000));
+        let prices: HashMap<String, Price> = HashMap::new();
+        assert!(ledger.delta_neutral_check(&prices).unwrap());
+    }
+
+    #[test]
+    fn test_position_ledger_delta_neutral_long_short_balanced() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("GOOG", Side::Ask, "10", "100", "0")).unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_owned(), Price::new(dec!(100)).unwrap());
+        prices.insert("GOOG".to_owned(), Price::new(dec!(100)).unwrap());
+        // net=0, gross=2000 → ratio=0 → neutral
+        assert!(ledger.delta_neutral_check(&prices).unwrap());
+    }
+
+    #[test]
+    fn test_position_ledger_delta_neutral_one_sided_not_neutral() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_owned(), Price::new(dec!(100)).unwrap());
+        // net=1000, gross=1000 → ratio=1 → not neutral
+        assert!(!ledger.delta_neutral_check(&prices).unwrap());
     }
 
     #[test]

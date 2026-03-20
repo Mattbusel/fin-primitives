@@ -180,6 +180,33 @@ impl Tick {
         ticks.iter().map(|t| t.price).min_by(|a, b| a.value().cmp(&b.value()))
     }
 
+    /// Time-Weighted Average Price from a tick slice.
+    ///
+    /// Each price is weighted by the elapsed nanoseconds since the previous tick.
+    /// The first tick receives zero weight. Returns `None` for slices with fewer than
+    /// 2 ticks or zero total elapsed time.
+    pub fn time_weighted_avg_price(ticks: &[Tick]) -> Option<Decimal> {
+        if ticks.len() < 2 {
+            return None;
+        }
+        let mut total_weight = 0u128;
+        let mut weighted_sum = Decimal::ZERO;
+        for i in 1..ticks.len() {
+            let elapsed = ticks[i].timestamp.nanos()
+                .saturating_sub(ticks[i - 1].timestamp.nanos())
+                .max(0) as u128;
+            total_weight = total_weight.saturating_add(elapsed);
+            #[allow(clippy::cast_possible_truncation)]
+            let w = Decimal::from(elapsed as u64);
+            weighted_sum += ticks[i].price.value() * w;
+        }
+        if total_weight == 0 {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(weighted_sum / Decimal::from(total_weight as u64))
+    }
+
     /// Returns the tick with the highest notional value (`price × quantity`) in the slice.
     ///
     /// Returns `None` if the slice is empty.
@@ -215,6 +242,15 @@ impl Tick {
         }
         let buy_vol = Self::buy_volume(ticks);
         Some(buy_vol / total)
+    }
+
+    /// Returns `(buy_count, sell_count)` — tick counts by aggressor side.
+    ///
+    /// Useful for measuring trade-frequency imbalance independently of volume.
+    pub fn count_by_side(ticks: &[Tick]) -> (usize, usize) {
+        let buy = ticks.iter().filter(|t| t.side == Side::Bid).count();
+        let sell = ticks.len() - buy;
+        (buy, sell)
     }
 }
 
@@ -602,6 +638,39 @@ impl TickReplayer {
             map.entry(tick.symbol.clone()).or_default().push(tick.clone());
         }
         map
+    }
+
+    /// Returns the price range across all ticks: `max_price - min_price`.
+    ///
+    /// Returns `None` if there are no ticks.
+    pub fn price_range(&self) -> Option<Decimal> {
+        let mut max_p = self.ticks.first()?.price.value();
+        let mut min_p = max_p;
+        for t in &self.ticks {
+            let p = t.price.value();
+            if p > max_p { max_p = p; }
+            if p < min_p { min_p = p; }
+        }
+        Some(max_p - min_p)
+    }
+
+    /// Returns a `(bid_count, ask_count)` tuple for the number of ticks on each side.
+    pub fn tick_count_by_side(&self) -> (usize, usize) {
+        let bid = self.ticks.iter().filter(|t| t.side == Side::Bid).count();
+        let ask = self.ticks.iter().filter(|t| t.side == Side::Ask).count();
+        (bid, ask)
+    }
+
+    /// Returns the median trade size (quantity) across all ticks.
+    ///
+    /// Uses the lower median for even-length sets. Returns `None` if empty.
+    pub fn median_trade_size(&self) -> Option<Decimal> {
+        if self.ticks.is_empty() {
+            return None;
+        }
+        let mut sizes: Vec<Decimal> = self.ticks.iter().map(|t| t.quantity.value()).collect();
+        sizes.sort();
+        Some(sizes[sizes.len() / 2])
     }
 }
 

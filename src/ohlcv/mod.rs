@@ -413,6 +413,13 @@ impl OhlcvBar {
         self.high.value() < prev.low.value()
     }
 
+    /// Signed gap from prior bar: `self.open - prev.close`.
+    ///
+    /// Positive = gap up, negative = gap down, zero = no gap.
+    pub fn gap_from(&self, prev: &OhlcvBar) -> Decimal {
+        self.open.value() - prev.close.value()
+    }
+
     /// Returns the upper shadow length: `high - max(open, close)`.
     pub fn upper_shadow(&self) -> Decimal {
         let body_top = self.open.value().max(self.close.value());
@@ -2311,6 +2318,126 @@ impl OhlcvSeries {
         }
         (last_range / avg).to_f64()
     }
+
+    /// Kaufman Efficiency Ratio over the last `n` bars.
+    ///
+    /// `ER = |close[end] - close[start]| / Σ|close[i] - close[i-1]|`.
+    /// Returns `None` if fewer than `n+1` bars or the total path length is zero.
+    pub fn efficiency_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
+        let start = self.bars.len() - n - 1;
+        let closes: Vec<Decimal> = self.bars[start..].iter().map(|b| b.close.value()).collect();
+        let direction = (closes[n] - closes[0]).abs();
+        let path: Decimal = closes.windows(2).map(|w| (w[1] - w[0]).abs()).sum();
+        if path.is_zero() {
+            return None;
+        }
+        Some(direction / path)
+    }
+
+    /// Body-size as a percentage of range for the last `n` bars.
+    ///
+    /// Each element is `|close - open| / (high - low) * 100`, or `None` when
+    /// the bar's high equals its low.
+    pub fn body_pct_series(&self, n: usize) -> Vec<Option<Decimal>> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..]
+            .iter()
+            .map(|b| {
+                let range = b.high.value() - b.low.value();
+                if range.is_zero() {
+                    None
+                } else {
+                    let body = (b.close.value() - b.open.value()).abs();
+                    Some(body / range * Decimal::ONE_HUNDRED)
+                }
+            })
+            .collect()
+    }
+
+    /// Count of candle direction changes in the last `n` bars.
+    ///
+    /// A change is when the current bar's direction (close ≥ open vs close < open)
+    /// differs from the previous bar. Returns `0` if fewer than 2 bars available.
+    pub fn candle_color_changes(&self, n: usize) -> usize {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.len() < 2 {
+            return 0;
+        }
+        slice.windows(2)
+            .filter(|w| {
+                let prev_bull = w[0].close.value() >= w[0].open.value();
+                let curr_bull = w[1].close.value() >= w[1].open.value();
+                prev_bull != curr_bull
+            })
+            .count()
+    }
+
+    /// Typical price `(high + low + close) / 3` for each of the last `n` bars.
+    pub fn typical_price_series(&self, n: usize) -> Vec<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3))
+            .collect()
+    }
+
+    /// Returns the open-gap percentage for each consecutive bar pair in the full series.
+    ///
+    /// `gap_pct[i] = (open[i] - close[i-1]) / close[i-1] * 100`
+    ///
+    /// Returns an empty vec if the series has fewer than 2 bars.
+    pub fn open_gap_series(&self) -> Vec<Decimal> {
+        if self.bars.len() < 2 {
+            return Vec::new();
+        }
+        self.bars
+            .windows(2)
+            .filter_map(|w| {
+                let prev_close = w[0].close.value();
+                if prev_close.is_zero() {
+                    return None;
+                }
+                Some((w[1].open.value() - prev_close) / prev_close * Decimal::ONE_HUNDRED)
+            })
+            .collect()
+    }
+
+    /// Average intraday range as a percentage of open: `mean((high - low) / open * 100)` over last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, the series is empty, or any open is zero.
+    pub fn intraday_range_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.is_empty() {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        let count = slice.len();
+        if count == 0 {
+            return None;
+        }
+        let sum: Option<Decimal> = slice.iter().try_fold(Decimal::ZERO, |acc, b| {
+            let o = b.open.value();
+            if o.is_zero() { return None; }
+            Some(acc + (b.high.value() - b.low.value()) / o * Decimal::ONE_HUNDRED)
+        });
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum? / Decimal::from(count as u32))
+    }
+
+    /// Counts bars in the last `n` where `close > prev_high` (breakout above prior high).
+    ///
+    /// Returns `0` if `n == 0` or the series has fewer than 2 bars.
+    pub fn close_above_prior_high(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n + 1);
+        self.bars[start..].windows(2).filter(|w| w[1].close.value() > w[0].high.value()).count()
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -3109,6 +3236,38 @@ mod tests {
         }
         // all bars identical range=20 → current/avg = 1
         assert_eq!(series.range_expansion(5).unwrap(), dec!(1));
+    }
+
+    #[test]
+    fn test_ohlcv_series_bearish_engulfing_count_zero_when_short() {
+        assert_eq!(OhlcvSeries::new().bearish_engulfing_count(5), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_bearish_engulfing_count_detects_pattern() {
+        let mut series = OhlcvSeries::new();
+        // bar1: bullish (open=95, close=105)
+        series.push(make_bar("95", "110", "90", "105")).unwrap();
+        // bar2: bearish engulfing: open > prev_close(105), close < prev_open(95)
+        series.push(make_bar("110", "115", "88", "90")).unwrap();
+        assert_eq!(series.bearish_engulfing_count(2), 1);
+    }
+
+    #[test]
+    fn test_ohlcv_series_trend_strength_none_when_insufficient() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert!(series.trend_strength(2).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_trend_strength_pure_trend_is_one() {
+        // straight up trend: each close 10 higher — net = total movement → ratio = 1
+        let mut series = OhlcvSeries::new();
+        for c in ["100", "110", "120", "130"] {
+            series.push(make_bar(c, "135", "95", c)).unwrap();
+        }
+        assert_eq!(series.trend_strength(4).unwrap(), dec!(1));
     }
 
     #[test]

@@ -45,6 +45,8 @@ pub mod wma;
 pub mod zlema;
 pub mod kvo;
 pub mod rvi;
+pub mod vortex;
+pub mod williams_ad;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -88,3 +90,5 @@ pub use wma::Wma;
 pub use zlema::Zlema;
 pub use kvo::Kvo;
 pub use rvi::Rvi;
+pub use vortex::Vortex;
+pub use williams_ad::WilliamsAD;

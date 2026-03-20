@@ -550,6 +550,13 @@ impl NanoTimestamp {
         self.0
     }
 
+    /// Returns the raw nanosecond value as `u128`.
+    ///
+    /// Saturates to zero for negative timestamps (before the epoch).
+    pub fn as_nanos(&self) -> u128 {
+        self.0.max(0) as u128
+    }
+
     /// Returns the current UTC time as a `NanoTimestamp`.
     ///
     /// Falls back to `0` if the system clock overflows nanosecond range (extremely unlikely).
@@ -739,6 +746,15 @@ impl NanoTimestamp {
         let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
             .unwrap_or_default();
         dt.format("%Y-%m-%d").to_string()
+    }
+
+    /// Returns `true` if `self` and `other` fall on the same UTC calendar day.
+    ///
+    /// Useful for detecting session boundaries when grouping bars by date.
+    pub fn is_same_day(&self, other: NanoTimestamp) -> bool {
+        // Two timestamps are on the same day when they share the same `floor(nanos / 86400e9)`.
+        const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
+        self.0.div_euclid(DAY_NANOS) == other.0.div_euclid(DAY_NANOS)
     }
 }
 

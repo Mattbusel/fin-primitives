@@ -662,6 +662,19 @@ impl OrderBook {
         }
         Some((bid_qty - ask_qty) / total)
     }
+
+    /// Returns the ask-to-bid quantity ratio: `total_ask_qty / total_bid_qty`.
+    ///
+    /// Values above 1 indicate more supply than demand at visible depth levels.
+    /// Returns `None` when total bid quantity is zero (avoid division by zero).
+    pub fn ask_bid_ratio(&self) -> Option<Decimal> {
+        let bid_qty: Decimal = self.bids.values().sum();
+        let ask_qty: Decimal = self.asks.values().sum();
+        if bid_qty.is_zero() {
+            return None;
+        }
+        Some(ask_qty / bid_qty)
+    }
 }
 
 #[cfg(test)]

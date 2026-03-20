@@ -25,6 +25,12 @@ pub struct DrawdownTracker {
     update_count: usize,
     /// Number of updates where equity was below peak (in drawdown).
     drawdown_update_count: usize,
+    /// Cumulative sum of drawdown percentages for computing averages.
+    #[serde(default)]
+    drawdown_pct_sum: Decimal,
+    /// Longest consecutive run of updates spent below peak.
+    #[serde(default)]
+    max_drawdown_streak: usize,
 }
 
 impl DrawdownTracker {
@@ -37,6 +43,8 @@ impl DrawdownTracker {
             updates_since_peak: 0,
             update_count: 0,
             drawdown_update_count: 0,
+            drawdown_pct_sum: Decimal::ZERO,
+            max_drawdown_streak: 0,
         }
     }
 
@@ -54,6 +62,12 @@ impl DrawdownTracker {
         let dd = self.current_drawdown_pct();
         if dd > self.worst_drawdown_pct {
             self.worst_drawdown_pct = dd;
+        }
+        if !dd.is_zero() {
+            self.drawdown_pct_sum += dd;
+        }
+        if self.updates_since_peak > self.max_drawdown_streak {
+            self.max_drawdown_streak = self.updates_since_peak;
         }
     }
 
@@ -127,6 +141,8 @@ impl DrawdownTracker {
     pub fn reset(&mut self, initial: Decimal) {
         self.peak_equity = initial;
         self.current_equity = initial;
+        self.drawdown_pct_sum = Decimal::ZERO;
+        self.max_drawdown_streak = 0;
         self.worst_drawdown_pct = Decimal::ZERO;
         self.updates_since_peak = 0;
         self.update_count = 0;
@@ -200,6 +216,34 @@ impl DrawdownTracker {
             return Decimal::ZERO;
         }
         (self.peak_equity / self.current_equity - Decimal::ONE) * Decimal::ONE_HUNDRED
+    }
+
+    /// Fraction of equity updates spent below peak: `drawdown_update_count / update_count`.
+    ///
+    /// Returns `Decimal::ZERO` when no updates have been processed.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn time_underwater_pct(&self) -> Decimal {
+        if self.update_count == 0 {
+            return Decimal::ZERO;
+        }
+        Decimal::from(self.drawdown_update_count as u64)
+            / Decimal::from(self.update_count as u64)
+    }
+
+    /// Average drawdown percentage across all updates that had a non-zero drawdown.
+    ///
+    /// Returns `None` when no drawdown updates have been recorded.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn avg_drawdown_pct(&self) -> Option<Decimal> {
+        if self.drawdown_update_count == 0 {
+            return None;
+        }
+        Some(self.drawdown_pct_sum / Decimal::from(self.drawdown_update_count as u64))
+    }
+
+    /// Longest consecutive run of updates where equity was below peak.
+    pub fn max_loss_streak(&self) -> usize {
+        self.max_drawdown_streak.max(self.updates_since_peak)
     }
 
     /// Returns `true` if `equity` is strictly greater than the current peak (new high-water mark).
@@ -374,6 +418,11 @@ impl RiskMonitor {
     /// Returns the total number of equity updates processed since construction or last reset.
     pub fn equity_history_len(&self) -> usize {
         self.tracker.update_count()
+    }
+
+    /// Returns the number of consecutive equity updates since the last peak (drawdown duration).
+    pub fn drawdown_duration(&self) -> usize {
+        self.tracker.drawdown_duration()
     }
 
     /// Returns the total number of rule breaches triggered since construction or last reset.
@@ -572,6 +621,22 @@ mod tests {
         monitor.update(dec!(9500)); // partial recovery
         // worst seen is still 10%
         assert_eq!(monitor.max_drawdown_pct(), dec!(10));
+    }
+
+    #[test]
+    fn test_risk_monitor_drawdown_duration_zero_at_peak() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        monitor.update(dec!(10100)); // new peak
+        assert_eq!(monitor.drawdown_duration(), 0);
+    }
+
+    #[test]
+    fn test_risk_monitor_drawdown_duration_increments() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        monitor.update(dec!(10100)); // peak
+        monitor.update(dec!(9900));  // duration=1
+        monitor.update(dec!(9800));  // duration=2
+        assert_eq!(monitor.drawdown_duration(), 2);
     }
 
     #[test]

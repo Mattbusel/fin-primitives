@@ -239,6 +239,24 @@ impl SignalPipeline {
             self.update(bar);
         }
     }
+
+    /// Resets all signals in the pipeline to their initial (un-warmed) state.
+    pub fn reset_all(&mut self) {
+        for signal in &mut self.signals {
+            signal.reset();
+        }
+    }
+
+    /// Returns the names of signals that are currently ready (producing values).
+    ///
+    /// A signal is "ready" when it has accumulated enough bars.
+    pub fn ready_signal_names(&self) -> Vec<&str> {
+        self.signals
+            .iter()
+            .filter(|s| s.is_ready())
+            .map(|s| s.name())
+            .collect()
+    }
 }
 
 impl Default for SignalPipeline {

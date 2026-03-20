@@ -257,6 +257,25 @@ impl SignalValue {
         }
     }
 
+    /// Divides two signals: `Scalar(a) / Scalar(b)`.
+    ///
+    /// Returns `Unavailable` if either operand is `Unavailable` or `b` is zero.
+    pub fn div(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => {
+                if b.is_zero() {
+                    SignalValue::Unavailable
+                } else {
+                    match a.checked_div(b) {
+                        Some(result) => SignalValue::Scalar(result),
+                        None => SignalValue::Unavailable,
+                    }
+                }
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
+
     /// Returns `true` if the scalar value is strictly positive. `Unavailable` returns `false`.
     pub fn is_positive(&self) -> bool {
         matches!(self, SignalValue::Scalar(d) if *d > Decimal::ZERO)
