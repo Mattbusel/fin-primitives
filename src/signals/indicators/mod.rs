@@ -1141,3 +1141,9 @@ pub use close_distance_from_open::CloseDistanceFromOpen;
 
 pub mod range_efficiency;
 pub use range_efficiency::RangeEfficiency;
+pub mod close_rank_momentum;
+pub use close_rank_momentum::CloseRankMomentum;
+pub mod price_excursion;
+pub use price_excursion::PriceExcursion;
+pub mod volatility_compression;
+pub use volatility_compression::VolatilityCompression;
