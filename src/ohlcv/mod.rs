@@ -145,6 +145,15 @@ impl OhlcvBar {
             / Decimal::from(4u32)
     }
 
+    /// Returns the dollar volume of this bar: `typical_price × volume`.
+    ///
+    /// Dollar volume is a common liquidity metric: high dollar volume means
+    /// large amounts of capital changed hands, making the instrument easier to
+    /// trade without excessive market impact.
+    pub fn dollar_volume(&self) -> Decimal {
+        self.typical_price() * self.volume.value()
+    }
+
     /// Returns `true` if this bar is a gap-fill placeholder (zero ticks).
     ///
     /// Gap-fill bars are emitted by `OhlcvAggregator` when a tick arrives several
@@ -375,6 +384,16 @@ impl OhlcvBar {
             return None;
         }
         Some((self.open.value() - prev_close) / prev_close * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns `true` if this bar opened with a gap larger than `pct_threshold` percent.
+    ///
+    /// A gap exists when `|gap_pct| >= pct_threshold`. Returns `false` when
+    /// `gap_pct` cannot be computed (zero previous close).
+    pub fn has_gap(&self, prev: &OhlcvBar, pct_threshold: Decimal) -> bool {
+        self.gap_pct(prev)
+            .map(|g| g.abs() >= pct_threshold)
+            .unwrap_or(false)
     }
 
     /// Creates a single-tick OHLCV bar from a `Tick`.
@@ -901,6 +920,19 @@ impl OhlcvSeries {
         let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.volume.value()).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Returns the average dollar volume over the last `n` bars.
+    ///
+    /// `avg_dollar_volume = Σ(typical_price × volume) / n` for the last `n` bars.
+    ///
+    /// Returns `None` when `n == 0` or the series has fewer than `n` bars.
+    pub fn avg_dollar_volume(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.dollar_volume()).sum();
+        Some(sum / Decimal::from(n as u64))
     }
 
     /// Returns a sub-slice `bars[from..to]`, or `None` if the range is out of bounds.

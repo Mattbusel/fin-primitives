@@ -253,6 +253,31 @@ impl Position {
     pub fn avg_entry_price(&self) -> Option<Price> {
         Price::new(self.avg_cost).ok()
     }
+
+    /// Returns the stop-loss price at `stop_pct` percent below (long) or above (short) entry.
+    ///
+    /// - Long: `stop = avg_cost × (1 - stop_pct / 100)`
+    /// - Short: `stop = avg_cost × (1 + stop_pct / 100)`
+    ///
+    /// Returns `None` when the position is flat or `avg_cost` is zero.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // A 2% stop loss on a long position at avg_cost=100 → stop at 98
+    /// position.stop_loss_price(dec!(2)).unwrap() == Price::new(dec!(98)).unwrap()
+    /// ```
+    pub fn stop_loss_price(&self, stop_pct: Decimal) -> Option<Price> {
+        if self.is_flat() || self.avg_cost.is_zero() {
+            return None;
+        }
+        let factor = stop_pct / Decimal::ONE_HUNDRED;
+        let stop = if self.is_long() {
+            self.avg_cost * (Decimal::ONE - factor)
+        } else {
+            self.avg_cost * (Decimal::ONE + factor)
+        };
+        Price::new(stop).ok()
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
@@ -485,6 +510,27 @@ impl PositionLedger {
     pub fn equity(&self, prices: &HashMap<String, Price>) -> Result<Decimal, FinError> {
         Ok(self.cash + self.unrealized_pnl_total(prices)?)
     }
+
+    /// Returns the net liquidation value: `cash + sum(market_value of each open position)`.
+    ///
+    /// Market value of a position = `quantity × current_price`. This differs from
+    /// `equity` which adds unrealized P&L rather than raw market value.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a position has no price in `prices`.
+    pub fn net_liquidation_value(&self, prices: &HashMap<String, Price>) -> Result<Decimal, FinError> {
+        let mut total = self.cash;
+        for (symbol, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(symbol.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(symbol.to_string()))?;
+            total += pos.quantity * price.value();
+        }
+        Ok(total)
+    }
 }
 
 #[cfg(test)]
@@ -619,6 +665,30 @@ mod tests {
         // equity = cash + unrealized = 9000 + (110-100)*10 = 9100
         let equity = ledger.equity(&prices).unwrap();
         assert_eq!(equity, dec!(9100));
+    }
+
+    #[test]
+    fn test_position_ledger_net_liquidation_value() {
+        // buy 10 AAPL @ 100 → cash = 10000 - 1000 = 9000
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_owned(), Price::new(dec!(110)).unwrap());
+        // NLV = cash(9000) + 10×110 = 9000 + 1100 = 10100
+        let nlv = ledger.net_liquidation_value(&prices).unwrap();
+        assert_eq!(nlv, dec!(10100));
+    }
+
+    #[test]
+    fn test_position_ledger_net_liquidation_missing_price() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let prices: HashMap<String, Price> = HashMap::new();
+        assert!(ledger.net_liquidation_value(&prices).is_err());
     }
 
     #[test]

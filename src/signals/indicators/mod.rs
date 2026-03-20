@@ -3,6 +3,7 @@
 //! All indicators return [`crate::signals::SignalValue::Unavailable`] until they have
 //! accumulated enough bars to produce a meaningful value.
 
+pub mod adx;
 pub mod apo;
 pub mod atr;
 pub mod obv;
@@ -28,6 +29,7 @@ pub mod vwap;
 pub mod williams_r;
 pub mod wma;
 
+pub use adx::Adx;
 pub use apo::Apo;
 pub use atr::Atr;
 pub use obv::Obv;
