@@ -2926,6 +2926,58 @@ impl OhlcvSeries {
         Some((n_f * sum_xy - sum_x * sum_y) / denom)
     }
 
+    /// Average ratio of total wick length to body length over the last `n` bars.
+    ///
+    /// `wick = (high - low) - |close - open|`; `body = |close - open|`
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or all bodies are zero.
+    pub fn wick_body_ratio(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = 0.0f64;
+        let mut count = 0usize;
+        for b in &self.bars[start..] {
+            let body = (b.close.value() - b.open.value()).abs().to_f64()?;
+            if body == 0.0 { continue; }
+            let range = (b.high.value() - b.low.value()).to_f64()?;
+            let wick = (range - body).max(0.0);
+            sum += wick / body;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / count as f64)
+    }
+
+    /// Pearson correlation between volume and close price over the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or standard deviation is zero.
+    pub fn volume_price_correlation(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let xs: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        let ys: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        if xs.len() < 2 { return None; }
+        let n_f = xs.len() as f64;
+        let mx = xs.iter().sum::<f64>() / n_f;
+        let my = ys.iter().sum::<f64>() / n_f;
+        let num: f64 = xs.iter().zip(ys.iter()).map(|(x, y)| (x - mx) * (y - my)).sum();
+        let sx = (xs.iter().map(|x| (x - mx).powi(2)).sum::<f64>() / n_f).sqrt();
+        let sy = (ys.iter().map(|y| (y - my).powi(2)).sum::<f64>() / n_f).sqrt();
+        if sx == 0.0 || sy == 0.0 { return None; }
+        Some(num / (n_f * sx * sy))
+    }
+
     /// Annualised Sharpe ratio of log returns over the last `n` bars.
     ///
     /// Uses 252 trading days to annualise. Returns `None` if fewer than 2 bars exist,
