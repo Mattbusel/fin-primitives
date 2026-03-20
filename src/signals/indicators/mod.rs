@@ -190,6 +190,7 @@ pub mod net_volume;
 pub mod high_low_pct;
 pub mod close_to_open;
 pub mod volatility_adjusted_momentum;
+pub mod mean_reversion_score;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -378,3 +379,4 @@ pub use net_volume::NetVolume;
 pub use high_low_pct::HighLowPct;
 pub use close_to_open::CloseToOpen;
 pub use volatility_adjusted_momentum::VolatilityAdjustedMomentum;
+pub use mean_reversion_score::MeanReversionScore;
