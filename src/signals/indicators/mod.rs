@@ -102,6 +102,7 @@ pub mod ctm;
 pub mod tii;
 pub mod historical_volatility;
 pub mod vix_fix;
+/// Chaikin Volatility indicator module.
 pub mod chaikin_volatility;
 pub mod normalized_price;
 pub mod price_velocity;
@@ -746,3 +747,20 @@ pub mod close_return_z;
 pub use price_velocity_ratio::PriceVelocityRatio;
 pub use rolling_correlation::RollingCorrelation;
 pub use close_return_z::CloseReturnZ;
+
+pub mod engulfing_pattern;
+pub mod three_bar_pattern;
+pub mod consolidation_score;
+pub mod close_vs_vwap;
+pub mod price_velocity_score;
+pub use engulfing_pattern::EngulfingPattern;
+pub use three_bar_pattern::ThreeBarPattern;
+pub use consolidation_score::ConsolidationScore;
+pub use close_vs_vwap::CloseVsVwap;
+pub use price_velocity_score::PriceVelocityScore;
+/// Bar efficiency indicator module.
+pub mod bar_efficiency;
+/// Close-to-open return indicator module.
+pub mod close_to_open_return;
+pub use bar_efficiency::BarEfficiency;
+pub use close_to_open_return::CloseToOpenReturn;

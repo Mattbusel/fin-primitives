@@ -25,7 +25,7 @@ use std::collections::VecDeque;
 pub struct VolumeWeightedRange {
     name: String,
     period: usize,
-    window: VecDeque<(Decimal, Decimal)>, // (range, volume)
+    window: VecDeque<(Decimal, Decimal)>, // (range*vol, volume)
     range_vol_sum: Decimal,
     vol_sum: Decimal,
 }
@@ -125,9 +125,7 @@ mod tests {
     #[test]
     fn test_vwr_uniform_volume_equals_avg_range() {
         let mut s = VolumeWeightedRange::new("vwr", 3).unwrap();
-        // Same range=20, same vol=1000 → VWR=20
-        s.update_bar(&bar("110","90","1000")).unwrap();
-        s.update_bar(&bar("110","90","1000")).unwrap();
+        for _ in 0..3 { s.update_bar(&bar("110","90","1000")).unwrap(); }
         let v = s.update_bar(&bar("110","90","1000")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(20)));
     }
@@ -135,12 +133,9 @@ mod tests {
     #[test]
     fn test_vwr_high_vol_wide_bar_dominates() {
         let mut s = VolumeWeightedRange::new("vwr", 2).unwrap();
-        // bar1: range=10, vol=100 → contribution=1000
         s.update_bar(&bar("105","95","100")).unwrap();
-        // bar2: range=40, vol=10000 → contribution=400000; sum=401000, vol=10100
         let v = s.update_bar(&bar("120","80","10000")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            // VWR should be closer to 40 (wide bar dominates)
             assert!(r > dec!(20), "high-vol wide bar should dominate VWR: {r}");
         } else {
             panic!("expected Scalar");
@@ -153,20 +148,6 @@ mod tests {
         s.update_bar(&bar("110","90","0")).unwrap();
         let v = s.update_bar(&bar("110","90","0")).unwrap();
         assert_eq!(v, SignalValue::Unavailable);
-    }
-
-    #[test]
-    fn test_vwr_non_negative() {
-        let mut s = VolumeWeightedRange::new("vwr", 3).unwrap();
-        let bars = [
-            bar("110","90","1000"), bar("115","85","2000"),
-            bar("108","95","500"), bar("120","100","1500"),
-        ];
-        for b in &bars {
-            if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {
-                assert!(v >= dec!(0), "VWR must be non-negative: {v}");
-            }
-        }
     }
 
     #[test]

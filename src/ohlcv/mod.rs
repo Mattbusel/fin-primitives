@@ -7302,6 +7302,75 @@ impl OhlcvSeries {
         (current - median).checked_div(median).map(|r| r * Decimal::ONE_HUNDRED)
     }
 
+    /// Returns the fraction of last `n + 1` bar-pairs where close > prev_close (win rate).
+    ///
+    /// Alias for [`win_rate`] using close-to-close comparisons.
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn close_win_rate(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let wins = slice.windows(2).filter(|w| w[1].close.value() > w[0].close.value()).count();
+        #[allow(clippy::cast_possible_truncation)]
+        Decimal::from(wins as u32).checked_div(Decimal::from(n as u32))
+    }
+
+    /// Returns the rolling N-bar VWAP (Volume-Weighted Average Price).
+    ///
+    /// Returns `None` if fewer than `n` bars are available or total volume is zero.
+    pub fn rolling_vwap(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let total_vol: Decimal = slice.iter().map(|b| b.volume.value()).sum();
+        if total_vol.is_zero() { return None; }
+        let vwap = slice.iter().map(|b| b.close.value() * b.volume.value()).sum::<Decimal>() / total_vol;
+        Some(vwap)
+    }
+
+    /// Returns the count of engulfing bars (bullish or bearish) in the last `n + 1` bars.
+    ///
+    /// A bar is engulfing if its body completely contains the prior bar's body.
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn engulfing_count(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let count = slice.windows(2).filter(|w| {
+            let (po, pc) = (w[0].open.value(), w[0].close.value());
+            let (co, cc) = (w[1].open.value(), w[1].close.value());
+            let prev_lo = po.min(pc);
+            let prev_hi = po.max(pc);
+            let curr_lo = co.min(cc);
+            let curr_hi = co.max(cc);
+            curr_lo <= prev_lo && curr_hi >= prev_hi && prev_lo != prev_hi
+        }).count();
+        Some(count)
+    }
+
+    /// Returns the rolling N-bar velocity: `close[last] - close[last - n]`.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn rolling_velocity(&self, n: usize) -> Option<Decimal> {
+        let len = self.bars.len();
+        if n == 0 || len < n + 1 { return None; }
+        Some(self.bars[len - 1].close.value() - self.bars[len - 1 - n].close.value())
+    }
+
+    /// Returns the average consolidation ratio over the last `n` bars.
+    ///
+    /// Each bar contributes `(close - open).abs() / (high - low)` (body-to-range ratio).
+    /// Bars with zero range are excluded.
+    /// Returns `None` if fewer than `n` bars are available or no bar has a non-zero range.
+    pub fn avg_body_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let (sum, count) = slice.iter().fold((Decimal::ZERO, 0u32), |(s, c), b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { (s, c) }
+            else { (s + (b.close.value() - b.open.value()).abs() / range, c + 1) }
+        });
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
+
 }
 
 #[cfg(test)]
