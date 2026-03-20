@@ -744,6 +744,21 @@ impl PositionLedger {
         });
         open
     }
+
+    /// Returns the top `n` open positions sorted by absolute market value descending.
+    ///
+    /// Positions missing from `prices` are assigned market value of zero and sink to the bottom.
+    pub fn top_n_positions<'a>(&'a self, n: usize, prices: &HashMap<String, Price>) -> Vec<&'a Position> {
+        let mut open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
+        open.sort_by(|a, b| {
+            let mv_a = prices.get(a.symbol.as_str())
+                .map_or(Decimal::ZERO, |p| (a.quantity * p.value()).abs());
+            let mv_b = prices.get(b.symbol.as_str())
+                .map_or(Decimal::ZERO, |p| (b.quantity * p.value()).abs());
+            mv_b.cmp(&mv_a)
+        });
+        open.into_iter().take(n).collect()
+    }
 }
 
 #[cfg(test)]

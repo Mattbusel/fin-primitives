@@ -1665,6 +1665,48 @@ impl OhlcvSeries {
 
     /// Returns the average volume over the last `n` bars, or `None` if the series is empty.
     ///
+    /// Returns the average `(close - open) / open` per bar over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n` bars exist, `n == 0`, or any open is zero.
+    pub fn open_to_close_return(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let o = b.open.value();
+            if o == Decimal::ZERO {
+                return None;
+            }
+            sum += (b.close.value() - o) / o;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Returns the count of bars in the last `n` where `open > prev_close` (gap up).
+    pub fn gap_up_count(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
+            bar.open.value() > self.bars[start + i - 1].close.value()
+        }).count()
+    }
+
+    /// Returns the count of bars in the last `n` where `open < prev_close` (gap down).
+    pub fn gap_down_count(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
+            bar.open.value() < self.bars[start + i - 1].close.value()
+        }).count()
+    }
+
     /// If `n` exceeds the series length, all bars are included.
     #[allow(clippy::cast_possible_truncation)]
     pub fn average_volume(&self, n: usize) -> Option<Decimal> {

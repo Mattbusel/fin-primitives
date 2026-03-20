@@ -137,6 +137,22 @@ impl DrawdownTracker {
         Some(Decimal::from(at_peak as u64) / Decimal::from(self.update_count as u64))
     }
 
+    /// Returns how far below peak current equity is, as a percentage.
+    ///
+    /// `underwater_pct = (peak - current) / peak × 100`
+    ///
+    /// Returns `Decimal::ZERO` when at or above peak.
+    pub fn underwater_pct(&self) -> Decimal {
+        if self.peak_equity == Decimal::ZERO {
+            return Decimal::ZERO;
+        }
+        let diff = self.peak_equity - self.current_equity;
+        if diff <= Decimal::ZERO {
+            return Decimal::ZERO;
+        }
+        diff / self.peak_equity * Decimal::ONE_HUNDRED
+    }
+
     /// Fully resets the tracker as if it were freshly constructed with `initial` equity.
     pub fn reset(&mut self, initial: Decimal) {
         self.peak_equity = initial;
