@@ -102,7 +102,6 @@ impl Signal for Emv {
 mod tests {
     use super::*;
     use crate::signals::Signal;
-    use rust_decimal_macros::dec;
 
     fn bar(high: &str, low: &str, vol: &str) -> BarInput {
         BarInput::new(

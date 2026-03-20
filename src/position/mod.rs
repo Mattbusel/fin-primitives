@@ -2585,22 +2585,22 @@ mod tests {
     #[test]
     fn test_all_flat_false_after_open_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
         assert!(!ledger.all_flat());
     }
 
     #[test]
     fn test_all_flat_true_after_close_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "155", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "155", "0")).unwrap();
         assert!(ledger.all_flat());
     }
 
     #[test]
     fn test_concentration_pct_single_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(150)).unwrap());
@@ -2612,8 +2612,8 @@ mod tests {
     #[test]
     fn test_concentration_pct_two_equal_positions() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0")).unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
@@ -2625,7 +2625,7 @@ mod tests {
     #[test]
     fn test_concentration_pct_missing_price_returns_none() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let prices = HashMap::new(); // empty price map
         assert!(ledger.concentration_pct(&sym, &prices).is_none());
@@ -2641,8 +2641,8 @@ mod tests {
     fn test_avg_realized_pnl_per_symbol_with_closed_trade() {
         let mut ledger = PositionLedger::new(dec!(100000));
         // Buy 10 @ 100, sell 10 @ 110 → realized = +100
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
         let avg = ledger.avg_realized_pnl_per_symbol().unwrap();
         assert_eq!(avg, dec!(100));
     }
@@ -2650,7 +2650,7 @@ mod tests {
     #[test]
     fn test_net_exposure_no_prices_returns_none() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         let prices = HashMap::new();
         assert!(ledger.net_market_exposure(&prices).is_none());
     }
@@ -2658,7 +2658,7 @@ mod tests {
     #[test]
     fn test_net_exposure_long_only() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
         assert_eq!(ledger.net_market_exposure(&prices).unwrap(), dec!(1100));
@@ -2674,10 +2674,10 @@ mod tests {
     fn test_win_rate_one_winner() {
         let mut ledger = PositionLedger::new(dec!(100000));
         // Buy and sell AAPL for +100 realized
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
         // GOOG still open at cost (realized=0)
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0")).unwrap();
         let rate = ledger.win_rate().unwrap();
         // 1 winner (AAPL) out of 2 positions = 50%
         assert_eq!(rate, dec!(50));

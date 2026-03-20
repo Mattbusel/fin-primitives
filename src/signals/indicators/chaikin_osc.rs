@@ -117,7 +117,6 @@ impl Signal for ChaikinOsc {
 mod tests {
     use super::*;
     use crate::signals::Signal;
-    use rust_decimal_macros::dec;
 
     fn bar(h: &str, l: &str, c: &str, vol: &str) -> BarInput {
         BarInput::new(

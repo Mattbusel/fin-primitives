@@ -1072,7 +1072,7 @@ mod tests {
 
     #[test]
     fn test_tick_replayer_peek_none_when_exhausted() {
-        let mut replayer = TickReplayer::new(vec![]);
+        let replayer = TickReplayer::new(vec![]);
         assert!(replayer.peek().is_none());
     }
 
