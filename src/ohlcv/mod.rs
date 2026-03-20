@@ -5207,6 +5207,126 @@ impl OhlcvSeries {
         if lower.is_zero() { return None; }
         Some(upper / lower)
     }
+
+    /// Simple moving average of close over last `n` bars.
+    fn sma(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.close.value()).sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Mean true range over last `n` bars (requires `n + 1` bars for true range).
+    fn atr(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let mut sum = Decimal::ZERO;
+        for i in start..self.bars.len() - 1 {
+            let pc = self.bars[i].close.value();
+            let h = self.bars[i + 1].high.value();
+            let l = self.bars[i + 1].low.value();
+            let tr = (h - l).max((h - pc).abs()).max((l - pc).abs());
+            sum += tr;
+        }
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Exponential moving average of close over `n` bars (SMA seed).
+    fn ema(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let seed: Decimal = self.bars[start..start + n.min(self.bars.len() - start)]
+            .iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(n as u32);
+        let k = Decimal::from(2u32) / Decimal::from((n + 1) as u32);
+        let mut e = seed;
+        // If extra bars exist beyond seed, smooth them
+        for bar in &self.bars[start + n..] {
+            e = e * (Decimal::ONE - k) + bar.close.value() * k;
+        }
+        Some(e)
+    }
+
+    /// Mean-reversion score: `|close - sma(n)| / atr(n)`.
+    ///
+    /// High values (> 2) suggest price is extended and may revert toward the mean.
+    /// Returns `None` if `n == 0`, insufficient bars, or ATR is zero.
+    pub fn mean_reversion_score(&self, n: usize) -> Option<Decimal> {
+        let close = self.bars.last()?.close.value();
+        let sma = self.sma(n)?;
+        let atr = self.atr(n)?;
+        if atr.is_zero() { return None; }
+        Some((close - sma).abs() / atr)
+    }
+
+    /// Volume Price Trend: cumulative `(close_pct_change * volume)` over last `n` bars.
+    ///
+    /// Combines momentum and volume into a single trend confirmation signal.
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn volume_price_trend(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let mut vpt = Decimal::ZERO;
+        for i in start..self.bars.len() - 1 {
+            let prev_close = self.bars[i].close.value();
+            if prev_close.is_zero() { continue; }
+            let pct_chg = (self.bars[i + 1].close.value() - prev_close) / prev_close;
+            vpt += pct_chg * self.bars[i + 1].volume.value();
+        }
+        Some(vpt)
+    }
+
+    /// Number of trailing consecutive bars where close < previous close.
+    ///
+    /// Returns `0` if the series has fewer than 2 bars or the most recent bar is not bearish.
+    pub fn bear_run_length(&self) -> usize {
+        let n = self.bars.len();
+        if n < 2 { return 0; }
+        let mut count = 0;
+        let mut i = n - 1;
+        while i > 0 && self.bars[i].close.value() < self.bars[i - 1].close.value() {
+            count += 1;
+            i -= 1;
+        }
+        count
+    }
+
+    /// Average True Range expressed as a percentage of the closing price over `n` bars.
+    ///
+    /// `atr_pct = ATR(n) / close * 100`.
+    /// Returns `None` if `n == 0`, insufficient bars, or the last close is zero.
+    pub fn avg_true_range_pct(&self, n: usize) -> Option<Decimal> {
+        let atr = self.atr(n)?;
+        let close = self.bars.last()?.close.value();
+        if close.is_zero() { return None; }
+        Some(atr / close * Decimal::ONE_HUNDRED)
+    }
+
+    /// Deviation of the last close from its EMA(n) as a percentage of the close.
+    ///
+    /// `(close - EMA(n)) / close * 100`.  Positive = above EMA, negative = below.
+    /// Returns `None` if `n == 0`, insufficient bars, or the last close is zero.
+    pub fn close_vs_ema(&self, n: usize) -> Option<Decimal> {
+        let ema = self.ema(n)?;
+        let close = self.bars.last()?.close.value();
+        if close.is_zero() { return None; }
+        Some((close - ema) / close * Decimal::ONE_HUNDRED)
+    }
+
+    /// Average per-bar volume change (linear slope) over the last `n` bars.
+    ///
+    /// Positive = volume trend is increasing; negative = decreasing.
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    pub fn volume_momentum(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let changes: Vec<Decimal> = (start..self.bars.len() - 1)
+            .map(|i| self.bars[i + 1].volume.value() - self.bars[i].volume.value())
+            .collect();
+        if changes.is_empty() { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(changes.iter().sum::<Decimal>() / Decimal::from(changes.len() as u32))
+    }
 }
 
 #[cfg(test)]
