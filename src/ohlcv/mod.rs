@@ -2808,6 +2808,29 @@ impl OhlcvSeries {
         max_run
     }
 
+    /// Length of the longest consecutive run of falling closes in the entire series.
+    ///
+    /// A close is "falling" when `close[i] < close[i-1]`.
+    /// Returns `0` when fewer than 2 bars exist.
+    pub fn max_consecutive_down(&self) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let mut max_run = 0usize;
+        let mut current = 0usize;
+        for w in self.bars.windows(2) {
+            if w[1].close.value() < w[0].close.value() {
+                current += 1;
+                if current > max_run {
+                    max_run = current;
+                }
+            } else {
+                current = 0;
+            }
+        }
+        max_run
+    }
+
     /// Simple moving average of the typical price `(high + low + close) / 3`
     /// over the last `period` bars.
     ///
@@ -3135,6 +3158,11 @@ mod tests {
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         }
+    }
+
+    /// Convenience helper: create a bar where O=H=L=C = `close`.
+    fn bar(close: &str) -> OhlcvBar {
+        make_bar(close, close, close, close)
     }
 
     fn make_tick(sym: &str, price: &str, qty: &str, ts: i64) -> Tick {
@@ -4453,5 +4481,84 @@ mod tests {
     fn test_typical_price_series_empty_series_returns_empty() {
         let series = OhlcvSeries::new();
         assert!(series.typical_price_series(3).is_empty());
+    }
+
+    #[test]
+    fn test_bar_at_index_valid() {
+        let bars = vec![bar("100"), bar("101"), bar("102")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert!(series.bar_at_index(0).is_some());
+        assert_eq!(series.bar_at_index(2).unwrap().close.value(), dec!(102));
+    }
+
+    #[test]
+    fn test_bar_at_index_out_of_bounds() {
+        let bars = vec![bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert!(series.bar_at_index(5).is_none());
+    }
+
+    #[test]
+    fn test_rolling_close_std_returns_none_for_fewer_than_two() {
+        let bars = vec![bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert!(series.rolling_close_std(1).is_none());
+    }
+
+    #[test]
+    fn test_rolling_close_std_constant_prices_is_zero() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let std = series.rolling_close_std(3).unwrap();
+        assert_eq!(std, Decimal::ZERO);
+    }
+
+    #[test]
+    fn test_rolling_close_std_varying_prices_positive() {
+        let bars = vec![bar("100"), bar("110"), bar("120"), bar("130")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let std = series.rolling_close_std(4).unwrap();
+        assert!(std > Decimal::ZERO);
+    }
+
+    #[test]
+    fn test_gap_direction_series_empty_for_single_bar() {
+        let bars = vec![bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert!(series.gap_direction_series(3).is_empty());
+    }
+
+    #[test]
+    fn test_gap_direction_series_flat_on_equal_prices() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let gaps = series.gap_direction_series(3);
+        assert!(gaps.iter().all(|&g| g == 0));
+    }
+
+    #[test]
+    fn test_gap_direction_series_detects_gap_up() {
+        // bar opens 5 above prior close
+        let p1 = Price::new(dec!(100)).unwrap();
+        let p2 = Price::new(dec!(110)).unwrap();
+        let b1 = OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: p1, high: p1, low: p1, close: p1,
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
+            tick_count: 1,
+        };
+        let b2 = OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: p2, high: p2, low: p2, close: p2,
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp::new(2),
+            ts_close: NanoTimestamp::new(3),
+            tick_count: 1,
+        };
+        let series = OhlcvSeries::from_bars(vec![b1, b2]).unwrap();
+        let gaps = series.gap_direction_series(2);
+        assert_eq!(gaps, vec![1i8]);
     }
 }

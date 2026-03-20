@@ -1445,4 +1445,45 @@ mod tests {
         let replayer = TickReplayer::new(vec![]);
         assert_eq!(replayer.median_trade_size(), None);
     }
+
+    #[test]
+    fn test_tick_replayer_total_notional_sum_two_trades() {
+        let ticks = vec![
+            make_tick("X", "100", "2", Side::Bid, 1),
+            make_tick("X", "50", "4", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        // 100*2 + 50*4 = 200 + 200 = 400
+        assert_eq!(replayer.total_notional(), dec_from_str("400"));
+    }
+
+    #[test]
+    fn test_tick_replayer_price_std_none_for_single_tick() {
+        let ticks = vec![make_tick("X", "100", "1", Side::Bid, 1)];
+        let replayer = TickReplayer::new(ticks);
+        assert!(replayer.price_std().is_none());
+    }
+
+    #[test]
+    fn test_tick_replayer_price_std_zero_for_constant_prices() {
+        let ticks = vec![
+            make_tick("X", "100", "1", Side::Bid, 1),
+            make_tick("X", "100", "2", Side::Bid, 2),
+            make_tick("X", "100", "3", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.price_std(), Some(Decimal::ZERO));
+    }
+
+    #[test]
+    fn test_tick_replayer_price_std_positive_for_varying_prices() {
+        let ticks = vec![
+            make_tick("X", "100", "1", Side::Bid, 1),
+            make_tick("X", "110", "1", Side::Bid, 2),
+            make_tick("X", "120", "1", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let std = replayer.price_std().unwrap();
+        assert!(std > Decimal::ZERO);
+    }
 }
