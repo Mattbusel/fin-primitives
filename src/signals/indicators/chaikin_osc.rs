@@ -78,12 +78,7 @@ impl Signal for ChaikinOsc {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.bar_count += 1;
-        let hl = bar.range();
-        let clv = if hl.is_zero() {
-            Decimal::ZERO
-        } else {
-            ((bar.close - bar.low) - (bar.high - bar.close)) / hl
-        };
+        let clv = bar.close_location_value();
         self.ad += bar.volume * clv;
 
         let fast = match self.fast_ema {

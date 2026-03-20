@@ -73,6 +73,18 @@ impl BarInput {
         (self.high + self.low) / Decimal::from(2u32)
     }
 
+    /// Close Location Value: `((close - low) - (high - close)) / (high - low)`.
+    ///
+    /// Ranges from -1.0 (close at low) to +1.0 (close at high).
+    /// Returns zero when the range is zero (doji / flat bar).
+    pub fn close_location_value(&self) -> Decimal {
+        let range = self.range();
+        if range.is_zero() {
+            return Decimal::ZERO;
+        }
+        (Decimal::from(2u32) * self.close - self.high - self.low) / range
+    }
+
     /// Returns the signed intrabar move: `close - open`.
     ///
     /// Positive for bullish bars, negative for bearish, zero for doji.

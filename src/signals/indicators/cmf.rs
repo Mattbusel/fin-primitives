@@ -62,12 +62,7 @@ impl Signal for Cmf {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.range();
-        let mfm = if range.is_zero() {
-            Decimal::ZERO
-        } else {
-            ((bar.close - bar.low) - (bar.high - bar.close)) / range
-        };
+        let mfm = bar.close_location_value();
         let mfv = mfm * bar.volume;
 
         self.mfv_window.push_back(mfv);
