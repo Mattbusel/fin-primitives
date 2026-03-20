@@ -175,6 +175,7 @@ pub mod ulcer_index;
 pub mod efficiency_ratio;
 pub mod median_price;
 pub mod typical_price;
+pub mod dema_ratio;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -348,3 +349,4 @@ pub use ulcer_index::UlcerIndex;
 pub use efficiency_ratio::EfficiencyRatio;
 pub use median_price::MedianPrice;
 pub use typical_price::TypicalPriceMa;
+pub use dema_ratio::DemaRatio;
