@@ -478,6 +478,25 @@ impl TickReplayer {
             .collect()
     }
 
+    /// Returns the net delta: `buy_volume - sell_volume`.
+    ///
+    /// Positive = net buying pressure, negative = net selling pressure.
+    pub fn delta(&self) -> Decimal {
+        self.buy_volume() - self.sell_volume()
+    }
+
+    /// Returns the nanosecond time span from the first to the last tick.
+    ///
+    /// Returns `None` if there are fewer than 2 ticks.
+    pub fn time_span_nanos(&self) -> Option<i64> {
+        if self.ticks.len() < 2 {
+            return None;
+        }
+        let first = self.ticks.first().unwrap().timestamp;
+        let last = self.ticks.last().unwrap().timestamp;
+        Some(last.elapsed_since(first))
+    }
+
     /// Returns the sum of notional values (`price × quantity`) across all ticks.
     pub fn total_notional(&self) -> Decimal {
         self.ticks.iter().map(|t| t.notional()).sum()

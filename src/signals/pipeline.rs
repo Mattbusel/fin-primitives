@@ -229,6 +229,16 @@ impl SignalPipeline {
     pub fn update_series(&mut self, series: &crate::ohlcv::OhlcvSeries) -> Vec<SignalMap> {
         series.bars().iter().map(|bar| self.update(bar)).collect()
     }
+
+    /// Runs all bars in `series` through the pipeline discarding outputs.
+    ///
+    /// Use this to warm up signal state before starting live updates,
+    /// without allocating a `Vec<SignalMap>`.
+    pub fn warm_up_bars(&mut self, series: &crate::ohlcv::OhlcvSeries) {
+        for bar in series.bars() {
+            self.update(bar);
+        }
+    }
 }
 
 impl Default for SignalPipeline {

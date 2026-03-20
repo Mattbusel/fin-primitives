@@ -279,6 +279,15 @@ impl Price {
         (bid.0 + ask.0) / Decimal::TWO
     }
 
+    /// Applies a percentage move to this price: `self * (1 + pct / 100)`.
+    ///
+    /// Returns `None` if the result is not a valid price (e.g., a large negative `pct`
+    /// would drive the price to zero or below).
+    pub fn pct_move(self, pct: Decimal) -> Option<Price> {
+        let result = self.0 * (Decimal::ONE + pct / Decimal::ONE_HUNDRED);
+        Price::new(result).ok()
+    }
+
     /// Linearly interpolates between `self` and `other` by factor `t` in `[0, 1]`.
     ///
     /// Returns `self + (other - self) * t`. Returns `None` if `t` is outside `[0, 1]`
@@ -422,6 +431,16 @@ impl Quantity {
         let assigned: Decimal = part * Decimal::from((n - 1) as u64);
         parts.push(Quantity(self.0 - assigned));
         parts
+    }
+
+    /// Returns `self / total` as a proportion, or `None` if `total` is zero.
+    ///
+    /// Useful for computing position weight within a portfolio.
+    pub fn proportion_of(self, total: Quantity) -> Option<Decimal> {
+        if total.is_zero() {
+            return None;
+        }
+        Some(self.0 / total.0)
     }
 
     /// Multiplies this quantity by `factor`, returning `None` if the result is negative.
@@ -644,6 +663,13 @@ impl NanoTimestamp {
     /// Converts this timestamp to floating-point seconds since the Unix epoch.
     pub fn to_seconds(&self) -> f64 {
         self.0 as f64 / 1_000_000_000.0
+    }
+
+    /// Returns the signed millisecond difference `self - other`.
+    ///
+    /// Positive when `self` is after `other`.
+    pub fn duration_millis(self, other: NanoTimestamp) -> i64 {
+        (self.0 - other.0) / 1_000_000
     }
 
     /// Returns the earlier of `self` and `other`.

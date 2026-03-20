@@ -81,4 +81,15 @@ pub enum FinError {
     /// Indicator or aggregator period was zero; must be at least 1.
     #[error("Period must be at least 1, got {0}")]
     InvalidPeriod(usize),
+
+    /// General-purpose validation error for invalid inputs.
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+}
+
+impl FinError {
+    /// Returns `true` if this error is a period validation error.
+    pub fn is_period_error(&self) -> bool {
+        matches!(self, FinError::InvalidPeriod(_))
+    }
 }

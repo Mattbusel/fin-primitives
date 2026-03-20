@@ -387,6 +387,28 @@ impl PositionLedger {
             .map(|(s, _)| s)
     }
 
+    /// Returns the sum of `|quantity| × avg_cost` for all long (positive quantity) positions.
+    ///
+    /// Represents the notional value invested on the long side.
+    pub fn total_long_exposure(&self) -> Decimal {
+        self.positions
+            .values()
+            .filter(|p| p.is_long())
+            .map(|p| p.quantity.abs() * p.avg_cost)
+            .sum()
+    }
+
+    /// Returns the sum of `|quantity| × avg_cost` for all short (negative quantity) positions.
+    ///
+    /// Represents the notional value of the short exposure.
+    pub fn total_short_exposure(&self) -> Decimal {
+        self.positions
+            .values()
+            .filter(|p| p.is_short())
+            .map(|p| p.quantity.abs() * p.avg_cost)
+            .sum()
+    }
+
     /// Returns a sorted `Vec` of all tracked symbols in lexicographic order.
     ///
     /// Useful when deterministic output ordering is required (e.g. reports, snapshots).

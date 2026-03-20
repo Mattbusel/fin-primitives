@@ -391,6 +391,16 @@ impl OhlcvBar {
         Some((self.upper_shadow() + self.lower_shadow()) / r)
     }
 
+    /// Returns `true` if this bar opens above the previous bar's high (gap up).
+    pub fn gap_up_from(&self, prev: &OhlcvBar) -> bool {
+        self.low.value() > prev.high.value()
+    }
+
+    /// Returns `true` if this bar opens below the previous bar's low (gap down).
+    pub fn gap_down_from(&self, prev: &OhlcvBar) -> bool {
+        self.high.value() < prev.low.value()
+    }
+
     /// Returns the upper shadow length: `high - max(open, close)`.
     pub fn upper_shadow(&self) -> Decimal {
         let body_top = self.open.value().max(self.close.value());
@@ -1553,6 +1563,35 @@ impl OhlcvSeries {
         }
         let sum: Decimal = slice.iter().map(|b| b.volume.value()).sum();
         Some(sum / Decimal::from(slice.len() as u32))
+    }
+
+    /// Returns the close prices for the last `n` bars in chronological order.
+    ///
+    /// Returns fewer than `n` values if the series is shorter.
+    pub fn last_n_closes(&self, n: usize) -> Vec<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.close.value()).collect()
+    }
+
+    /// Returns `true` if the last bar's volume exceeds the average of the prior `n` bars
+    /// multiplied by `multiplier`.
+    ///
+    /// Returns `false` if there are fewer than 2 bars or `multiplier` is zero.
+    pub fn volume_spike(&self, n: usize, multiplier: Decimal) -> bool {
+        if self.bars.len() < 2 || multiplier.is_zero() {
+            return false;
+        }
+        let last_vol = self.bars.last().unwrap().volume.value();
+        // average of all bars except the last one (up to n bars)
+        let prior_count = self.bars.len() - 1;
+        let start = prior_count.saturating_sub(n);
+        let prior = &self.bars[start..prior_count];
+        if prior.is_empty() {
+            return false;
+        }
+        let avg: Decimal = prior.iter().map(|b| b.volume.value()).sum::<Decimal>()
+            / Decimal::from(prior.len() as u32);
+        last_vol > avg * multiplier
     }
 
     /// Returns the average bar range (high − low) over the last `n` bars, or `None` if empty.
