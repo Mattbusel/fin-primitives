@@ -420,4 +420,30 @@ mod tests {
         let map = pipeline.update(&bar("100"));
         assert_eq!(map.sum_scalars(), dec!(0));
     }
+
+    #[test]
+    fn test_signal_pipeline_update_series_length_matches() {
+        use crate::ohlcv::{OhlcvBar, OhlcvSeries};
+        let bars: Vec<OhlcvBar> = ["100", "102", "104", "106", "108"]
+            .iter()
+            .map(|p| bar(p))
+            .collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        let maps = pipeline.update_series(&series);
+        assert_eq!(maps.len(), 5);
+    }
+
+    #[test]
+    fn test_signal_pipeline_update_series_last_map_has_value() {
+        use crate::ohlcv::{OhlcvBar, OhlcvSeries};
+        let bars: Vec<OhlcvBar> = ["100", "100", "100", "100"]
+            .iter()
+            .map(|p| bar(p))
+            .collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        let maps = pipeline.update_series(&series);
+        assert_eq!(maps.last().unwrap().get_scalar("sma3"), Some(dec!(100)));
+    }
 }

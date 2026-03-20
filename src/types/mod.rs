@@ -539,6 +539,14 @@ impl NanoTimestamp {
         self.0.div_euclid(1_000_000_000) == other.0.div_euclid(1_000_000_000)
     }
 
+    /// Returns `true` if `self` and `other` fall within the same calendar minute.
+    ///
+    /// Two timestamps are in the same minute when
+    /// `floor(self / 60_000_000_000) == floor(other / 60_000_000_000)`.
+    pub fn is_same_minute(&self, other: NanoTimestamp) -> bool {
+        self.0.div_euclid(60_000_000_000) == other.0.div_euclid(60_000_000_000)
+    }
+
     /// Constructs a `NanoTimestamp` from milliseconds since the Unix epoch.
     pub fn from_millis(ms: i64) -> Self {
         Self(ms * 1_000_000)

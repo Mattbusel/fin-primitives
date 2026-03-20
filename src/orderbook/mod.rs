@@ -384,6 +384,16 @@ impl OrderBook {
         self.asks.values().copied().sum()
     }
 
+    /// Returns the best bid price, or `None` if the bid side is empty.
+    pub fn best_bid_price(&self) -> Option<Price> {
+        self.bids.keys().next_back().and_then(|p| Price::new(*p).ok())
+    }
+
+    /// Returns the best ask price, or `None` if the ask side is empty.
+    pub fn best_ask_price(&self) -> Option<Price> {
+        self.asks.keys().next().and_then(|p| Price::new(*p).ok())
+    }
+
     /// Returns the resting quantity at the best bid, or `None` if the bid side is empty.
     pub fn best_bid_qty(&self) -> Option<Quantity> {
         self.bids

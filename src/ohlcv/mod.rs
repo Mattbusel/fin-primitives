@@ -261,6 +261,17 @@ impl OhlcvBar {
         self.upper_shadow() >= body * Decimal::TWO && self.lower_shadow() <= body
     }
 
+    /// Returns the body size as a percentage of the open price: `body_size / open * 100`.
+    ///
+    /// Returns `None` when `open` is zero.
+    pub fn body_pct(&self) -> Option<Decimal> {
+        let o = self.open.value();
+        if o.is_zero() {
+            return None;
+        }
+        Some(self.body_size() / o * Decimal::ONE_HUNDRED)
+    }
+
     /// Returns the open-to-close return as a percentage: `(close - open) / open * 100`.
     ///
     /// Returns `None` when `open` is zero.
@@ -1608,6 +1619,26 @@ impl OhlcvSeries {
             .windows(2)
             .map(|w| (w[1].close.value() - w[0].close.value()).abs())
             .collect()
+    }
+
+    /// Returns the ratio of short-period ATR to long-period ATR.
+    ///
+    /// A ratio > 1 means recent volatility is higher than the longer baseline;
+    /// < 1 means it is lower. Returns `None` if either ATR value is unavailable
+    /// (series too short) or if the long-period ATR is zero.
+    pub fn volatility_ratio(&self, short: usize, long: usize) -> Option<Decimal> {
+        let n = self.bars.len();
+        if short == 0 || long == 0 || n == 0 {
+            return None;
+        }
+        let short_atr = *self.atr_series(short).last()?;
+        let long_atr = *self.atr_series(long).last()?;
+        let s = short_atr?;
+        let l = long_atr?;
+        if l.is_zero() {
+            return None;
+        }
+        Some(s / l)
     }
 }
 

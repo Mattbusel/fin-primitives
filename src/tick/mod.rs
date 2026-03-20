@@ -103,6 +103,18 @@ impl Tick {
         }).sum()
     }
 
+    /// Returns the simple (unweighted) average price from a slice of ticks.
+    ///
+    /// Returns `None` if the slice is empty. For volume-weighted price, use [`Tick::vwap_from_slice`].
+    pub fn average_price(ticks: &[Tick]) -> Option<Decimal> {
+        if ticks.is_empty() {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let sum: Decimal = ticks.iter().map(|t| t.price.value()).sum();
+        Some(sum / Decimal::from(ticks.len() as u32))
+    }
+
     /// Returns the total bid-side (buy aggressor) volume from a slice of ticks.
     ///
     /// Useful for computing buy pressure and delta (buy volume − sell volume).
