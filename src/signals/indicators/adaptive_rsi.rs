@@ -3,6 +3,7 @@
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Adaptive RSI — RSI whose period adapts to market volatility.
 ///
@@ -31,7 +32,7 @@ pub struct AdaptiveRsi {
     er_period: usize,
     min_period: usize,
     max_period: usize,
-    closes: Vec<Decimal>,
+    closes: VecDeque<Decimal>,
     // current RSI state
     avg_gain: Option<Decimal>,
     avg_loss: Option<Decimal>,
@@ -63,7 +64,7 @@ impl AdaptiveRsi {
             er_period,
             min_period,
             max_period,
-            closes: Vec::with_capacity(er_period + 1),
+            closes: VecDeque::with_capacity(er_period + 1),
             avg_gain: None,
             avg_loss: None,
             rsi_seed_gains: Vec::with_capacity(max_period),
@@ -73,13 +74,12 @@ impl AdaptiveRsi {
         })
     }
 
-    fn compute_er(closes: &[Decimal], er_period: usize) -> Decimal {
+    fn compute_er(closes: &VecDeque<Decimal>, er_period: usize) -> Decimal {
         if closes.len() < er_period + 1 { return Decimal::ZERO; }
         let n = closes.len();
         let direction = (closes[n - 1] - closes[n - 1 - er_period]).abs();
-        let path: Decimal = closes[n - 1 - er_period..n]
-            .windows(2)
-            .map(|w| (w[1] - w[0]).abs())
+        let path: Decimal = (n - 1 - er_period..n - 1)
+            .map(|i| (closes[i + 1] - closes[i]).abs())
             .sum();
         if path.is_zero() { Decimal::ZERO } else { direction / path }
     }
@@ -96,8 +96,8 @@ impl Signal for AdaptiveRsi {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.closes.push(bar.close);
-        if self.closes.len() > self.er_period + 1 { self.closes.remove(0); }
+        self.closes.push_back(bar.close);
+        if self.closes.len() > self.er_period + 1 { self.closes.pop_front(); }
 
         // Need enough bars for ER calculation
         if self.closes.len() < self.er_period + 1 {
