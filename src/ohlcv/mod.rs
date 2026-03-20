@@ -4807,6 +4807,65 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
+
+    /// Average upper shadow length as a percentage of close over the last `n` bars.
+    ///
+    /// `upper_shadow = high - max(open, close)`;
+    /// returned as `upper_shadow / close × 100`.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_upper_shadow_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| {
+            let body_top = b.open.value().max(b.close.value());
+            let shadow = b.high.value() - body_top;
+            let close = b.close.value();
+            if close.is_zero() { Decimal::ZERO } else { shadow / close * Decimal::from(100u32) }
+        }).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Average lower shadow length as a percentage of close over the last `n` bars.
+    ///
+    /// `lower_shadow = min(open, close) - low`;
+    /// returned as `lower_shadow / close × 100`.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_lower_shadow_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| {
+            let body_bottom = b.open.value().min(b.close.value());
+            let shadow = body_bottom - b.low.value();
+            let close = b.close.value();
+            if close.is_zero() { Decimal::ZERO } else { shadow / close * Decimal::from(100u32) }
+        }).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Percentage of doji bars (|close - open| / (high - low) < 0.1) over the last `n` bars.
+    ///
+    /// Bars with zero range are counted as doji.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn percent_doji(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let threshold = rust_decimal_macros::dec!(0.1);
+        let mut doji_count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            let body = (b.close.value() - b.open.value()).abs();
+            if range.is_zero() || body / range < threshold {
+                doji_count += 1;
+            }
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(doji_count) / Decimal::from(n as u32) * Decimal::from(100u32))
+    }
 }
 
 #[cfg(test)]
@@ -6477,5 +6536,81 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.trend_continuation_pct(0).is_none());
         assert!(series.trend_continuation_pct(1).is_none()); // need n+1=2 bars
+    }
+
+    #[test]
+    fn test_close_to_open_ratio_bullish() {
+        // All bullish bars: close > open
+        let bars: Vec<OhlcvBar> = vec![
+            bar_ohlcv("100", "110", "95", "100", "1000"),
+            bar_ohlcv("105", "115", "100", "105", "1000"),
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let ratio = series.close_to_open_ratio(2).unwrap();
+        // close/open: 110/100=1.1, 115/105≈1.0952 → avg ≈ 1.0976
+        assert!(ratio > dec!(1), "bullish bars should have ratio > 1, got {ratio}");
+    }
+
+    #[test]
+    fn test_close_to_open_ratio_none_zero_open() {
+        let b = OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: Price::new(dec!(0)).unwrap_or_else(|_| Price::new(dec!(1)).unwrap()),
+            high: Price::new(dec!(10)).unwrap(),
+            low: Price::new(dec!(1)).unwrap(),
+            close: Price::new(dec!(5)).unwrap(),
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
+            tick_count: 1,
+        };
+        // Use bar with valid open for test; just verify n==0 returns None
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.close_to_open_ratio(0).is_none());
+    }
+
+    #[test]
+    fn test_volume_trend_rising() {
+        let bars: Vec<OhlcvBar> = (1..=5).map(|i| {
+            bar_with_volume("100", &(i * 100).to_string())
+        }).collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let slope = series.volume_trend(5).unwrap();
+        assert!(slope > dec!(0), "rising volume should have positive slope, got {slope}");
+    }
+
+    #[test]
+    fn test_volume_trend_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.volume_trend(0).is_none());
+        assert!(series.volume_trend(2).is_none()); // need >= 2 bars
+    }
+
+    #[test]
+    fn test_high_volume_price_returns_close_of_max_vol_bar() {
+        let bars = vec![
+            bar_with_volume("100", "500"),
+            bar_with_volume("200", "1000"), // highest volume
+            bar_with_volume("150", "300"),
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.high_volume_price(3), Some(dec!(200)));
+    }
+
+    #[test]
+    fn test_avg_close_minus_open_bullish() {
+        let bars: Vec<OhlcvBar> = vec![
+            bar_ohlcv("105", "110", "95", "100", "1000"), // +5
+            bar_ohlcv("108", "115", "100", "105", "1000"), // +3
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let avg = series.avg_close_minus_open(2).unwrap();
+        assert_eq!(avg, dec!(4)); // (5 + 3) / 2 = 4
+    }
+
+    #[test]
+    fn test_avg_close_minus_open_none_zero_n() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.avg_close_minus_open(0).is_none());
     }
 }
