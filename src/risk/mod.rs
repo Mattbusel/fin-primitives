@@ -1367,6 +1367,14 @@ impl DrawdownTracker {
         if downside_vol == 0.0 { return None; }
         Some(annualized_return / downside_vol)
     }
+
+    /// Ratio of cumulative gains to cumulative losses: `total_gain_sum / total_loss_sum`.
+    ///
+    /// Returns `None` if no losses have occurred (total_loss_sum == 0).
+    pub fn gain_loss_ratio(&self) -> Option<f64> {
+        if self.total_loss_sum == 0.0 { return None; }
+        Some(self.total_gain_sum / self.total_loss_sum)
+    }
 }
 
 #[cfg(test)]
