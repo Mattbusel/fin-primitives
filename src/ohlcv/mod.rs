@@ -6457,6 +6457,151 @@ impl OhlcvSeries {
         }
         sum.checked_div(Decimal::from(n as u32))
     }
+
+    /// Omega Ratio over the last `n` bars.
+    ///
+    /// `Omega = E[max(R - threshold, 0)] / E[max(threshold - R, 0)]`
+    ///
+    /// where `R` is the close-to-close return and `threshold` is the minimum
+    /// acceptable return (MAR). A value > 1 means gains above the threshold
+    /// outweigh losses below it.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or the loss
+    /// expectation is zero (no returns fell below `threshold`).
+    pub fn omega_ratio(&self, n: usize, threshold: Decimal) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut gain_sum = Decimal::ZERO;
+        let mut loss_sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for w in slice.windows(2) {
+            let prev_c = w[0].close.value();
+            if prev_c.is_zero() { continue; }
+            let ret = (w[1].close.value() - prev_c) / prev_c;
+            gain_sum += (ret - threshold).max(Decimal::ZERO);
+            loss_sum += (threshold - ret).max(Decimal::ZERO);
+            count += 1;
+        }
+        if count == 0 || loss_sum.is_zero() { return None; }
+        gain_sum.checked_div(loss_sum)
+    }
+
+    /// Kelly Criterion fraction over the last `n` bars.
+    ///
+    /// Estimates the optimal fraction of capital to risk per trade using the
+    /// discrete Kelly formula: `f* = W/L - (1-W)/G` where:
+    /// - `W` = win rate (fraction of bars with positive return)
+    /// - `L` = average loss (absolute value of losing returns)
+    /// - `G` = average gain of winning returns
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or there are no
+    /// winning or losing bars. Clamps the output to `[-1, 1]`.
+    pub fn kelly_fraction(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut gains = Vec::new();
+        let mut losses = Vec::new();
+        for w in slice.windows(2) {
+            let prev_c = w[0].close.value();
+            if prev_c.is_zero() { continue; }
+            let ret = (w[1].close.value() - prev_c) / prev_c;
+            if ret > Decimal::ZERO { gains.push(ret); } else if ret < Decimal::ZERO { losses.push(-ret); }
+        }
+        let total = gains.len() + losses.len();
+        if gains.is_empty() || losses.is_empty() || total == 0 { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        let win_rate = Decimal::from(gains.len() as u32) / Decimal::from(total as u32);
+        let avg_gain: Decimal = gains.iter().copied().sum::<Decimal>() / Decimal::from(gains.len() as u32);
+        let avg_loss: Decimal = losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32);
+        if avg_loss.is_zero() || avg_gain.is_zero() { return None; }
+        let kelly = win_rate / avg_loss - (Decimal::ONE - win_rate) / avg_gain;
+        Some(kelly.clamp(Decimal::NEGATIVE_ONE, Decimal::ONE))
+    }
+
+    /// Profit Factor over the last `n` bars.
+    ///
+    /// `Profit Factor = gross_gain / gross_loss` where gross gain is the sum of
+    /// all positive close-to-close returns and gross loss is the absolute sum of
+    /// all negative returns.
+    ///
+    /// A value > 1 means more was gained than lost; < 1 means net losing.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or gross loss is zero.
+    pub fn profit_factor(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut gross_gain = Decimal::ZERO;
+        let mut gross_loss = Decimal::ZERO;
+        for w in slice.windows(2) {
+            let prev_c = w[0].close.value();
+            if prev_c.is_zero() { continue; }
+            let ret = w[1].close.value() - prev_c;
+            if ret > Decimal::ZERO { gross_gain += ret; } else { gross_loss += -ret; }
+        }
+        if gross_loss.is_zero() { return None; }
+        gross_gain.checked_div(gross_loss)
+    }
+
+    /// Recovery Factor over the last `n` bars.
+    ///
+    /// `Recovery Factor = net_return / max_drawdown` where net return is
+    /// `(last_close - first_close) / first_close` and max drawdown is the maximum
+    /// peak-to-trough close drawdown over the window.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, first close is zero,
+    /// or max drawdown is zero (no drawdown occurred).
+    pub fn recovery_factor(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let first_close = slice.first()?.close.value();
+        let last_close  = slice.last()?.close.value();
+        if first_close.is_zero() { return None; }
+        let net_return = (last_close - first_close) / first_close;
+        // Max drawdown: peak-to-trough
+        let mut peak = Decimal::MIN;
+        let mut max_dd = Decimal::ZERO;
+        for bar in slice {
+            let c = bar.close.value();
+            if c > peak { peak = c; }
+            let dd = if peak.is_zero() { Decimal::ZERO } else { (peak - c) / peak };
+            if dd > max_dd { max_dd = dd; }
+        }
+        if max_dd.is_zero() { return None; }
+        net_return.checked_div(max_dd)
+    }
+
+    /// Maximum Adverse Excursion (MAE) over the last `n` bars.
+    ///
+    /// MAE is the average worst intra-bar move against the open direction.
+    /// For a bullish bar (`close >= open`): MAE per bar = `(open - low) / open`.
+    /// For a bearish bar (`close < open`): MAE per bar = `(high - open) / open`.
+    ///
+    /// Returns the average MAE across bars in the window. Returns `None` if
+    /// `n == 0`, fewer than `n` bars exist, or all opens are zero.
+    pub fn avg_max_adverse_excursion(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in slice {
+            let o = bar.open.value();
+            if o.is_zero() { continue; }
+            let mae = if bar.is_bullish() {
+                (o - bar.low.value()).abs() / o
+            } else {
+                (bar.high.value() - o).abs() / o
+            };
+            sum += mae;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
 }
 
 #[cfg(test)]
