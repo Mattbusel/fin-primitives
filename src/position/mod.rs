@@ -35,6 +35,17 @@ pub struct Fill {
     pub commission: Decimal,
 }
 
+/// Direction of an open position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PositionDirection {
+    /// Net quantity is positive.
+    Long,
+    /// Net quantity is negative.
+    Short,
+    /// Net quantity is zero.
+    Flat,
+}
+
 /// A single-symbol position tracking quantity, average cost, and realized P&L.
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -131,6 +142,17 @@ impl Position {
     pub fn is_flat(&self) -> bool {
         self.quantity == Decimal::ZERO
     }
+
+    /// Returns the direction of the position.
+    pub fn direction(&self) -> PositionDirection {
+        if self.quantity > Decimal::ZERO {
+            PositionDirection::Long
+        } else if self.quantity < Decimal::ZERO {
+            PositionDirection::Short
+        } else {
+            PositionDirection::Flat
+        }
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
@@ -176,6 +198,32 @@ impl PositionLedger {
     /// Returns the position for `symbol`, or `None` if no position exists.
     pub fn position(&self, symbol: &Symbol) -> Option<&Position> {
         self.positions.get(symbol)
+    }
+
+    /// Returns an iterator over all tracked positions.
+    pub fn positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values()
+    }
+
+    /// Returns the total market value of all open positions given a price map.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn total_market_value(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Result<Decimal, FinError> {
+        let mut total = Decimal::ZERO;
+        for (sym, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(sym.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(sym.as_str().to_owned()))?;
+            total += pos.market_value(*price);
+        }
+        Ok(total)
     }
 
     /// Returns the current cash balance.
@@ -381,6 +429,72 @@ mod tests {
         let pos = Position::new(sym("X"));
         let price = Price::new(dec!(100)).unwrap();
         assert_eq!(pos.checked_unrealized_pnl(price).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_position_direction_flat() {
+        let pos = Position::new(sym("X"));
+        assert_eq!(pos.direction(), PositionDirection::Flat);
+    }
+
+    #[test]
+    fn test_position_direction_long() {
+        let mut pos = Position::new(sym("X"));
+        pos.apply_fill(&make_fill("X", Side::Bid, "5", "100", "0"))
+            .unwrap();
+        assert_eq!(pos.direction(), PositionDirection::Long);
+    }
+
+    #[test]
+    fn test_position_direction_short() {
+        let mut pos = Position::new(sym("X"));
+        // Short: sell without prior long (negative quantity via negative fill)
+        pos.apply_fill(&make_fill("X", Side::Ask, "5", "100", "0"))
+            .unwrap();
+        assert_eq!(pos.direction(), PositionDirection::Short);
+    }
+
+    #[test]
+    fn test_position_ledger_positions_iterator() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "1", "200", "0"))
+            .unwrap();
+        let count = ledger.positions().count();
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_position_ledger_total_market_value() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0"))
+            .unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_owned(), Price::new(dec!(110)).unwrap());
+        prices.insert("MSFT".to_owned(), Price::new(dec!(210)).unwrap());
+        // 10*110 + 5*210 = 1100 + 1050 = 2150
+        let mv = ledger.total_market_value(&prices).unwrap();
+        assert_eq!(mv, dec!(2150));
+    }
+
+    #[test]
+    fn test_position_ledger_total_market_value_missing_price() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let prices: HashMap<String, Price> = HashMap::new();
+        assert!(matches!(
+            ledger.total_market_value(&prices),
+            Err(FinError::PositionNotFound(_))
+        ));
     }
 
     #[test]

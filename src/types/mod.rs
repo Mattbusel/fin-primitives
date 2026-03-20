@@ -130,6 +130,11 @@ impl Price {
     pub fn value(&self) -> Decimal {
         self.0
     }
+
+    /// Converts to `f64` with possible precision loss.
+    pub fn to_f64(&self) -> f64 {
+        rust_decimal::prelude::ToPrimitive::to_f64(&self.0).unwrap_or(f64::NAN)
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -209,6 +214,11 @@ impl Quantity {
     /// Returns the inner [`Decimal`] value.
     pub fn value(&self) -> Decimal {
         self.0
+    }
+
+    /// Converts to `f64` with possible precision loss.
+    pub fn to_f64(&self) -> f64 {
+        rust_decimal::prelude::ToPrimitive::to_f64(&self.0).unwrap_or(f64::NAN)
     }
 }
 
@@ -607,5 +617,18 @@ mod tests {
         let epoch = Utc.timestamp_opt(0, 0).single().unwrap();
         let ts = NanoTimestamp::from_datetime(epoch);
         assert_eq!(ts.nanos(), 0);
+    }
+
+    #[test]
+    fn test_price_to_f64() {
+        let p = Price::new(dec!(123.45)).unwrap();
+        let f = p.to_f64();
+        assert!((f - 123.45_f64).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_quantity_to_f64() {
+        let q = Quantity::new(dec!(42)).unwrap();
+        assert!((q.to_f64() - 42.0_f64).abs() < 1e-10);
     }
 }

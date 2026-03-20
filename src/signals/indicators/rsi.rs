@@ -182,6 +182,15 @@ impl Signal for Rsi {
     fn period(&self) -> usize {
         self.period
     }
+
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.avg_gain = None;
+        self.avg_loss = None;
+        self.count = 0;
+        self.seed_gain = Decimal::ZERO;
+        self.seed_loss = Decimal::ZERO;
+    }
 }
 
 #[cfg(test)]
@@ -315,6 +324,19 @@ mod tests {
         } else {
             panic!("expected Scalar after period+1 bars, got Unavailable");
         }
+    }
+
+    #[test]
+    fn test_rsi_reset_clears_state() {
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
+        for p in &["100", "102", "104", "106"] {
+            rsi.update_bar(&bar(p)).unwrap();
+        }
+        assert!(rsi.is_ready());
+        rsi.reset();
+        assert!(!rsi.is_ready());
+        let v = rsi.update_bar(&bar("100")).unwrap();
+        assert_eq!(v, SignalValue::Unavailable);
     }
 
     #[test]

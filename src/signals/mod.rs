@@ -69,6 +69,24 @@ impl SignalValue {
             SignalValue::Unavailable => None,
         }
     }
+
+    /// Returns `true` if this value is `Scalar`.
+    pub fn is_scalar(&self) -> bool {
+        matches!(self, SignalValue::Scalar(_))
+    }
+
+    /// Returns `true` if this value is `Unavailable`.
+    pub fn is_unavailable(&self) -> bool {
+        matches!(self, SignalValue::Unavailable)
+    }
+
+    /// Returns the inner `Decimal` if `Scalar`, otherwise returns `default`.
+    pub fn scalar_or(&self, default: Decimal) -> Decimal {
+        match self {
+            SignalValue::Scalar(d) => *d,
+            SignalValue::Unavailable => default,
+        }
+    }
 }
 
 /// A stateful indicator that updates on each new bar input.
@@ -104,4 +122,11 @@ pub trait Signal: Send {
 
     /// Returns the number of bars required before the signal produces a value.
     fn period(&self) -> usize;
+
+    /// Resets the signal to its initial state as if no bars had been seen.
+    ///
+    /// After calling `reset()`, `is_ready()` returns `false` and the next `period`
+    /// bars will warm up the indicator again. Useful for walk-forward backtesting
+    /// without creating a new indicator instance.
+    fn reset(&mut self);
 }

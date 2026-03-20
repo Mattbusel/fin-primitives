@@ -92,6 +92,12 @@ impl Signal for Ema {
     fn period(&self) -> usize {
         self.period
     }
+
+    fn reset(&mut self) {
+        self.current = None;
+        self.count = 0;
+        self.seed_sum = Decimal::ZERO;
+    }
 }
 
 #[cfg(test)]
@@ -216,6 +222,19 @@ mod tests {
             ema_val > sma_val,
             "EMA ({ema_val}) should exceed SMA ({sma_val}) immediately after a spike"
         );
+    }
+
+    #[test]
+    fn test_ema_reset_clears_state() {
+        let mut ema = Ema::new("ema3", 3).unwrap();
+        for p in &["10", "20", "30"] {
+            ema.update_bar(&bar(p)).unwrap();
+        }
+        assert!(ema.is_ready());
+        ema.reset();
+        assert!(!ema.is_ready());
+        let v = ema.update_bar(&bar("10")).unwrap();
+        assert_eq!(v, SignalValue::Unavailable);
     }
 
     #[test]

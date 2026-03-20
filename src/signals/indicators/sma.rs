@@ -67,6 +67,10 @@ impl Signal for Sma {
     fn period(&self) -> usize {
         self.period
     }
+
+    fn reset(&mut self) {
+        self.values.clear();
+    }
 }
 
 #[cfg(test)]
@@ -169,6 +173,23 @@ mod tests {
         let v = sma.update_bar(&bar("55")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(55)));
         assert!(sma.is_ready());
+    }
+
+    #[test]
+    fn test_sma_reset_clears_state() {
+        let mut sma = Sma::new("sma3", 3).unwrap();
+        sma.update_bar(&bar("10")).unwrap();
+        sma.update_bar(&bar("20")).unwrap();
+        sma.update_bar(&bar("30")).unwrap();
+        assert!(sma.is_ready());
+        sma.reset();
+        assert!(!sma.is_ready());
+        // After reset, still needs 3 bars
+        let v1 = sma.update_bar(&bar("10")).unwrap();
+        assert_eq!(v1, SignalValue::Unavailable);
+        sma.update_bar(&bar("20")).unwrap();
+        let v3 = sma.update_bar(&bar("30")).unwrap();
+        assert_eq!(v3, SignalValue::Scalar(dec!(20)));
     }
 
     #[test]

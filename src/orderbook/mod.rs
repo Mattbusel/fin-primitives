@@ -287,6 +287,13 @@ impl OrderBook {
     pub fn ask_count(&self) -> usize {
         self.asks.len()
     }
+
+    /// Removes all price levels from both sides of the book, resetting sequence to 0.
+    pub fn clear(&mut self) {
+        self.bids.clear();
+        self.asks.clear();
+        self.sequence = 0;
+    }
 }
 
 #[cfg(test)]
@@ -656,5 +663,27 @@ mod tests {
         let (bids, asks) = book.snapshot(5);
         assert!(bids.is_empty());
         assert!(asks.is_empty());
+    }
+
+    #[test]
+    fn test_orderbook_clear_removes_all_levels() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "99", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        assert_eq!(book.bid_count(), 1);
+        assert_eq!(book.ask_count(), 1);
+        book.clear();
+        assert_eq!(book.bid_count(), 0);
+        assert_eq!(book.ask_count(), 0);
+        assert_eq!(book.sequence(), 0);
+    }
+
+    #[test]
+    fn test_orderbook_clear_allows_fresh_deltas() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        book.clear();
+        // After clear, sequence resets to 0, so next delta must be seq=1
+        assert!(book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).is_ok());
     }
 }

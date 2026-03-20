@@ -35,6 +35,21 @@ impl SignalMap {
     pub fn error_names(&self) -> impl Iterator<Item = &str> {
         self.errors.keys().map(String::as_str)
     }
+
+    /// Returns an iterator over all `(name, value)` pairs in this map.
+    pub fn values(&self) -> impl Iterator<Item = (&str, &SignalValue)> {
+        self.values.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Returns the number of signal entries in this map.
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    /// Returns `true` if this map contains no signal entries.
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -89,6 +104,16 @@ impl SignalPipeline {
     /// Returns the total number of registered signals.
     pub fn signal_count(&self) -> usize {
         self.signals.len()
+    }
+
+    /// Returns the number of registered signals (alias for `signal_count`).
+    pub fn len(&self) -> usize {
+        self.signals.len()
+    }
+
+    /// Returns `true` if no signals are registered.
+    pub fn is_empty(&self) -> bool {
+        self.signals.is_empty()
     }
 
     /// Returns the number of signals that are currently ready.

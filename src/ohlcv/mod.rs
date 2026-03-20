@@ -280,6 +280,21 @@ impl OhlcvAggregator {
         &self.symbol
     }
 
+    /// Returns the timeframe this aggregator is configured for.
+    pub fn timeframe(&self) -> Timeframe {
+        self.timeframe
+    }
+
+    /// Resets the aggregator, discarding any partial bar and last-close state.
+    ///
+    /// After calling `reset()` the aggregator behaves as if freshly constructed.
+    /// Useful for walk-forward backtesting without recreating the aggregator.
+    pub fn reset(&mut self) {
+        self.current_bar = None;
+        self.current_bucket_start = None;
+        self.last_close = None;
+    }
+
     /// Returns a reference to the current (incomplete) bar, if any.
     pub fn current_bar(&self) -> Option<&OhlcvBar> {
         self.current_bar.as_ref()
@@ -325,6 +340,15 @@ impl OhlcvSeries {
     /// Creates an empty `OhlcvSeries`.
     pub fn new() -> Self {
         Self { bars: Vec::new() }
+    }
+
+    /// Creates an empty `OhlcvSeries` with a pre-allocated capacity.
+    ///
+    /// Avoids reallocations when the approximate number of bars is known in advance.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            bars: Vec::with_capacity(capacity),
+        }
     }
 
     /// Appends a bar to the series after validating its invariants.

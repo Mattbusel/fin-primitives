@@ -69,6 +69,12 @@ impl DrawdownTracker {
     pub fn reset_peak(&mut self) {
         self.peak_equity = self.current_equity;
     }
+
+    /// Fully resets the tracker as if it were freshly constructed with `initial` equity.
+    pub fn reset(&mut self, initial: Decimal) {
+        self.peak_equity = initial;
+        self.current_equity = initial;
+    }
 }
 
 /// A triggered risk rule violation.
@@ -184,6 +190,11 @@ impl RiskMonitor {
     /// Returns the peak equity seen so far.
     pub fn peak_equity(&self) -> Decimal {
         self.tracker.peak()
+    }
+
+    /// Returns the number of rules registered with this monitor.
+    pub fn rule_count(&self) -> usize {
+        self.rules.len()
     }
 }
 
@@ -399,5 +410,24 @@ mod tests {
         };
         let name: &str = rule.name();
         assert_eq!(name, "max_drawdown");
+    }
+
+    #[test]
+    fn test_drawdown_tracker_reset_clears_peak() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(8000));
+        assert_eq!(t.current_drawdown_pct(), dec!(20));
+        t.reset(dec!(5000));
+        assert_eq!(t.peak(), dec!(5000));
+        assert_eq!(t.current_equity(), dec!(5000));
+        assert_eq!(t.current_drawdown_pct(), dec!(0));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_reset_then_update() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.reset(dec!(2000));
+        t.update(dec!(1800));
+        assert_eq!(t.current_drawdown_pct(), dec!(10));
     }
 }
