@@ -35,6 +35,9 @@ pub struct DrawdownTracker {
     /// Current consecutive run of updates where equity increased from the prior update.
     #[serde(default)]
     gain_streak: usize,
+    /// Number of times a new equity peak has been set.
+    #[serde(default)]
+    peak_count: usize,
 }
 
 impl DrawdownTracker {
@@ -50,6 +53,7 @@ impl DrawdownTracker {
             drawdown_pct_sum: Decimal::ZERO,
             max_drawdown_streak: 0,
             gain_streak: 0,
+            peak_count: 0,
         }
     }
 
@@ -64,6 +68,7 @@ impl DrawdownTracker {
         if equity > self.peak_equity {
             self.peak_equity = equity;
             self.updates_since_peak = 0;
+            self.peak_count += 1;
         } else {
             self.updates_since_peak += 1;
             self.drawdown_update_count += 1;
@@ -174,6 +179,7 @@ impl DrawdownTracker {
         self.update_count = 0;
         self.drawdown_update_count = 0;
         self.gain_streak = 0;
+        self.peak_count = 0;
     }
 
     /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.
@@ -280,6 +286,22 @@ impl DrawdownTracker {
         self.gain_streak
     }
 
+    /// Returns `current_equity / peak_equity`, useful for position sizing formulas.
+    ///
+    /// Returns `Decimal::ONE` when peak is zero (no drawdown state yet). A value below 1
+    /// indicates the portfolio is in drawdown; exactly 1 means at peak.
+    pub fn equity_ratio(&self) -> Decimal {
+        if self.peak_equity.is_zero() {
+            return Decimal::ONE;
+        }
+        self.current_equity / self.peak_equity
+    }
+
+    /// Returns how many times a new equity peak has been set since construction or last reset.
+    pub fn new_peak_count(&self) -> usize {
+        self.peak_count
+    }
+
     /// Returns `true` if `equity` is strictly greater than the current peak (new high-water mark).
     ///
     /// Useful for triggering high-water-mark-based fee calculations or performance resets.
@@ -338,6 +360,31 @@ impl DrawdownTracker {
             .sum::<f64>() / (n - 1.0);
         let vol = variance.sqrt() * (periods_per_year as f64).sqrt();
         Some(vol)
+    }
+
+    /// Omega ratio: sum of returns above `threshold` / abs(sum of returns below `threshold`).
+    ///
+    /// Values > 1 indicate more upside than downside relative to the threshold.
+    /// Returns `None` if `returns` is empty or total downside is zero.
+    pub fn omega_ratio(returns: &[Decimal], threshold: Decimal) -> Option<f64> {
+        if returns.is_empty() {
+            return None;
+        }
+        let threshold_f = threshold.to_f64()?;
+        let upside: f64 = returns
+            .iter()
+            .filter_map(|r| r.to_f64())
+            .map(|r| (r - threshold_f).max(0.0))
+            .sum();
+        let downside: f64 = returns
+            .iter()
+            .filter_map(|r| r.to_f64())
+            .map(|r| (threshold_f - r).max(0.0))
+            .sum();
+        if downside == 0.0 {
+            return None;
+        }
+        Some(upside / downside)
     }
 }
 

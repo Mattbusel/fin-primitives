@@ -68,6 +68,8 @@ pub mod vpt;
 pub mod nvi;
 pub mod donchian_width;
 pub mod rmi;
+pub mod supertrend;
+pub mod pivots;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -134,3 +136,5 @@ pub use vpt::Vpt;
 pub use nvi::Nvi;
 pub use donchian_width::DonchianWidth;
 pub use rmi::Rmi;
+pub use supertrend::SuperTrend;
+pub use pivots::Pivots;

@@ -108,6 +108,27 @@ impl SignalMap {
         self.errors.keys().map(String::as_str).collect()
     }
 
+    /// Returns the number of signals that produced a `Scalar` value this update cycle.
+    pub fn count_ready(&self) -> usize {
+        self.scalars().count()
+    }
+
+    /// Returns the arithmetic mean of all ready scalar values, or `None` if there are none.
+    pub fn average_scalar(&self) -> Option<Decimal> {
+        let mut count = 0usize;
+        let mut sum = Decimal::ZERO;
+        for (_, v) in self.scalars() {
+            sum += v;
+            count += 1;
+        }
+        if count == 0 {
+            None
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            Some(sum / Decimal::from(count as u64))
+        }
+    }
+
     /// Returns a `HashMap` of signal names to scalar values for all signals whose scalar
     /// value is strictly greater than `threshold`.
     ///
@@ -266,6 +287,22 @@ impl SignalPipeline {
             .filter(|s| s.is_ready())
             .map(|s| s.name())
             .collect()
+    }
+
+    /// Retains only the signals for which `predicate` returns `true`.
+    ///
+    /// Signals for which `predicate` returns `false` are dropped in place.
+    /// Useful for culling a pipeline by period, name pattern, or readiness.
+    pub fn retain<F>(&mut self, mut predicate: F)
+    where
+        F: FnMut(&dyn Signal) -> bool,
+    {
+        self.signals.retain(|s| predicate(s.as_ref()));
+    }
+
+    /// Returns the `(name, period)` pairs for every registered signal, in insertion order.
+    pub fn signal_periods(&self) -> Vec<(&str, usize)> {
+        self.signals.iter().map(|s| (s.name(), s.period())).collect()
     }
 
     /// Removes the signal with the given `name` from the pipeline, returning `true` if found.
