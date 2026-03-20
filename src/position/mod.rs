@@ -1669,6 +1669,11 @@ impl PositionLedger {
         exposures.truncate(n);
         exposures
     }
+
+    /// Returns `true` if there is at least one non-flat position.
+    pub fn has_open_positions(&self) -> bool {
+        self.positions.values().any(|p| !p.is_flat())
+    }
 }
 
 #[cfg(test)]

@@ -5690,6 +5690,31 @@ impl OhlcvSeries {
         let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
         Some(max_high - min_low)
     }
+
+    /// Count of bars in the last `n` where volume exceeds the rolling average over those `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn volume_above_avg_count(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let vols: Vec<Decimal> = self.bars[start..].iter().map(|b| b.volume.value()).collect();
+        let avg = vols.iter().sum::<Decimal>() / Decimal::from(n);
+        Some(vols.iter().filter(|&&v| v > avg).count())
+    }
+
+    /// Ratio of the last bar's range to the average range over `n` bars.
+    ///
+    /// Returns `None` if fewer than `n` bars exist or average range is zero.
+    pub fn range_vs_atr_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let avg_range = self.bars[start..].iter()
+            .map(|b| b.high.value() - b.low.value())
+            .sum::<Decimal>() / Decimal::from(n);
+        if avg_range.is_zero() { return None; }
+        let last = self.bars.last()?;
+        Some((last.high.value() - last.low.value()) / avg_range)
+    }
 }
 
 #[cfg(test)]

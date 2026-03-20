@@ -1031,6 +1031,20 @@ impl NanoTimestamp {
         let nanos = start_of_next.timestamp_nanos_opt().unwrap_or(self.0) - 1;
         NanoTimestamp(nanos)
     }
+
+    /// Truncates the timestamp to the nearest whole second.
+    pub fn floor_to_second(self) -> NanoTimestamp {
+        const NANOS_PER_SECOND: i64 = 1_000_000_000;
+        NanoTimestamp((self.0 / NANOS_PER_SECOND) * NANOS_PER_SECOND)
+    }
+
+    /// Returns `true` if both timestamps fall in the same UTC hour.
+    pub fn is_same_hour(self, other: NanoTimestamp) -> bool {
+        use chrono::{Datelike, TimeZone, Timelike};
+        let a = chrono::Utc.timestamp_nanos(self.0);
+        let b = chrono::Utc.timestamp_nanos(other.0);
+        a.year() == b.year() && a.month() == b.month() && a.day() == b.day() && a.hour() == b.hour()
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

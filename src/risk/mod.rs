@@ -667,6 +667,19 @@ impl DrawdownTracker {
         Some((curr / init).powf(1.0 / years) - 1.0)
     }
 
+    /// Returns `true` when equity is below its peak but gained on the last update.
+    pub fn is_recovering(&self) -> bool {
+        self.in_drawdown() && self.gain_streak > 0
+    }
+
+    /// Current drawdown as a fraction of the worst recorded drawdown.
+    ///
+    /// Returns `Decimal::ZERO` if no drawdown has been recorded yet.
+    pub fn drawdown_ratio(&self) -> Decimal {
+        if self.worst_drawdown_pct.is_zero() { return Decimal::ZERO; }
+        self.current_drawdown_pct() / self.worst_drawdown_pct
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
@@ -1285,6 +1298,14 @@ impl DrawdownTracker {
         let count = self.drawdown_count();
         if count == 0 { return None; }
         Some(self.drawdown_update_count as f64 / count as f64)
+    }
+
+    /// Equity efficiency: ratio of current equity to peak equity `[0.0, 1.0]`.
+    ///
+    /// A value of `1.0` means at the peak; values below `1.0` indicate drawdown depth.
+    pub fn equity_efficiency(&self) -> f64 {
+        if self.peak_equity.is_zero() { return 1.0; }
+        (self.current_equity / self.peak_equity).to_f64().unwrap_or(0.0)
     }
 }
 
