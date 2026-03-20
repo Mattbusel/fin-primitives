@@ -35,8 +35,47 @@ pub struct Fill {
     pub commission: Decimal,
 }
 
+impl Fill {
+    /// Constructs a `Fill` without commission (zero commission).
+    pub fn new(
+        symbol: Symbol,
+        side: Side,
+        quantity: Quantity,
+        price: Price,
+        timestamp: NanoTimestamp,
+    ) -> Self {
+        Self {
+            symbol,
+            side,
+            quantity,
+            price,
+            timestamp,
+            commission: Decimal::ZERO,
+        }
+    }
+
+    /// Constructs a `Fill` with the specified commission.
+    pub fn with_commission(
+        symbol: Symbol,
+        side: Side,
+        quantity: Quantity,
+        price: Price,
+        timestamp: NanoTimestamp,
+        commission: Decimal,
+    ) -> Self {
+        Self {
+            symbol,
+            side,
+            quantity,
+            price,
+            timestamp,
+            commission,
+        }
+    }
+}
+
 /// Direction of an open position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PositionDirection {
     /// Net quantity is positive.
     Long,
@@ -47,7 +86,7 @@ pub enum PositionDirection {
 }
 
 /// A single-symbol position tracking quantity, average cost, and realized P&L.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Position {
     /// The instrument.
     pub symbol: Symbol,
@@ -153,9 +192,32 @@ impl Position {
             PositionDirection::Flat
         }
     }
+
+    /// Returns total P&L: `realized_pnl + unrealized_pnl(current_price)`.
+    pub fn total_pnl(&self, current_price: Price) -> Decimal {
+        self.realized_pnl + self.unrealized_pnl(current_price)
+    }
+
+    /// Returns the absolute magnitude of the current quantity.
+    pub fn quantity_abs(&self) -> Decimal {
+        self.quantity.abs()
+    }
+
+    /// Returns unrealized P&L as a percentage of cost basis.
+    ///
+    /// Returns `None` when the position is flat (avg_cost is zero).
+    pub fn unrealized_pnl_pct(&self, current_price: Price) -> Option<Decimal> {
+        if self.avg_cost == Decimal::ZERO {
+            return None;
+        }
+        let pnl = self.unrealized_pnl(current_price);
+        let cost_basis = (self.avg_cost * self.quantity.abs()).abs();
+        Some(pnl / cost_basis * Decimal::ONE_HUNDRED)
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PositionLedger {
     positions: HashMap<Symbol, Position>,
     cash: Decimal,
@@ -213,6 +275,11 @@ impl PositionLedger {
     /// Returns the number of non-flat (open) positions.
     pub fn open_position_count(&self) -> usize {
         self.positions.values().filter(|p| !p.is_flat()).count()
+    }
+
+    /// Returns an iterator over non-flat (open) positions only.
+    pub fn open_positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values().filter(|p| !p.is_flat())
     }
 
     /// Returns the total market value of all open positions given a price map.

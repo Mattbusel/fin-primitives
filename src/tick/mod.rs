@@ -59,6 +59,7 @@ impl Tick {
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.
 ///
 /// All predicates are `ANDed` together. Unset predicates always pass.
+#[derive(Clone)]
 pub struct TickFilter {
     symbol: Option<Symbol>,
     side: Option<Side>,
@@ -66,6 +67,8 @@ pub struct TickFilter {
     max_qty: Option<Quantity>,
     min_price: Option<Price>,
     max_price: Option<Price>,
+    min_notional: Option<rust_decimal::Decimal>,
+    max_notional: Option<rust_decimal::Decimal>,
 }
 
 impl TickFilter {
@@ -78,6 +81,8 @@ impl TickFilter {
             max_qty: None,
             min_price: None,
             max_price: None,
+            min_notional: None,
+            max_notional: None,
         }
     }
 
@@ -123,6 +128,20 @@ impl TickFilter {
         self
     }
 
+    /// Restrict matches to ticks with notional (`price * quantity`) >= `n`.
+    #[must_use]
+    pub fn min_notional(mut self, n: rust_decimal::Decimal) -> Self {
+        self.min_notional = Some(n);
+        self
+    }
+
+    /// Restrict matches to ticks with notional (`price * quantity`) <= `n`.
+    #[must_use]
+    pub fn max_notional(mut self, n: rust_decimal::Decimal) -> Self {
+        self.max_notional = Some(n);
+        self
+    }
+
     /// Returns `true` if the tick satisfies all configured predicates.
     pub fn matches(&self, tick: &Tick) -> bool {
         if let Some(ref sym) = self.symbol {
@@ -152,6 +171,16 @@ impl TickFilter {
         }
         if let Some(ref max_p) = self.max_price {
             if tick.price > *max_p {
+                return false;
+            }
+        }
+        if let Some(ref min_n) = self.min_notional {
+            if tick.notional() < *min_n {
+                return false;
+            }
+        }
+        if let Some(ref max_n) = self.max_notional {
+            if tick.notional() > *max_n {
                 return false;
             }
         }
@@ -203,6 +232,20 @@ impl TickReplayer {
     /// Resets the replayer to the beginning of the tick sequence.
     pub fn reset(&mut self) {
         self.index = 0;
+    }
+
+    /// Returns the total number of ticks (including already-yielded ones).
+    pub fn count(&self) -> usize {
+        self.ticks.len()
+    }
+
+    /// Returns all ticks (from the full sorted slice) that match `filter`.
+    pub fn filter(&self, filter: &TickFilter) -> Vec<Tick> {
+        self.ticks
+            .iter()
+            .filter(|t| filter.matches(t))
+            .cloned()
+            .collect()
     }
 }
 

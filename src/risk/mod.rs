@@ -14,10 +14,11 @@
 use rust_decimal::Decimal;
 
 /// Tracks peak equity and computes current drawdown percentage.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DrawdownTracker {
     peak_equity: Decimal,
     current_equity: Decimal,
+    worst_drawdown_pct: Decimal,
 }
 
 impl DrawdownTracker {
@@ -26,6 +27,7 @@ impl DrawdownTracker {
         Self {
             peak_equity: initial_equity,
             current_equity: initial_equity,
+            worst_drawdown_pct: Decimal::ZERO,
         }
     }
 
@@ -35,6 +37,10 @@ impl DrawdownTracker {
             self.peak_equity = equity;
         }
         self.current_equity = equity;
+        let dd = self.current_drawdown_pct();
+        if dd > self.worst_drawdown_pct {
+            self.worst_drawdown_pct = dd;
+        }
     }
 
     /// Returns current drawdown as a percentage: `(peak - current) / peak * 100`.
@@ -70,10 +76,16 @@ impl DrawdownTracker {
         self.peak_equity = self.current_equity;
     }
 
+    /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
+    pub fn worst_drawdown_pct(&self) -> Decimal {
+        self.worst_drawdown_pct
+    }
+
     /// Fully resets the tracker as if it were freshly constructed with `initial` equity.
     pub fn reset(&mut self, initial: Decimal) {
         self.peak_equity = initial;
         self.current_equity = initial;
+        self.worst_drawdown_pct = Decimal::ZERO;
     }
 }
 
@@ -190,6 +202,11 @@ impl RiskMonitor {
     /// Returns the peak equity seen so far.
     pub fn peak_equity(&self) -> Decimal {
         self.tracker.peak()
+    }
+
+    /// Resets the internal drawdown tracker to `initial_equity`.
+    pub fn reset(&mut self, initial_equity: Decimal) {
+        self.tracker.reset(initial_equity);
     }
 
     /// Returns the number of rules registered with this monitor.

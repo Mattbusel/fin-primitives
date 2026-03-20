@@ -3,6 +3,7 @@
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
 use crate::signals::{Signal, SignalValue};
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 /// A named map of signal output values produced by a single [`SignalPipeline::update`] call.
@@ -49,6 +50,14 @@ impl SignalMap {
     /// Returns `true` if this map contains no signal entries.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    /// Returns an iterator over `(name, Decimal)` for every signal that produced a `Scalar` value.
+    pub fn scalars(&self) -> impl Iterator<Item = (&str, Decimal)> {
+        self.values.iter().filter_map(|(k, v)| match v {
+            SignalValue::Scalar(d) => Some((k.as_str(), *d)),
+            SignalValue::Unavailable => None,
+        })
     }
 }
 
@@ -119,6 +128,14 @@ impl SignalPipeline {
     /// Returns the number of signals that are currently ready.
     pub fn ready_count(&self) -> usize {
         self.signals.iter().filter(|s| s.is_ready()).count()
+    }
+
+    /// Returns `true` if every registered signal is ready to produce values.
+    ///
+    /// Useful as a gate before using pipeline output in production logic:
+    /// only act on signals once `all_ready()` returns `true`.
+    pub fn all_ready(&self) -> bool {
+        !self.signals.is_empty() && self.signals.iter().all(|s| s.is_ready())
     }
 
     /// Resets all registered signals to their initial (warm-up) state.

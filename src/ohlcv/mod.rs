@@ -96,6 +96,23 @@ impl OhlcvBar {
             / Decimal::from(4u32)
     }
 
+    /// Returns the OHLC/4 price: `(open + high + low + close) / 4`.
+    ///
+    /// Equal weight for all four price components. Common in smoothed candlestick
+    /// calculations and some custom charting systems.
+    pub fn ohlc4(&self) -> Decimal {
+        (self.open.value() + self.high.value() + self.low.value() + self.close.value())
+            / Decimal::from(4u32)
+    }
+
+    /// Returns `true` if this bar is a gap-fill placeholder (zero ticks).
+    ///
+    /// Gap-fill bars are emitted by `OhlcvAggregator` when a tick arrives several
+    /// buckets ahead of the current one. They have `tick_count == 0` and zero volume.
+    pub fn is_gap_fill(&self) -> bool {
+        self.tick_count == 0
+    }
+
     /// Returns `true` if `close >= open`.
     pub fn is_bullish(&self) -> bool {
         self.close.value() >= self.open.value()
@@ -410,6 +427,11 @@ impl OhlcvSeries {
         self.bars.is_empty()
     }
 
+    /// Removes all bars from the series, retaining allocated capacity.
+    pub fn clear(&mut self) {
+        self.bars.clear();
+    }
+
     /// Returns the bar at `index`, or `None` if out of bounds.
     pub fn get(&self, index: usize) -> Option<&OhlcvBar> {
         self.bars.get(index)
@@ -491,6 +513,17 @@ impl OhlcvSeries {
             return None;
         }
         Some(&self.bars[from..to])
+    }
+
+    /// Converts the series into a `Vec<BarInput>` for batch signal processing.
+    ///
+    /// Allows feeding an entire historical series into indicators without manually
+    /// iterating and converting each bar.
+    pub fn to_bar_inputs(&self) -> Vec<crate::signals::BarInput> {
+        self.bars
+            .iter()
+            .map(crate::signals::BarInput::from)
+            .collect()
     }
 }
 

@@ -306,6 +306,57 @@ impl OrderBook {
             _ => false,
         }
     }
+
+    /// Returns `true` if both sides of the book have no resting quantity.
+    pub fn is_empty(&self) -> bool {
+        self.bids.is_empty() && self.asks.is_empty()
+    }
+
+    /// Returns the total resting quantity available on `side` up to and including `price`.
+    ///
+    /// For bids: sums all bid levels at prices `>= price` (levels at or above the given price).
+    /// For asks: sums all ask levels at prices `<= price` (levels at or below the given price).
+    ///
+    /// Returns `Decimal::ZERO` when there are no matching levels.
+    pub fn cumulative_depth(&self, side: Side, price: Price) -> Decimal {
+        let p = price.value();
+        match side {
+            Side::Bid => self
+                .bids
+                .range(p..)
+                .map(|(_, qty)| *qty)
+                .sum(),
+            Side::Ask => self
+                .asks
+                .range(..=p)
+                .map(|(_, qty)| *qty)
+                .sum(),
+        }
+    }
+
+    /// Returns the total resting quantity on the bid side.
+    pub fn total_bid_volume(&self) -> Decimal {
+        self.bids.values().copied().sum()
+    }
+
+    /// Returns the total resting quantity on the ask side.
+    pub fn total_ask_volume(&self) -> Decimal {
+        self.asks.values().copied().sum()
+    }
+
+    /// Returns the order-book imbalance: `(bid_vol - ask_vol) / (bid_vol + ask_vol)`.
+    ///
+    /// Returns `None` when both sides are empty (division by zero).
+    /// Range is `(-1, 1)`: positive = bid-heavy, negative = ask-heavy.
+    pub fn imbalance(&self) -> Option<Decimal> {
+        let bid_vol = self.total_bid_volume();
+        let ask_vol = self.total_ask_volume();
+        let total = bid_vol + ask_vol;
+        if total == Decimal::ZERO {
+            return None;
+        }
+        Some((bid_vol - ask_vol) / total)
+    }
 }
 
 #[cfg(test)]
