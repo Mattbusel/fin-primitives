@@ -225,6 +225,16 @@ impl Price {
 }
 
 impl Price {
+    /// Rounds this price to `dp` decimal places using banker's rounding.
+    ///
+    /// Returns `None` if the rounded value is zero or negative (invalid price).
+    pub fn round_to(self, dp: u32) -> Option<Price> {
+        let rounded = self.0.round_dp(dp);
+        Price::new(rounded).ok()
+    }
+}
+
+impl Price {
     /// Adds `other` to `self`, returning the result as a `Price`, or `None` on overflow.
     ///
     /// Useful when combining two price levels and needing a validated result.
@@ -519,6 +529,14 @@ impl NanoTimestamp {
     /// Returns `true` if `self` is strictly later than `other`.
     pub fn is_after(&self, other: NanoTimestamp) -> bool {
         self.0 > other.0
+    }
+
+    /// Returns `true` if `self` and `other` fall within the same calendar second.
+    ///
+    /// Two timestamps are in the same second when
+    /// `floor(self / 1_000_000_000) == floor(other / 1_000_000_000)`.
+    pub fn is_same_second(&self, other: NanoTimestamp) -> bool {
+        self.0.div_euclid(1_000_000_000) == other.0.div_euclid(1_000_000_000)
     }
 
     /// Constructs a `NanoTimestamp` from milliseconds since the Unix epoch.

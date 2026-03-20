@@ -503,6 +503,14 @@ impl PositionLedger {
         self.positions.get(symbol).map(|p| p.realized_pnl)
     }
 
+    /// Returns total net P&L: `realized_pnl_total + unrealized_pnl_total(prices)`.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn net_pnl(&self, prices: &HashMap<String, Price>) -> Result<Decimal, FinError> {
+        Ok(self.realized_pnl_total() + self.unrealized_pnl_total(prices)?)
+    }
+
     /// Returns total equity: `cash + sum(unrealized P&L of open positions)`.
     ///
     /// # Errors

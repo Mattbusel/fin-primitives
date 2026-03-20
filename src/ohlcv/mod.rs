@@ -1588,6 +1588,27 @@ impl OhlcvSeries {
             .filter(|(i, b)| b.close.value() < self.bars[start + i - 1].close.value())
             .count()
     }
+
+    /// Returns the per-bar range (`high - low`) as a `Vec<Decimal>`.
+    ///
+    /// One value per bar; empty if the series is empty.
+    pub fn range_series(&self) -> Vec<Decimal> {
+        self.bars.iter().map(|b| b.range()).collect()
+    }
+
+    /// Returns absolute close-to-close changes: `|close[i] - close[i-1]|` for each bar.
+    ///
+    /// The result has `len() - 1` entries (first bar has no previous bar).
+    /// Empty when the series has fewer than 2 bars.
+    pub fn close_to_close_changes(&self) -> Vec<Decimal> {
+        if self.bars.len() < 2 {
+            return vec![];
+        }
+        self.bars
+            .windows(2)
+            .map(|w| (w[1].close.value() - w[0].close.value()).abs())
+            .collect()
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -2552,5 +2573,82 @@ mod tests {
         series.push(make_bar("100", "105", "85", "95")).unwrap(); // bearish
         assert_eq!(series.consecutive_downs(), 2);
         assert_eq!(series.consecutive_ups(), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_marubozu_full_body() {
+        // open=100, high=110, low=100, close=110 → no shadows
+        let bar = make_bar("100", "110", "100", "110");
+        assert!(bar.is_marubozu());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_marubozu_false_with_shadows() {
+        let bar = make_bar("100", "115", "95", "110");
+        assert!(!bar.is_marubozu());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_spinning_top_true() {
+        // range=40, body=2, upper=18, lower=20
+        let bar = make_bar("100", "120", "80", "102");
+        assert!(bar.is_spinning_top());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_spinning_top_false_large_body() {
+        // body=14, range=20 → body_ratio=0.70 > 0.30
+        let bar = make_bar("100", "115", "95", "114");
+        assert!(!bar.is_spinning_top());
+    }
+
+    #[test]
+    fn test_ohlcv_series_average_volume_all_same() {
+        // make_bar always sets volume = 100
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert_eq!(series.average_volume(2).unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_series_average_range() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "120", "80", "110")).unwrap(); // range=40
+        series.push(make_bar("110", "125", "100", "115")).unwrap(); // range=25
+        assert_eq!(series.average_range(2).unwrap(), dec!(32.5));
+    }
+
+    #[test]
+    fn test_ohlcv_series_average_volume_empty_returns_none() {
+        let series = OhlcvSeries::new();
+        assert!(series.average_volume(5).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_typical_price_mean_single_bar() {
+        let mut series = OhlcvSeries::new();
+        // typical = (120+80+110)/3 ≈ 103.333...
+        let bar = make_bar("100", "120", "80", "110");
+        series.push(bar).unwrap();
+        let tp = series.typical_price_mean(1).unwrap();
+        // (120+80+110)/3
+        let expected = (dec!(120) + dec!(80) + dec!(110)) / dec!(3);
+        assert_eq!(tp, expected);
+    }
+
+    #[test]
+    fn test_ohlcv_series_below_sma_zero_when_all_above() {
+        let mut series = OhlcvSeries::new();
+        for _ in 0..3 { series.push(make_bar("100", "110", "90", "100")).unwrap(); }
+        // SMA(3) = 100, close=100, not strictly below → 0
+        assert_eq!(series.below_sma(3, 3), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_sortino_ratio_insufficient_data() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        assert!(series.sortino_ratio(0.0, 252.0).is_none());
     }
 }

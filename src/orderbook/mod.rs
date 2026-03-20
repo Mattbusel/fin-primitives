@@ -400,6 +400,32 @@ impl OrderBook {
             .and_then(|q| Quantity::new(*q).ok())
     }
 
+    /// Returns the total resting quantity on `side` within `pct_from_mid` percent of the mid-price.
+    ///
+    /// For example, `liquidity_at_pct(Side::Ask, dec!(0.5))` returns all ask volume
+    /// within 0.5% above the mid-price. Returns `None` when the book has no mid-price.
+    pub fn liquidity_at_pct(&self, side: Side, pct_from_mid: Decimal) -> Option<Decimal> {
+        let mid = self.mid_price()?;
+        let band = mid * pct_from_mid / Decimal::ONE_HUNDRED;
+        let (lo, hi) = match side {
+            Side::Bid => (mid - band, mid),
+            Side::Ask => (mid, mid + band),
+        };
+        let qty: Decimal = match side {
+            Side::Bid => self
+                .bids
+                .range(lo..=hi)
+                .map(|(_, q)| *q)
+                .sum(),
+            Side::Ask => self
+                .asks
+                .range(lo..=hi)
+                .map(|(_, q)| *q)
+                .sum(),
+        };
+        Some(qty)
+    }
+
     /// Returns `true` if `price` is present in the given `side` of the book.
     pub fn has_price(&self, side: Side, price: Price) -> bool {
         let key = price.value();

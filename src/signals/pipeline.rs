@@ -179,6 +179,16 @@ impl SignalPipeline {
         !self.signals.is_empty() && self.signals.iter().all(|s| s.is_ready())
     }
 
+    /// Returns an iterator over the names of signals that are currently ready.
+    ///
+    /// Useful for selectively reading only warmed-up signals from the output map.
+    pub fn names_ready(&self) -> impl Iterator<Item = &str> {
+        self.signals
+            .iter()
+            .filter(|s| s.is_ready())
+            .map(|s| s.name())
+    }
+
     /// Returns a reference to the signal with the given `name`, or `None` if not registered.
     pub fn get_signal(&self, name: &str) -> Option<&dyn Signal> {
         self.signals

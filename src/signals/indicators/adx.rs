@@ -44,11 +44,11 @@ impl Adx {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
+    #[allow(clippy::cast_possible_truncation)]
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        #[allow(clippy::cast_possible_truncation)]
         let multiplier = Decimal::ONE / Decimal::from(period as u32);
         Ok(Self {
             name: name.into(),
@@ -133,7 +133,7 @@ impl Signal for Adx {
         let dx = if di_sum.is_zero() {
             Decimal::ZERO
         } else {
-            ((di_plus - di_minus).abs() / di_sum * Decimal::ONE_HUNDRED)
+            (di_plus - di_minus).abs() / di_sum * Decimal::ONE_HUNDRED
         };
 
         // ADX: Wilder smoothing of DX, seeded by simple average over second period
@@ -142,7 +142,6 @@ impl Signal for Adx {
             self.dx_sum += dx;
             if adx_period + 1 == self.period {
                 // Seed the ADX
-                #[allow(clippy::cast_possible_truncation)]
                 self.adx = Some(self.dx_sum / Decimal::from(self.period as u32));
             }
             return Ok(SignalValue::Unavailable);
