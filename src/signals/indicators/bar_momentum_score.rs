@@ -1,31 +1,31 @@
-//! True Range Ratio indicator.
+//! Bar Momentum Score indicator.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// True Range Ratio — current True Range divided by the SMA of True Range over `period` bars.
+/// Bar Momentum Score — the current bar's directional body normalized by the
+/// rolling average true range over `period` bars.
 ///
 /// ```text
-/// TR  = max(high - low, |high - prev_close|, |low - prev_close|)
-/// TRR = TR / SMA(TR, period)
+/// body  = close - open  (positive = bullish, negative = bearish)
+/// atr   = SMA(TR, period)
+/// score = body / atr
 /// ```
 ///
-/// Values > 1 indicate an above-average range (potential breakout or spike).
-/// Values < 1 indicate a below-average range (compression/consolidation).
-///
-/// Returns [`SignalValue::Unavailable`] until `period` bars of TR have been accumulated.
+/// A score near ±1 means the body is about one ATR in size.
+/// Returns [`SignalValue::Unavailable`] until `period` bars have been seen or ATR is zero.
 ///
 /// # Example
 /// ```rust
-/// use fin_primitives::signals::indicators::TrueRangeRatio;
+/// use fin_primitives::signals::indicators::BarMomentumScore;
 /// use fin_primitives::signals::Signal;
 ///
-/// let trr = TrueRangeRatio::new("trr", 14).unwrap();
-/// assert_eq!(trr.period(), 14);
+/// let bms = BarMomentumScore::new("bms", 14).unwrap();
+/// assert_eq!(bms.period(), 14);
 /// ```
-pub struct TrueRangeRatio {
+pub struct BarMomentumScore {
     name: String,
     period: usize,
     prev_close: Option<Decimal>,
@@ -33,8 +33,8 @@ pub struct TrueRangeRatio {
     sum: Decimal,
 }
 
-impl TrueRangeRatio {
-    /// Constructs a new `TrueRangeRatio`.
+impl BarMomentumScore {
+    /// Constructs a new `BarMomentumScore`.
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
@@ -52,7 +52,7 @@ impl TrueRangeRatio {
     }
 }
 
-impl Signal for TrueRangeRatio {
+impl Signal for BarMomentumScore {
     fn name(&self) -> &str { &self.name }
     fn period(&self) -> usize { self.period }
     fn is_ready(&self) -> bool { self.trs.len() >= self.period }
@@ -80,11 +80,12 @@ impl Signal for TrueRangeRatio {
         }
 
         let nd = Decimal::from(self.period as u32);
-        let sma = self.sum / nd;
-        if sma.is_zero() {
+        let atr = self.sum / nd;
+        if atr.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        Ok(SignalValue::Scalar(tr / sma))
+        let body = bar.close - bar.open;
+        Ok(SignalValue::Scalar(body / atr))
     }
 
     fn reset(&mut self) {
@@ -102,13 +103,14 @@ mod tests {
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(h: &str, l: &str, c: &str) -> OhlcvBar {
+    fn bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
+        let op = Price::new(o.parse().unwrap()).unwrap();
         let hp = Price::new(h.parse().unwrap()).unwrap();
         let lp = Price::new(l.parse().unwrap()).unwrap();
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: op, high: hp, low: lp, close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,51 +119,54 @@ mod tests {
     }
 
     #[test]
-    fn test_trr_invalid_period() {
-        assert!(TrueRangeRatio::new("trr", 0).is_err());
+    fn test_bms_invalid_period() {
+        assert!(BarMomentumScore::new("bms", 0).is_err());
     }
 
     #[test]
-    fn test_trr_unavailable_before_warm_up() {
-        let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
+    fn test_bms_unavailable_before_warm_up() {
+        let mut bms = BarMomentumScore::new("bms", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(trr.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(bms.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
         }
     }
 
     #[test]
-    fn test_trr_constant_range_gives_one() {
-        // All bars have equal TR → ratio = 1
-        let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
-        let mut last = SignalValue::Unavailable;
+    fn test_bms_bullish_score_positive() {
+        let mut bms = BarMomentumScore::new("bms", 3).unwrap();
+        // Feed bars with TR=10 each, close > open
         for _ in 0..3 {
-            last = trr.update_bar(&bar("110", "90", "100")).unwrap();
+            bms.update_bar(&bar("100", "110", "100", "105")).unwrap();
         }
-        assert_eq!(last, SignalValue::Scalar(dec!(1)));
-    }
-
-    #[test]
-    fn test_trr_large_bar_above_one() {
-        let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
-        // Seed with 3 small bars (TR=10 each)
-        for _ in 0..3 {
-            trr.update_bar(&bar("105", "95", "100")).unwrap();
-        }
-        // Now feed a big bar (TR=100), rolling SMA becomes dominated by small bars initially
-        let result = trr.update_bar(&bar("200", "100", "150")).unwrap();
+        // ATR = 10, body = 5 → score = 0.5
+        let result = bms.update_bar(&bar("100", "110", "100", "105")).unwrap();
         if let SignalValue::Scalar(v) = result {
-            assert!(v > dec!(1), "large bar should give ratio > 1, got {}", v);
+            assert!(v > dec!(0), "bullish bar should give positive score");
         } else {
             panic!("expected Scalar");
         }
     }
 
     #[test]
-    fn test_trr_reset() {
-        let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
-        for _ in 0..3 { trr.update_bar(&bar("110", "90", "100")).unwrap(); }
-        assert!(trr.is_ready());
-        trr.reset();
-        assert!(!trr.is_ready());
+    fn test_bms_bearish_score_negative() {
+        let mut bms = BarMomentumScore::new("bms", 3).unwrap();
+        for _ in 0..3 {
+            bms.update_bar(&bar("105", "110", "100", "100")).unwrap();
+        }
+        let result = bms.update_bar(&bar("105", "110", "100", "100")).unwrap();
+        if let SignalValue::Scalar(v) = result {
+            assert!(v < dec!(0), "bearish bar should give negative score");
+        } else {
+            panic!("expected Scalar");
+        }
+    }
+
+    #[test]
+    fn test_bms_reset() {
+        let mut bms = BarMomentumScore::new("bms", 3).unwrap();
+        for _ in 0..3 { bms.update_bar(&bar("100", "110", "90", "105")).unwrap(); }
+        assert!(bms.is_ready());
+        bms.reset();
+        assert!(!bms.is_ready());
     }
 }
