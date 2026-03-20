@@ -630,6 +630,16 @@ impl NanoTimestamp {
         NanoTimestamp(self.0 + secs * 1_000_000_000)
     }
 
+    /// Shifts this timestamp forward by `minutes` minutes (negative values go backwards).
+    pub fn add_minutes(&self, minutes: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + minutes * 60_000_000_000)
+    }
+
+    /// Shifts this timestamp forward by `hours` hours (negative values go backwards).
+    pub fn add_hours(&self, hours: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + hours * 3_600_000_000_000)
+    }
+
     /// Returns `true` if `self` is strictly earlier than `other`.
     pub fn is_before(&self, other: NanoTimestamp) -> bool {
         self.0 < other.0

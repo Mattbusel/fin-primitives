@@ -78,6 +78,8 @@ pub mod env;
 pub mod pfe;
 pub mod rsx;
 pub mod mcginley;
+pub mod vhf;
+pub mod chaikin_osc;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -154,3 +156,5 @@ pub use env::Envelope;
 pub use pfe::Pfe;
 pub use rsx::Rsx;
 pub use mcginley::McGinley;
+pub use vhf::Vhf;
+pub use chaikin_osc::ChaikinOsc;

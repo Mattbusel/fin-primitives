@@ -2978,6 +2978,43 @@ impl OhlcvSeries {
         Some(num / (n_f * sx * sy))
     }
 
+    /// Average bar range as a percentage of close: `(high - low) / close × 100` over `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or any close is zero.
+    pub fn bar_range_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let c = b.close.value();
+            if c.is_zero() { continue; }
+            sum += (b.high.value() - b.low.value()) / c * Decimal::ONE_HUNDRED;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
+
+    /// Count of bars over the last `n` where close > midpoint of prior bar's high-low range.
+    ///
+    /// Returns `0` when `n < 2` or fewer than 2 bars available.
+    pub fn close_vs_prior_range_count(&self, n: usize) -> usize {
+        if n < 2 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        slice.windows(2)
+            .filter(|w| {
+                let mid = (w[0].high.value() + w[0].low.value()) / Decimal::TWO;
+                w[1].close.value() > mid
+            })
+            .count()
+    }
+
     /// Annualised Sharpe ratio of log returns over the last `n` bars.
     ///
     /// Uses 252 trading days to annualise. Returns `None` if fewer than 2 bars exist,
@@ -3202,27 +3239,6 @@ impl OhlcvSeries {
         Some((recent - earlier) / earlier * Decimal::ONE_HUNDRED)
     }
 
-    /// Returns the highest close price over the last `n` bars.
-    ///
-    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
-    pub fn highest_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n {
-            return None;
-        }
-        let start = self.bars.len() - n;
-        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::max)
-    }
-
-    /// Returns the lowest close price over the last `n` bars.
-    ///
-    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
-    pub fn lowest_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n {
-            return None;
-        }
-        let start = self.bars.len() - n;
-        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::min)
-    }
 }
 
 impl Default for OhlcvSeries {

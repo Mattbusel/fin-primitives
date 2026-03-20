@@ -302,6 +302,20 @@ impl DrawdownTracker {
         self.peak_count
     }
 
+    /// Returns the "pain index": mean absolute drawdown across all updates.
+    ///
+    /// `pain_index = drawdown_pct_sum / update_count`
+    ///
+    /// Represents the average percentage loss a holder experienced over the equity curve.
+    /// Returns `Decimal::ZERO` when no updates have been processed.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn pain_index(&self) -> Decimal {
+        if self.update_count == 0 {
+            return Decimal::ZERO;
+        }
+        self.drawdown_pct_sum / Decimal::from(self.update_count as u64)
+    }
+
     /// Returns `true` if `equity` is strictly greater than the current peak (new high-water mark).
     ///
     /// Useful for triggering high-water-mark-based fee calculations or performance resets.
@@ -385,6 +399,33 @@ impl DrawdownTracker {
             return None;
         }
         Some(upside / downside)
+    }
+
+    /// Information ratio: `(mean(returns) - mean(benchmark)) / std_dev(returns - benchmark)`.
+    ///
+    /// Measures risk-adjusted excess return over a benchmark. Returns `None` if fewer than 2
+    /// matched return pairs exist or tracking error is zero.
+    pub fn information_ratio(returns: &[Decimal], benchmark: &[Decimal]) -> Option<f64> {
+        let n = returns.len().min(benchmark.len());
+        if n < 2 {
+            return None;
+        }
+        let excess: Vec<f64> = returns[..n]
+            .iter()
+            .zip(benchmark[..n].iter())
+            .filter_map(|(r, b)| Some(r.to_f64()? - b.to_f64()?))
+            .collect();
+        if excess.len() < 2 {
+            return None;
+        }
+        let mean_excess = excess.iter().sum::<f64>() / excess.len() as f64;
+        let tracking_variance = excess.iter().map(|e| (e - mean_excess).powi(2)).sum::<f64>()
+            / (excess.len() as f64 - 1.0);
+        let tracking_error = tracking_variance.sqrt();
+        if tracking_error == 0.0 {
+            return None;
+        }
+        Some(mean_excess / tracking_error)
     }
 }
 

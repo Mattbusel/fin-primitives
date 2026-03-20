@@ -783,6 +783,44 @@ impl TickReplayer {
         let std = variance.to_f64()?.sqrt();
         Decimal::try_from(std).ok()
     }
+
+    /// Returns the bid-ask imbalance: `(bid_volume - ask_volume) / total_volume`.
+    ///
+    /// Values near +1 indicate heavy buying pressure; near -1 indicate heavy selling pressure.
+    /// Returns `None` if total volume is zero or there are no ticks.
+    pub fn bid_ask_imbalance(&self) -> Option<Decimal> {
+        let total: Decimal = self.ticks.iter().map(|t| t.quantity.value()).sum();
+        if total.is_zero() {
+            return None;
+        }
+        let bid_vol: Decimal = self
+            .ticks
+            .iter()
+            .filter(|t| t.side == Side::Bid)
+            .map(|t| t.quantity.value())
+            .sum();
+        let ask_vol = total - bid_vol;
+        Some((bid_vol - ask_vol) / total)
+    }
+
+    /// Returns tick count per second over the time span of the batch.
+    ///
+    /// Returns `None` if fewer than 2 ticks are present or the time span is zero.
+    pub fn tick_velocity_per_second(&self) -> Option<f64> {
+        if self.ticks.len() < 2 {
+            return None;
+        }
+        let span_nanos = self
+            .ticks
+            .last()
+            .unwrap()
+            .timestamp
+            .elapsed_since(self.ticks.first().unwrap().timestamp);
+        if span_nanos <= 0 {
+            return None;
+        }
+        Some(self.ticks.len() as f64 / (span_nanos as f64 / 1_000_000_000.0))
+    }
 }
 
 impl Iterator for TickReplayer {
