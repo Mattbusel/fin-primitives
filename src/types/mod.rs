@@ -51,6 +51,19 @@ impl Symbol {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Returns the number of bytes in the symbol string.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if the symbol string is empty.
+    ///
+    /// Note: construction always rejects empty strings, so this always returns `false`
+    /// for any successfully constructed `Symbol`.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl std::fmt::Display for Symbol {
@@ -256,6 +269,13 @@ impl NanoTimestamp {
     /// Falls back to `0` if the system clock overflows nanosecond range (extremely unlikely).
     pub fn now() -> Self {
         Self(Utc::now().timestamp_nanos_opt().unwrap_or(0))
+    }
+
+    /// Returns the signed nanosecond difference `self - other`.
+    ///
+    /// Positive when `self` is later than `other`, negative when earlier.
+    pub fn duration_since(&self, other: NanoTimestamp) -> i64 {
+        self.0 - other.0
     }
 
     /// Converts this timestamp to a [`DateTime<Utc>`].

@@ -91,6 +91,28 @@ impl OhlcvBar {
     pub fn is_bullish(&self) -> bool {
         self.close.value() >= self.open.value()
     }
+
+    /// Returns the midpoint price: `(high + low) / 2` (HL2).
+    pub fn midpoint(&self) -> Decimal {
+        (self.high.value() + self.low.value()) / Decimal::TWO
+    }
+
+    /// Returns the absolute candlestick body size: `|close - open|`.
+    pub fn body_size(&self) -> Decimal {
+        (self.close.value() - self.open.value()).abs()
+    }
+
+    /// Returns `true` if the bar is a doji: `body_size / range < threshold`.
+    ///
+    /// A doji indicates indecision. Returns `false` when `range == 0` (flat bar)
+    /// and `threshold == 0`; returns `true` for a flat bar with any positive threshold.
+    pub fn is_doji(&self, threshold: Decimal) -> bool {
+        let r = self.range();
+        if r == Decimal::ZERO {
+            return threshold > Decimal::ZERO;
+        }
+        self.body_size() / r < threshold
+    }
 }
 
 /// A timeframe for bar aggregation.
@@ -332,6 +354,21 @@ impl OhlcvSeries {
         self.bars.iter()
     }
 
+    /// Returns a `Vec` of open prices in series order.
+    pub fn opens(&self) -> Vec<Decimal> {
+        self.bars.iter().map(|b| b.open.value()).collect()
+    }
+
+    /// Returns a `Vec` of high prices in series order.
+    pub fn highs(&self) -> Vec<Decimal> {
+        self.bars.iter().map(|b| b.high.value()).collect()
+    }
+
+    /// Returns a `Vec` of low prices in series order.
+    pub fn lows(&self) -> Vec<Decimal> {
+        self.bars.iter().map(|b| b.low.value()).collect()
+    }
+
     /// Returns a `Vec` of close prices in series order.
     pub fn closes(&self) -> Vec<Decimal> {
         self.bars.iter().map(|b| b.close.value()).collect()
@@ -445,6 +482,39 @@ mod tests {
     fn test_ohlcv_bar_is_bullish_false() {
         let bar = make_bar("105", "110", "95", "100");
         assert!(!bar.is_bullish());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_midpoint() {
+        let bar = make_bar("100", "120", "80", "110");
+        assert_eq!(bar.midpoint(), dec!(100)); // (120 + 80) / 2
+    }
+
+    #[test]
+    fn test_ohlcv_bar_body_size_bullish() {
+        let bar = make_bar("100", "120", "80", "110");
+        assert_eq!(bar.body_size(), dec!(10)); // |110 - 100|
+    }
+
+    #[test]
+    fn test_ohlcv_bar_body_size_bearish() {
+        let bar = make_bar("110", "120", "80", "100");
+        assert_eq!(bar.body_size(), dec!(10)); // |100 - 110|
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_doji_flat_range() {
+        let bar = make_bar("100", "100", "100", "100");
+        assert!(bar.is_doji(dec!(0.1)));
+        assert!(!bar.is_doji(dec!(0)));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_doji_small_body() {
+        // range = 20, body = 1 → body/range = 0.05 < 0.1 threshold
+        let bar = make_bar("100", "110", "90", "101");
+        assert!(bar.is_doji(dec!(0.1)));
+        assert!(!bar.is_doji(dec!(0.04)));
     }
 
     #[test]
@@ -606,6 +676,30 @@ mod tests {
         series.push(make_bar("100", "110", "90", "105")).unwrap();
         let w = series.window(10);
         assert_eq!(w.len(), 1);
+    }
+
+    #[test]
+    fn test_ohlcv_series_opens() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert_eq!(series.opens(), vec![dec!(100), dec!(105)]);
+    }
+
+    #[test]
+    fn test_ohlcv_series_highs() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert_eq!(series.highs(), vec![dec!(110), dec!(115)]);
+    }
+
+    #[test]
+    fn test_ohlcv_series_lows() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert_eq!(series.lows(), vec![dec!(90), dec!(95)]);
     }
 
     #[test]

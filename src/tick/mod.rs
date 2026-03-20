@@ -63,6 +63,7 @@ pub struct TickFilter {
     symbol: Option<Symbol>,
     side: Option<Side>,
     min_qty: Option<Quantity>,
+    max_qty: Option<Quantity>,
     min_price: Option<Price>,
     max_price: Option<Price>,
 }
@@ -74,6 +75,7 @@ impl TickFilter {
             symbol: None,
             side: None,
             min_qty: None,
+            max_qty: None,
             min_price: None,
             max_price: None,
         }
@@ -97,6 +99,13 @@ impl TickFilter {
     #[must_use]
     pub fn min_quantity(mut self, q: Quantity) -> Self {
         self.min_qty = Some(q);
+        self
+    }
+
+    /// Restrict matches to ticks with quantity <= `q`.
+    #[must_use]
+    pub fn max_quantity(mut self, q: Quantity) -> Self {
+        self.max_qty = Some(q);
         self
     }
 
@@ -128,6 +137,11 @@ impl TickFilter {
         }
         if let Some(ref min_qty) = self.min_qty {
             if tick.quantity < *min_qty {
+                return false;
+            }
+        }
+        if let Some(ref max_qty) = self.max_qty {
+            if tick.quantity > *max_qty {
                 return false;
             }
         }
@@ -257,6 +271,26 @@ mod tests {
         let small = make_tick("AAPL", "1", "2", Side::Bid, 0);
         assert!(f.matches(&large));
         assert!(!f.matches(&small));
+    }
+
+    #[test]
+    fn test_tick_filter_by_max_quantity() {
+        let max_qty = Quantity::new(dec!(5)).unwrap();
+        let f = TickFilter::new().max_quantity(max_qty);
+        let small = make_tick("AAPL", "1", "3", Side::Bid, 0);
+        let large = make_tick("AAPL", "1", "10", Side::Bid, 0);
+        assert!(f.matches(&small));
+        assert!(!f.matches(&large));
+    }
+
+    #[test]
+    fn test_tick_filter_quantity_range() {
+        let min_qty = Quantity::new(dec!(3)).unwrap();
+        let max_qty = Quantity::new(dec!(7)).unwrap();
+        let f = TickFilter::new().min_quantity(min_qty).max_quantity(max_qty);
+        assert!(f.matches(&make_tick("X", "1", "5", Side::Bid, 0)));
+        assert!(!f.matches(&make_tick("X", "1", "2", Side::Bid, 0)));
+        assert!(!f.matches(&make_tick("X", "1", "10", Side::Bid, 0)));
     }
 
     #[test]
