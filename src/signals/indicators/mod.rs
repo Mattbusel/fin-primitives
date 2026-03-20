@@ -144,6 +144,7 @@ pub mod trend_strength;
 pub mod linear_deviation;
 pub mod volume_weighted_close;
 pub mod price_envelope;
+pub mod connors_rsi;
 pub mod relative_volatility;
 pub mod stiffness;
 
@@ -288,5 +289,6 @@ pub use trend_strength::TrendStrength;
 pub use linear_deviation::LinearDeviation;
 pub use volume_weighted_close::VolumeWeightedClose;
 pub use price_envelope::PriceEnvelope;
+pub use connors_rsi::ConnorsRsi;
 pub use relative_volatility::RelativeVolatility;
 pub use stiffness::Stiffness;
