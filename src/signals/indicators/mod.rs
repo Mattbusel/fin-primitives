@@ -178,6 +178,7 @@ pub mod typical_price;
 pub mod dema_ratio;
 pub mod volume_trend;
 pub mod range_ratio;
+pub mod close_location_value;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -354,3 +355,4 @@ pub use typical_price::TypicalPriceMa;
 pub use dema_ratio::DemaRatio;
 pub use volume_trend::VolumeTrend;
 pub use range_ratio::RangeRatio;
+pub use close_location_value::CloseLocationValue;
