@@ -135,6 +135,34 @@ impl Position {
         current_bar.saturating_sub(self.open_bar)
     }
 
+    /// Maximum favorable excursion (MFE): the best unrealized P&L seen across `prices`.
+    ///
+    /// For a long position, this is `max(price - avg_cost) * quantity`.
+    /// For a short position, this is `max(avg_cost - price) * |quantity|`.
+    ///
+    /// Returns `None` when the position is flat, `avg_cost` is zero, or `prices` is empty.
+    pub fn max_favorable_excursion(&self, prices: &[Price]) -> Option<Decimal> {
+        if self.is_flat() || self.avg_cost.is_zero() || prices.is_empty() {
+            return None;
+        }
+        let best = if self.is_long() {
+            prices
+                .iter()
+                .map(|p| (p.value() - self.avg_cost) * self.quantity)
+                .fold(Decimal::MIN, Decimal::max)
+        } else {
+            prices
+                .iter()
+                .map(|p| (self.avg_cost - p.value()) * self.quantity.abs())
+                .fold(Decimal::MIN, Decimal::max)
+        };
+        if best < Decimal::ZERO {
+            Some(Decimal::ZERO)
+        } else {
+            Some(best)
+        }
+    }
+
     /// Applies a fill, updating quantity, `avg_cost`, and `realized_pnl`.
     ///
     /// # Returns
@@ -369,6 +397,7 @@ impl Position {
 pub struct PositionLedger {
     positions: HashMap<Symbol, Position>,
     cash: Decimal,
+    total_commission_paid: Decimal,
 }
 
 impl PositionLedger {
@@ -377,6 +406,7 @@ impl PositionLedger {
         Self {
             positions: HashMap::new(),
             cash: initial_cash,
+            total_commission_paid: Decimal::ZERO,
         }
     }
 
@@ -397,6 +427,7 @@ impl PositionLedger {
             });
         }
         self.cash += cost;
+        self.total_commission_paid += fill.commission;
         let pos = self
             .positions
             .entry(fill.symbol.clone())
@@ -890,6 +921,62 @@ impl PositionLedger {
             })
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(sym, _)| sym)
+    }
+
+    /// Returns the cumulative commissions paid across all fills processed by this ledger.
+    pub fn total_commission_paid(&self) -> Decimal {
+        self.total_commission_paid
+    }
+
+    /// Returns all open positions as `(Symbol, unrealized_pnl)` sorted by PnL descending.
+    ///
+    /// Symbols without a price entry in `prices` are skipped.
+    pub fn symbols_with_pnl(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Vec<(&Symbol, Decimal)> {
+        let mut result: Vec<(&Symbol, Decimal)> = self
+            .positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                let price = prices.get(sym.as_str())?;
+                Some((sym, p.unrealized_pnl(*price)))
+            })
+            .collect();
+        result.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        result
+    }
+
+    /// Returns the fraction of total portfolio value held in a single symbol (as a percentage).
+    ///
+    /// `concentration = market_value(symbol) / total_market_value * 100`.
+    /// Returns `None` if the symbol is not found, price is missing, or total value is zero.
+    pub fn concentration_pct(
+        &self,
+        symbol: &Symbol,
+        prices: &HashMap<String, Price>,
+    ) -> Option<Decimal> {
+        let pos = self.positions.get(symbol)?;
+        let price = prices.get(symbol.as_str())?;
+        let mv = pos.quantity.abs() * price.value();
+        let total = self
+            .positions
+            .values()
+            .filter_map(|p| {
+                let pr = prices.get(p.symbol.as_str())?;
+                Some(p.quantity.abs() * pr.value())
+            })
+            .sum::<Decimal>();
+        if total.is_zero() {
+            return None;
+        }
+        Some(mv / total * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns `true` if all registered positions are flat (zero quantity).
+    pub fn all_flat(&self) -> bool {
+        self.positions.values().all(|p| p.is_flat())
     }
 }
 

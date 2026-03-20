@@ -70,6 +70,9 @@ pub mod donchian_width;
 pub mod rmi;
 pub mod supertrend;
 pub mod pivots;
+pub mod swma;
+pub mod stoch_rsi;
+pub mod force_index;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -138,3 +141,6 @@ pub use donchian_width::DonchianWidth;
 pub use rmi::Rmi;
 pub use supertrend::SuperTrend;
 pub use pivots::Pivots;
+pub use swma::Swma;
+pub use force_index::ForceIndex;
+pub use stoch_rsi::StochRsi;

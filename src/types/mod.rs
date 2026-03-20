@@ -318,6 +318,15 @@ impl Price {
     pub fn distance_pct(self, other: Price) -> Decimal {
         (other.0 - self.0) / self.0 * Decimal::ONE_HUNDRED
     }
+
+    /// Rounds this price to the nearest multiple of `tick_size` using standard rounding.
+    ///
+    /// Equivalent to `snap_to_tick` but named for readability at call sites that
+    /// want explicit rounding (e.g. order routing) vs. snapping (e.g. display).
+    /// Returns `None` if `tick_size <= 0` or the result is zero/negative.
+    pub fn round_to_tick(self, tick_size: Decimal) -> Option<Price> {
+        self.snap_to_tick(tick_size)
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -779,6 +788,13 @@ impl NanoTimestamp {
         NanoTimestamp(self.0.div_euclid(MINUTE_NANOS) * MINUTE_NANOS)
     }
 
+    /// Returns the signed elapsed time between `self` and `other` in seconds.
+    ///
+    /// Positive when `self` is after `other`. Resolution is nanoseconds.
+    pub fn elapsed_seconds(&self, other: NanoTimestamp) -> f64 {
+        (self.0 - other.0) as f64 / 1_000_000_000.0
+    }
+
     /// Formats this timestamp as a UTC datetime string `"YYYY-MM-DD HH:MM:SS"`.
     ///
     /// Useful for logging and display when a full datetime is needed rather than just the date.
@@ -789,6 +805,16 @@ impl NanoTimestamp {
         let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
             .unwrap_or_default();
         dt.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+
+    /// Returns `true` if `self` falls within `[start, end]` (inclusive on both ends).
+    pub fn is_between(self, start: NanoTimestamp, end: NanoTimestamp) -> bool {
+        self.0 >= start.0 && self.0 <= end.0
+    }
+
+    /// Converts this timestamp to Unix milliseconds (truncating sub-millisecond precision).
+    pub fn to_unix_ms(self) -> i64 {
+        self.0 / 1_000_000
     }
 }
 

@@ -730,6 +730,43 @@ impl OrderBook {
         }
         last_price
     }
+
+    /// Returns up to `n` best bid levels in descending price order (best bid first).
+    ///
+    /// Returns an empty `Vec` when the bid side is empty or `n == 0`.
+    pub fn top_n_bid_levels(&self, n: usize) -> Vec<PriceLevel> {
+        if n == 0 {
+            return vec![];
+        }
+        self.bids
+            .iter()
+            .rev()
+            .take(n)
+            .filter_map(|(&px, &qty)| {
+                let price = Price::new(px).ok()?;
+                let quantity = Quantity::new(qty).ok()?;
+                Some(PriceLevel { price, quantity })
+            })
+            .collect()
+    }
+
+    /// Returns up to `n` best ask levels in ascending price order (best ask first).
+    ///
+    /// Returns an empty `Vec` when the ask side is empty or `n == 0`.
+    pub fn top_n_ask_levels(&self, n: usize) -> Vec<PriceLevel> {
+        if n == 0 {
+            return vec![];
+        }
+        self.asks
+            .iter()
+            .take(n)
+            .filter_map(|(&px, &qty)| {
+                let price = Price::new(px).ok()?;
+                let quantity = Quantity::new(qty).ok()?;
+                Some(PriceLevel { price, quantity })
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]

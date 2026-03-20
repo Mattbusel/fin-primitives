@@ -327,6 +327,28 @@ impl SignalValue {
             SignalValue::Unavailable => None,
         }
     }
+
+    /// Converts to `Option<f64>`: `Some(f64)` for `Scalar`, `None` for `Unavailable`.
+    ///
+    /// Precision may be lost in the `Decimal → f64` conversion.
+    pub fn as_f64(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        match self {
+            SignalValue::Scalar(d) => d.to_f64(),
+            SignalValue::Unavailable => None,
+        }
+    }
+
+    /// Returns the element-wise maximum of two signals.
+    ///
+    /// `Scalar(a).max(Scalar(b)) = Scalar(max(a, b))`.
+    /// Returns `Unavailable` if either operand is `Unavailable`.
+    pub fn max(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a.max(b)),
+            _ => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

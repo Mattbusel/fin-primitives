@@ -602,6 +602,27 @@ impl RiskMonitor {
         !self.check(equity).is_empty()
     }
 
+    /// Returns the fraction of equity updates where equity was not in drawdown.
+    ///
+    /// `win_rate = (updates_not_in_drawdown) / total_updates`
+    /// Returns `None` when no updates have been made.
+    pub fn win_rate(&self) -> Option<Decimal> {
+        self.tracker.win_rate()
+    }
+
+    /// Calmar ratio: `annualised_return / max_drawdown_pct`.
+    ///
+    /// Returns `None` when max drawdown is zero (no drawdown observed) or
+    /// when `max_drawdown_pct` is zero.
+    ///
+    /// `annualised_return` should be expressed as a percentage (e.g., 15.0 for 15%).
+    pub fn calmar_ratio(&self, annualised_return_pct: f64) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        let dd = self.tracker.worst_drawdown_pct().to_f64()?;
+        if dd == 0.0 { return None; }
+        Some(annualised_return_pct / dd)
+    }
+
     /// Returns the absolute loss implied by `pct` percent drawdown from current peak equity.
     ///
     /// Useful for position-sizing calculations: "how much can I lose at X% drawdown?"
@@ -1283,5 +1304,69 @@ mod tests {
         tracker.update(dec!(12000));
         tracker.reset(dec!(10000));
         assert_eq!(tracker.consecutive_gain_updates(), 0);
+    }
+
+    #[test]
+    fn test_equity_ratio_at_peak_is_one() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10000));
+        assert_eq!(tracker.equity_ratio(), Decimal::ONE);
+    }
+
+    #[test]
+    fn test_equity_ratio_in_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000));
+        assert_eq!(tracker.equity_ratio(), dec!(0.9));
+    }
+
+    #[test]
+    fn test_equity_ratio_new_peak() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(12000));
+        assert_eq!(tracker.equity_ratio(), Decimal::ONE);
+    }
+
+    #[test]
+    fn test_new_peak_count_zero_initially() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert_eq!(tracker.new_peak_count(), 0);
+    }
+
+    #[test]
+    fn test_new_peak_count_increments() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        tracker.update(dec!(9000));  // drawdown, no new peak
+        tracker.update(dec!(12000)); // new peak
+        assert_eq!(tracker.new_peak_count(), 2);
+    }
+
+    #[test]
+    fn test_new_peak_count_resets() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        tracker.update(dec!(12000));
+        tracker.reset(dec!(10000));
+        assert_eq!(tracker.new_peak_count(), 0);
+    }
+
+    #[test]
+    fn test_omega_ratio_positive_threshold_zero() {
+        let returns = vec![dec!(0.05), dec!(-0.02), dec!(0.03), dec!(-0.01)];
+        let omega = DrawdownTracker::omega_ratio(&returns, Decimal::ZERO).unwrap();
+        // upside = 0.05 + 0.03 = 0.08; downside = 0.02 + 0.01 = 0.03
+        assert!(omega > 1.0, "expected omega > 1.0, got {omega}");
+    }
+
+    #[test]
+    fn test_omega_ratio_empty_returns_none() {
+        assert!(DrawdownTracker::omega_ratio(&[], Decimal::ZERO).is_none());
+    }
+
+    #[test]
+    fn test_omega_ratio_no_downside_returns_none() {
+        let returns = vec![dec!(0.01), dec!(0.02), dec!(0.03)];
+        assert!(DrawdownTracker::omega_ratio(&returns, Decimal::ZERO).is_none());
     }
 }

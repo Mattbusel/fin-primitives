@@ -699,4 +699,97 @@ mod tests {
         let above = map.filter_scalars_above(dec!(0));
         assert!(above.is_empty());
     }
+
+    #[test]
+    fn test_signal_map_count_ready_zero_before_warmup() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert_eq!(map.count_ready(), 0);
+    }
+
+    #[test]
+    fn test_signal_map_count_ready_after_warmup() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("101"));
+        let map = pipeline.update(&bar("102"));
+        assert_eq!(map.count_ready(), 2);
+    }
+
+    #[test]
+    fn test_signal_map_average_scalar_returns_none_when_empty() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.average_scalar().is_none());
+    }
+
+    #[test]
+    fn test_signal_map_average_scalar_single_value() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("100"));
+        let map = pipeline.update(&bar("100"));
+        assert_eq!(map.average_scalar(), Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_signal_map_average_scalar_multiple_values() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma2", 2).unwrap())
+            .add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("100"));
+        let map = pipeline.update(&bar("100")); // both SMAs = 100
+        assert_eq!(map.average_scalar(), Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_signal_pipeline_retain_by_period() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Sma::new("sma5", 5).unwrap())
+            .add(Ema::new("ema10", 10).unwrap());
+        pipeline.retain(|s| s.period() <= 5);
+        assert_eq!(pipeline.signal_count(), 2);
+        assert!(pipeline.get_signal("ema10").is_none());
+    }
+
+    #[test]
+    fn test_signal_pipeline_retain_all_pass() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
+        pipeline.retain(|_| true);
+        assert_eq!(pipeline.signal_count(), 2);
+    }
+
+    #[test]
+    fn test_signal_pipeline_retain_none_pass() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
+        pipeline.retain(|_| false);
+        assert_eq!(pipeline.signal_count(), 0);
+    }
+
+    #[test]
+    fn test_signal_pipeline_signal_periods() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap())
+            .add(Rsi::new("rsi14", 14).unwrap());
+        let periods = pipeline.signal_periods();
+        assert_eq!(periods.len(), 3);
+        assert_eq!(periods[0], ("sma3", 3));
+        assert_eq!(periods[1], ("ema5", 5));
+        assert_eq!(periods[2], ("rsi14", 14));
+    }
+
+    #[test]
+    fn test_signal_pipeline_signal_periods_empty() {
+        let pipeline = SignalPipeline::new();
+        assert!(pipeline.signal_periods().is_empty());
+    }
 }

@@ -277,6 +277,29 @@ impl Tick {
             Some(prices[mid])
         }
     }
+
+    /// Average signed price deviation from `ref_price`, weighted by trade size.
+    ///
+    /// `price_impact = Σ((price_i - ref_price) * qty_i) / Σ(qty_i)`
+    ///
+    /// Positive values indicate the flow of trades is above `ref_price` (buying pressure);
+    /// negative values indicate selling pressure below it.
+    ///
+    /// Returns `None` when `ticks` is empty or total quantity is zero.
+    pub fn price_impact(ticks: &[Tick], ref_price: Decimal) -> Option<Decimal> {
+        if ticks.is_empty() {
+            return None;
+        }
+        let total_qty: Decimal = ticks.iter().map(|t| t.quantity.value()).sum();
+        if total_qty.is_zero() {
+            return None;
+        }
+        let weighted_dev: Decimal = ticks
+            .iter()
+            .map(|t| (t.price.value() - ref_price) * t.quantity.value())
+            .sum();
+        Some(weighted_dev / total_qty)
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.
@@ -719,6 +742,28 @@ impl TickReplayer {
         }
         let total = self.ticks.last().unwrap().timestamp.elapsed_since(self.ticks.first().unwrap().timestamp);
         Some(total / (self.ticks.len() as i64 - 1))
+    }
+
+    /// Returns the standard deviation of trade prices in the batch.
+    ///
+    /// Uses the sample standard deviation (`n - 1` denominator).
+    /// Returns `None` when fewer than 2 ticks are present.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn price_std(&self) -> Option<Decimal> {
+        if self.ticks.len() < 2 {
+            return None;
+        }
+        let prices: Vec<Decimal> = self.ticks.iter().map(|t| t.price.value()).collect();
+        let n = prices.len();
+        let mean = prices.iter().copied().sum::<Decimal>() / Decimal::from(n as u32);
+        let variance = prices
+            .iter()
+            .map(|p| { let d = *p - mean; d * d })
+            .sum::<Decimal>()
+            / Decimal::from((n - 1) as u32);
+        use rust_decimal::prelude::ToPrimitive;
+        let std = variance.to_f64()?.sqrt();
+        Decimal::try_from(std).ok()
     }
 }
 

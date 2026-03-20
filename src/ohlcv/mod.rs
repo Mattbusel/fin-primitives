@@ -2824,6 +2824,183 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(period as u32))
     }
+
+    /// Returns a reference to the bar at position `i`, or `None` if out of bounds.
+    pub fn bar_at_index(&self, i: usize) -> Option<&OhlcvBar> {
+        self.bars.get(i)
+    }
+
+    /// Standard deviation of closes over the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn rolling_close_std(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let closes: Vec<Decimal> = self.bars[start..].iter().map(|b| b.close.value()).collect();
+        let mean = closes.iter().copied().sum::<Decimal>() / Decimal::from(n as u32);
+        let variance = closes
+            .iter()
+            .map(|c| { let d = *c - mean; d * d })
+            .sum::<Decimal>()
+            / Decimal::from((n - 1) as u32);
+        use rust_decimal::prelude::ToPrimitive;
+        let std = variance.to_f64()?.sqrt();
+        Decimal::try_from(std).ok()
+    }
+
+    /// Returns a `Vec<i8>` of gap directions (`+1` = gap up, `-1` = gap down, `0` = flat)
+    /// for bar-over-bar open-to-prev-close gaps over the last `n` bars.
+    ///
+    /// A gap is defined as `open[i] != close[i-1]`. Returns at most `n - 1` values.
+    /// Returns empty `Vec` when `n < 2` or fewer than 2 bars exist.
+    pub fn gap_direction_series(&self, n: usize) -> Vec<i8> {
+        if n < 2 || self.bars.len() < 2 {
+            return vec![];
+        }
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..]
+            .windows(2)
+            .map(|w| {
+                let gap = w[1].open.value() - w[0].close.value();
+                if gap > Decimal::ZERO {
+                    1i8
+                } else if gap < Decimal::ZERO {
+                    -1i8
+                } else {
+                    0i8
+                }
+            })
+            .collect()
+    }
+
+    /// Returns the linear regression slope of volume over the last `n` bars.
+    ///
+    /// Positive slope → volume is trending up; negative → down.
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    pub fn volume_trend(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let vols: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        if vols.len() < 2 {
+            return None;
+        }
+        let n_f = vols.len() as f64;
+        let sum_x: f64 = (0..vols.len()).map(|i| i as f64).sum();
+        let sum_y: f64 = vols.iter().sum();
+        let sum_xy: f64 = vols.iter().enumerate().map(|(i, &v)| i as f64 * v).sum();
+        let sum_xx: f64 = (0..vols.len()).map(|i| (i as f64).powi(2)).sum();
+        let denom = n_f * sum_xx - sum_x * sum_x;
+        if denom == 0.0 { return None; }
+        Some((n_f * sum_xy - sum_x * sum_y) / denom)
+    }
+
+    /// Annualised Sharpe ratio of log returns over the last `n` bars.
+    ///
+    /// Uses 252 trading days to annualise. Returns `None` if fewer than 2 bars exist,
+    /// `n == 0`, or the standard deviation of returns is zero.
+    pub fn rolling_sharpe(&self, n: usize, risk_free_rate: Decimal) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < 2 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let returns = self.returns_series(n);
+        if returns.len() < 2 {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let len_d = Decimal::from(returns.len() as u32);
+        let mean: Decimal = returns.iter().copied().sum::<Decimal>() / len_d;
+        let rf_daily = risk_free_rate / Decimal::from(252u32);
+        let excess_mean = mean - rf_daily;
+        let variance = returns
+            .iter()
+            .map(|r| { let d = *r - mean; d * d })
+            .sum::<Decimal>()
+            / len_d;
+        let std_f64 = variance.to_f64()?.sqrt();
+        if std_f64 == 0.0 {
+            return None;
+        }
+        let sharpe = excess_mean.to_f64()? / std_f64 * 252.0f64.sqrt();
+        Decimal::try_from(sharpe).ok()
+    }
+
+    /// Returns where the latest close sits within the high-low range of the last `n` bars (0–100).
+    ///
+    /// `result = (close - lowest_low) / (highest_high - lowest_low) * 100`
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or the range is zero.
+    pub fn close_range_position(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let highest = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
+        let lowest  = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        let range = highest - lowest;
+        if range.is_zero() {
+            return None;
+        }
+        let close = self.bars.last()?.close.value();
+        Some((close - lowest) / range * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns the number of bars since the highest close in the last `n` bars.
+    ///
+    /// Returns `0` if the highest close is the most recent bar, or when `n == 0` or
+    /// fewer than `n` bars exist.
+    pub fn bar_count_since_high(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < n {
+            return 0;
+        }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut max_val = Decimal::MIN;
+        let mut max_idx = 0;
+        for (i, b) in slice.iter().enumerate() {
+            let c = b.close.value();
+            if c > max_val {
+                max_val = c;
+                max_idx = i;
+            }
+        }
+        slice.len() - 1 - max_idx
+    }
+
+    /// Average `(close / open - 1) * 100` percentage over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all opens are zero.
+    pub fn close_to_open_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0usize;
+        for b in &self.bars[start..] {
+            let o = b.open.value();
+            if o.is_zero() {
+                continue;
+            }
+            sum += (b.close.value() / o - Decimal::ONE) * Decimal::ONE_HUNDRED;
+            count += 1;
+        }
+        if count == 0 {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(count as u32))
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -2858,6 +3035,78 @@ fn decimal_sqrt(n: Decimal) -> Result<Decimal, FinError> {
         }
     }
     Ok(x)
+}
+
+impl OhlcvSeries {
+    /// Counts the longest consecutive drawdown run: the maximum number of bars where
+    /// each bar's close is strictly below the previous bar's close.
+    ///
+    /// Returns `0` when the series has fewer than 2 bars.
+    pub fn max_drawdown_duration(&self) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let mut max_run = 0usize;
+        let mut current = 0usize;
+        for i in 1..self.bars.len() {
+            if self.bars[i].close.value() < self.bars[i - 1].close.value() {
+                current += 1;
+                if current > max_run {
+                    max_run = current;
+                }
+            } else {
+                current = 0;
+            }
+        }
+        max_run
+    }
+
+    /// Percentage of the last `n` bars where close > open (bullish bar ratio).
+    ///
+    /// Returns `None` if `n == 0` or series has fewer than `n` bars.
+    /// Returns `0.0` when all bars are bearish/doji, `100.0` when all are bullish.
+    pub fn close_above_open_pct(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let count = self.bars[start..]
+            .iter()
+            .filter(|b| b.close.value() > b.open.value())
+            .count();
+        Some(count as f64 / n as f64 * 100.0)
+    }
+
+    /// Average wick-to-range ratio over the last `n` bars.
+    ///
+    /// For each bar: `wick_ratio = (upper_shadow + lower_shadow) / range`.
+    /// Bars with zero range are excluded from the average.
+    ///
+    /// Returns `None` if `n == 0`, series has fewer than `n` bars, or no bar has a
+    /// non-zero range.
+    pub fn avg_wick_ratio(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = 0.0f64;
+        let mut count = 0usize;
+        for b in &self.bars[start..] {
+            let range = b.range();
+            if !range.is_zero() {
+                let wick = b.upper_shadow() + b.lower_shadow();
+                if let Some(ratio) = (wick / range).to_f64() {
+                    sum += ratio;
+                    count += 1;
+                }
+            }
+        }
+        if count == 0 {
+            return None;
+        }
+        Some(sum / count as f64)
+    }
 }
 
 #[cfg(test)]
