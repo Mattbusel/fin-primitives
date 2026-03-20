@@ -352,6 +352,11 @@ impl OrderBook {
         self.bids.is_empty() && self.asks.is_empty()
     }
 
+    /// Returns the total number of distinct price levels across both sides.
+    pub fn total_levels(&self) -> usize {
+        self.bids.len() + self.asks.len()
+    }
+
     /// Returns the total resting quantity available on `side` up to and including `price`.
     ///
     /// For bids: sums all bid levels at prices `>= price` (levels at or above the given price).
@@ -1310,5 +1315,20 @@ mod tests {
         book.apply_delta(set_delta(Side::Ask, "102", "3", 2)).unwrap();
         book.remove_all(Side::Ask);
         assert!(book.best_ask().is_none());
+    }
+
+    #[test]
+    fn test_orderbook_total_levels_sums_both_sides() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "8", 3)).unwrap();
+        assert_eq!(book.total_levels(), 3);
+    }
+
+    #[test]
+    fn test_orderbook_total_levels_empty_book() {
+        let book = make_book();
+        assert_eq!(book.total_levels(), 0);
     }
 }

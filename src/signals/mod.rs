@@ -205,6 +205,17 @@ impl SignalValue {
         }
     }
 
+    /// Adds two signals: `Scalar(a) + Scalar(b) = Scalar(a + b)`.
+    ///
+    /// Returns `Unavailable` if either operand is `Unavailable`.
+    /// Useful for combining multiple signal outputs without explicit pattern matching.
+    pub fn add(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a + b),
+            _ => SignalValue::Unavailable,
+        }
+    }
+
     /// Clamps the scalar value to `[lo, hi]`, returning `Unavailable` if `Unavailable`.
     ///
     /// If `Scalar(v)`, returns `Scalar(v.clamp(lo, hi))`. Useful for bounding oscillators

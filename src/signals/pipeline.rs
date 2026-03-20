@@ -102,6 +102,11 @@ impl SignalMap {
             .map(|(name, val)| (name.to_owned(), val))
             .collect()
     }
+
+    /// Returns a `Vec` of names of all signals that errored in this update cycle.
+    pub fn names_with_errors(&self) -> Vec<&str> {
+        self.errors.keys().map(String::as_str).collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

@@ -44,6 +44,25 @@ pub struct OhlcvBar {
     pub tick_count: u64,
 }
 
+/// Classic floor-trader pivot levels derived from a prior bar's H/L/C.
+///
+/// - `pp`: Pivot Point `(H + L + C) / 3`
+/// - `r1`, `r2`: Resistance levels 1 and 2
+/// - `s1`, `s2`: Support levels 1 and 2
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct PivotPoints {
+    /// Pivot Point
+    pub pp: Decimal,
+    /// First resistance level
+    pub r1: Decimal,
+    /// First support level
+    pub s1: Decimal,
+    /// Second resistance level
+    pub r2: Decimal,
+    /// Second support level
+    pub s2: Decimal,
+}
+
 impl OhlcvBar {
     /// Constructs and validates an `OhlcvBar` from individual components.
     ///
@@ -494,6 +513,7 @@ impl OhlcvBar {
             && self.open.value() >= prev.close.value()
             && self.close.value() <= prev.open.value()
     }
+
 }
 
 /// A timeframe for bar aggregation.
@@ -937,6 +957,39 @@ impl OhlcvSeries {
             return None;
         }
         let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.volume.value()).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Returns `highest_high(n) - lowest_low(n)` over the last `n` bars, or `None` if
+    /// fewer than `n` bars exist or `n == 0`.
+    pub fn price_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let hh = self.highest_high(n)?;
+        let ll = self.lowest_low(n)?;
+        Some(hh - ll)
+    }
+
+    /// Returns the average Close Location Value over the last `n` bars, or `None` if
+    /// fewer than `n` bars exist or `n == 0`.
+    ///
+    /// `CLV = ((close - low) - (high - close)) / (high - low)`
+    ///
+    /// Each bar's CLV is in `[-1, 1]`; bars with zero range contribute `0`.
+    pub fn close_location_value(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| {
+            let h = b.high.value();
+            let l = b.low.value();
+            let c = b.close.value();
+            let range = h - l;
+            if range == Decimal::ZERO { Decimal::ZERO } else { ((c - l) - (h - c)) / range }
+        }).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -1550,6 +1603,51 @@ impl OhlcvSeries {
         Some((mean_ret - rf_per_bar) / downside_dev * bars_per_year.sqrt())
     }
 
+    /// Returns the number of consecutive bullish bars (close > open) counting from the end.
+    ///
+    /// Returns 0 if the series is empty or the last bar is not bullish.
+    pub fn close_above_open_streak(&self) -> usize {
+        self.bars
+            .iter()
+            .rev()
+            .take_while(|b| b.close.value() > b.open.value())
+            .count()
+    }
+
+    /// Returns the maximum peak-to-trough drawdown percentage over the last `n` bars.
+    ///
+    /// Computed on close prices: scans for the largest `(peak - trough) / peak * 100`.
+    /// Returns `None` if fewer than 2 bars are available in the window.
+    pub fn max_drawdown_pct(&self, n: usize) -> Option<f64> {
+        let window: Vec<f64> = self
+            .bars
+            .iter()
+            .rev()
+            .take(n)
+            .map(|b| b.close.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        if window.len() < 2 {
+            return None;
+        }
+        let mut max_dd = 0.0f64;
+        let mut peak = window[0];
+        for &price in &window[1..] {
+            if price > peak {
+                peak = price;
+            }
+            if peak > 0.0 {
+                let dd = (peak - price) / peak * 100.0;
+                if dd > max_dd {
+                    max_dd = dd;
+                }
+            }
+        }
+        Some(max_dd)
+    }
+
     /// Returns the Average True Range for each bar as `Vec<Option<Decimal>>`.
     ///
     /// Uses a simple rolling average of True Range over `period` bars.
@@ -1751,6 +1849,67 @@ impl OhlcvSeries {
                 }
             })
             .collect()
+    }
+
+    /// Realized volatility: standard deviation of log returns over the last `n` bars,
+    /// annualised by multiplying by `sqrt(bars_per_year)`.
+    ///
+    /// Returns `None` if `n == 0` or there are fewer than `n + 1` bars.
+    pub fn realized_volatility(&self, n: usize, bars_per_year: f64) -> Option<f64> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let start = self.bars.len() - n - 1;
+        let lr: Vec<f64> = self.bars[start..]
+            .windows(2)
+            .filter_map(|w| {
+                let prev = w[0].close.value();
+                if prev.is_zero() {
+                    return None;
+                }
+                use rust_decimal::prelude::ToPrimitive;
+                let ratio = (w[1].close.value() / prev).to_f64()?;
+                Some(ratio.ln())
+            })
+            .collect();
+        if lr.len() < 2 {
+            return None;
+        }
+        let mean = lr.iter().sum::<f64>() / lr.len() as f64;
+        let variance = lr.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / lr.len() as f64;
+        Some(variance.sqrt() * bars_per_year.sqrt())
+    }
+
+    /// Pearson correlation of closes between `self` and `other` over the last `n` bars.
+    ///
+    /// Returns `None` when either series has fewer than `n` bars, `n < 2`, or
+    /// either series has zero variance over the window.
+    pub fn rolling_correlation(&self, other: &OhlcvSeries, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n || other.bars.len() < n {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let xs: Vec<f64> = self.bars[self.bars.len() - n..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        let ys: Vec<f64> = other.bars[other.bars.len() - n..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        if xs.len() != n || ys.len() != n {
+            return None;
+        }
+        let n_f = n as f64;
+        let mx = xs.iter().sum::<f64>() / n_f;
+        let my = ys.iter().sum::<f64>() / n_f;
+        let cov = xs.iter().zip(ys.iter()).map(|(x, y)| (x - mx) * (y - my)).sum::<f64>() / n_f;
+        let sx = (xs.iter().map(|x| (x - mx).powi(2)).sum::<f64>() / n_f).sqrt();
+        let sy = (ys.iter().map(|y| (y - my).powi(2)).sum::<f64>() / n_f).sqrt();
+        if sx == 0.0 || sy == 0.0 {
+            return None;
+        }
+        Some(cov / (sx * sy))
     }
 }
 
@@ -2806,5 +2965,53 @@ mod tests {
         // (high + low + close*2) / 4 = (120 + 80 + 110 + 110) / 4 = 420/4 = 105
         let bar = make_bar("100", "120", "80", "110");
         assert_eq!(bar.weighted_close(), dec!(105));
+    }
+
+    #[test]
+    fn test_close_above_open_streak_three_bullish() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "95")).unwrap();   // bearish
+        series.push(make_bar("95", "110", "90", "105")).unwrap();   // bullish
+        series.push(make_bar("105", "115", "100", "112")).unwrap(); // bullish
+        series.push(make_bar("112", "120", "108", "118")).unwrap(); // bullish
+        assert_eq!(series.close_above_open_streak(), 3);
+    }
+
+    #[test]
+    fn test_close_above_open_streak_last_bearish_returns_zero() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("105", "110", "100", "102")).unwrap(); // bullish
+        series.push(make_bar("102", "108", "98", "99")).unwrap();   // bearish (close < open)
+        assert_eq!(series.close_above_open_streak(), 0);
+    }
+
+    #[test]
+    fn test_close_above_open_streak_empty_series_returns_zero() {
+        assert_eq!(OhlcvSeries::new().close_above_open_streak(), 0);
+    }
+
+    #[test]
+    fn test_max_drawdown_pct_declining_series() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        series.push(make_bar("100", "105", "75", "80")).unwrap();  // 20% drawdown from 100
+        series.push(make_bar("80", "85", "75", "90")).unwrap();
+        let dd = series.max_drawdown_pct(10).unwrap();
+        assert!((dd - 20.0).abs() < 1e-6, "expected ~20, got {dd}");
+    }
+
+    #[test]
+    fn test_max_drawdown_pct_flat_returns_zero() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert_eq!(series.max_drawdown_pct(10).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_max_drawdown_pct_single_bar_returns_none() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert!(series.max_drawdown_pct(10).is_none());
     }
 }

@@ -148,6 +148,20 @@ impl DrawdownTracker {
         self.updates_since_peak
     }
 
+    /// Returns the Sharpe ratio: `annualized_return / annualized_vol`.
+    ///
+    /// Returns `None` when `annualized_vol` is zero to avoid division by zero.
+    pub fn sharpe_ratio(
+        &self,
+        annualized_return: Decimal,
+        annualized_vol: Decimal,
+    ) -> Option<Decimal> {
+        if annualized_vol.is_zero() {
+            return None;
+        }
+        Some(annualized_return / annualized_vol)
+    }
+
     /// Returns the percentage gain required from the current equity to recover to the peak.
     ///
     /// Formula: `(peak / current - 1) * 100`. Returns `Decimal::ZERO` when already at peak
@@ -353,6 +367,16 @@ impl RiskMonitor {
     /// Returns `Decimal::ZERO` when peak equity is zero.
     pub fn equity_at_risk(&self, pct: Decimal) -> Decimal {
         self.tracker.peak() * pct / Decimal::ONE_HUNDRED
+    }
+
+    /// Returns the equity level at which a trailing stop would trigger.
+    ///
+    /// Computes `peak_equity * (1 - pct / 100)`. If the current equity falls
+    /// below this level the position should be reduced or closed.
+    ///
+    /// Example: `trailing_stop_level(10)` on a peak of `100_000` returns `90_000`.
+    pub fn trailing_stop_level(&self, pct: Decimal) -> Decimal {
+        self.tracker.peak() * (Decimal::ONE_HUNDRED - pct) / Decimal::ONE_HUNDRED
     }
 }
 
@@ -795,5 +819,18 @@ mod tests {
         let tracker = DrawdownTracker::new(dec!(10000));
         // worst_drawdown_pct is 0 → None
         assert!(tracker.calmar_ratio(dec!(20)).is_none());
+    }
+
+    #[test]
+    fn test_sharpe_ratio_basic() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        // 15% return, 5% vol → sharpe = 3
+        assert_eq!(tracker.sharpe_ratio(dec!(15), dec!(5)), Some(dec!(3)));
+    }
+
+    #[test]
+    fn test_sharpe_ratio_none_when_vol_zero() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert!(tracker.sharpe_ratio(dec!(15), dec!(0)).is_none());
     }
 }

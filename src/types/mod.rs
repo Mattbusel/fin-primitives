@@ -239,6 +239,16 @@ impl Price {
         let rounded = self.0.round_dp(dp);
         Price::new(rounded).ok()
     }
+
+    /// Rounds this price to `dp` decimal places using round-half-up (conventional rounding).
+    ///
+    /// Unlike [`round_to`](Price::round_to) which uses banker's rounding, this always rounds
+    /// `0.5` away from zero. Returns `None` if the rounded result is zero or negative.
+    pub fn round_half_up(self, dp: u32) -> Option<Price> {
+        use rust_decimal::RoundingStrategy;
+        let rounded = self.0.round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
+        Price::new(rounded).ok()
+    }
 }
 
 impl Price {
@@ -397,6 +407,21 @@ impl Quantity {
     /// negative `Decimal`s wrapped in `Quantity(d)` via internal code paths).
     pub fn abs(self) -> Quantity {
         Quantity(self.0.abs())
+    }
+
+    /// Splits this quantity into `n` equal parts, with the last absorbing any remainder.
+    ///
+    /// Returns an empty vec if `n` is zero.
+    /// Guarantees that `sum(result) == self.value()`.
+    pub fn split(self, n: usize) -> Vec<Quantity> {
+        if n == 0 {
+            return Vec::new();
+        }
+        let part = self.0 / Decimal::from(n as u64);
+        let mut parts: Vec<Quantity> = (0..n - 1).map(|_| Quantity(part)).collect();
+        let assigned: Decimal = part * Decimal::from((n - 1) as u64);
+        parts.push(Quantity(self.0 - assigned));
+        parts
     }
 
     /// Multiplies this quantity by `factor`, returning `None` if the result is negative.
@@ -616,6 +641,11 @@ impl NanoTimestamp {
         })
     }
 
+    /// Converts this timestamp to floating-point seconds since the Unix epoch.
+    pub fn to_seconds(&self) -> f64 {
+        self.0 as f64 / 1_000_000_000.0
+    }
+
     /// Returns the earlier of `self` and `other`.
     pub fn min(self, other: NanoTimestamp) -> NanoTimestamp {
         if self.0 <= other.0 { self } else { other }
@@ -645,6 +675,18 @@ impl NanoTimestamp {
             return *self;
         }
         NanoTimestamp(self.0 - self.0.rem_euclid(period_nanos))
+    }
+
+    /// Formats this timestamp as a UTC date string `"YYYY-MM-DD"`.
+    ///
+    /// Useful for grouping bars or ticks by calendar date (e.g., daily session boundaries).
+    pub fn to_date_string(&self) -> String {
+        use chrono::{DateTime, Utc};
+        let secs = self.0 / 1_000_000_000;
+        let nanos_part = (self.0 % 1_000_000_000).unsigned_abs() as u32;
+        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
+            .unwrap_or_default();
+        dt.format("%Y-%m-%d").to_string()
     }
 }
 
@@ -1301,5 +1343,49 @@ mod tests {
     fn test_nano_timestamp_elapsed_since_same_is_zero() {
         let ts = NanoTimestamp::new(5000);
         assert_eq!(ts.elapsed_since(ts), 0);
+    }
+
+    #[test]
+    fn test_nano_timestamp_to_seconds_one_second() {
+        let ts = NanoTimestamp::new(1_000_000_000);
+        assert!((ts.to_seconds() - 1.0_f64).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_nano_timestamp_to_seconds_zero() {
+        let ts = NanoTimestamp::new(0);
+        assert_eq!(ts.to_seconds(), 0.0);
+    }
+
+    #[test]
+    fn test_quantity_split_even() {
+        let q = Quantity::new(dec!(10)).unwrap();
+        let parts = q.split(5);
+        assert_eq!(parts.len(), 5);
+        let total: Decimal = parts.iter().map(|p| p.value()).sum();
+        assert_eq!(total, dec!(10));
+    }
+
+    #[test]
+    fn test_quantity_split_remainder_goes_to_last() {
+        let q = Quantity::new(dec!(10)).unwrap();
+        let parts = q.split(3);
+        assert_eq!(parts.len(), 3);
+        let total: Decimal = parts.iter().map(|p| p.value()).sum();
+        assert_eq!(total, dec!(10));
+    }
+
+    #[test]
+    fn test_quantity_split_zero_n_returns_empty() {
+        let q = Quantity::new(dec!(10)).unwrap();
+        assert!(q.split(0).is_empty());
+    }
+
+    #[test]
+    fn test_quantity_split_one_returns_self() {
+        let q = Quantity::new(dec!(10)).unwrap();
+        let parts = q.split(1);
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].value(), dec!(10));
     }
 }

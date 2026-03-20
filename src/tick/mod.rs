@@ -150,6 +150,19 @@ impl Tick {
         let weighted: Decimal = ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum();
         Some(weighted / total_qty)
     }
+
+    /// Returns a static label classifying the aggressor side of this tick.
+    ///
+    /// - `"market_buy"` when the aggressor is the buyer (`Side::Bid`)
+    /// - `"market_sell"` when the aggressor is the seller (`Side::Ask`)
+    ///
+    /// Useful for logging, display, and building aggressor-pressure histograms.
+    pub fn classify_aggressor(&self) -> &'static str {
+        match self.side {
+            Side::Bid => "market_buy",
+            Side::Ask => "market_sell",
+        }
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.
@@ -444,6 +457,29 @@ impl TickReplayer {
             .filter(|t| !t.timestamp.is_before(from) && !t.timestamp.is_after(to))
             .cloned()
             .collect()
+    }
+
+    /// Returns the sum of notional values (`price × quantity`) across all ticks.
+    pub fn total_notional(&self) -> Decimal {
+        self.ticks.iter().map(|t| t.notional()).sum()
+    }
+
+    /// Returns the total volume of all bid-side (buy) ticks.
+    pub fn buy_volume(&self) -> Decimal {
+        self.ticks
+            .iter()
+            .filter(|t| t.side == Side::Bid)
+            .map(|t| t.quantity.value())
+            .sum()
+    }
+
+    /// Returns the total volume of all ask-side (sell) ticks.
+    pub fn sell_volume(&self) -> Decimal {
+        self.ticks
+            .iter()
+            .filter(|t| t.side == Side::Ask)
+            .map(|t| t.quantity.value())
+            .sum()
     }
 
     /// Returns a reference to the first tick in the replay sequence, or `None` if empty.
