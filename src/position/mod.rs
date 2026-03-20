@@ -1196,6 +1196,22 @@ impl PositionLedger {
             .max_by(|a, b| a.cmp(b))?;
         Some(max_mv / total * Decimal::from(100u32))
     }
+
+    /// Total unrealized P&L as a percentage of total cost basis.
+    ///
+    /// `upnl_pct = unrealized_pnl_total / total_cost_basis × 100`
+    ///
+    /// Returns `None` if total cost basis is zero.
+    pub fn unrealized_pnl_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let total_upnl = self.unrealized_pnl_total(prices).ok()?;
+        let total_cost: Decimal = self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .map(|p| p.cost_basis().abs())
+            .sum();
+        if total_cost.is_zero() { return None; }
+        Some(total_upnl / total_cost * Decimal::from(100u32))
+    }
 }
 
 #[cfg(test)]

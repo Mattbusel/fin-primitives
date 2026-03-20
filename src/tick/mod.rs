@@ -318,6 +318,27 @@ impl Tick {
             .sum();
         Some(weighted_dev / total_qty)
     }
+
+    /// Counts temporal clusters in a tick slice.
+    ///
+    /// A new cluster begins whenever the gap between consecutive tick timestamps
+    /// exceeds `gap_ns` nanoseconds. A single tick (or empty slice) counts as zero clusters.
+    ///
+    /// Returns `0` for an empty slice. Returns `1` for a single tick.
+    pub fn cluster_count(ticks: &[Tick], gap_ns: u64) -> usize {
+        if ticks.is_empty() {
+            return 0;
+        }
+        let mut clusters = 1usize;
+        for w in ticks.windows(2) {
+            let t0 = w[0].timestamp.nanos() as u64;
+            let t1 = w[1].timestamp.nanos() as u64;
+            if t1.saturating_sub(t0) > gap_ns {
+                clusters += 1;
+            }
+        }
+        clusters
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.

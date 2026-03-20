@@ -114,6 +114,8 @@ pub mod disparity;
 pub mod price_acceleration;
 pub mod high_low_spread;
 pub mod gann_hilo;
+pub mod frama;
+pub mod vroc;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -226,3 +228,5 @@ pub use disparity::DisparityIndex;
 pub use price_acceleration::PriceAcceleration;
 pub use high_low_spread::HighLowSpread;
 pub use gann_hilo::GannHiLo;
+pub use frama::Frama;
+pub use vroc::Vroc;

@@ -4222,6 +4222,69 @@ impl OhlcvSeries {
         }
         Some((ups, downs))
     }
+
+    /// Count of consecutive recent bars where volume exceeded the `period`-bar average volume
+    /// by at least `factor`.
+    ///
+    /// Counts backward from the most recent bar; stops at the first bar that does NOT satisfy
+    /// the condition. Returns `None` if `period == 0`, `factor <= 0`, or the series has fewer
+    /// than `period + 1` bars.
+    pub fn consecutive_volume_surge(&self, period: usize, factor: f64) -> Option<usize> {
+        use rust_decimal::prelude::ToPrimitive;
+        if period == 0 || factor <= 0.0 || self.bars.len() <= period {
+            return None;
+        }
+        let mut streak = 0usize;
+        // Walk backward from the last bar
+        let last = self.bars.len() - 1;
+        let mut i = last;
+        loop {
+            if i < period {
+                break;
+            }
+            let avg_vol: f64 = self.bars[(i - period)..i]
+                .iter()
+                .map(|b| b.volume.value().to_f64().unwrap_or(0.0))
+                .sum::<f64>()
+                / period as f64;
+            let bar_vol = self.bars[i].volume.value().to_f64().unwrap_or(0.0);
+            if avg_vol > 0.0 && bar_vol >= avg_vol * factor {
+                streak += 1;
+            } else {
+                break;
+            }
+            if i == 0 { break; }
+            i -= 1;
+        }
+        Some(streak)
+    }
+
+    /// Ratio of the current bar's high-low range to the average range over the last `n` bars.
+    ///
+    /// `ratio = current_range / avg_range(last n bars)`.
+    /// Values above 1.5 indicate a volatility expansion bar.
+    ///
+    /// Returns `None` if `n == 0`, the series has fewer than `n` bars, or the average range is zero.
+    pub fn intrabar_range_expansion(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let avg_range: f64 = self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() - b.low.value()).to_f64().unwrap_or(0.0))
+            .sum::<f64>()
+            / n as f64;
+        if avg_range == 0.0 {
+            return None;
+        }
+        let current = self.bars.last()?;
+        let cur_range = (current.high.value() - current.low.value())
+            .to_f64()
+            .unwrap_or(0.0);
+        Some(cur_range / avg_range)
+    }
 }
 
 #[cfg(test)]
