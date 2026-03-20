@@ -44,7 +44,7 @@ impl Signal for UpperShadowRatio {
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        let body_hi = bar.close.max(bar.open);
+        let body_hi = bar.body_high();
         let upper_shadow = bar.high - body_hi;
         Ok(SignalValue::Scalar(upper_shadow / range))
     }

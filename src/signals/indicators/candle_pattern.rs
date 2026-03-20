@@ -69,8 +69,8 @@ impl Signal for CandlePattern {
                 Decimal::from(-2i32)  // Bearish engulfing
             } else {
                 // Single-bar patterns (use current bar only)
-                let upper_wick = bar.high - bar.close.max(bar.open);
-                let lower_wick = bar.open.min(bar.close) - bar.low;
+                let upper_wick = bar.upper_wick();
+                let lower_wick = bar.lower_wick();
                 let body_pct = if range.is_zero() { Decimal::ZERO } else { body / range };
 
                 if range.is_zero() {

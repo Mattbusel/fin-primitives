@@ -49,8 +49,8 @@ impl Signal for ShadowImbalance {
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        let body_hi = bar.close.max(bar.open);
-        let body_lo = bar.close.min(bar.open);
+        let body_hi = bar.body_high();
+        let body_lo = bar.body_low();
         let upper_shadow = bar.high - body_hi;
         let lower_shadow = body_lo - bar.low;
         Ok(SignalValue::Scalar((upper_shadow - lower_shadow) / range))

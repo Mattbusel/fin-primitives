@@ -84,8 +84,8 @@ impl Signal for HammerDetector {
         }
 
         let body = (bar.net_move()).abs();
-        let upper_wick = bar.high - bar.open.max(bar.close);
-        let lower_wick = bar.open.min(bar.close) - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
 
         // For doji (body=0), use a minimal body to avoid division by zero
         let effective_body = if body.is_zero() { range / Decimal::from(10u32) } else { body };

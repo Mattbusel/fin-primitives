@@ -104,8 +104,8 @@ impl Signal for WickToAtrRatio {
         }
 
         // Compute wicks: body bounds are [min(open,close), max(open,close)]
-        let body_top = bar.open.max(bar.close);
-        let body_bot = bar.open.min(bar.close);
+        let body_top = bar.body_high();
+        let body_bot = bar.body_low();
         let upper_wick = bar.high - body_top;
         let lower_wick = body_bot - bar.low;
         let total_wick = upper_wick + lower_wick;

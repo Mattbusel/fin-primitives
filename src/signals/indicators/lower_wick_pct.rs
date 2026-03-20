@@ -41,7 +41,7 @@ impl Signal for LowerWickPct {
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let lower_wick = bar.close.min(bar.open) - bar.low;
+        let lower_wick = bar.lower_wick();
         let pct = lower_wick
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?

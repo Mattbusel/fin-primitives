@@ -41,7 +41,7 @@ impl Signal for UpperWickPct {
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let upper_wick = bar.high - bar.close.max(bar.open);
+        let upper_wick = bar.upper_wick();
         let pct = upper_wick
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?

@@ -38,8 +38,8 @@ impl Signal for TailRatioPct {
     fn is_ready(&self) -> bool { true }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let upper_wick = bar.high - bar.close.max(bar.open);
-        let lower_wick = bar.close.min(bar.open) - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
         let total_wick = upper_wick + lower_wick;
 
         if total_wick.is_zero() {

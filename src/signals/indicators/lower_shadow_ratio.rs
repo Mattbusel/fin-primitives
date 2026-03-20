@@ -44,7 +44,7 @@ impl Signal for LowerShadowRatio {
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        let body_lo = bar.close.min(bar.open);
+        let body_lo = bar.body_low();
         let lower_shadow = body_lo - bar.low;
         Ok(SignalValue::Scalar(lower_shadow / range))
     }

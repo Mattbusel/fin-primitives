@@ -84,8 +84,8 @@ impl Signal for WickImbalance {
             return Ok(SignalValue::Unavailable);
         }
 
-        let upper_wick = bar.high - bar.open.max(bar.close);
-        let lower_wick = bar.open.min(bar.close) - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
         let imbalance = upper_wick - lower_wick;
 
         let normalized = imbalance.checked_div(atr).ok_or(FinError::ArithmeticOverflow)?;

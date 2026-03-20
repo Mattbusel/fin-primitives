@@ -86,14 +86,24 @@ impl BarInput {
         (self.close - self.open).abs()
     }
 
+    /// Returns the higher of open and close: `max(open, close)`.
+    pub fn body_high(&self) -> Decimal {
+        self.open.max(self.close)
+    }
+
+    /// Returns the lower of open and close: `min(open, close)`.
+    pub fn body_low(&self) -> Decimal {
+        self.open.min(self.close)
+    }
+
     /// Returns the upper wick length: `high - max(open, close)`.
     pub fn upper_wick(&self) -> Decimal {
-        self.high - self.open.max(self.close)
+        self.high - self.body_high()
     }
 
     /// Returns the lower wick length: `min(open, close) - low`.
     pub fn lower_wick(&self) -> Decimal {
-        self.open.min(self.close) - self.low
+        self.body_low() - self.low
     }
 
     /// Returns `true` if the bar closed higher than it opened (bullish candle).

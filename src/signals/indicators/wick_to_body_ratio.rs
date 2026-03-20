@@ -64,8 +64,8 @@ impl Signal for WickToBodyRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let upper_wick = bar.high - bar.close.max(bar.open);
-        let lower_wick = bar.open.min(bar.close) - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
         let total_wick = upper_wick + lower_wick;
 
         let ratio = total_wick
