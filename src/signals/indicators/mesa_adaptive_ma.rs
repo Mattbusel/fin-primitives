@@ -124,9 +124,9 @@ impl MesaAdaptiveMa {
         let s2 = Self::get(smooth, 2);
         let s4 = Self::get(smooth, 4);
         let s6 = Self::get(smooth, 6);
-        let c1 = Decimal::from_str_exact("0.0962").unwrap_or(Decimal::ZERO);
-        let c2 = Decimal::from_str_exact("0.5769").unwrap_or(Decimal::ZERO);
-        let factor = Decimal::from_str_exact("0.354").unwrap_or(Decimal::ONE); // 0.075*4.72 + 0.54 ≈ 0.354+0.54 but simplified
+        let c1 = Decimal::new(962, 4);
+        let c2 = Decimal::new(5769, 4);
+        let factor = Decimal::new(354, 3); // 0.075*4.72 + 0.54 ≈ 0.354+0.54 but simplified
         (c1 * s0 + c2 * s2 - c2 * s4 - c1 * s6) * factor
     }
 }
@@ -163,9 +163,9 @@ impl Signal for MesaAdaptiveMa {
         let d2 = Self::get(&self.detrender, 2);
         let d4 = Self::get(&self.detrender, 4);
         let d6 = Self::get(&self.detrender, 6);
-        let c1 = Decimal::from_str_exact("0.0962").unwrap_or(Decimal::ZERO);
-        let c2 = Decimal::from_str_exact("0.5769").unwrap_or(Decimal::ZERO);
-        let factor = Decimal::from_str_exact("0.354").unwrap_or(Decimal::ONE);
+        let c1 = Decimal::new(962, 4);
+        let c2 = Decimal::new(5769, 4);
+        let factor = Decimal::new(354, 3);
 
         let q1_val = (c1 * d0 + c2 * d2 - c2 * d4 - c1 * d6) * factor;
         let i1_val = Self::get(&self.detrender, 3);
@@ -197,7 +197,7 @@ impl Signal for MesaAdaptiveMa {
         let prev_fama = self.fama.unwrap_or(price);
 
         let new_mama = alpha * price + (Decimal::ONE - alpha) * prev_mama;
-        let fama_alpha = Decimal::from_str_exact("0.5").unwrap_or(Decimal::ONE) * alpha;
+        let fama_alpha = Decimal::new(5, 1) * alpha;
         let new_fama = fama_alpha * new_mama + (Decimal::ONE - fama_alpha) * prev_fama;
 
         self.mama = Some(new_mama);
