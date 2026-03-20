@@ -1733,6 +1733,16 @@ impl PositionLedger {
         let longs = open.iter().filter(|p| p.quantity > Decimal::ZERO).count() as u32;
         Some(Decimal::from(longs) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
     }
+
+    /// Percentage of non-flat positions that are short (quantity < 0).
+    ///
+    /// Returns `None` if there are no open positions.
+    pub fn pct_short(&self) -> Option<Decimal> {
+        let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
+        if open.is_empty() { return None; }
+        let shorts = open.iter().filter(|p| p.quantity < Decimal::ZERO).count() as u32;
+        Some(Decimal::from(shorts) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

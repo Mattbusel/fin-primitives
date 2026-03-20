@@ -803,6 +803,35 @@ impl SignalValue {
             _ => false,
         }
     }
+
+    /// Two-argument arctangent: `atan2(self, x)` in radians.
+    ///
+    /// Treats `self` as the `y` argument. Returns `Unavailable` if either is `Unavailable`.
+    pub fn atan2(self, x: SignalValue) -> SignalValue {
+        match (self, x) {
+            (SignalValue::Scalar(y), SignalValue::Scalar(xv)) => {
+                let yf: f64 = y.to_string().parse().unwrap_or(f64::NAN);
+                let xf: f64 = xv.to_string().parse().unwrap_or(f64::NAN);
+                match Decimal::try_from(yf.atan2(xf)) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns `true` if both scalars have the same sign (both positive or both negative).
+    ///
+    /// Zero is treated as positive. Returns `false` if either is `Unavailable`.
+    pub fn sign_match(&self, other: &SignalValue) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => {
+                (a >= &Decimal::ZERO) == (b >= &Decimal::ZERO)
+            }
+            _ => false,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

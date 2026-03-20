@@ -707,6 +707,25 @@ impl DrawdownTracker {
         self.current_equity < self.initial_equity
     }
 
+    /// Net return divided by max drawdown percentage (simplified Calmar-like ratio).
+    ///
+    /// Returns `None` if max drawdown is zero or there are fewer than 2 updates.
+    pub fn return_drawdown_ratio(&self) -> Option<f64> {
+        if self.worst_drawdown_pct.is_zero() { return None; }
+        let net_ret = self.net_return_pct()?;
+        let dd: f64 = self.worst_drawdown_pct.to_string().parse().ok()?;
+        if dd == 0.0 { return None; }
+        Some(net_ret / dd)
+    }
+
+    /// Percentage of total updates where equity was unchanged (flat).
+    ///
+    /// Returns `0.0` if no updates have been recorded.
+    pub fn consecutive_flat_pct(&self) -> f64 {
+        if self.update_count == 0 { return 0.0; }
+        self.flat_streak as f64 / self.update_count as f64 * 100.0
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.

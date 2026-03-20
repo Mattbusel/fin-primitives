@@ -432,6 +432,19 @@ impl SignalMap {
         let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<Decimal>() / n;
         Some(var)
     }
+
+    /// Sum of all scalar values strictly less than zero.
+    pub fn sum_negative(&self) -> Decimal {
+        self.scalars()
+            .filter(|(_, v)| *v < Decimal::ZERO)
+            .map(|(_, v)| v)
+            .fold(Decimal::ZERO, |acc, v| acc + v)
+    }
+
+    /// Count of scalar values strictly less than zero.
+    pub fn count_negative(&self) -> usize {
+        self.scalars().filter(|(_, v)| *v < Decimal::ZERO).count()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

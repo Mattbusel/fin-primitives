@@ -5830,6 +5830,126 @@ impl OhlcvSeries {
         let last = self.bars.last()?.close.value();
         Some((last - prev) / prev * Decimal::ONE_HUNDRED)
     }
+
+    /// Average ratio of `(high - close) / range` over the last `n` bars.
+    ///
+    /// Measures how far the close is from the high on average. Returns `None` if range is always zero.
+    pub fn close_to_high_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            sum += (b.high.value() - b.close.value()) / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Average ratio of `(close - low) / range` over the last `n` bars.
+    ///
+    /// Measures how far the close is from the low on average.
+    pub fn close_to_low_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            sum += (b.close.value() - b.low.value()) / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Coefficient of variation of volume over the last `n` bars: `std(vol) / mean(vol)`.
+    ///
+    /// Returns `None` if fewer than 2 bars or mean volume is zero.
+    pub fn volume_coefficient_of_variation(&self, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let vols: Vec<f64> = self.bars[start..]
+            .iter()
+            .map(|b| b.volume.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .collect();
+        let mean = vols.iter().sum::<f64>() / vols.len() as f64;
+        if mean == 0.0 { return None; }
+        let variance = vols.iter().map(|&v| { let d = v - mean; d * d }).sum::<f64>() / vols.len() as f64;
+        Some(variance.sqrt() / mean)
+    }
+
+    /// Average ratio of the upper wick to the total bar range over the last `n` bars.
+    ///
+    /// Upper wick = `high - max(open, close)`. Returns `None` if range is always zero.
+    pub fn close_wick_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            let body_top = b.open.value().max(b.close.value());
+            let upper_wick = b.high.value() - body_top;
+            sum += upper_wick / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Wick imbalance over last `n` bars: `(upper_wick_sum - lower_wick_sum) / range_sum`.
+    ///
+    /// Positive = more upper-wick pressure (bearish); Negative = more lower-wick pressure (bullish).
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or range_sum is zero.
+    pub fn wick_imbalance(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut upper_sum = Decimal::ZERO;
+        let mut lower_sum = Decimal::ZERO;
+        let mut range_sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            let body_top = b.open.value().max(b.close.value());
+            let body_bot = b.open.value().min(b.close.value());
+            upper_sum += b.high.value() - body_top;
+            lower_sum += body_bot - b.low.value();
+            range_sum += range;
+        }
+        if range_sum.is_zero() { return None; }
+        Some((upper_sum - lower_sum) / range_sum)
+    }
+
+    /// Average candle size (`high - low`) over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_candle_size(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        Some(self.bars[start..].iter().map(|b| b.high.value() - b.low.value()).sum::<Decimal>()
+            / Decimal::from(n))
+    }
+
+    /// Average body-to-range ratio for bullish bars (close > open) over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or no bullish bars with range > 0.
+    pub fn bull_strength(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            if b.close.value() <= b.open.value() { continue; }
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            sum += (b.close.value() - b.open.value()) / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
 }
 
 #[cfg(test)]

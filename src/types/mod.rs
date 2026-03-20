@@ -1069,6 +1069,19 @@ impl NanoTimestamp {
         const NANOS_PER_SECOND: i64 = 1_000_000_000;
         NanoTimestamp(self.0 - secs * NANOS_PER_SECOND)
     }
+
+    /// Formats the timestamp as `"HH:MM:SS"` in UTC.
+    pub fn to_time_string(&self) -> String {
+        use chrono::{TimeZone, Timelike};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        format!("{:02}:{:02}:{:02}", dt.hour(), dt.minute(), dt.second())
+    }
+
+    /// Elapsed time in hours between `self` and `other` (always non-negative).
+    pub fn elapsed_hours(&self, other: NanoTimestamp) -> f64 {
+        let diff = (self.0 - other.0).unsigned_abs();
+        diff as f64 / (3_600.0 * 1_000_000_000.0)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
