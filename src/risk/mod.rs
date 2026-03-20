@@ -50,6 +50,9 @@ pub struct DrawdownTracker {
     /// Count of equity changes recorded (= update_count after first update).
     #[serde(default)]
     equity_change_count: usize,
+    /// Most negative single-step equity change seen (0.0 until first loss).
+    #[serde(default)]
+    min_equity_delta: f64,
 }
 
 impl DrawdownTracker {
@@ -70,6 +73,7 @@ impl DrawdownTracker {
             equity_change_mean: 0.0,
             equity_change_m2: 0.0,
             equity_change_count: 0,
+            min_equity_delta: 0.0,
         }
     }
 
@@ -87,6 +91,9 @@ impl DrawdownTracker {
                 let old_mean = self.equity_change_mean;
                 self.equity_change_mean += (delta - old_mean) / n;
                 self.equity_change_m2 += (delta - old_mean) * (delta - self.equity_change_mean);
+                if delta < self.min_equity_delta {
+                    self.min_equity_delta = delta;
+                }
             }
         }
         self.prev_equity = equity;
@@ -216,6 +223,7 @@ impl DrawdownTracker {
         self.equity_change_mean = 0.0;
         self.equity_change_m2 = 0.0;
         self.equity_change_count = 0;
+        self.min_equity_delta = 0.0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -374,20 +382,13 @@ impl DrawdownTracker {
 
     /// Returns the largest single-step equity drop seen across all updates.
     ///
-    /// Only negative equity changes (losses) are considered. Returns `None` if fewer than
-    /// two updates have been processed (no per-step changes exist yet).
-    ///
-    /// Note: this is tracked from recorded equity changes in the Welford accumulator.
-    /// The magnitude is returned as a positive number.
+    /// Returns the magnitude (positive number) of the worst per-update loss.
+    /// Returns `None` if no loss has occurred or fewer than two updates have been processed.
     pub fn max_single_loss(&self) -> Option<f64> {
-        if self.equity_change_count == 0 {
+        if self.equity_change_count == 0 || self.min_equity_delta >= 0.0 {
             return None;
         }
-        // We don't store individual changes, so we derive a lower bound from mean and variance.
-        // Instead, track it via the dedicated field added below. For now return None if no
-        // loss data is available via Welford, and document that this is not exact.
-        // The correct implementation requires a stored max_loss field.
-        None
+        Some(-self.min_equity_delta)
     }
 
     /// Returns the fraction of equity updates that decreased equity (loss rate).

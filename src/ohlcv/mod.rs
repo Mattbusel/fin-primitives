@@ -4285,6 +4285,136 @@ impl OhlcvSeries {
             .unwrap_or(0.0);
         Some(cur_range / avg_range)
     }
+
+    /// Range ratio over the last `n` bars: `(highest_close - lowest_close) / avg_close`.
+    ///
+    /// Measures how much price has moved relative to its average level.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or avg_close is zero.
+    pub fn price_range_ratio(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let closes: Vec<Decimal> = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value())
+            .collect();
+        let hi = closes.iter().copied().max()?;
+        let lo = closes.iter().copied().min()?;
+        let avg = closes.iter().sum::<Decimal>() / Decimal::from(n as u32);
+        if avg.is_zero() { return None; }
+        Some((hi - lo) / avg)
+    }
+
+    /// Rolling Pearson correlation between close prices and volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or either standard deviation is zero.
+    pub fn close_volume_correlation(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let closes: Vec<f64> = self.bars[start..].iter()
+            .map(|b| b.close.value().to_f64().unwrap_or(0.0))
+            .collect();
+        let vols: Vec<f64> = self.bars[start..].iter()
+            .map(|b| b.volume.value().to_f64().unwrap_or(0.0))
+            .collect();
+        let n_f = n as f64;
+        let mean_c = closes.iter().sum::<f64>() / n_f;
+        let mean_v = vols.iter().sum::<f64>() / n_f;
+        let cov: f64 = closes.iter().zip(vols.iter())
+            .map(|(c, v)| (c - mean_c) * (v - mean_v))
+            .sum::<f64>() / n_f;
+        let std_c = (closes.iter().map(|c| (c - mean_c).powi(2)).sum::<f64>() / n_f).sqrt();
+        let std_v = (vols.iter().map(|v| (v - mean_v).powi(2)).sum::<f64>() / n_f).sqrt();
+        if std_c == 0.0 || std_v == 0.0 { return None; }
+        Some(cov / (std_c * std_v))
+    }
+
+    /// Position of the last bar's close within the `n`-bar high-low range, normalised to `[0, 1]`.
+    ///
+    /// `0.0` means close is at the period low; `1.0` means close is at the period high.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or `high == low`.
+    pub fn close_relative_to_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let high = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
+        let low = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        let range = high - low;
+        if range.is_zero() {
+            return None;
+        }
+        let close = self.bars.last()?.close.value();
+        Some((close - low) / range)
+    }
+
+    /// Simple moving average of volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn volume_sma(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        #[allow(clippy::cast_possible_truncation)]
+        let avg = self.bars[start..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+            / Decimal::from(n as u32);
+        Some(avg)
+    }
+
+    /// Ratio of short-term ATR to long-term ATR — a "squeeze" or "compression" indicator.
+    ///
+    /// `compression_ratio = ATR(fast) / ATR(slow)` where ATR is the simple average of
+    /// true ranges. Values < 1.0 indicate the recent range is tighter than the longer-term
+    /// range (potential compression / squeeze). Values > 1.0 indicate expansion.
+    ///
+    /// Returns `None` if `fast == 0`, `slow == 0`, `fast >= slow`, fewer than `slow + 1` bars
+    /// exist, or the long-term ATR is zero.
+    pub fn compression_ratio(&self, fast: usize, slow: usize) -> Option<Decimal> {
+        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() < slow + 1 {
+            return None;
+        }
+        let atr_avg = |n: usize| -> Option<Decimal> {
+            let start = self.bars.len() - n;
+            let trs: Decimal = self.bars[start..].iter().enumerate().map(|(i, b)| {
+                let prev = if i == 0 { &self.bars[start - 1] } else { &self.bars[start + i - 1] };
+                let hl = b.high.value() - b.low.value();
+                let hpc = (b.high.value() - prev.close.value()).abs();
+                let lpc = (b.low.value() - prev.close.value()).abs();
+                hl.max(hpc).max(lpc)
+            }).sum();
+            #[allow(clippy::cast_possible_truncation)]
+            Some(trs / Decimal::from(n as u32))
+        };
+        let atr_fast = atr_avg(fast)?;
+        let atr_slow = atr_avg(slow)?;
+        if atr_slow.is_zero() { return None; }
+        atr_fast.checked_div(atr_slow)
+    }
+
+    /// Average typical price `(H + L + C) / 3` over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn typical_price_avg(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        #[allow(clippy::cast_possible_truncation)]
+        let avg = self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32))
+            .sum::<Decimal>()
+            / Decimal::from(n as u32);
+        Some(avg)
+    }
 }
 
 #[cfg(test)]

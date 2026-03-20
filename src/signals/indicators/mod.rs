@@ -116,6 +116,7 @@ pub mod high_low_spread;
 pub mod gann_hilo;
 pub mod frama;
 pub mod vroc;
+pub mod ema_cross;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -230,3 +231,4 @@ pub use high_low_spread::HighLowSpread;
 pub use gann_hilo::GannHiLo;
 pub use frama::Frama;
 pub use vroc::Vroc;
+pub use ema_cross::EmaCross;
