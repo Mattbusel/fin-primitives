@@ -1,11 +1,11 @@
-//! Cumulative Volume indicator — rolling N-bar sum of volume.
+//! Cumulative Volume indicator â€” rolling N-bar sum of volume.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Cumulative Volume — rolling sum of traded volume over `period` bars.
+/// Cumulative Volume â€” rolling sum of traded volume over `period` bars.
 ///
 /// ```text
 /// cum_vol[t] = volume[t] + volume[t-1] + ... + volume[t-period+1]

@@ -1,13 +1,13 @@
-//! Relative Close indicator — close position within the bar's range, as a percentage.
+//! Relative Close indicator â€” close position within the bar's range, as a percentage.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 
-/// Relative Close — where the close falls within the bar's high-low range, as a percentage.
+/// Relative Close â€” where the close falls within the bar's high-low range, as a percentage.
 ///
 /// ```text
-/// relative_close[t] = (close - low) / (high - low) × 100
+/// relative_close[t] = (close - low) / (high - low) Ã— 100
 /// ```
 ///
 /// - 100 % means close == high (strongest close).

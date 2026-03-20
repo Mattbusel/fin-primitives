@@ -1,11 +1,11 @@
-//! Candle Range MA — SMA of bar range (high - low) over N bars.
+//! Candle Range MA â€” SMA of bar range (high - low) over N bars.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Candle Range MA — simple moving average of bar range over `period` bars.
+/// Candle Range MA â€” simple moving average of bar range over `period` bars.
 ///
 /// ```text
 /// range[t]    = high[t] - low[t]

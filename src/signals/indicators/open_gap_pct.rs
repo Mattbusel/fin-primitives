@@ -1,13 +1,13 @@
-//! Open Gap Percent indicator — overnight gap as a percentage of the prior close.
+//! Open Gap Percent indicator â€” overnight gap as a percentage of the prior close.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 
-/// Open Gap Percent — measures the overnight gap as a percentage of the previous bar's close.
+/// Open Gap Percent â€” measures the overnight gap as a percentage of the previous bar's close.
 ///
 /// ```text
-/// gap_pct[t] = (open[t] - close[t-1]) / close[t-1] × 100
+/// gap_pct[t] = (open[t] - close[t-1]) / close[t-1] Ã— 100
 /// ```
 ///
 /// Positive values indicate a gap-up; negative values indicate a gap-down.
