@@ -186,6 +186,7 @@ pub mod price_intensity;
 pub mod smoothed_rsi;
 pub mod volume_weighted_rsi;
 pub mod ema_slope;
+pub mod net_volume;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -370,3 +371,4 @@ pub use price_intensity::PriceIntensity;
 pub use smoothed_rsi::SmoothedRsi;
 pub use volume_weighted_rsi::VolumeWeightedRsi;
 pub use ema_slope::EmaSlope;
+pub use net_volume::NetVolume;
