@@ -2320,7 +2320,7 @@ impl OhlcvSeries {
         }
         let vwap: Decimal = slice.iter()
             .map(|b| {
-                let tp = (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32);
+                let tp = b.typical_price();
                 tp * b.volume.value()
             })
             .sum::<Decimal>() / total_vol;
@@ -2526,7 +2526,7 @@ impl OhlcvSeries {
         let start = self.bars.len().saturating_sub(n);
         self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3))
+            .map(|b| b.typical_price())
             .collect()
     }
 
@@ -2841,7 +2841,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - period;
         let sum: Decimal = self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32))
+            .map(|b| b.typical_price())
             .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(period as u32))
@@ -3671,7 +3671,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() + b.low.value()) / Decimal::TWO)
+            .map(|b| b.midpoint())
             .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
@@ -3804,7 +3804,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let mut mids: Vec<Decimal> = self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() + b.low.value()) / Decimal::TWO)
+            .map(|b| b.midpoint())
             .collect();
         mids.sort();
         let mid = n / 2;
@@ -3831,7 +3831,7 @@ impl OhlcvSeries {
                 if range.is_zero() {
                     Decimal::ZERO
                 } else {
-                    (b.high.value() - b.open.value().max(b.close.value())) / range
+                    (b.upper_shadow()) / range
                 }
             })
             .sum();
@@ -4005,7 +4005,7 @@ impl OhlcvSeries {
         let hundred = Decimal::from(100u32);
         let three = Decimal::from(3u32);
         for b in &self.bars[start..] {
-            let tp = (b.high.value() + b.low.value() + b.close.value()) / three;
+            let tp = b.typical_price();
             if tp.is_zero() { continue; }
             sum += (b.range()) / tp * hundred;
             count += 1;
@@ -4484,7 +4484,7 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         let avg = self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32))
+            .map(|b| b.typical_price())
             .sum::<Decimal>()
             / Decimal::from(n as u32);
         Some(avg)
@@ -5519,7 +5519,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let upper = self.bars[start..].iter().filter(|b| {
-            let mid = (b.high.value() + b.low.value()) / Decimal::TWO;
+            let mid = b.midpoint();
             b.close.value() >= mid
         }).count();
         #[allow(clippy::cast_possible_truncation)]

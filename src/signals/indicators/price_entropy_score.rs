@@ -4,7 +4,6 @@ use rust_decimal::Decimal;
 use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::prelude::ToPrimitive;
 
 /// Approximate entropy of close returns over the rolling window.
 ///
@@ -55,9 +54,7 @@ impl Signal for PriceEntropyScore {
                 entropy -= p * p.log2();
             }
         }
-        // normalize by log2(3) ≈ 1.585
-        let normalized = entropy / std::f64::consts::LOG2_E.recip().mul_add(3.0f64.ln(), 0.0);
-        // simpler: log2(3) = ln(3)/ln(2)
+        // normalize by log2(3) = ln(3)/ln(2) ≈ 1.585
         let log2_3 = 3.0f64.ln() / 2.0f64.ln();
         let normalized = entropy / log2_3;
 

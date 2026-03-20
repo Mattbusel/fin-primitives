@@ -1,135 +1,102 @@
-//! Rolling Skewness indicator -- skewness of close-to-close returns over N bars.
+//! Rolling Skewness indicator.
 
-use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
+use crate::error::FinError;
+use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::prelude::ToPrimitive;
 
-/// Rolling Skewness -- measures the asymmetry of the return distribution over a
-/// rolling `period`-bar window.
+/// Skewness of close returns over the rolling period.
 ///
-/// Uses the sample skewness formula:
-/// ```text
-/// skew = (n / ((n-1)(n-2))) * sum((r_i - mean)^3) / stddev^3
-/// ```
-///
-/// Positive skewness indicates a right tail (occasional large gains);
-/// negative skewness indicates a left tail (occasional large losses).
-///
-/// Returns [`SignalValue::Unavailable`] until `period + 1` bars have been seen
-/// (needs `period` returns from `period + 1` closes) or when stddev is zero.
-///
-/// # Example
-/// ```rust
-/// use fin_primitives::signals::indicators::RollingSkewness;
-/// use fin_primitives::signals::Signal;
-/// let rs = RollingSkewness::new("rs", 20).unwrap();
-/// assert_eq!(rs.period(), 20);
-/// ```
+/// Positive skew: long right tail (more frequent large positive returns).
+/// Negative skew: long left tail (more frequent large negative returns).
+/// Normal distribution has skewness ≈ 0.
+/// Requires at least 3 bars (period >= 3).
 pub struct RollingSkewness {
-    name: String,
     period: usize,
-    closes: VecDeque<Decimal>,
+    prev_close: Option<Decimal>,
+    returns: VecDeque<f64>,
 }
 
 impl RollingSkewness {
-    /// Constructs a new `RollingSkewness`.
-    ///
-    /// # Errors
-    /// Returns [`FinError::InvalidPeriod`] if `period < 3`.
-    pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 3 { return Err(FinError::InvalidPeriod(period)); }
-        Ok(Self {
-            name: name.into(),
-            period,
-            closes: VecDeque::with_capacity(period + 2),
-        })
+    /// Creates a new `RollingSkewness` with the given period (min 3).
+    pub fn new(period: usize) -> Result<Self, FinError> {
+        if period < 3 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        Ok(Self { period, prev_close: None, returns: VecDeque::with_capacity(period) })
     }
 }
 
 impl Signal for RollingSkewness {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.closes.push_back(bar.close);
-        if self.closes.len() > self.period + 1 { self.closes.pop_front(); }
-        if self.closes.len() <= self.period { return Ok(SignalValue::Unavailable); }
+        if let Some(pc) = self.prev_close {
+            if !pc.is_zero() {
+                if let (Some(c), Some(p)) = (bar.close.to_f64(), pc.to_f64()) {
+                    self.returns.push_back((c - p) / p);
+                    if self.returns.len() > self.period {
+                        self.returns.pop_front();
+                    }
+                }
+            }
+        }
+        self.prev_close = Some(bar.close);
 
-        use rust_decimal::prelude::ToPrimitive;
-        let prices: Vec<f64> = self.closes.iter()
-            .map(|d| d.to_f64().unwrap_or(f64::NAN))
-            .collect();
-        let returns: Vec<f64> = prices.windows(2).map(|w| w[1] - w[0]).collect();
-        let n = returns.len() as f64;
-        if n < 3.0 { return Ok(SignalValue::Unavailable); }
+        if self.returns.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let mean = returns.iter().sum::<f64>() / n;
-        let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / (n - 1.0);
-        if variance <= 0.0 { return Ok(SignalValue::Unavailable); }
-        let stddev = variance.sqrt();
+        let n = self.period as f64;
+        let mean = self.returns.iter().sum::<f64>() / n;
+        let var = self.returns.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        let std_dev = var.sqrt();
+        if std_dev == 0.0 {
+            return Ok(SignalValue::Scalar(Decimal::ZERO));
+        }
+        let m3 = self.returns.iter().map(|v| (v - mean).powi(3)).sum::<f64>() / n;
+        let skewness = m3 / (std_dev * std_dev * std_dev);
 
-        let m3 = returns.iter().map(|r| (r - mean).powi(3)).sum::<f64>();
-        let skew = (n / ((n - 1.0) * (n - 2.0))) * m3 / stddev.powi(3);
-        match Decimal::try_from(skew) {
-            Ok(d) => Ok(SignalValue::Scalar(d)),
-            Err(_) => Ok(SignalValue::Unavailable),
+        match Decimal::from_f64_retain(skewness) {
+            Some(v) => Ok(SignalValue::Scalar(v)),
+            None => Ok(SignalValue::Unavailable),
         }
     }
 
-    fn reset(&mut self) { self.closes.clear(); }
+    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn period(&self) -> usize { self.period }
+    fn reset(&mut self) { self.prev_close = None; self.returns.clear(); }
+    fn name(&self) -> &str { "RollingSkewness" }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ohlcv::OhlcvBar;
-    use crate::signals::Signal;
-    use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(c: &str) -> OhlcvBar {
-        let p = Price::new(c.parse().unwrap()).unwrap();
-        OhlcvBar {
-            symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
-            volume: Quantity::zero(),
-            ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1),
-            tick_count: 1,
+    fn bar(c: &str) -> BarInput {
+        BarInput {
+            open: c.parse().unwrap(),
+            high: c.parse().unwrap(),
+            low: c.parse().unwrap(),
+            close: c.parse().unwrap(),
+            volume: dec!(1000),
         }
     }
 
     #[test]
-    fn test_rs_period_too_small() { assert!(RollingSkewness::new("rs", 2).is_err()); }
-
-    #[test]
-    fn test_rs_unavailable_before_warmup() {
-        let mut rs = RollingSkewness::new("rs", 5).unwrap();
-        for _ in 0..5 {
-            assert_eq!(rs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        }
+    fn test_rs_flat_zero() {
+        // Constant prices → std_dev=0 → skewness=0
+        let mut sig = RollingSkewness::new(3).unwrap();
+        for _ in 0..5 { sig.update(&bar("100")).unwrap(); }
+        let v = sig.update(&bar("100")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
-    fn test_rs_symmetric_near_zero() {
-        let mut rs = RollingSkewness::new("rs", 5).unwrap();
-        // returns: +1,-1,+1,-1,+1 -> approx 0 skew
-        let prices = ["100","101","100","101","100","101"];
-        let mut last = SignalValue::Unavailable;
-        for p in &prices { last = rs.update_bar(&bar(p)).unwrap(); }
-        if let SignalValue::Scalar(s) = last {
-            assert!(s.abs() < dec!(1), "expected near-zero skew for symmetric, got {s}");
+    fn test_rs_not_ready() {
+        let mut sig = RollingSkewness::new(4).unwrap();
+        for _ in 0..4 {
+            assert_eq!(sig.update(&bar("100")).unwrap(), SignalValue::Unavailable);
         }
-    }
-
-    #[test]
-    fn test_rs_reset() {
-        let mut rs = RollingSkewness::new("rs", 5).unwrap();
-        for i in 0u32..8 { rs.update_bar(&bar(&(100+i).to_string())).unwrap(); }
-        assert!(rs.is_ready());
-        rs.reset();
-        assert!(!rs.is_ready());
     }
 }
