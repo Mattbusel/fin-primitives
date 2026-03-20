@@ -3,7 +3,6 @@
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
-use std::collections::VecDeque;
 
 /// Pivot Distance — distance of the current close from the classic pivot point,
 /// expressed as a percentage of the pivot.

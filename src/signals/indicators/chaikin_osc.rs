@@ -66,6 +66,13 @@ impl ChaikinOsc {
     }
 }
 
+impl ChaikinOsc {
+    /// Returns the fast EMA period.
+    pub fn fast_period(&self) -> usize { self.fast }
+    /// Returns the slow EMA period.
+    pub fn slow_period(&self) -> usize { self.slow }
+}
+
 impl Signal for ChaikinOsc {
     fn name(&self) -> &str { &self.name }
 

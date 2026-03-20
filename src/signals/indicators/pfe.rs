@@ -57,6 +57,11 @@ impl Pfe {
     }
 }
 
+impl Pfe {
+    /// Returns the EMA smoothing period.
+    pub fn smoothing(&self) -> usize { self.smoothing }
+}
+
 impl Signal for Pfe {
     fn name(&self) -> &str { &self.name }
 

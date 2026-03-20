@@ -1462,7 +1462,6 @@ impl DrawdownTracker {
     pub fn sortino_proxy(&self, annualized_return: f64, periods_per_year: u32) -> Option<f64> {
         if self.equity_change_count < 2 { return None; }
         // Use only negative deltas for downside deviation
-        let neg_count = self.equity_change_count; // approximate: track only what we have
         // Fall back to annualized_volatility halved as a rough downside estimate
         let downside_vol = self.annualized_volatility(periods_per_year)? / 2.0_f64.sqrt();
         if downside_vol == 0.0 { return None; }

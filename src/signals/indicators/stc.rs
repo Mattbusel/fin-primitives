@@ -85,6 +85,9 @@ impl Stc {
         })
     }
 
+    /// Returns the fast EMA period.
+    pub fn fast_period(&self) -> usize { self.fast }
+
     fn stochastic_k(window: &VecDeque<Decimal>, current: Decimal) -> Decimal {
         let high = window.iter().copied().fold(current, Decimal::max);
         let low  = window.iter().copied().fold(current, Decimal::min);

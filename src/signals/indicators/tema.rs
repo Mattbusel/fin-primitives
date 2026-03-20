@@ -67,20 +67,6 @@ impl Tema {
         })
     }
 
-    fn ema_step(&self, prev: Decimal, value: Decimal) -> Result<Decimal, FinError> {
-        let one_minus_k = Decimal::ONE
-            .checked_sub(self.multiplier)
-            .ok_or(FinError::ArithmeticOverflow)?;
-        value
-            .checked_mul(self.multiplier)
-            .ok_or(FinError::ArithmeticOverflow)?
-            .checked_add(
-                prev.checked_mul(one_minus_k)
-                    .ok_or(FinError::ArithmeticOverflow)?,
-            )
-            .ok_or(FinError::ArithmeticOverflow)
-    }
-
     fn ema_update(
         count: &mut usize,
         seed_sum: &mut Decimal,

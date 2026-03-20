@@ -92,7 +92,7 @@ impl Signal for SmoothedRsi {
 
         let change = bar.close - prev;
         let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { (-change) } else { Decimal::ZERO };
+        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
 
         // RSI seeding phase
         if self.avg_gain.is_none() {

@@ -61,6 +61,11 @@ impl Pvo {
     }
 }
 
+impl Pvo {
+    /// Returns the fast EMA period.
+    pub fn fast_period(&self) -> usize { self.fast_period }
+}
+
 impl Signal for Pvo {
     fn name(&self) -> &str {
         &self.name

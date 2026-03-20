@@ -4610,31 +4610,6 @@ impl OhlcvSeries {
         }
     }
 
-    /// Simple average true range over the last `n` bars (not EMA-smoothed).
-    ///
-    /// `ATR = mean(true_range[i])` where `true_range[i] = max(H−L, |H−C_prev|, |L−C_prev|)`.
-    ///
-    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
-    pub fn avg_true_range(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 {
-            return None;
-        }
-        let total = self.bars.len();
-        let start = total - n;
-        #[allow(clippy::cast_possible_truncation)]
-        let atr = self.bars[start..].iter().enumerate().map(|(i, b)| {
-            let prev_close = if i == 0 {
-                self.bars[start - 1].close.value()
-            } else {
-                self.bars[start + i - 1].close.value()
-            };
-            let hl = b.high.value() - b.low.value();
-            let hpc = (b.high.value() - prev_close).abs();
-            let lpc = (b.low.value() - prev_close).abs();
-            hl.max(hpc).max(lpc)
-        }).sum::<Decimal>() / Decimal::from(n as u32);
-        Some(atr)
-    }
 
     /// Index (0-based within the last `n` bars) of the bar with the highest volume.
     ///
@@ -6351,6 +6326,136 @@ impl OhlcvSeries {
         }).collect();
         if vals.is_empty() { return None; }
         Some(vals.iter().sum::<f64>() / vals.len() as f64)
+    }
+
+    /// Skewness of bar returns over the last `n` bars.
+    ///
+    /// Computed as the third standardised central moment of `(close[i] - close[i-1]) / close[i-1]`
+    /// returns. Returns `None` if fewer than 3 bars are available (need at least 2 returns to
+    /// compute a meaningful third moment) or if standard deviation is zero.
+    ///
+    /// Positive skewness → right-tailed distribution (occasional large gains);
+    /// negative skewness → left-tailed (occasional large losses).
+    pub fn skewness_of_returns(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 3 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
+            let prev_c = w[0].close.value().to_f64()?;
+            if prev_c == 0.0 { return None; }
+            let curr_c = w[1].close.value().to_f64()?;
+            Some((curr_c - prev_c) / prev_c)
+        }).collect();
+        let m = returns.len();
+        if m < 2 { return None; }
+        let mean = returns.iter().sum::<f64>() / m as f64;
+        let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m as f64;
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 { return None; }
+        let skew = returns.iter().map(|r| ((r - mean) / std_dev).powi(3)).sum::<f64>() / m as f64;
+        Some(skew)
+    }
+
+    /// Excess kurtosis of bar returns over the last `n` bars.
+    ///
+    /// Computed as the fourth standardised central moment minus 3 (excess kurtosis,
+    /// so a normal distribution gives 0). Requires at least 4 bars.
+    /// Returns `None` if fewer than `n` bars exist or standard deviation is zero.
+    ///
+    /// High positive kurtosis → fat tails (more extreme moves than normal);
+    /// negative kurtosis → thin tails.
+    pub fn kurtosis_of_returns(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 4 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
+            let prev_c = w[0].close.value().to_f64()?;
+            if prev_c == 0.0 { return None; }
+            let curr_c = w[1].close.value().to_f64()?;
+            Some((curr_c - prev_c) / prev_c)
+        }).collect();
+        let m = returns.len();
+        if m < 3 { return None; }
+        let mean = returns.iter().sum::<f64>() / m as f64;
+        let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m as f64;
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 { return None; }
+        let kurt = returns.iter().map(|r| ((r - mean) / std_dev).powi(4)).sum::<f64>() / m as f64 - 3.0;
+        Some(kurt)
+    }
+
+    /// Lag-`lag` autocorrelation of close-to-close returns over the last `n` bars.
+    ///
+    /// Measures the linear relationship between a return series and itself shifted
+    /// by `lag` periods. A value near +1 indicates momentum; near -1 indicates
+    /// mean-reversion; near 0 indicates no serial dependency.
+    ///
+    /// Returns `None` if `n < lag + 2`, fewer than `n` bars exist, or either
+    /// standard deviation is zero.
+    pub fn autocorrelation_of_returns(&self, n: usize, lag: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if lag == 0 || n < lag + 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
+            let prev_c = w[0].close.value().to_f64()?;
+            if prev_c == 0.0 { return None; }
+            let curr_c = w[1].close.value().to_f64()?;
+            Some((curr_c - prev_c) / prev_c)
+        }).collect();
+        if returns.len() <= lag { return None; }
+        let x = &returns[..returns.len() - lag];
+        let y = &returns[lag..];
+        let m = x.len();
+        if m == 0 { return None; }
+        let mean_x = x.iter().sum::<f64>() / m as f64;
+        let mean_y = y.iter().sum::<f64>() / m as f64;
+        let cov: f64 = x.iter().zip(y.iter()).map(|(a, b)| (a - mean_x) * (b - mean_y)).sum::<f64>() / m as f64;
+        let std_x = (x.iter().map(|a| (a - mean_x).powi(2)).sum::<f64>() / m as f64).sqrt();
+        let std_y = (y.iter().map(|b| (b - mean_y).powi(2)).sum::<f64>() / m as f64).sqrt();
+        if std_x == 0.0 || std_y == 0.0 { return None; }
+        Some(cov / (std_x * std_y))
+    }
+
+    /// Median volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn median_volume(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut vols: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        if vols.is_empty() { return None; }
+        vols.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let mid = vols.len() / 2;
+        let median = if vols.len() % 2 == 0 {
+            (vols[mid - 1] + vols[mid]) / 2.0
+        } else {
+            vols[mid]
+        };
+        Decimal::try_from(median).ok()
+    }
+
+    /// Average True Range over the last `n` bars.
+    ///
+    /// True Range for each bar uses the previous bar's close for the gap component.
+    /// The first bar in the window uses `high - low` (no prior bar available).
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_true_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut sum = Decimal::ZERO;
+        for (i, bar) in slice.iter().enumerate() {
+            let prev = if i == 0 { None } else { Some(&slice[i - 1]) };
+            sum += bar.true_range(prev);
+        }
+        sum.checked_div(Decimal::from(n as u32))
     }
 }
 

@@ -98,6 +98,10 @@ impl Qqe {
         })
     }
 
+    /// Returns the EMA smoothing period.
+    pub fn smooth(&self) -> usize { self.smooth }
+    /// Returns the ATR lookback period for the band.
+    pub fn atr_period(&self) -> usize { self.atr_period }
     /// Returns the current upper QQE band.
     pub fn upper(&self) -> Option<Decimal> { self.upper }
     /// Returns the current lower QQE band.

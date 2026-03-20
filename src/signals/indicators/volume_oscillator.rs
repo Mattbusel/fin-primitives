@@ -72,6 +72,9 @@ impl VolumeOscillator {
             Some(p) => p + alpha * (value - p),
         }
     }
+
+    /// Returns the fast EMA period.
+    pub fn fast_period(&self) -> usize { self.fast_period }
 }
 
 impl Signal for VolumeOscillator {

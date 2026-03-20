@@ -1016,7 +1016,7 @@ impl NanoTimestamp {
 
     /// Returns a `NanoTimestamp` at 23:59:59.999_999_999 UTC on the last day of the same month.
     pub fn end_of_month(self) -> NanoTimestamp {
-        use chrono::{Datelike, TimeZone, Timelike};
+        use chrono::{Datelike, TimeZone};
         let dt = chrono::Utc.timestamp_nanos(self.0);
         // Advance to the first day of next month, then subtract one nanosecond.
         let (next_year, next_month) = if dt.month() == 12 {

@@ -63,6 +63,11 @@ impl KeltnerChannel {
         })
     }
 
+    /// Returns the ATR multiplier used for upper/lower band calculations.
+    pub fn multiplier(&self) -> Decimal {
+        self.multiplier
+    }
+
     fn ema_update(
         count: &mut usize,
         seed_sum: &mut Decimal,

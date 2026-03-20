@@ -3,7 +3,6 @@
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
-use std::collections::VecDeque;
 
 /// Trend Following Filter — dual-EMA trend classifier.
 ///

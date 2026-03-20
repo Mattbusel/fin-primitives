@@ -3,7 +3,6 @@
 use crate::error::FinError;
 use crate::signals::indicators::Ema;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 
 /// Absolute Price Oscillator: `EMA(fast) - EMA(slow)`.
 ///
