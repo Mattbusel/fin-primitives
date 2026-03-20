@@ -52,9 +52,9 @@ impl Signal for NetVolume {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let signed = if bar.close > bar.open {
+        let signed = if bar.is_bullish() {
             bar.volume
-        } else if bar.close < bar.open {
+        } else if bar.is_bearish() {
             -bar.volume
         } else {
             Decimal::ZERO

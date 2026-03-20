@@ -59,7 +59,7 @@ impl Signal for VolumeUpDownRatio {
     fn is_ready(&self) -> bool { self.total_window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.close > bar.open { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.is_bullish() { bar.volume } else { Decimal::ZERO };
         self.up_window.push_back(up_vol);
         self.total_window.push_back(bar.volume);
         self.up_sum += up_vol;

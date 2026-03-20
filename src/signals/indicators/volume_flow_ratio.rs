@@ -63,9 +63,9 @@ impl Signal for VolumeFlowRatio {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let dir: i8 = if bar.close > bar.open {
+        let dir: i8 = if bar.is_bullish() {
             1
-        } else if bar.close < bar.open {
+        } else if bar.is_bearish() {
             -1
         } else {
             0

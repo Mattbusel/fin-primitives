@@ -53,8 +53,8 @@ impl Signal for EngulfingPattern {
             (Some(po), Some(pc)) => {
                 let prev_bearish = pc < po;
                 let prev_bullish = pc > po;
-                let curr_bullish = bar.close > bar.open;
-                let curr_bearish = bar.close < bar.open;
+                let curr_bullish = bar.is_bullish();
+                let curr_bearish = bar.is_bearish();
 
                 if prev_bearish && curr_bullish
                     && bar.open <= pc && bar.close >= po

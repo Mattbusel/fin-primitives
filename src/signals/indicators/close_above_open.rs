@@ -57,7 +57,7 @@ impl Signal for CloseAboveOpen {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let bull: u8 = if bar.close > bar.open { 1 } else { 0 };
+        let bull: u8 = if bar.is_bullish() { 1 } else { 0 };
         self.window.push_back(bull);
         self.bull_count += bull as usize;
 

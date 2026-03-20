@@ -45,7 +45,7 @@ impl Signal for EngulfingDetector {
         let result = if let (Some(po), Some(pc)) = (self.prev_open, self.prev_close) {
             let prev_bearish = po > pc;
             let prev_bullish = pc > po;
-            let curr_bullish = bar.close > bar.open;
+            let curr_bullish = bar.is_bullish();
             let curr_bearish = bar.open > bar.close;
 
             let signal = if prev_bearish && curr_bullish

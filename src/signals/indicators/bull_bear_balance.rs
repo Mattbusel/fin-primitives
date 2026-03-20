@@ -59,7 +59,7 @@ impl Signal for BullBearBalance {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let (bull, bear) = if bar.close > bar.open {
+        let (bull, bear) = if bar.is_bullish() {
             (bar.net_move(), Decimal::ZERO)
         } else if bar.open > bar.close {
             (Decimal::ZERO, -bar.net_move())

@@ -85,9 +85,9 @@ impl Signal for ClimaxVolume {
         let range_climax = avg_body.is_zero() || body >= avg_body * self.range_mult;
 
         let value = if vol_climax && range_climax {
-            if bar.close > bar.open {
+            if bar.is_bullish() {
                 Decimal::ONE
-            } else if bar.close < bar.open {
+            } else if bar.is_bearish() {
                 Decimal::NEGATIVE_ONE
             } else {
                 Decimal::ZERO

@@ -63,7 +63,7 @@ impl Signal for TrendPersistence {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.window.push_back(bar.close > bar.open);
+        self.window.push_back(bar.is_bullish());
         if self.window.len() > self.period {
             self.window.pop_front();
         }

@@ -50,8 +50,8 @@ impl Signal for CandlePattern {
         let signal = if let Some(p) = prev {
             // Two-bar patterns
             let prev_body = (p.close - p.open).abs();
-            let curr_bull = bar.close > bar.open;
-            let curr_bear = bar.close < bar.open;
+            let curr_bull = bar.is_bullish();
+            let curr_bear = bar.is_bearish();
             let prev_bull = p.close > p.open;
             let prev_bear = p.close < p.open;
 

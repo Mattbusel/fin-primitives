@@ -32,7 +32,7 @@ impl UpVolumeRatio {
 
 impl Signal for UpVolumeRatio {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let is_up = bar.close > bar.open;
+        let is_up = bar.is_bullish();
         self.window.push_back((bar.volume, is_up));
         self.total_vol += bar.volume;
         if is_up { self.up_vol += bar.volume; }

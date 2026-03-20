@@ -26,7 +26,7 @@ impl BearishBarRatio {
 
 impl Signal for BearishBarRatio {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let bearish: u8 = if bar.close < bar.open { 1 } else { 0 };
+        let bearish: u8 = if bar.is_bearish() { 1 } else { 0 };
         self.window.push_back(bearish);
         self.count += bearish as usize;
         if self.window.len() > self.period {

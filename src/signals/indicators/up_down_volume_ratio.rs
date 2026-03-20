@@ -54,9 +54,9 @@ impl Signal for UpDownVolumeRatio {
     fn is_ready(&self) -> bool { self.up_vols.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let (up, dn) = if bar.close > bar.open {
+        let (up, dn) = if bar.is_bullish() {
             (bar.volume, Decimal::ZERO)
-        } else if bar.close < bar.open {
+        } else if bar.is_bearish() {
             (Decimal::ZERO, bar.volume)
         } else {
             (Decimal::ZERO, Decimal::ZERO)

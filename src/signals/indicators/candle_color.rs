@@ -39,9 +39,9 @@ impl Signal for CandleColor {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
-        let value = if bar.close > bar.open {
+        let value = if bar.is_bullish() {
             Decimal::ONE
-        } else if bar.close < bar.open {
+        } else if bar.is_bearish() {
             Decimal::NEGATIVE_ONE
         } else {
             Decimal::ZERO

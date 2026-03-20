@@ -53,8 +53,8 @@ impl Signal for VolumeImbalance {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.close > bar.open { bar.volume } else { Decimal::ZERO };
-        let down_vol = if bar.close < bar.open { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.is_bullish() { bar.volume } else { Decimal::ZERO };
+        let down_vol = if bar.is_bearish() { bar.volume } else { Decimal::ZERO };
 
         self.history.push_back((up_vol, down_vol));
         if self.history.len() > self.period {

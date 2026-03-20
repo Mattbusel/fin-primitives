@@ -48,7 +48,7 @@ impl Signal for UpBarRatio {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up: u8 = if bar.close > bar.open { 1 } else { 0 };
+        let up: u8 = if bar.is_bullish() { 1 } else { 0 };
         self.window.push_back(up);
         self.count += up as usize;
         if self.window.len() > self.period {
