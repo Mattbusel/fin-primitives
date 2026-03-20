@@ -8,7 +8,7 @@
 
 A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
 systems in Rust. `fin-primitives` provides the building blocks: validated types,
-order book, OHLCV aggregation, **200+ streaming technical indicators**, position ledger,
+order book, OHLCV aggregation, **540+ streaming technical indicators**, position ledger,
 and composable risk monitoring — so that upstream crates and applications can focus on
 strategy rather than infrastructure.
 
@@ -22,7 +22,7 @@ strategy rather than infrastructure.
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
 | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, 200+ built-in indicators, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **540+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 
@@ -49,7 +49,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-fin-primitives = "2.0"
+fin-primitives = "2.2"
 rust_decimal_macros = "1"
 ```
 
@@ -151,17 +151,19 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ---
 
-## Technical Indicators (200+)
+## Technical Indicators (540+)
 
 All indicators implement the `Signal` trait and return `SignalValue::Unavailable`
 until warm-up is satisfied. No silent NaN or panic.
 
 **Trend / Moving Averages**
 
-`Sma`, `Ema`, `Dema`, `Tema`, `Wma`, `Hullma`, `Alma`, `Smma`, `Zlema`, `T3`,
+`Sma`, `Ema`, `Dema`, `Tema`, `Wma`, `HullMa`, `Alma`, `Smma`, `Zlema`, `T3`,
 `Trima`, `Kama`, `Lsma`, `Vidya`, `Swma`, `McGinley`, `LinRegSlope`, `Frama`,
 `DemaRatio`, `DemaCross`, `EmaCross`, `EmaSlope`, `EmaConvergence`, `TypicalPriceMa`,
-`TrueRangeEma`
+`TrueRangeEma`, `CoralTrend`, `HalfTrend`, `MesaAdaptiveMa`, `JurikMa`,
+`ChandeKrollStop`, `EmaRatio`, `EmaAlignment`, `EmaBandWidth`, `SmaDistancePct`,
+`TrendMagic`, `AdaptiveSupertrend`, `RollingVwap`
 
 **Momentum / Oscillators**
 
@@ -170,15 +172,24 @@ until warm-up is satisfied. No silent NaN or panic.
 `UltimateOscillator`, `Coppock`, `Kst`, `Trix`, `Dpo`, `Pgo`, `Rmi`, `Cog`,
 `Pfe`, `ConnorsRsi`, `DualRsi`, `RsiMa`, `RsiDivergence`, `SmoothedRsi`,
 `AdaptiveRsi`, `RsiStochastic`, `VolumeWeightedRsi`, `Qqe`, `Pmo`, `Tii`,
-`AwesomeOscillator`, `Smi`, `Ctm`
+`AwesomeOscillator`, `Smi`, `Ctm`, `PriceMomentumOscillator`, `MomentumOscillator`,
+`DeltaMomentum`, `CumReturnMomentum`, `NormalizedMomentum`, `MomentumQuality`,
+`MomentumReversal`, `MomentumStreak`, `MomentumDivergence`, `MomentumConsistency`,
+`UpMomentumPct`, `BodyMomentum`, `SlopeOscillator`, `EhlersCyberCycle`,
+`ChandeForecastOsc`, `ChandeMomentumSmoothed`, `DynamicMomentumIndex`
 
 **Volatility**
 
-`Atr`, `Natr`, `BollingerB`, `BollingerWidth`, `KeltnerChannel`, `DonchianMidpoint`,
-`DonchianWidth`, `Vhf`, `ChoppinessIndex`, `Pfe`, `Rsx`, `HistoricalVolatility`,
+`Atr`, `Natr`, `BollingerB`, `BollingerPctB`, `BollingerWidth`, `KeltnerChannel`,
+`DonchianMidpoint`, `DonchianWidth`, `Vhf`, `ChoppinessIndex`, `HistoricalVolatility`,
 `RelativeVolatility`, `ChaikinVolatility`, `VolatilityRatio`, `VolatilityBands`,
-`VolatilityAdjustedMomentum`, `VolatilitySkew`, `StdDevChannel`, `LinregChannel`,
-`Inertia`, `Stiffness`, `TtmSqueeze`
+`VolatilityAdjustedMomentum`, `VolatilitySkew`, `StdDevChannel`, `LinRegChannel`,
+`Inertia`, `Stiffness`, `TtmSqueeze`, `VolatilityOfVolatility`, `VolatilityBreak`,
+`VolatilityMomentum`, `VolatilityPercentile`, `VolatilityRegimeDetector`,
+`VolatilitySpike`, `VolatilityStop`, `RegimeVolatility`, `LogReturnVolatility`,
+`WeightedCloseVolatility`, `AccelerationBands`, `AtrPercent`, `AtrNormalizedClose`,
+`AtrRatio`, `DualATRRatio`, `WilderSmoothedRange`, `TrueRangeExpansion`,
+`TrueRangePercentile`, `TrueRangeZScore`, `TrueRangeRatio`
 
 **Volume**
 
@@ -186,34 +197,109 @@ until warm-up is satisfied. No silent NaN or panic.
 `ChaikinOsc`, `ForceIndex`, `NetVolume`, `VolumeRsi`, `VolumeSpike`,
 `VolumeTrend`, `VolumeOscillator`, `VolumeImbalance`, `Vroc`, `ObvMomentum`,
 `ClimaxVolume`, `BwMfi`, `Vzo`, `VwMomentum`, `VolumeBreadth`, `VolumeAcceleration`,
-`VolumeWeightedClose`
+`VolumeWeightedClose`, `VolumeAccumulation`, `VolumeDeltaOscillator`,
+`VolumeToRangeRatio`, `VolumeRateOfChange`, `VolumeSpikeRatio`, `VolumeSpikeScore`,
+`VolumeReturnCorrelation`, `VolumeTrendSlope`, `VolumePriceEfficiency`,
+`VolumePriceCorr`, `VolumePriceImpact`, `VolumeDirectionRatio`, `VolumeEnergy`,
+`VolumeExhaustion`, `VolumeFlowRatio`, `VolumeDensity`, `VolumeDeviation`,
+`VolumeClimaxRatio`, `VolumeMomentum`, `VolumeMomentumDivergence`,
+`VolumeOpenBias`, `VolumePerRange`, `VolumeRatioSignal`, `VolumeSurge`,
+`VolumeSurge2`, `VolumeUpDownRatio`, `VolumeWeightedAtr`, `VolumeWeightedRange`,
+`VolumeWeightedStdDev`, `VolumeWeightedMomentum`, `UpVolumeFraction`,
+`UpVolumeRatio`, `UpDownVolumeRatio`, `NegativeVolumeIndex`, `PositiveVolumeIndex`,
+`RelativeVolumeRank`, `RelativeVolumeScore`, `NormalizedVolume`, `MedianVolume`,
+`CumulativeVolume`, `CumulativeDelta`, `ConsecutiveVolumeGrowth`, `VolumeStreakCount`,
+`RollingVolumeCV`, `DeltaVolume`
 
 **Trend Direction / Multi-component**
 
 `Adx`, `Dmi`, `Aroon`, `AroonOscillator`, `Ichimoku`, `ParabolicSar`, `SuperTrend`,
 `ElderRay`, `ElderImpulse`, `ChandelierExit`, `Stc`, `Vortex`, `WilliamsAD`,
-`GannHilo`, `TrendFollowingFilter`, `TrendStrength`, `TrendAngle`, `TrendScore`,
-`Alligator`, `Rwi`
+`GannHiLo`, `TrendFollowingFilter`, `TrendStrength`, `TrendAngle`, `TrendScore`,
+`Alligator`, `Rwi`, `TrendAge`, `TrendConsistency`, `TrendConsistencyScore`,
+`TrendPersistence`, `TrendPurity`, `MarketRegimeFilter`, `NetHighLowCount`,
+`BullBearBalance`, `TdSequential`, `WilliamsFractal`, `KeyReversal`
 
 **Price Structure / Pattern**
 
 `PriceChannel`, `PriceCompression`, `PriceDistanceMa`, `PriceGap`, `PriceIntensity`,
-`PriceOscillator`, `PricePosition`, `PriceRangePct`, `PriceAboveMa`, `PriceAcceleration`,
-`PriceVelocity`, `PriceEnvelope`, `PriceReversal`, `NormalizedPrice`, `Disparity`,
-`DeviationFromMa`, `LinearDeviation`, `PriceDensity`, `CandleBodySize`, `CandleColor`,
-`CandleMomentum`, `CandlePattern`, `HeikinAshi`, `WickRatio`, `HighLowPct`,
+`PriceOscillator`, `PriceOscillator2`, `PricePosition`, `PriceRangePct`,
+`PriceAboveMa`, `PriceAboveMaPct`, `PriceAcceleration`, `PriceVelocity`,
+`PriceVelocityRatio`, `PriceVelocityScore`, `PriceEnvelope`, `PriceReversal`,
+`PriceReversalStrength`, `NormalizedPrice`, `DisparityIndex`, `DeviationFromMa`,
+`LinearDeviation`, `PriceDensity`, `CandleBodySize`, `CandleColor`, `CandleMomentum`,
+`CandlePattern`, `HeikinAshi`, `WickRatio`, `HighLowPct`, `HighLowPctRange`,
 `HighLowSpread`, `HlRatio`, `OpenCloseRatio`, `CloseToOpen`, `CloseLocationValue`,
-`WeightedClose`
+`WeightedClose`, `CloseToOpenGap`, `CloseToOpenReturn`, `HighLowReturnCorrelation`,
+`UpperWickPct`, `LowerWickPct`, `HigherHighLowerLow`, `OpenHighLowCloseAvg`,
+`CloseToLowDistance`, `ReturnMeanDeviation`, `PriceAboveRollingHigh`,
+`OpenCloseSpread`, `GapFillRatio`, `PriceCompressionRatio`, `ShadowRatio`,
+`PriceMeanDeviation`, `AbsReturnSum`, `AbsReturnMean`, `RollingMaxDrawdown`,
+`PriceRelativeStrength`, `OpenLowRange`, `HighOpenRange`, `BodyAtrRatio`,
+`GapStreak`, `BarEfficiency`, `MedianBodySize`, `WickAsymmetryStreak`,
+`FibonacciRetrace`, `PriceEntropyScore`, `PriceCompressionIndex`,
+`PriceCompressionBreakout`, `PriceSymmetry`, `PricePathEfficiency`,
+`PriceEfficiencyRatio`, `PriceGravity`, `PriceImpulse`, `PriceBandwidth`,
+`PriceLevelPct`, `PricePositionRank`, `PriceRangeExpansion`, `PriceRangeRank`,
+`PriceToSmaRatio`, `PriceZScore`, `PriceOscillatorPct`, `PriceOscillatorSign`,
+`PriceChangeCount`, `PriceChangePct`, `PriceChannelPosition`, `PriceChannelWidth`,
+`PriceGapFrequency`, `OpenToHighRatio`, `RangeMomentum`, `RangePersistence`,
+`RangeReturnRatio`, `RangeCompressionRatio`, `RangeContractionCount`,
+`RangeExpansionIndex`, `RangeMidpointPosition`, `RangePctOfClose`,
+`RangeTrendSlope`, `RangeZScore`, `CloseMidpointDiff`, `CloseMidpointStrength`,
+`CloseAboveMidpoint`, `CloseVsOpenRange`, `CloseVsPriorHigh`, `CloseVsVwap`,
+`ClosePositionInRange`, `CloseRetracePct`, `CloseReturnAcceleration`,
+`CloseReturnZ`, `CloseToHighRatio`, `CloseToMidRange`, `CloseToRangeTop`,
+`CloseRelativeToEma`, `CloseRelativeToRange`, `ClosePctFromHigh`, `ClosePctFromLow`,
+`CloseAboveEma`, `CloseAboveOpen`, `CloseAbovePrevClose`, `CloseAbovePrevClosePct`,
+`CloseAbovePrevHigh`, `CloseAbovePriorClose`, `CloseAboveSmaStreak`,
+`CloseAboveHighPrev`, `CloseBelowLowPrev`, `CloseDistanceFromEma`,
+`CloseMinusOpenMa`, `CloseOpenEma`, `CloseAcceleration`, `CloseAccelerationSign`,
+`OpenAbovePrevClose`, `OpenCloseMomentum`, `OpenGapDirection`, `OpenGapPct`,
+`OpenGapSize`, `OpenHighRatio`, `OpenRangeStrength`, `OpenToCloseRatio`,
+`OpenToCloseReturn`, `OpenCloseSymmetry`, `OvernightReturn`, `IntrabarReturn`,
+`HighBreakCount`, `HigherCloseStreak`, `HigherHighCount`, `HigherLowCount`,
+`HigherLowStreak`, `HighLowCrossover`, `HighLowDivergence`, `HighLowMidpoint`,
+`HighLowOscillator`, `HighOfPeriod`, `LowOfPeriod`, `LowerHighCount`,
+`LowerHighStreak`, `LowerLowCount`, `LowerShadowRatio`, `UpperShadowRatio`,
+`UpperToLowerWick`, `ShadowImbalance`, `WickImbalance`, `WickToAtrRatio`,
+`WickToBodyRatio`, `WickRejectionScore`, `BodyDirectionRatio`, `BodyFillRatio`,
+`BodyHeightRatio`, `BodySizeRank`, `BodyStreak`, `BodyToRangeRatio`,
+`BarCloseRank`, `BarFollowThrough`, `BarMomentumIndex`, `BarMomentumScore`,
+`BarOpenPosition`, `BarOverlapRatio`, `BarRangeConsistency`, `BarRangeExpansionPct`,
+`BarRangeStdDev`, `BarStrengthIndex`, `BarType`, `BearishBarRatio`,
+`CandleEfficiency`, `CandleRangeMa`, `CandleSymmetry`, `FlatBarPct`,
+`NarrowRangeBar`, `UpBarRatio`, `NetBarBias`, `ThreeBarPattern`,
+`EngulfingDetector`, `EngulfingPattern`, `HammerDetector`, `HammerPattern`,
+`DojiDetector`, `InsideBarCounter`, `InsideBarRatio`, `OutsideBarCount`
 
 **Statistical / Adaptive**
 
 `StdDev`, `PercentRank`, `Fisher`, `MassIndex`, `PsychologicalLine`, `KaufmanEr`,
-`ZScore`, `Bop`, `Atrp`, `Envelope`, `Pivots`, `PivotDistance`,
-`SupportResistanceDistance`, `AtrStop`, `ChangeFromHigh`, `BarsSince`,
-`ConsecutiveBars`, `MomentumStreak`, `SwingIndex`, `Dsp`, `Usm`, `Vam`,
+`ZScore`, `Bop`, `Atrp`, `Envelope`, `Pivots`, `PivotDistance`, `PivotPoint`,
+`PivotStrength`, `SupportResistanceDistance`, `AtrStop`, `ChangeFromHigh`,
+`BarsSince`, `ConsecutiveBars`, `SwingIndex`, `Dsp`, `Usm`, `Vam`,
 `LinRegR2`, `UlcerIndex`, `MeanReversionScore`, `MaxDrawdownWindow`,
-`RangeFilter`, `RangeRatio`, `GapDetector`, `AnchoredVwap`, `Laguerre`,
-`BullBearPower`, `VixFix`, `RocRatio`, `TypicalPrice`, `MedianPrice`
+`MaxAdverseExcursion`, `MaxDrawupWindow`, `RangeFilter`, `RangeRatio`,
+`GapDetector`, `GapFillDetector`, `GapMomentum`, `GapRangeRatio`, `GapSignal`,
+`SignedGapSum`, `AverageGap`, `AnchoredVwap`, `LaguerreRsi`, `BullBearPower`,
+`BullPowerBearPower`, `VixFix`, `RocRatio`, `TypicalPrice`, `TypicalPriceDeviation`,
+`MedianPrice`, `MedianCloseDev`, `MedianReturnDeviation`, `RollingMAD`,
+`RollingKurtosis`, `RollingSkewness`, `RollingReturnKurtosis`, `RollingSkewReturns`,
+`RollingMaxReturn`, `RollingMinReturn`, `RollingCorrelation`, `RollingHighLowPosition`,
+`RollingHighLowRatio`, `RollingLowBreak`, `RollingOpenBias`, `RollingMaxDd`,
+`AutoCorrelation1`, `ReturnAutoCorrelation`, `ReturnDispersion`, `ReturnIqr`,
+`ReturnPersistence`, `ReturnSignChanges`, `ReturnSignSum`, `ReturnAboveZeroPct`,
+`ReturnOverVolatility`, `ReturnPercentRank`, `CumulativeLogReturn`,
+`DailyReturnSkew`, `DirectionChanges`, `EfficiencyRatio`, `DownsideDeviation`,
+`EaseOfMovement`, `FairValueGap`, `HurstExponent`, `AverageBarRange`,
+`AverageGain`, `AverageLoss`, `AmplitudeRatio`, `Zscore`, `ZigZag`,
+`ValueAtRisk5`, `ConditionalVar5`, `PayoffRatio`, `ProfitFactor`,
+`VarianceRatio`, `ConsolidationScore`, `SupportTestCount`,
+`CusumPriceChange`, `NewHighPct`, `NewHighStreak`, `NewLowPct`,
+`RelativeBarRange`, `RelativeClose`, `TailRatio`, `TailRatioPct`,
+`BreakoutSignal`, `MidpointOscillator`, `IntradaySpreadPct`,
+`OhlcSpread`, `RobustZScore`
 
 **Core formulas:**
 
@@ -224,6 +310,10 @@ until warm-up is satisfied. No silent NaN or panic.
 | **RSI(n)** | `100 − 100 / (1 + avg_gain / avg_loss)` Wilder smoothing | n + 1 |
 | **ATR(n)** | Wilder-smoothed true range | n |
 | **MACD(f,s,sig)** | `EMA(f) − EMA(s)`; signal = `EMA(sig)` of MACD | slow + signal |
+| **Fibonacci(n)** | Swing high/low over `n` bars; 0/23.6/38.2/50/61.8/100% levels | n |
+| **VolumeReturnCorrelation(n)** | Pearson r between close return and volume | n + 1 |
+| **PriceEntropyScore(n)** | Shannon entropy of up/flat/down bins, normalized to [0,1] | n + 1 |
+| **VolatilityOfVolatility(n)** | Std dev of rolling ATR values | 2n − 1 |
 
 ---
 
@@ -556,7 +646,7 @@ impl Signal for AlwaysZero {
          (370+ analytics)   vwap_for_qty / spread
               |
         SignalPipeline
-        (200+ indicators)
+        (540+ indicators)
               |
          SignalMap (90+ methods)
               |

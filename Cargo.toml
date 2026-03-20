@@ -1,9 +1,9 @@
 [package]
 name = "fin-primitives"
-version = "2.0.0"
+version = "2.2.0"
 edition = "2021"
 rust-version = "1.81"
-description = "Financial market primitives: validated price/quantity types, lock-free order book, OHLCV aggregation, technical indicators (SMA/EMA/RSI), position ledger, and risk monitoring."
+description = "Financial market primitives: validated types, order book, OHLCV aggregation, 540+ streaming technical indicators, position ledger, and risk monitoring."
 authors = ["Matt Busel <matt@busel.dev>"]
 repository = "https://github.com/Mattbusel/fin-primitives"
 documentation = "https://docs.rs/fin-primitives"
