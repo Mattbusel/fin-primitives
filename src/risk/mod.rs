@@ -212,6 +212,22 @@ impl DrawdownTracker {
         self.drawdown_update_count = 0;
         self.gain_streak = 0;
         self.peak_count = 0;
+        self.prev_equity = initial;
+        self.equity_change_mean = 0.0;
+        self.equity_change_m2 = 0.0;
+        self.equity_change_count = 0;
+    }
+
+    /// Returns the sample standard deviation of per-update equity changes.
+    ///
+    /// Uses Welford's online algorithm internally. Returns `None` until at least
+    /// two updates have been processed (can't compute variance from one sample).
+    pub fn volatility(&self) -> Option<f64> {
+        if self.equity_change_count < 2 {
+            return None;
+        }
+        let variance = self.equity_change_m2 / (self.equity_change_count - 1) as f64;
+        Some(variance.sqrt())
     }
 
     /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.

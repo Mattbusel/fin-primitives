@@ -779,6 +779,21 @@ impl OrderBook {
         self.bids.iter().rev().take(n).map(|(_, &qty)| qty).sum()
     }
 
+    /// Returns the bid-ask spread in basis points.
+    ///
+    /// `spread_bps = (best_ask - best_bid) / mid_price * 10_000`.
+    /// Returns `None` if either side is empty or mid-price is zero.
+    pub fn spread_bps(&self) -> Option<Decimal> {
+        let bid = self.best_bid()?.price.value();
+        let ask = self.best_ask()?.price.value();
+        let mid = (bid + ask) / Decimal::TWO;
+        if mid.is_zero() {
+            return None;
+        }
+        let spread = ask - bid;
+        spread.checked_div(mid).map(|r| r * Decimal::from(10_000u32))
+    }
+
     /// Returns the total quantity across the top `n` ask levels.
     ///
     /// Sweeps from the best (lowest) ask upwards and sums quantities.

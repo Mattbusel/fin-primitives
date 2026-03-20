@@ -379,6 +379,36 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Returns the square root of the scalar value.
+    ///
+    /// Uses f64 intermediate computation. Returns `Unavailable` if the value is
+    /// negative or unavailable.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(4));
+    /// if let SignalValue::Scalar(r) = v.sqrt() {
+    ///     assert!((r - dec!(2)).abs() < dec!(0.00001));
+    /// }
+    /// ```
+    pub fn sqrt(self) -> SignalValue {
+        use rust_decimal::prelude::ToPrimitive;
+        match self {
+            SignalValue::Scalar(v) => {
+                if v < Decimal::ZERO {
+                    return SignalValue::Unavailable;
+                }
+                let f = v.to_f64().unwrap_or(0.0).sqrt();
+                Decimal::try_from(f)
+                    .map(SignalValue::Scalar)
+                    .unwrap_or(SignalValue::Unavailable)
+            }
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

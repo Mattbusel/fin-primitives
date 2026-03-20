@@ -1110,6 +1110,31 @@ impl PositionLedger {
         open.into_iter().take(n).collect()
     }
 
+    /// Returns the symbols that currently have flat (zero-quantity) positions,
+    /// sorted lexicographically.
+    pub fn flat_symbols(&self) -> Vec<&Symbol> {
+        let mut syms: Vec<&Symbol> = self.positions
+            .iter()
+            .filter_map(|(sym, pos)| if pos.is_flat() { Some(sym) } else { None })
+            .collect();
+        syms.sort();
+        syms
+    }
+
+    /// Largest unrealized loss among all open positions.
+    ///
+    /// Returns `None` if there are no open positions or all unrealized PnLs are non-negative.
+    pub fn max_unrealized_loss(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                let price = prices.get(p.symbol.as_str()).copied()?;
+                let upnl = p.unrealized_pnl(price);
+                if upnl < Decimal::ZERO { Some(upnl) } else { None }
+            })
+            .min_by(|a, b| a.cmp(b))
+    }
 }
 
 #[cfg(test)]
