@@ -216,6 +216,16 @@ impl SignalValue {
         }
     }
 
+    /// Subtracts two signals: `Scalar(a) - Scalar(b) = Scalar(a - b)`.
+    ///
+    /// Returns `Unavailable` if either operand is `Unavailable`.
+    pub fn sub(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a - b),
+            _ => SignalValue::Unavailable,
+        }
+    }
+
     /// Adds two signals: `Scalar(a) + Scalar(b) = Scalar(a + b)`.
     ///
     /// Returns `Unavailable` if either operand is `Unavailable`.

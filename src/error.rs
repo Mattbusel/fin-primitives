@@ -93,3 +93,26 @@ impl FinError {
         matches!(self, FinError::InvalidPeriod(_))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_period_error_true_for_invalid_period() {
+        let e = FinError::InvalidPeriod(0);
+        assert!(e.is_period_error());
+    }
+
+    #[test]
+    fn test_is_period_error_false_for_other_errors() {
+        let e = FinError::InvalidSymbol("".to_owned());
+        assert!(!e.is_period_error());
+    }
+
+    #[test]
+    fn test_invalid_input_error_message() {
+        let e = FinError::InvalidInput("bad value".to_owned());
+        assert!(e.to_string().contains("bad value"));
+    }
+}

@@ -1414,4 +1414,53 @@ mod tests {
         assert_eq!(parts.len(), 1);
         assert_eq!(parts[0].value(), dec!(10));
     }
+
+    #[test]
+    fn test_price_pct_move_up() {
+        let p = Price::new(dec!(100)).unwrap();
+        let result = p.pct_move(dec!(10)).unwrap();
+        assert_eq!(result.value(), dec!(110));
+    }
+
+    #[test]
+    fn test_price_pct_move_down() {
+        let p = Price::new(dec!(100)).unwrap();
+        let result = p.pct_move(dec!(-10)).unwrap();
+        assert_eq!(result.value(), dec!(90));
+    }
+
+    #[test]
+    fn test_price_pct_move_negative_to_invalid() {
+        let p = Price::new(dec!(100)).unwrap();
+        // -100% → price = 0, invalid
+        assert!(p.pct_move(dec!(-100)).is_none());
+    }
+
+    #[test]
+    fn test_quantity_proportion_of_half() {
+        let a = Quantity::new(dec!(5)).unwrap();
+        let total = Quantity::new(dec!(10)).unwrap();
+        assert_eq!(a.proportion_of(total), Some(dec!(0.5)));
+    }
+
+    #[test]
+    fn test_quantity_proportion_of_zero_total_returns_none() {
+        let a = Quantity::new(dec!(5)).unwrap();
+        let total = Quantity::zero();
+        assert!(a.proportion_of(total).is_none());
+    }
+
+    #[test]
+    fn test_nano_timestamp_duration_millis() {
+        let a = NanoTimestamp::new(0);
+        let b = NanoTimestamp::new(1_500_000_000); // 1.5 seconds
+        assert_eq!(b.duration_millis(a), 1500);
+    }
+
+    #[test]
+    fn test_nano_timestamp_duration_millis_negative() {
+        let a = NanoTimestamp::new(0);
+        let b = NanoTimestamp::new(2_000_000_000);
+        assert_eq!(a.duration_millis(b), -2000);
+    }
 }

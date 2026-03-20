@@ -2019,6 +2019,45 @@ impl OhlcvSeries {
         if te == 0.0 { return None; }
         Some(mean / te)
     }
+
+    /// Per-bar drawdown series from the rolling high-water mark.
+    ///
+    /// Each element is `(rolling_high - close) / rolling_high` expressed as a positive
+    /// fraction (0 = at new high, 0.1 = 10% below peak). Empty when the series is empty.
+    pub fn drawdown_series(&self) -> Vec<Decimal> {
+        if self.bars.is_empty() {
+            return vec![];
+        }
+        let mut peak = Decimal::MIN;
+        self.bars
+            .iter()
+            .map(|b| {
+                let close = b.close.value();
+                if close > peak {
+                    peak = close;
+                }
+                if peak.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    (peak - close) / peak
+                }
+            })
+            .collect()
+    }
+
+    /// Returns `true` if the last close is above the SMA of the last `period` closes.
+    ///
+    /// Returns `None` when there are fewer than `period` bars or `period == 0`.
+    pub fn above_moving_average(&self, period: usize) -> Option<bool> {
+        if period == 0 || self.bars.len() < period {
+            return None;
+        }
+        let start = self.bars.len() - period;
+        #[allow(clippy::cast_possible_truncation)]
+        let sma: Decimal = self.bars[start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(period as u32);
+        Some(self.bars.last()?.close.value() > sma)
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -3159,5 +3198,91 @@ mod tests {
         let mut series = OhlcvSeries::new();
         series.push(make_bar("100", "110", "90", "100")).unwrap();
         assert!(series.max_drawdown_pct(10).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_gap_up_from_prev() {
+        let prev = make_bar("100", "105", "95", "103");
+        let curr = make_bar("107", "115", "106", "112"); // low(106) > prev.high(105)
+        assert!(curr.gap_up_from(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_no_gap_up() {
+        let prev = make_bar("100", "110", "90", "105");
+        let curr = make_bar("105", "112", "104", "108"); // low(104) < prev.high(110)
+        assert!(!curr.gap_up_from(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_gap_down_from_prev() {
+        let prev = make_bar("100", "105", "95", "97");
+        let curr = make_bar("93", "94", "88", "90"); // high(94) < prev.low(95)
+        assert!(curr.gap_down_from(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_no_gap_down() {
+        let prev = make_bar("100", "110", "90", "95");
+        let curr = make_bar("96", "100", "92", "98"); // high(100) > prev.low(90)
+        assert!(!curr.gap_down_from(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_series_last_n_closes_returns_n() {
+        let mut series = OhlcvSeries::new();
+        for close in &["100", "102", "104", "106", "108"] {
+            series.push(make_bar(close, "115", "95", close)).unwrap();
+        }
+        let closes = series.last_n_closes(3);
+        assert_eq!(closes.len(), 3);
+        assert_eq!(closes[2], dec!(108));
+    }
+
+    #[test]
+    fn test_ohlcv_series_last_n_closes_fewer_than_n() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        let closes = series.last_n_closes(5);
+        assert_eq!(closes.len(), 1);
+    }
+
+    #[test]
+    fn test_ohlcv_series_volume_spike_detects_spike() {
+        use crate::types::{NanoTimestamp, Quantity, Symbol};
+        let sym = Symbol::new("X").unwrap();
+        let p = crate::types::Price::new(dec!(100)).unwrap();
+        let mut series = OhlcvSeries::new();
+        // Add 3 bars with low volume
+        for _ in 0..3 {
+            series.push(OhlcvBar {
+                symbol: sym.clone(), open: p, high: p, low: p, close: p,
+                volume: Quantity::new(dec!(100)).unwrap(),
+                ts_open: NanoTimestamp::new(0), ts_close: NanoTimestamp::new(1), tick_count: 1,
+            }).unwrap();
+        }
+        // Add a spike bar with 5× volume
+        series.push(OhlcvBar {
+            symbol: sym.clone(), open: p, high: p, low: p, close: p,
+            volume: Quantity::new(dec!(500)).unwrap(),
+            ts_open: NanoTimestamp::new(2), ts_close: NanoTimestamp::new(3), tick_count: 1,
+        }).unwrap();
+        assert!(series.volume_spike(3, dec!(3)));
+    }
+
+    #[test]
+    fn test_ohlcv_series_volume_spike_false_for_normal_volume() {
+        use crate::types::{NanoTimestamp, Quantity, Symbol};
+        let sym = Symbol::new("X").unwrap();
+        let p = crate::types::Price::new(dec!(100)).unwrap();
+        let mut series = OhlcvSeries::new();
+        for _ in 0..4 {
+            series.push(OhlcvBar {
+                symbol: sym.clone(), open: p, high: p, low: p, close: p,
+                volume: Quantity::new(dec!(100)).unwrap(),
+                ts_open: NanoTimestamp::new(0), ts_close: NanoTimestamp::new(1), tick_count: 1,
+            }).unwrap();
+        }
+        assert!(!series.volume_spike(3, dec!(3)));
     }
 }

@@ -296,6 +296,17 @@ impl Position {
         };
         Price::new(tp).ok()
     }
+
+    /// Returns the margin requirement for the current position: `|net_quantity| × avg_cost × margin_pct / 100`.
+    ///
+    /// Returns `None` if the position is flat or `avg_cost` is zero.
+    pub fn margin_requirement(&self, margin_pct: Decimal) -> Option<Decimal> {
+        if self.is_flat() || self.avg_cost.is_zero() {
+            return None;
+        }
+        let notional = self.quantity.abs() * self.avg_cost;
+        Some(notional * margin_pct / Decimal::ONE_HUNDRED)
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
