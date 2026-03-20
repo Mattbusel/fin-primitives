@@ -267,3 +267,6 @@ pub use bull_bear_power::BullBearPower;
 pub use momentum_streak::MomentumStreak;
 pub use candle_color::CandleColor;
 pub use price_position::PricePosition;
+pub use qqe::Qqe;
+pub use bars_since::BarsSince;
+pub use candle_pattern::CandlePattern;

@@ -4709,6 +4709,49 @@ impl OhlcvSeries {
         if avg_down.is_zero() { return None; }
         avg_up.checked_div(avg_down)
     }
+
+    /// Average wick percentage over the last `n` bars.
+    ///
+    /// For each bar: `wick_pct = (upper_wick + lower_wick) / (high - low) × 100`.
+    /// A value near 100 means the bar is almost entirely wicks; near 0 means it's mostly body.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
+    pub fn avg_wick_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { return None; }
+            let upper_wick = b.high.value() - b.close.value().max(b.open.value());
+            let lower_wick = b.close.value().min(b.open.value()) - b.low.value();
+            sum += (upper_wick + lower_wick) / range * Decimal::from(100u32);
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Percentage of the last `n` bars that moved in the same direction as the prior bar.
+    ///
+    /// A bar "trends" when its close-to-close direction matches the previous bar's.
+    /// Requires `n + 1` bars.
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn trend_continuation_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let mut continuing = 0u32;
+        for i in 0..n {
+            let prev_dir = self.bars[start + i].close.value()
+                .cmp(&self.bars[start + i].open.value());
+            let curr_dir = self.bars[start + i + 1].close.value()
+                .cmp(&self.bars[start + i + 1].open.value());
+            if prev_dir == curr_dir && prev_dir != std::cmp::Ordering::Equal {
+                continuing += 1;
+            }
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(continuing) / Decimal::from(n as u32) * Decimal::from(100u32))
+    }
 }
 
 #[cfg(test)]
