@@ -182,6 +182,7 @@ pub mod close_location_value;
 pub mod true_range_ema;
 pub mod price_gap;
 pub mod weighted_close;
+pub mod price_intensity;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -362,3 +363,4 @@ pub use close_location_value::CloseLocationValue;
 pub use true_range_ema::TrueRangeEma;
 pub use price_gap::PriceGap;
 pub use weighted_close::WeightedClose;
+pub use price_intensity::PriceIntensity;
