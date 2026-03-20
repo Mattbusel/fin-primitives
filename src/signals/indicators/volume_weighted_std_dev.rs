@@ -76,7 +76,7 @@ impl Signal for VolumeWeightedStdDev {
             .sum::<Decimal>() / total_vol;
 
         let vw_var: Decimal = self.closes.iter().zip(self.volumes.iter())
-            .map(|(c, v)| *v * (*c - vwap).powi(2))
+            .map(|(c, v)| { let d = *c - vwap; *v * d * d })
             .sum::<Decimal>() / total_vol;
 
         let vw_var_f = match vw_var.to_f64() {

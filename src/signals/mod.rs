@@ -684,7 +684,8 @@ impl SignalValue {
                 if v > Decimal::from(700) {
                     return SignalValue::Unavailable;
                 }
-                let f = v.to_string().parse::<f64>().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let f = v.to_f64().unwrap_or(f64::NAN);
                 if f.is_nan() { return SignalValue::Unavailable; }
                 match Decimal::try_from(f.exp()) {
                     Ok(d) => SignalValue::Scalar(d),
@@ -738,7 +739,8 @@ impl SignalValue {
         match self {
             SignalValue::Unavailable => SignalValue::Unavailable,
             SignalValue::Scalar(v) => {
-                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let f: f64 = v.to_f64().unwrap_or(f64::NAN);
                 match Decimal::try_from(f.atan()) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,
@@ -754,7 +756,8 @@ impl SignalValue {
         match self {
             SignalValue::Unavailable => SignalValue::Unavailable,
             SignalValue::Scalar(v) => {
-                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let f: f64 = v.to_f64().unwrap_or(f64::NAN);
                 match Decimal::try_from(f.tanh()) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,
@@ -770,7 +773,8 @@ impl SignalValue {
         match self {
             SignalValue::Unavailable => SignalValue::Unavailable,
             SignalValue::Scalar(v) => {
-                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let f: f64 = v.to_f64().unwrap_or(f64::NAN);
                 match Decimal::try_from(f.sinh()) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,
@@ -786,7 +790,8 @@ impl SignalValue {
         match self {
             SignalValue::Unavailable => SignalValue::Unavailable,
             SignalValue::Scalar(v) => {
-                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let f: f64 = v.to_f64().unwrap_or(f64::NAN);
                 match Decimal::try_from(f.cosh()) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,
@@ -884,8 +889,9 @@ impl SignalValue {
     pub fn atan2(self, x: SignalValue) -> SignalValue {
         match (self, x) {
             (SignalValue::Scalar(y), SignalValue::Scalar(xv)) => {
-                let yf: f64 = y.to_string().parse().unwrap_or(f64::NAN);
-                let xf: f64 = xv.to_string().parse().unwrap_or(f64::NAN);
+                use rust_decimal::prelude::ToPrimitive;
+                let yf: f64 = y.to_f64().unwrap_or(f64::NAN);
+                let xf: f64 = xv.to_f64().unwrap_or(f64::NAN);
                 match Decimal::try_from(yf.atan2(xf)) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,

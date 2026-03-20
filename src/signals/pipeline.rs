@@ -379,8 +379,9 @@ impl SignalMap {
         if pairs.len() < 2 {
             return HashMap::new();
         }
+        use rust_decimal::prelude::ToPrimitive;
         let floats: Vec<f64> = pairs.iter()
-            .map(|(_, v)| v.to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|(_, v)| v.to_f64().unwrap_or(0.0))
             .collect();
         let n = floats.len() as f64;
         let mean = floats.iter().sum::<f64>() / n;
@@ -520,8 +521,9 @@ impl SignalMap {
     /// absolute total as a probability. Returns `None` if there are fewer than 2 scalars or the
     /// total is zero.
     pub fn entropy(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         let vals: Vec<f64> = self.scalars()
-            .map(|(_, v)| v.abs().to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|(_, v)| v.abs().to_f64().unwrap_or(0.0))
             .collect();
         if vals.len() < 2 { return None; }
         let total: f64 = vals.iter().sum();
@@ -536,8 +538,9 @@ impl SignalMap {
     /// Gini coefficient of the scalar absolute values: 0 = perfect equality, 1 = maximum
     /// concentration. Returns `None` if there are fewer than 2 scalars.
     pub fn gini_coefficient(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         let mut vals: Vec<f64> = self.scalars()
-            .map(|(_, v)| v.abs().to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|(_, v)| v.abs().to_f64().unwrap_or(0.0))
             .collect();
         if vals.len() < 2 { return None; }
         vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));

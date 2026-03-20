@@ -1877,7 +1877,7 @@ impl OhlcvSeries {
             .iter()
             .rev()
             .take(n)
-            .map(|b| b.close.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.close.value().to_f64().unwrap_or(0.0) })
             .collect::<Vec<_>>()
             .into_iter()
             .rev()
@@ -3308,8 +3308,9 @@ impl OhlcvSeries {
             if upper.is_zero() && lower.is_zero() { continue; }
             let total = upper + lower;
             if total.is_zero() { continue; }
-            let ratio: f64 = lower.to_string().parse::<f64>().unwrap_or(0.0)
-                / total.to_string().parse::<f64>().unwrap_or(1.0);
+            use rust_decimal::prelude::ToPrimitive;
+            let ratio: f64 = lower.to_f64().unwrap_or(0.0)
+                / total.to_f64().unwrap_or(1.0);
             ratios.push(ratio);
         }
         if ratios.is_empty() { return None; }
@@ -5717,7 +5718,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let closes: Vec<f64> = self.bars[start..]
             .iter()
-            .map(|b| b.close.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.close.value().to_f64().unwrap_or(0.0) })
             .collect();
         let m = closes.len() as f64;
         let x_mean = (m - 1.0) / 2.0;
@@ -5925,7 +5926,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let vols: Vec<f64> = self.bars[start..]
             .iter()
-            .map(|b| b.volume.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.volume.value().to_f64().unwrap_or(0.0) })
             .collect();
         let mean = vols.iter().sum::<f64>() / vols.len() as f64;
         if mean == 0.0 { return None; }
@@ -7068,6 +7069,82 @@ impl OhlcvSeries {
         if count == 0 { return None; }
         sum.checked_div(Decimal::from(count))
     }
+    /// Returns the volume-weighted standard deviation of close prices over the
+    /// last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n` bars are available or total volume is zero.
+    pub fn volume_weighted_std_dev(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let total_vol: Decimal = slice.iter().map(|b| b.volume.value()).sum();
+        if total_vol.is_zero() { return None; }
+        let vwap: Decimal = slice.iter()
+            .map(|b| b.close.value() * b.volume.value())
+            .sum::<Decimal>() / total_vol;
+        let vw_var: Decimal = slice.iter()
+            .map(|b| { let d = b.close.value() - vwap; b.volume.value() * d * d })
+            .sum::<Decimal>() / total_vol;
+        let vf = vw_var.to_f64()?;
+        Decimal::from_f64(vf.sqrt())
+    }
+
+    /// Returns the fraction of bars in the last `n` bars that are inside bars
+    /// (high strictly below previous high AND low strictly above previous low).
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn pct_inside_bars(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let count = slice.windows(2)
+            .filter(|w| w[1].high.value() < w[0].high.value() && w[1].low.value() > w[0].low.value())
+            .count();
+        Decimal::from(count as u32).checked_div(Decimal::from(n as u32))
+    }
+
+    /// Returns the average bar polarity over the last `n` bars.
+    ///
+    /// Each bar contributes +1 if close > open, -1 if close < open, 0 if equal.
+    ///
+    /// Returns `None` if fewer than `n` bars are available.
+    pub fn avg_bar_polarity(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let sum: Decimal = slice.iter().map(|b| {
+            let c = b.close.value();
+            let o = b.open.value();
+            if c > o { Decimal::ONE } else if c < o { Decimal::NEGATIVE_ONE } else { Decimal::ZERO }
+        }).sum();
+        sum.checked_div(Decimal::from(n as u32))
+    }
+
+    /// Returns the return tail ratio over the last `n` bars: 95th-percentile return
+    /// divided by the absolute value of the 5th-percentile return.
+    ///
+    /// A value > 1 indicates a fatter right tail (positive return extremes dominate).
+    /// Returns `None` if fewer than `n + 1` bars are available or the lower
+    /// percentile return is zero.
+    pub fn return_tail_ratio(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let mut returns: Vec<Decimal> = slice.windows(2)
+            .filter_map(|w| {
+                let pc = w[0].close.value();
+                if pc.is_zero() { return None; }
+                Some((w[1].close.value() - pc) / pc)
+            })
+            .collect();
+        if returns.is_empty() { return None; }
+        returns.sort();
+        let len = returns.len();
+        let p95_idx = ((len as f64 * 0.95) as usize).min(len - 1);
+        let p05_idx = ((len as f64 * 0.05) as usize).min(len - 1);
+        let p95 = returns[p95_idx];
+        let p05 = returns[p05_idx].abs();
+        if p05.is_zero() { return None; }
+        p95.checked_div(p05)
+    }
+
 }
 
 #[cfg(test)]

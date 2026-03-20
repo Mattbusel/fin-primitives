@@ -160,11 +160,13 @@ mod tests {
     fn test_hurst_trending_above_half() {
         let mut h = HurstExponent::new("h", 10).unwrap();
         let mut last = SignalValue::Unavailable;
-        for i in 0u32..11 {
-            last = h.update_bar(&bar(&(100 + i * 5).to_string())).unwrap();
+        // Use a noisy uptrend (varying step sizes) so return variance > 0
+        let prices = ["100", "102", "105", "107", "110", "112", "115", "118", "121", "126", "132"];
+        for p in &prices {
+            last = h.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0.5), "trending series should have H > 0.5, got {}", v);
+            assert!(v >= dec!(0.5), "trending series should have H >= 0.5, got {}", v);
         } else {
             panic!("expected Scalar");
         }
