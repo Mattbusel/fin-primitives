@@ -1098,4 +1098,10 @@ pub mod median_body_size;
 pub use median_body_size::MedianBodySize;
 pub mod wick_asymmetry_streak;
 pub use wick_asymmetry_streak::WickAsymmetryStreak;
+pub mod price_oscillator_sign;
+pub use price_oscillator_sign::PriceOscillatorSign;
+pub mod open_close_symmetry;
+pub use open_close_symmetry::OpenCloseSymmetry;
+pub mod range_return_ratio;
+pub use range_return_ratio::RangeReturnRatio;
 
