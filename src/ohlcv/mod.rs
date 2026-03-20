@@ -5091,6 +5091,122 @@ impl OhlcvSeries {
         if count == 0 { return None; }
         Some(sum / Decimal::from(count))
     }
+
+    /// Ratio of the average volume over the last `n` bars to the average volume over the last `m` bars.
+    ///
+    /// Useful for detecting volume surges when `n < m`.
+    /// Returns `None` if `n == 0`, `m == 0`, insufficient bars, or the `m`-bar average is zero.
+    pub fn avg_volume_ratio(&self, n: usize, m: usize) -> Option<Decimal> {
+        let len = self.bars.len();
+        if n == 0 || m == 0 || len < n.max(m) { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        let avg_n: Decimal = self.bars[len - n..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+            / Decimal::from(n as u32);
+        #[allow(clippy::cast_possible_truncation)]
+        let avg_m: Decimal = self.bars[len - m..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+            / Decimal::from(m as u32);
+        if avg_m.is_zero() { return None; }
+        Some(avg_n / avg_m)
+    }
+
+    /// Pearson correlation between open and close prices over the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or standard deviations are zero.
+    pub fn open_close_correlation(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let opens: Vec<f64> = self.bars[start..].iter().filter_map(|b| b.open.value().to_f64()).collect();
+        let closes: Vec<f64> = self.bars[start..].iter().filter_map(|b| b.close.value().to_f64()).collect();
+        if opens.len() < 2 { return None; }
+        let nf = opens.len() as f64;
+        let mean_o = opens.iter().sum::<f64>() / nf;
+        let mean_c = closes.iter().sum::<f64>() / nf;
+        let cov: f64 = opens.iter().zip(closes.iter()).map(|(o, c)| (o - mean_o) * (c - mean_c)).sum::<f64>() / nf;
+        let std_o = (opens.iter().map(|o| (o - mean_o).powi(2)).sum::<f64>() / nf).sqrt();
+        let std_c = (closes.iter().map(|c| (c - mean_c).powi(2)).sum::<f64>() / nf).sqrt();
+        if std_o == 0.0 || std_c == 0.0 { return None; }
+        Some(cov / (std_o * std_c))
+    }
+
+    /// Price acceleration: difference in average close-to-close change between the first and
+    /// second halves of the last `n` bars.
+    ///
+    /// Positive value = momentum is building; negative = fading.
+    /// Returns `None` if `n < 4` or fewer than `n + 1` bars exist.
+    pub fn price_acceleration(&self, n: usize) -> Option<Decimal> {
+        if n < 4 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let half = n / 2;
+        let changes: Vec<Decimal> = (start..self.bars.len() - 1)
+            .map(|i| self.bars[i + 1].close.value() - self.bars[i].close.value())
+            .collect();
+        #[allow(clippy::cast_possible_truncation)]
+        let avg_first = changes[..half].iter().sum::<Decimal>() / Decimal::from(half as u32);
+        #[allow(clippy::cast_possible_truncation)]
+        let avg_second = changes[half..].iter().sum::<Decimal>() / Decimal::from((changes.len() - half) as u32);
+        Some(avg_second - avg_first)
+    }
+
+    /// Sample skewness of close-to-close log-returns over the last `n` bars.
+    ///
+    /// Requires at least `n + 1` bars and 3+ valid returns.
+    /// Returns `None` if `n == 0`, insufficient bars, or returns have zero variance.
+    pub fn returns_skewness(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let returns: Vec<f64> = (start..self.bars.len() - 1)
+            .filter_map(|i| {
+                let prev = self.bars[i].close.value().to_f64()?;
+                let curr = self.bars[i + 1].close.value().to_f64()?;
+                if prev == 0.0 { return None; }
+                Some((curr / prev).ln())
+            })
+            .collect();
+        if returns.len() < 3 { return None; }
+        let m = returns.len() as f64;
+        let mean = returns.iter().sum::<f64>() / m;
+        let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m;
+        let std = variance.sqrt();
+        if std == 0.0 { return None; }
+        Some(returns.iter().map(|r| ((r - mean) / std).powi(3)).sum::<f64>() / m)
+    }
+
+    /// Z-score of the most recent bar's volume relative to the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist or volume std-dev is zero.
+    pub fn volume_zscore(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let vols: Vec<f64> = self.bars[start..].iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        if vols.len() < 2 { return None; }
+        let m = vols.len() as f64;
+        let mean = vols.iter().sum::<f64>() / m;
+        let variance = vols.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (m - 1.0);
+        let std = variance.sqrt();
+        if std == 0.0 { return None; }
+        let last_vol = self.bars.last()?.volume.value().to_f64()?;
+        Some((last_vol - mean) / std)
+    }
+
+    /// Ratio of upper shadow to lower shadow for the most recent bar.
+    ///
+    /// Upper shadow = `high - max(open, close)`.
+    /// Lower shadow = `min(open, close) - low`.
+    /// Returns `None` if the lower shadow is zero.
+    pub fn upper_lower_shadow_ratio(&self) -> Option<Decimal> {
+        let bar = self.bars.last()?;
+        let body_top = bar.open.value().max(bar.close.value());
+        let body_bot = bar.open.value().min(bar.close.value());
+        let upper = bar.high.value() - body_top;
+        let lower = body_bot - bar.low.value();
+        if lower.is_zero() { return None; }
+        Some(upper / lower)
+    }
 }
 
 #[cfg(test)]

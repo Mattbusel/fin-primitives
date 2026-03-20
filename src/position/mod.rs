@@ -1526,6 +1526,16 @@ impl PositionLedger {
         let short = self.positions.values().filter(|p| p.is_short()).count();
         (long, short)
     }
+
+    /// Returns the symbol of the open position with the largest absolute quantity.
+    ///
+    /// Returns `None` if there are no open positions.
+    pub fn largest_open_position(&self) -> Option<&Symbol> {
+        self.positions.iter()
+            .filter(|(_, p)| !p.is_flat())
+            .max_by(|(_, a), (_, b)| a.quantity.abs().cmp(&b.quantity.abs()))
+            .map(|(sym, _)| sym)
+    }
 }
 
 #[cfg(test)]

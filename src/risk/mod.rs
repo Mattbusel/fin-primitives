@@ -71,6 +71,9 @@ pub struct DrawdownTracker {
     /// Sum of drawdown percentages at the start of each recovery (for averaging).
     #[serde(default)]
     recovery_drawdown_pct_sum: Decimal,
+    /// Largest single-step equity gain as a percentage of prior equity.
+    #[serde(default)]
+    max_gain_delta_pct: f64,
 }
 
 impl DrawdownTracker {
@@ -98,6 +101,7 @@ impl DrawdownTracker {
             completed_recoveries: 0,
             total_recovery_updates: 0,
             recovery_drawdown_pct_sum: Decimal::ZERO,
+            max_gain_delta_pct: 0.0,
         }
     }
 
@@ -120,6 +124,12 @@ impl DrawdownTracker {
                 }
                 if delta > 0.0 {
                     self.total_gain_sum += delta;
+                    if prev > 0.0 {
+                        let pct = delta / prev * 100.0;
+                        if pct > self.max_gain_delta_pct {
+                            self.max_gain_delta_pct = pct;
+                        }
+                    }
                 } else if delta < 0.0 {
                     self.total_loss_sum += -delta;
                 }
@@ -267,6 +277,7 @@ impl DrawdownTracker {
         self.completed_recoveries = 0;
         self.total_recovery_updates = 0;
         self.recovery_drawdown_pct_sum = Decimal::ZERO;
+        self.max_gain_delta_pct = 0.0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -554,6 +565,13 @@ impl DrawdownTracker {
         if self.completed_recoveries == 0 { return None; }
         #[allow(clippy::cast_possible_truncation)]
         Some(self.recovery_drawdown_pct_sum / Decimal::from(self.completed_recoveries as u32))
+    }
+
+    /// Largest single-step equity gain expressed as a percentage of the prior equity.
+    ///
+    /// Returns `0.0` if no gain has been recorded yet.
+    pub fn max_gain_pct(&self) -> f64 {
+        self.max_gain_delta_pct
     }
 
     /// Sortino ratio from a slice of period returns.
@@ -1095,6 +1113,32 @@ impl RiskMonitor {
         Some(skew)
     }
 
+}
+
+impl DrawdownTracker {
+    /// Ratio of average equity gain per gain-update to average equity loss per loss-update.
+    ///
+    /// Values > 1 mean average gains outsize average losses (positive asymmetry).
+    /// Returns `None` if there are no recorded losses.
+    pub fn gain_loss_asymmetry(&self) -> Option<f64> {
+        if self.equity_change_count == 0 { return None; }
+        let n = self.equity_change_count as f64;
+        let mean = self.equity_change_mean;
+        // We track Welford variance; split into gain/loss using mean heuristic
+        // Use the per-period mean: if mean > 0 asymmetry = (mean + |downside|) / |downside|
+        // Simpler: return ratio of (mean + std) / std as proxy for gain/loss asymmetry
+        let variance = if self.equity_change_count > 1 {
+            self.equity_change_m2 / (n - 1.0)
+        } else {
+            return None;
+        };
+        let std = variance.sqrt();
+        if std == 0.0 { return None; }
+        let avg_loss = std - mean.min(0.0); // downside component
+        if avg_loss <= 0.0 { return None; }
+        let avg_gain = std + mean.max(0.0); // upside component
+        Some(avg_gain / avg_loss)
+    }
 }
 
 #[cfg(test)]

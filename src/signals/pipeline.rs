@@ -73,6 +73,16 @@ impl SignalMap {
         self.values.values().filter(|v| matches!(v, SignalValue::Scalar(_))).count()
     }
 
+    /// Returns `true` if every signal in this map has produced a `Scalar` value (none are `Unavailable`).
+    pub fn all_available(&self) -> bool {
+        !self.values.is_empty() && self.values.values().all(|v| matches!(v, SignalValue::Scalar(_)))
+    }
+
+    /// Returns `true` if at least one signal in this map is `Unavailable`.
+    pub fn any_unavailable(&self) -> bool {
+        self.values.values().any(|v| matches!(v, SignalValue::Unavailable))
+    }
+
     /// Returns an iterator over `(name, Decimal)` for every signal that produced a `Scalar` value.
     pub fn scalars(&self) -> impl Iterator<Item = (&str, Decimal)> {
         self.values.iter().filter_map(|(k, v)| match v {
