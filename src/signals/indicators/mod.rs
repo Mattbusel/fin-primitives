@@ -73,6 +73,8 @@ pub mod pivots;
 pub mod swma;
 pub mod stoch_rsi;
 pub mod force_index;
+pub mod cog;
+pub mod env;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -144,3 +146,5 @@ pub use pivots::Pivots;
 pub use swma::Swma;
 pub use force_index::ForceIndex;
 pub use stoch_rsi::StochRsi;
+pub use cog::Cog;
+pub use env::Envelope;

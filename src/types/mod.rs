@@ -1618,4 +1618,44 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         assert!(!p.is_within_pct(p, dec!(-1)));
     }
+
+    #[test]
+    fn test_timestamp_is_between_inclusive() {
+        let ts = NanoTimestamp::new(500);
+        assert!(ts.is_between(NanoTimestamp::new(100), NanoTimestamp::new(900)));
+        assert!(ts.is_between(NanoTimestamp::new(500), NanoTimestamp::new(500))); // exact bounds
+    }
+
+    #[test]
+    fn test_timestamp_is_between_outside() {
+        let ts = NanoTimestamp::new(50);
+        assert!(!ts.is_between(NanoTimestamp::new(100), NanoTimestamp::new(900)));
+        let ts2 = NanoTimestamp::new(1000);
+        assert!(!ts2.is_between(NanoTimestamp::new(100), NanoTimestamp::new(900)));
+    }
+
+    #[test]
+    fn test_timestamp_to_unix_ms() {
+        let ts = NanoTimestamp::new(1_500_000_000); // 1.5 seconds
+        assert_eq!(ts.to_unix_ms(), 1500);
+    }
+
+    #[test]
+    fn test_timestamp_to_unix_ms_truncates() {
+        let ts = NanoTimestamp::new(1_999_999); // 1.999999 ms — truncates to 1
+        assert_eq!(ts.to_unix_ms(), 1);
+    }
+
+    #[test]
+    fn test_price_round_to_tick_same_as_snap() {
+        let p = Price::new(dec!(100.7)).unwrap();
+        assert_eq!(p.round_to_tick(dec!(0.5)), p.snap_to_tick(dec!(0.5)));
+    }
+
+    #[test]
+    fn test_price_round_to_tick_invalid_tick_returns_none() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert!(p.round_to_tick(dec!(0)).is_none());
+        assert!(p.round_to_tick(dec!(-1)).is_none());
+    }
 }

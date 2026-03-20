@@ -661,6 +661,29 @@ impl RiskMonitor {
         let idx = (idx_f as usize).min(sorted.len() - 1);
         Some(sorted[idx])
     }
+
+    /// Expected Shortfall (CVaR) — the mean return of the worst `(100 - confidence_pct)%` of returns.
+    ///
+    /// This is the average loss beyond the VaR threshold, giving a better picture of tail risk.
+    /// Returns `None` when `returns` is empty or `confidence_pct` is 100.
+    ///
+    /// # Example
+    /// `tail_risk_pct(&returns, dec!(95))` → mean of the worst 5% of returns.
+    pub fn tail_risk_pct(returns: &[Decimal], confidence_pct: Decimal) -> Option<Decimal> {
+        use rust_decimal::prelude::ToPrimitive;
+        if returns.is_empty() {
+            return None;
+        }
+        let mut sorted = returns.to_vec();
+        sorted.sort();
+        let tail_pct = (Decimal::ONE_HUNDRED - confidence_pct) / Decimal::ONE_HUNDRED;
+        let tail_count_f = tail_pct.to_f64()? * sorted.len() as f64;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let tail_count = (tail_count_f.ceil() as usize).max(1).min(sorted.len());
+        let mean = sorted[..tail_count].iter().copied().sum::<Decimal>()
+            / Decimal::from(tail_count as u32);
+        Some(mean)
+    }
 }
 
 #[cfg(test)]

@@ -978,6 +978,34 @@ impl PositionLedger {
     pub fn all_flat(&self) -> bool {
         self.positions.values().all(|p| p.is_flat())
     }
+
+    /// Total market value of all long (positive quantity) positions.
+    ///
+    /// Skips any symbol not present in `prices`. Returns `Decimal::ZERO` when there are no longs.
+    pub fn long_exposure(&self, prices: &HashMap<String, Price>) -> Decimal {
+        self.positions
+            .iter()
+            .filter(|(_, p)| p.is_long())
+            .filter_map(|(sym, p)| {
+                let price = prices.get(sym.as_str())?;
+                Some(p.quantity.abs() * price.value())
+            })
+            .sum()
+    }
+
+    /// Total market value of all short (negative quantity) positions.
+    ///
+    /// Skips any symbol not present in `prices`. Returns `Decimal::ZERO` when there are no shorts.
+    pub fn short_exposure(&self, prices: &HashMap<String, Price>) -> Decimal {
+        self.positions
+            .iter()
+            .filter(|(_, p)| p.is_short())
+            .filter_map(|(sym, p)| {
+                let price = prices.get(sym.as_str())?;
+                Some(p.quantity.abs() * price.value())
+            })
+            .sum()
+    }
 }
 
 #[cfg(test)]
@@ -1698,5 +1726,60 @@ mod tests {
         let ledger = PositionLedger::new(dec!(100000));
         let prices = HashMap::new();
         assert!(ledger.positions_sorted_by_pnl(&prices).is_empty());
+    }
+
+    #[test]
+    fn test_all_flat_initially() {
+        let ledger = PositionLedger::new(dec!(100000));
+        assert!(ledger.all_flat());
+    }
+
+    #[test]
+    fn test_all_flat_false_after_open_position() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
+        assert!(!ledger.all_flat());
+    }
+
+    #[test]
+    fn test_all_flat_true_after_close_position() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "155", "0"));
+        assert!(ledger.all_flat());
+    }
+
+    #[test]
+    fn test_concentration_pct_single_position() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"));
+        let sym = Symbol::new("AAPL").unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_string(), Price::new(dec!(150)).unwrap());
+        // Only one position so concentration = 100%
+        let pct = ledger.concentration_pct(&sym, &prices).unwrap();
+        assert_eq!(pct, dec!(100));
+    }
+
+    #[test]
+    fn test_concentration_pct_two_equal_positions() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"));
+        let sym = Symbol::new("AAPL").unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
+        prices.insert("GOOG".to_string(), Price::new(dec!(100)).unwrap());
+        let pct = ledger.concentration_pct(&sym, &prices).unwrap();
+        assert_eq!(pct, dec!(50));
+    }
+
+    #[test]
+    fn test_concentration_pct_missing_price_returns_none() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        let sym = Symbol::new("AAPL").unwrap();
+        let prices = HashMap::new(); // empty price map
+        assert!(ledger.concentration_pct(&sym, &prices).is_none());
     }
 }
