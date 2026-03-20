@@ -782,6 +782,14 @@ impl NanoTimestamp {
 
     /// Floors this timestamp to the start of the current UTC minute.
     ///
+    /// Floors this timestamp to the start of the current UTC hour.
+    ///
+    /// Truncates minutes, seconds, and nanoseconds: returns `HH:00:00.000000000`.
+    pub fn floor_to_hour(&self) -> NanoTimestamp {
+        const HOUR_NANOS: i64 = 3_600 * 1_000_000_000;
+        NanoTimestamp(self.0.div_euclid(HOUR_NANOS) * HOUR_NANOS)
+    }
+
     /// Truncates nanoseconds and seconds: returns the timestamp at `HH:MM:00.000000000`.
     pub fn floor_to_minute(&self) -> NanoTimestamp {
         const MINUTE_NANOS: i64 = 60 * 1_000_000_000;

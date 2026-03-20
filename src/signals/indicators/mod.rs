@@ -77,6 +77,7 @@ pub mod cog;
 pub mod env;
 pub mod pfe;
 pub mod rsx;
+pub mod mcginley;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -152,3 +153,4 @@ pub use cog::Cog;
 pub use env::Envelope;
 pub use pfe::Pfe;
 pub use rsx::Rsx;
+pub use mcginley::McGinley;

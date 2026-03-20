@@ -3076,6 +3076,153 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(count as u32))
     }
+
+    /// Lag-`k` autocorrelation of log returns over the last `n` bars.
+    ///
+    /// Computes the Pearson correlation between `r[t]` and `r[t-lag]`.
+    /// Returns `None` if `n == 0`, `lag == 0`, fewer than `n + lag + 1` bars exist,
+    /// or the standard deviation is zero.
+    pub fn autocorrelation(&self, n: usize, lag: usize) -> Option<f64> {
+        if n == 0 || lag == 0 || self.bars.len() < n + lag + 1 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let returns = self.returns_series(n + lag);
+        if returns.len() <= lag {
+            return None;
+        }
+        let x: Vec<f64> = returns[..returns.len() - lag].iter().map(|r| r.to_f64().unwrap_or(0.0)).collect();
+        let y: Vec<f64> = returns[lag..].iter().map(|r| r.to_f64().unwrap_or(0.0)).collect();
+        let n_f = x.len() as f64;
+        let mean_x = x.iter().sum::<f64>() / n_f;
+        let mean_y = y.iter().sum::<f64>() / n_f;
+        let cov: f64 = x.iter().zip(y.iter()).map(|(xi, yi)| (xi - mean_x) * (yi - mean_y)).sum::<f64>() / n_f;
+        let std_x = (x.iter().map(|xi| (xi - mean_x).powi(2)).sum::<f64>() / n_f).sqrt();
+        let std_y = (y.iter().map(|yi| (yi - mean_y).powi(2)).sum::<f64>() / n_f).sqrt();
+        if std_x == 0.0 || std_y == 0.0 {
+            return None;
+        }
+        Some(cov / (std_x * std_y))
+    }
+
+    /// Hurst exponent estimated via the rescaled range (R/S) method over the last `n` bars.
+    ///
+    /// H ≈ 0.5 → random walk; H > 0.5 → trending; H < 0.5 → mean-reverting.
+    /// Returns `None` if `n < 8` or fewer than `n + 1` bars exist.
+    pub fn hurst_exponent(&self, n: usize) -> Option<f64> {
+        if n < 8 || self.bars.len() < n + 1 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let returns: Vec<f64> = self
+            .returns_series(n)
+            .iter()
+            .map(|r| r.to_f64().unwrap_or(0.0))
+            .collect();
+        if returns.is_empty() {
+            return None;
+        }
+        let mean = returns.iter().sum::<f64>() / returns.len() as f64;
+        let cum: Vec<f64> = returns.iter().scan(0.0f64, |acc, &r| { *acc += r - mean; Some(*acc) }).collect();
+        let r = cum.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+            - cum.iter().cloned().fold(f64::INFINITY, f64::min);
+        let s = (returns.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / returns.len() as f64).sqrt();
+        if s == 0.0 || r <= 0.0 {
+            return None;
+        }
+        Some((r / s).ln() / (returns.len() as f64).ln())
+    }
+
+    /// Ulcer Index over the last `n` bars: RMS of percentage drawdowns from rolling peak.
+    ///
+    /// A measure of downside volatility; higher = more painful drawdowns.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn ulcer_index(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut peak = Decimal::ZERO;
+        let mut sum_sq = 0.0f64;
+        for b in slice {
+            let c = b.close.value();
+            if c > peak { peak = c; }
+            if peak.is_zero() { continue; }
+            let dd_pct = ((c - peak) / peak * Decimal::ONE_HUNDRED).to_f64().unwrap_or(0.0);
+            sum_sq += dd_pct * dd_pct;
+        }
+        let ui = (sum_sq / n as f64).sqrt();
+        Decimal::try_from(ui).ok()
+    }
+
+    /// Conditional Value-at-Risk (CVaR / Expected Shortfall) at `confidence_pct` over last `n` bars.
+    ///
+    /// Returns the average of log returns below the VaR quantile.
+    /// Returns `None` if `n < 2`, `confidence_pct` is out of `(0, 100)`, or there are
+    /// fewer than `n + 1` bars.
+    pub fn cvar(&self, n: usize, confidence_pct: Decimal) -> Option<Decimal> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || confidence_pct <= Decimal::ZERO || confidence_pct >= Decimal::ONE_HUNDRED {
+            return None;
+        }
+        let mut returns = self.returns_series(n);
+        if returns.len() < 2 {
+            return None;
+        }
+        returns.sort_unstable_by(|a, b| a.cmp(b));
+        let cutoff = ((Decimal::ONE - confidence_pct / Decimal::ONE_HUNDRED)
+            .to_f64()
+            .unwrap_or(0.05)
+            * returns.len() as f64)
+            .ceil() as usize;
+        let tail = &returns[..cutoff.min(returns.len())];
+        if tail.is_empty() {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let avg = tail.iter().copied().sum::<Decimal>() / Decimal::from(tail.len() as u32);
+        Some(avg)
+    }
+
+    /// Returns the percentage change in close price over the last `n` bars.
+    ///
+    /// Formula: `(close[-1] - close[-n-1]) / close[-n-1] * 100`.
+    /// Returns `None` if `n == 0`, fewer than `n + 1` bars exist, or the earlier close is zero.
+    pub fn close_change_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
+        let recent = self.bars.last()?.close.value();
+        let earlier = self.bars[self.bars.len() - 1 - n].close.value();
+        if earlier.is_zero() {
+            return None;
+        }
+        Some((recent - earlier) / earlier * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns the highest close price over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn highest_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::max)
+    }
+
+    /// Returns the lowest close price over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn lowest_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::min)
+    }
 }
 
 impl Default for OhlcvSeries {

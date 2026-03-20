@@ -138,6 +138,22 @@ impl SignalMap {
             .filter(|(_, v)| *v > threshold)
             .collect()
     }
+
+    /// Returns a `HashMap` of signal names to scalar values for all signals whose scalar
+    /// value is strictly less than `threshold`.
+    pub fn filter_scalars_below(&self, threshold: Decimal) -> std::collections::HashMap<&str, Decimal> {
+        self.scalars()
+            .filter(|(_, v)| *v < threshold)
+            .collect()
+    }
+
+    /// Returns a `HashMap` of signal names to scalar values for signals whose value
+    /// falls within `[lo, hi]` (inclusive on both ends).
+    pub fn scalars_in_range(&self, lo: Decimal, hi: Decimal) -> std::collections::HashMap<&str, Decimal> {
+        self.scalars()
+            .filter(|(_, v)| *v >= lo && *v <= hi)
+            .collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -215,6 +231,11 @@ impl SignalPipeline {
     /// Returns the number of signals that are currently ready.
     pub fn ready_count(&self) -> usize {
         self.signals.iter().filter(|s| s.is_ready()).count()
+    }
+
+    /// Returns the number of signals that are still warming up (not yet ready).
+    pub fn not_ready_count(&self) -> usize {
+        self.signals.iter().filter(|s| !s.is_ready()).count()
     }
 
     /// Returns `true` if every registered signal is ready to produce values.

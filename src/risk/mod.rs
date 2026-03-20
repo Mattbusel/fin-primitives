@@ -623,6 +623,13 @@ impl RiskMonitor {
         Some(annualised_return_pct / dd)
     }
 
+    /// Returns the current consecutive run of equity updates where equity increased.
+    ///
+    /// Resets to zero on any non-increasing update. Useful for detecting sustained rallies.
+    pub fn consecutive_gain_updates(&self) -> usize {
+        self.tracker.consecutive_gain_updates()
+    }
+
     /// Returns the absolute loss implied by `pct` percent drawdown from current peak equity.
     ///
     /// Useful for position-sizing calculations: "how much can I lose at X% drawdown?"

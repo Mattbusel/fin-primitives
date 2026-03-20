@@ -260,6 +260,24 @@ impl Tick {
         ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum()
     }
 
+    /// Returns tick direction for each tick relative to the prior: `+1` up, `-1` down, `0` flat.
+    ///
+    /// The first tick in the slice has no prior, so it is assigned `0`.
+    /// Returns an empty `Vec` when `ticks` is empty.
+    pub fn tick_direction_series(ticks: &[Tick]) -> Vec<i8> {
+        if ticks.is_empty() {
+            return vec![];
+        }
+        let mut result = Vec::with_capacity(ticks.len());
+        result.push(0i8);
+        for w in ticks.windows(2) {
+            let prev = w[0].price.value();
+            let curr = w[1].price.value();
+            result.push(if curr > prev { 1 } else if curr < prev { -1 } else { 0 });
+        }
+        result
+    }
+
     /// Returns the median trade price across `ticks`.
     ///
     /// Sorts prices and returns the middle value (lower-middle for even counts).

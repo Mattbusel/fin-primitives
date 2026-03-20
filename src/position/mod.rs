@@ -163,6 +163,25 @@ impl Position {
         }
     }
 
+    /// Kelly fraction: optimal bet size as a fraction of capital.
+    ///
+    /// `Kelly = win_rate - (1 - win_rate) / (avg_win / avg_loss)`
+    ///
+    /// Returns `None` when `avg_loss` or `avg_win` is zero.
+    /// The result is clamped to `[0, 1]` — never bet more than 100% or go short via Kelly.
+    pub fn kelly_fraction(
+        win_rate: Decimal,
+        avg_win: Decimal,
+        avg_loss: Decimal,
+    ) -> Option<Decimal> {
+        if avg_loss.is_zero() || avg_win.is_zero() {
+            return None;
+        }
+        let odds = avg_win / avg_loss;
+        let kelly = win_rate - (Decimal::ONE - win_rate) / odds;
+        Some(kelly.max(Decimal::ZERO).min(Decimal::ONE))
+    }
+
     /// Applies a fill, updating quantity, `avg_cost`, and `realized_pnl`.
     ///
     /// # Returns
@@ -1005,6 +1024,13 @@ impl PositionLedger {
                 Some(p.quantity.abs() * price.value())
             })
             .sum()
+    }
+
+    /// Signed net market value: `long_exposure - short_exposure`.
+    ///
+    /// Positive = net long; negative = net short; zero = balanced or flat.
+    pub fn net_delta(&self, prices: &HashMap<String, Price>) -> Decimal {
+        self.long_exposure(prices) - self.short_exposure(prices)
     }
 }
 

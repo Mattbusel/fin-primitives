@@ -349,6 +349,17 @@ impl SignalValue {
             _ => SignalValue::Unavailable,
         }
     }
+
+    /// Returns the element-wise minimum of two signals.
+    ///
+    /// `Scalar(a).min(Scalar(b)) = Scalar(min(a, b))`.
+    /// Returns `Unavailable` if either operand is `Unavailable`.
+    pub fn min(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a.min(b)),
+            _ => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
