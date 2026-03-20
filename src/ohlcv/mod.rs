@@ -320,6 +320,18 @@ impl OhlcvBar {
         (self.close.value() - self.open.value()).abs()
     }
 
+    /// Body-to-range ratio: `body_size() / range()`.
+    ///
+    /// Returns `None` when `range() == 0` (flat bar). A value near 1 means the
+    /// bar is all body; near 0 means the bar is mostly wicks.
+    pub fn body_to_range_ratio(&self) -> Option<Decimal> {
+        let r = self.range();
+        if r.is_zero() {
+            return None;
+        }
+        Some(self.body_size() / r)
+    }
+
     /// Returns `true` if the bar's body is large relative to its range.
     ///
     /// A bar is considered "long" when `body_size / range >= factor`.

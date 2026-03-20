@@ -180,6 +180,17 @@ impl Tick {
         ticks.iter().map(|t| t.price).min_by(|a, b| a.value().cmp(&b.value()))
     }
 
+    /// Returns the tick with the highest notional value (`price × quantity`) in the slice.
+    ///
+    /// Returns `None` if the slice is empty.
+    pub fn largest_trade(ticks: &[Tick]) -> Option<&Tick> {
+        ticks.iter().max_by(|a, b| {
+            let na = a.price.value() * a.quantity.value();
+            let nb = b.price.value() * b.quantity.value();
+            na.cmp(&nb)
+        })
+    }
+
     /// Returns a static label classifying the aggressor side of this tick.
     ///
     /// - `"market_buy"` when the aggressor is the buyer (`Side::Bid`)
