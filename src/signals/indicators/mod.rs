@@ -195,6 +195,7 @@ pub mod adaptive_rsi;
 pub mod rsi_stochastic;
 pub mod price_oscillator;
 pub mod volume_breadth;
+pub mod max_drawdown_window;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -388,3 +389,4 @@ pub use adaptive_rsi::AdaptiveRsi;
 pub use rsi_stochastic::RsiStochastic;
 pub use price_oscillator::PriceOscillator;
 pub use volume_breadth::VolumeBreadth;
+pub use max_drawdown_window::MaxDrawdownWindow;
