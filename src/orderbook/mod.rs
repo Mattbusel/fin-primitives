@@ -1057,4 +1057,62 @@ mod tests {
         let book = make_book();
         assert!(book.weighted_mid().is_none());
     }
+
+    #[test]
+    fn test_orderbook_bid_ask_ratio_equal_volumes() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "10", 2)).unwrap();
+        assert_eq!(book.bid_ask_ratio().unwrap(), dec!(1));
+    }
+
+    #[test]
+    fn test_orderbook_bid_ask_ratio_bid_heavy() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "20", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "10", 2)).unwrap();
+        assert_eq!(book.bid_ask_ratio().unwrap(), dec!(2));
+    }
+
+    #[test]
+    fn test_orderbook_bid_ask_ratio_empty_returns_none() {
+        let book = make_book();
+        assert!(book.bid_ask_ratio().is_none());
+    }
+
+    #[test]
+    fn test_orderbook_price_impact_buy_single_level() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "10", 1)).unwrap();
+        let qty = Quantity::new(dec!(5)).unwrap();
+        let avg = book.price_impact(Side::Bid, qty).unwrap();
+        assert_eq!(avg, dec!(101));
+    }
+
+    #[test]
+    fn test_orderbook_price_impact_buy_spans_two_levels() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "5", 2)).unwrap();
+        // 5 @ 100 + 5 @ 102 = 1010 / 10 = 101
+        let qty = Quantity::new(dec!(10)).unwrap();
+        let avg = book.price_impact(Side::Bid, qty).unwrap();
+        assert_eq!(avg, dec!(101));
+    }
+
+    #[test]
+    fn test_orderbook_price_impact_insufficient_depth_returns_none() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "3", 1)).unwrap();
+        let qty = Quantity::new(dec!(10)).unwrap();
+        assert!(book.price_impact(Side::Bid, qty).is_none());
+    }
+
+    #[test]
+    fn test_orderbook_price_impact_zero_qty_returns_none() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "10", 1)).unwrap();
+        let qty = Quantity::zero();
+        assert!(book.price_impact(Side::Bid, qty).is_none());
+    }
 }

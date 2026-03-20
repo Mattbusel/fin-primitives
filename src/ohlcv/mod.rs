@@ -918,6 +918,41 @@ impl OhlcvSeries {
         decimal_sqrt(variance).ok()
     }
 
+    /// Returns the median close price of the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, all bars are used. For an even number of bars the
+    /// median is the average of the two middle values.
+    pub fn median_close(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let mut closes: Vec<Decimal> =
+            self.bars[start..].iter().map(|b| b.close.value()).collect();
+        if closes.is_empty() {
+            return None;
+        }
+        closes.sort();
+        let mid = closes.len() / 2;
+        if closes.len() % 2 == 1 {
+            Some(closes[mid])
+        } else {
+            Some((closes[mid - 1] + closes[mid]) / Decimal::TWO)
+        }
+    }
+
+    /// Returns what percentile `value` is among the last `n` close prices (0–100).
+    ///
+    /// Counts the fraction of bars in the window whose close is strictly less than `value`,
+    /// then multiplies by 100. Returns `None` if the window is empty.
+    /// If `n > self.len()`, all bars are used.
+    pub fn percentile_rank(&self, value: Decimal, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let below = slice.iter().filter(|b| b.close.value() < value).count();
+        Some(Decimal::from(below as u64) / Decimal::from(slice.len() as u64) * Decimal::ONE_HUNDRED)
+    }
+
     /// Computes Pearson correlation between this series' close prices and `other`'s.
     ///
     /// Uses only the overlapping suffix: `min(self.len(), other.len())` bars from the end.
@@ -1920,5 +1955,47 @@ mod tests {
         let prev = make_bar("100", "110", "90", "105");
         let partial = make_bar("100", "115", "92", "110");
         assert!(!partial.is_outside_bar(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_series_from_bars_valid() {
+        let bars = vec![
+            make_bar("100", "110", "90", "105"),
+            make_bar("105", "115", "95", "110"),
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_from_bars_empty() {
+        let series = OhlcvSeries::from_bars(vec![]).unwrap();
+        assert!(series.is_empty());
+    }
+
+    #[test]
+    fn test_ohlcv_series_count_bullish() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap(); // bullish
+        series.push(make_bar("105", "115", "95", "100")).unwrap(); // bearish
+        series.push(make_bar("100", "110", "90", "108")).unwrap(); // bullish
+        assert_eq!(series.count_bullish(3), 2);
+        assert_eq!(series.count_bullish(1), 1); // last bar only
+    }
+
+    #[test]
+    fn test_ohlcv_series_count_bearish() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("110", "115", "90", "100")).unwrap(); // bearish
+        series.push(make_bar("105", "115", "95", "110")).unwrap(); // bullish
+        assert_eq!(series.count_bearish(2), 1);
+        assert_eq!(series.count_bearish(1), 0); // last bar is bullish
+    }
+
+    #[test]
+    fn test_ohlcv_series_count_bullish_exceeds_len() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        assert_eq!(series.count_bullish(100), 1);
     }
 }
