@@ -144,6 +144,7 @@ pub mod trend_strength;
 pub mod linear_deviation;
 pub mod volume_weighted_close;
 pub mod price_envelope;
+pub mod relative_volatility;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -286,3 +287,4 @@ pub use trend_strength::TrendStrength;
 pub use linear_deviation::LinearDeviation;
 pub use volume_weighted_close::VolumeWeightedClose;
 pub use price_envelope::PriceEnvelope;
+pub use relative_volatility::RelativeVolatility;
