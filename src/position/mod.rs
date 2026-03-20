@@ -814,6 +814,27 @@ mod tests {
     }
 
     #[test]
+    fn test_position_ledger_pnl_by_symbol() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0")).unwrap();
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_owned(), Price::new(dec!(110)).unwrap());
+        prices.insert("GOOG".to_owned(), Price::new(dec!(190)).unwrap());
+        let pnl = ledger.pnl_by_symbol(&prices).unwrap();
+        assert_eq!(*pnl.get(&sym("AAPL")).unwrap(), dec!(100));  // (110-100)*10
+        assert_eq!(*pnl.get(&sym("GOOG")).unwrap(), dec!(-50));  // (190-200)*5
+    }
+
+    #[test]
+    fn test_position_ledger_pnl_by_symbol_missing_price() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        let prices: HashMap<String, Price> = HashMap::new();
+        assert!(ledger.pnl_by_symbol(&prices).is_err());
+    }
+
+    #[test]
     fn test_position_ledger_open_count_zero_when_empty() {
         assert_eq!(PositionLedger::new(dec!(10000)).open_count(), 0);
     }

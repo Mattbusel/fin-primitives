@@ -2945,6 +2945,50 @@ mod tests {
     }
 
     #[test]
+    fn test_ohlcv_series_above_ema_false_when_insufficient() {
+        assert!(!OhlcvSeries::new().above_ema(3));
+    }
+
+    #[test]
+    fn test_ohlcv_series_above_ema_rising_close() {
+        let mut series = OhlcvSeries::new();
+        for c in ["100", "100", "100", "100", "200"] {
+            series.push(make_bar(c, "210", "90", c)).unwrap();
+        }
+        assert!(series.above_ema(3));
+    }
+
+    #[test]
+    fn test_ohlcv_series_bullish_engulfing_count_zero_when_short() {
+        assert_eq!(OhlcvSeries::new().bullish_engulfing_count(5), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_bullish_engulfing_count_detects_pattern() {
+        let mut series = OhlcvSeries::new();
+        // bar1: bearish (open=105, close=95)
+        series.push(make_bar("105", "110", "90", "95")).unwrap();
+        // bar2: bullish engulfing: open < prev_close(95), close > prev_open(105)
+        series.push(make_bar("90", "120", "88", "110")).unwrap();
+        assert_eq!(series.bullish_engulfing_count(2), 1);
+    }
+
+    #[test]
+    fn test_ohlcv_series_range_expansion_none_when_insufficient() {
+        assert!(OhlcvSeries::new().range_expansion(3).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_range_expansion_constant_returns_one() {
+        let mut series = OhlcvSeries::new();
+        for _ in 0..5 {
+            series.push(make_bar("100", "110", "90", "100")).unwrap();
+        }
+        // all bars identical range=20 → current/avg = 1
+        assert_eq!(series.range_expansion(5).unwrap(), dec!(1));
+    }
+
+    #[test]
     fn test_ohlcv_series_close_location_value_none_when_insufficient() {
         assert!(OhlcvSeries::new().close_location_value(1).is_none());
     }

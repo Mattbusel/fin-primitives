@@ -567,6 +567,39 @@ mod tests {
     }
 
     #[test]
+    fn test_risk_monitor_equity_history_len() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        assert_eq!(monitor.equity_history_len(), 0);
+        monitor.update(dec!(10000));
+        monitor.update(dec!(9500));
+        assert_eq!(monitor.equity_history_len(), 2);
+    }
+
+    #[test]
+    fn test_drawdown_tracker_win_rate_none_when_empty() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert!(tracker.win_rate().is_none());
+    }
+
+    #[test]
+    fn test_drawdown_tracker_win_rate_all_up() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10100));
+        tracker.update(dec!(10200));
+        // all at-or-above-peak → win_rate = 1
+        assert_eq!(tracker.win_rate().unwrap(), dec!(1));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_win_rate_half() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10100)); // new peak
+        tracker.update(dec!(9900));  // drawdown
+        // 1 at-peak, 1 drawdown → 0.5
+        assert_eq!(tracker.win_rate().unwrap(), dec!(0.5));
+    }
+
+    #[test]
     fn test_risk_monitor_no_breach_at_start() {
         let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
             threshold_pct: dec!(10),

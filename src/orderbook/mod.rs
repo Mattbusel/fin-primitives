@@ -646,6 +646,22 @@ impl OrderBook {
             })
             .collect()
     }
+
+    /// Returns the depth imbalance ratio: `(bid_qty - ask_qty) / (bid_qty + ask_qty)`.
+    ///
+    /// Result is in `[-1.0, 1.0]`:
+    /// - Positive → more bid-side depth (buying pressure)
+    /// - Negative → more ask-side depth (selling pressure)
+    /// - `None` when both sides are empty (total depth is zero)
+    pub fn depth_imbalance(&self) -> Option<Decimal> {
+        let bid_qty: Decimal = self.bids.values().sum();
+        let ask_qty: Decimal = self.asks.values().sum();
+        let total = bid_qty + ask_qty;
+        if total.is_zero() {
+            return None;
+        }
+        Some((bid_qty - ask_qty) / total)
+    }
 }
 
 #[cfg(test)]

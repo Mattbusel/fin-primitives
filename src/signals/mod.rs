@@ -266,6 +266,20 @@ impl SignalValue {
     pub fn is_negative(&self) -> bool {
         matches!(self, SignalValue::Scalar(d) if *d < Decimal::ZERO)
     }
+
+    /// Returns `true` if the scalar value is strictly above `threshold`.
+    ///
+    /// `Unavailable` always returns `false`.
+    pub fn is_above(&self, threshold: Decimal) -> bool {
+        matches!(self, SignalValue::Scalar(d) if *d > threshold)
+    }
+
+    /// Returns `true` if the scalar value is strictly below `threshold`.
+    ///
+    /// `Unavailable` always returns `false`.
+    pub fn is_below(&self, threshold: Decimal) -> bool {
+        matches!(self, SignalValue::Scalar(d) if *d < threshold)
+    }
 }
 
 impl From<Decimal> for SignalValue {
