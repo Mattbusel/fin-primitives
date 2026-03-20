@@ -12,12 +12,12 @@ use std::collections::VecDeque;
 /// Returns SignalValue::Unavailable until period bars have been seen.
 ///
 /// # Example
-/// '''rust
+///
+/// ```rust
 /// use fin_primitives::signals::indicators::LinRegForecast;
-/// use fin_primitives::signals::Signal;
 /// let f = LinRegForecast::new("lrf", 5, 1).unwrap();
-/// assert_eq!(f.period(), 5);
-/// '''
+/// assert_eq!(f.bars_ahead(), 1);
+/// ```
 pub struct LinRegForecast {
     name: String,
     period: usize,
@@ -26,10 +26,17 @@ pub struct LinRegForecast {
 }
 
 impl LinRegForecast {
+    /// Create a new `LinRegForecast` with the given `period` (minimum 2) and
+    /// `bars_ahead` projection horizon.
+    ///
+    /// # Errors
+    /// Returns `FinError::InvalidPeriod` if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize, bars_ahead: usize) -> Result<Self, FinError> {
         if period < 2 { return Err(FinError::InvalidPeriod(period)); }
         Ok(Self { name: name.into(), period, bars_ahead, history: VecDeque::with_capacity(period) })
     }
+
+    /// Number of bars ahead the regression line is projected.
     pub fn bars_ahead(&self) -> usize { self.bars_ahead }
 }
 

@@ -92,6 +92,23 @@ impl BarInput {
     pub fn is_bearish(&self) -> bool {
         self.close < self.open
     }
+
+    /// Returns the True Range of this bar given the previous bar's close.
+    ///
+    /// `TR = max(high - low, |high - prev_close|, |low - prev_close|)`
+    ///
+    /// When there is no previous close (first bar), `high - low` is used as the true range.
+    pub fn true_range(&self, prev_close: Option<Decimal>) -> Decimal {
+        let hl = self.high - self.low;
+        match prev_close {
+            None => hl,
+            Some(pc) => {
+                let hc = (self.high - pc).abs();
+                let lc = (self.low - pc).abs();
+                hl.max(hc).max(lc)
+            }
+        }
+    }
 }
 
 impl From<&OhlcvBar> for BarInput {

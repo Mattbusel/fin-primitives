@@ -1058,6 +1058,80 @@ impl RiskRule for MinEquityRule {
     }
 }
 
+/// Triggers a breach when equity has grown by more than `target_pct` from its initial value.
+///
+/// Useful as an automated profit-target alert: once equity has gained X%, the monitor
+/// signals the rule so the caller can decide whether to reduce risk or lock in gains.
+pub struct EquityGainTargetRule {
+    /// The profit-target percentage gain from `initial_equity` (e.g. `dec!(20)` = 20%).
+    pub target_pct: Decimal,
+    /// The equity at the time this rule was created.
+    pub initial_equity: Decimal,
+}
+
+impl RiskRule for EquityGainTargetRule {
+    fn name(&self) -> &str {
+        "equity_gain_target"
+    }
+
+    fn check(&self, equity: Decimal, _drawdown_pct: Decimal) -> Option<RiskBreach> {
+        if self.initial_equity.is_zero() {
+            return None;
+        }
+        let gain_pct = (equity - self.initial_equity)
+            .checked_div(self.initial_equity)?
+            .checked_mul(Decimal::ONE_HUNDRED)?;
+        if gain_pct >= self.target_pct {
+            Some(RiskBreach {
+                rule: self.name().to_owned(),
+                detail: format!(
+                    "equity gain {gain_pct:.2}% >= target {:.2}%",
+                    self.target_pct
+                ),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Triggers a breach when equity has fallen by more than `max_loss_pct` from its initial value.
+///
+/// Unlike [`MaxDrawdownRule`] (which measures from the rolling peak), this rule measures
+/// from a fixed starting equity — useful for absolute loss limits on a session or account.
+pub struct MaxLossFromInitialRule {
+    /// Maximum allowable loss percentage from `initial_equity` (e.g. `dec!(5)` = 5%).
+    pub max_loss_pct: Decimal,
+    /// The equity baseline this rule compares against.
+    pub initial_equity: Decimal,
+}
+
+impl RiskRule for MaxLossFromInitialRule {
+    fn name(&self) -> &str {
+        "max_loss_from_initial"
+    }
+
+    fn check(&self, equity: Decimal, _drawdown_pct: Decimal) -> Option<RiskBreach> {
+        if self.initial_equity.is_zero() {
+            return None;
+        }
+        let loss_pct = (self.initial_equity - equity)
+            .checked_div(self.initial_equity)?
+            .checked_mul(Decimal::ONE_HUNDRED)?;
+        if loss_pct > self.max_loss_pct {
+            Some(RiskBreach {
+                rule: self.name().to_owned(),
+                detail: format!(
+                    "loss from initial {loss_pct:.2}% > max {:.2}%",
+                    self.max_loss_pct
+                ),
+            })
+        } else {
+            None
+        }
+    }
+}
+
 /// Evaluates multiple `RiskRule`s on each equity update and returns all breaches.
 pub struct RiskMonitor {
     rules: Vec<Box<dyn RiskRule>>,
