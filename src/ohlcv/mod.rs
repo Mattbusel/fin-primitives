@@ -4866,6 +4866,25 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(doji_count) / Decimal::from(n as u32) * Decimal::from(100u32))
     }
+
+    /// Average close position within the high-low range over the last `n` bars.
+    ///
+    /// `close_range_pct = (close - low) / (high - low) × 100`
+    ///
+    /// 100 means close was at the high; 0 means close was at the low; 50 means mid-range.
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
+    pub fn avg_close_range_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { return None; }
+            sum += (b.close.value() - b.low.value()) / range * Decimal::from(100u32);
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]
