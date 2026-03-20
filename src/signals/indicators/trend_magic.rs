@@ -93,7 +93,7 @@ impl TrendMagic {
         let mad: Decimal = typicals.iter().map(|v| (*v - mean).abs()).sum::<Decimal>() / nd;
         if mad.is_zero() { return Some(Decimal::ZERO); }
         let latest = *typicals.back()?;
-        let cci_015 = Decimal::from_str_exact("0.015").ok()?;
+        let cci_015 = Decimal::new(15, 3);
         (latest - mean).checked_div(cci_015 * mad)
     }
 

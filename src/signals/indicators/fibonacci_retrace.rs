@@ -34,10 +34,6 @@ pub struct FibonacciRetrace {
 }
 
 impl FibonacciRetrace {
-    // Fibonacci ratios stored as exact string fractions converted at construction.
-    const R236: &'static str = "0.236";
-    const R382: &'static str = "0.382";
-    const R618: &'static str = "0.618";
 
     /// Constructs a new `FibonacciRetrace` with the given lookback `period`.
     ///
@@ -83,20 +79,17 @@ impl FibonacciRetrace {
         self.cached.map(|(_, _, _, _, l, _)| l)
     }
 
-    fn compute(window: &VecDeque<BarInput>) -> Result<(Decimal, Decimal, Decimal, Decimal, Decimal, Decimal), FinError> {
+    fn compute(window: &VecDeque<BarInput>) -> (Decimal, Decimal, Decimal, Decimal, Decimal, Decimal) {
         let swing_high = window.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
         let swing_low  = window.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
         let range = swing_high - swing_low;
-        let r236 = Decimal::from_str_exact(Self::R236).map_err(|_| FinError::ArithmeticOverflow)?;
-        let r382 = Decimal::from_str_exact(Self::R382).map_err(|_| FinError::ArithmeticOverflow)?;
-        let r618 = Decimal::from_str_exact(Self::R618).map_err(|_| FinError::ArithmeticOverflow)?;
         let f0    = swing_low;
-        let f236  = swing_high - range * r236;
-        let f382  = swing_high - range * r382;
+        let f236  = swing_high - range * Decimal::new(236, 3);
+        let f382  = swing_high - range * Decimal::new(382, 3);
         let f500  = swing_low + range / Decimal::TWO;
-        let f618  = swing_high - range * r618;
+        let f618  = swing_high - range * Decimal::new(618, 3);
         let f1000 = swing_high;
-        Ok((f0, f236, f382, f500, f618, f1000))
+        (f0, f236, f382, f500, f618, f1000)
     }
 }
 
@@ -113,7 +106,7 @@ impl Signal for FibonacciRetrace {
         if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let levels = Self::compute(&self.window)?;
+        let levels = Self::compute(&self.window);
         let f618 = levels.4;
         self.cached = Some(levels);
         Ok(SignalValue::Scalar(f618))

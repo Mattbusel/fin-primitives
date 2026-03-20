@@ -58,12 +58,12 @@ impl JurikMa {
         }
         // alpha = 0.45 × (period - 1) / (0.45 × (period - 1) + 2)
         let p = Decimal::from((period - 1) as u32);
-        let c = Decimal::from_str_exact("0.45").map_err(|_| FinError::ArithmeticOverflow)?;
+        let c = Decimal::new(45, 2);
         let numerator = c * p;
         let alpha = numerator
             .checked_div(numerator + Decimal::TWO)
             .ok_or(FinError::ArithmeticOverflow)?;
-        let beta = Decimal::from_str_exact("0.45").map_err(|_| FinError::ArithmeticOverflow)?;
+        let beta = Decimal::new(45, 2);
         Ok(Self {
             name: name.into(),
             period,
