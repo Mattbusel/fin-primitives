@@ -2154,4 +2154,23 @@ mod tests {
         prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
         assert_eq!(ledger.net_market_exposure(&prices).unwrap(), dec!(1100));
     }
+
+    #[test]
+    fn test_win_rate_none_when_empty() {
+        let ledger = PositionLedger::new(dec!(100000));
+        assert!(ledger.win_rate().is_none());
+    }
+
+    #[test]
+    fn test_win_rate_one_winner() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        // Buy and sell AAPL for +100 realized
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"));
+        // GOOG still open at cost (realized=0)
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"));
+        let rate = ledger.win_rate().unwrap();
+        // 1 winner (AAPL) out of 2 positions = 50%
+        assert_eq!(rate, dec!(50));
+    }
 }
