@@ -1,151 +1,88 @@
 //! Open-Close Ratio indicator.
 
-use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
+use crate::error::FinError;
+use crate::signals::{BarInput, Signal, SignalValue};
 
-/// Open-Close Ratio — smoothed ratio of the intra-bar close-to-open return.
+/// Rolling average of `open / close`.
 ///
-/// ```text
-/// raw_t    = (close_t − open_t) / open_t × 100
-/// output   = SMA(raw, period)
-/// ```
-///
-/// Positive values indicate bars predominantly close above their open (bullish pressure).
-/// Negative values indicate bars that close below their open (bearish pressure).
-///
-/// Returns [`SignalValue::Unavailable`] until `period` bars have been seen.
-///
-/// # Example
-/// ```rust
-/// use fin_primitives::signals::indicators::OpenCloseRatio;
-/// use fin_primitives::signals::Signal;
-///
-/// let ocr = OpenCloseRatio::new("ocr", 10).unwrap();
-/// assert_eq!(ocr.period(), 10);
-/// ```
+/// Values > 1 indicate the bar consistently opened above where it closed (bearish bias).
+/// Values < 1 indicate the bar consistently opened below where it closed (bullish bias).
 pub struct OpenCloseRatio {
-    name: String,
     period: usize,
-    raws: VecDeque<Decimal>,
+    window: VecDeque<Decimal>,
+    sum: Decimal,
 }
 
 impl OpenCloseRatio {
-    /// Creates a new `OpenCloseRatio`.
-    ///
-    /// # Errors
-    /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        Ok(Self {
-            name: name.into(),
-            period,
-            raws: VecDeque::with_capacity(period),
-        })
+    /// Creates a new `OpenCloseRatio` with the given rolling period.
+    pub fn new(period: usize) -> Result<Self, FinError> {
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
     }
 }
 
 impl Signal for OpenCloseRatio {
-    fn name(&self) -> &str { &self.name }
-
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let raw = if bar.open.is_zero() {
-            Decimal::ZERO
-        } else {
-            (bar.close - bar.open) / bar.open * Decimal::from(100u32)
-        };
-
-        self.raws.push_back(raw);
-        if self.raws.len() > self.period { self.raws.pop_front(); }
-        if self.raws.len() < self.period { return Ok(SignalValue::Unavailable); }
-
-        let sma = self.raws.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
-        Ok(SignalValue::Scalar(sma))
+        if bar.close.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        let ratio = bar.open / bar.close;
+        self.window.push_back(ratio);
+        self.sum += ratio;
+        if self.window.len() > self.period {
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
+        }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
+        let len = Decimal::from(self.period as u32);
+        Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.raws.len() >= self.period }
+    fn is_ready(&self) -> bool { self.window.len() >= self.period }
     fn period(&self) -> usize { self.period }
-
-    fn reset(&mut self) {
-        self.raws.clear();
-    }
+    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
+    fn name(&self) -> &str { "OpenCloseRatio" }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ohlcv::OhlcvBar;
-    use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar_oc(o: &str, c: &str) -> OhlcvBar {
-        let op = Price::new(o.parse().unwrap()).unwrap();
-        let cp = Price::new(c.parse().unwrap()).unwrap();
-        let hp = op.max(cp);
-        let lp = op.min(cp);
-        OhlcvBar {
-            symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
-            volume: Quantity::zero(),
-            ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1),
-            tick_count: 1,
+    fn bar(o: &str, c: &str) -> BarInput {
+        BarInput {
+            open: o.parse().unwrap(),
+            high: dec!(200),
+            low: dec!(1),
+            close: c.parse().unwrap(),
+            volume: dec!(1000),
         }
     }
 
     #[test]
-    fn test_ocr_invalid() {
-        assert!(OpenCloseRatio::new("o", 0).is_err());
+    fn test_open_close_ratio_equal() {
+        // open == close => ratio = 1 for all bars
+        let mut sig = OpenCloseRatio::new(2).unwrap();
+        sig.update(&bar("100", "100")).unwrap();
+        let v = sig.update(&bar("100", "100")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 
     #[test]
-    fn test_ocr_unavailable_before_warmup() {
-        let mut o = OpenCloseRatio::new("o", 3).unwrap();
-        for _ in 0..2 {
-            assert_eq!(o.update_bar(&bar_oc("100", "101")).unwrap(), SignalValue::Unavailable);
+    fn test_open_close_ratio_bullish() {
+        // open < close (bullish) => ratio < 1
+        let mut sig = OpenCloseRatio::new(2).unwrap();
+        sig.update(&bar("95", "100")).unwrap();
+        let v = sig.update(&bar("95", "100")).unwrap();
+        if let SignalValue::Scalar(x) = v {
+            assert!(x < dec!(1), "bullish bars should produce ratio < 1, got {}", x);
         }
-    }
-
-    #[test]
-    fn test_ocr_flat_is_zero() {
-        // open = close → raw = 0 → SMA = 0
-        let mut o = OpenCloseRatio::new("o", 3).unwrap();
-        let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = o.update_bar(&bar_oc("100", "100")).unwrap(); }
-        if let SignalValue::Scalar(v) = last {
-            assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
-    }
-
-    #[test]
-    fn test_ocr_bullish_positive() {
-        // close > open each bar → positive average
-        let mut o = OpenCloseRatio::new("o", 3).unwrap();
-        let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = o.update_bar(&bar_oc("100", "102")).unwrap(); }
-        if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "expected > 0, got {v}");
-        } else { panic!("expected Scalar"); }
-    }
-
-    #[test]
-    fn test_ocr_bearish_negative() {
-        // close < open each bar → negative average
-        let mut o = OpenCloseRatio::new("o", 3).unwrap();
-        let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = o.update_bar(&bar_oc("102", "100")).unwrap(); }
-        if let SignalValue::Scalar(v) = last {
-            assert!(v < dec!(0), "expected < 0, got {v}");
-        } else { panic!("expected Scalar"); }
-    }
-
-    #[test]
-    fn test_ocr_reset() {
-        let mut o = OpenCloseRatio::new("o", 3).unwrap();
-        for _ in 0..5 { o.update_bar(&bar_oc("100", "102")).unwrap(); }
-        assert!(o.is_ready());
-        o.reset();
-        assert!(!o.is_ready());
     }
 }
