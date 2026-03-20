@@ -201,6 +201,14 @@ impl DrawdownTracker {
         }
         (self.peak_equity / self.current_equity - Decimal::ONE) * Decimal::ONE_HUNDRED
     }
+
+    /// Returns `true` if `equity` is strictly greater than the current peak (new high-water mark).
+    ///
+    /// Useful for triggering high-water-mark-based fee calculations or performance resets.
+    /// Note: this does NOT update the tracker — call `update(equity)` to advance the peak.
+    pub fn above_high_water_mark(&self, equity: Decimal) -> bool {
+        equity > self.peak_equity
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {

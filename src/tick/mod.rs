@@ -192,6 +192,19 @@ impl Tick {
             Side::Ask => "market_sell",
         }
     }
+
+    /// Returns buy volume as a fraction of total volume: `buy_vol / (buy_vol + sell_vol)`.
+    ///
+    /// Result is in `[0.0, 1.0]`. Returns `None` when total volume is zero.
+    /// Values above `0.5` indicate net buying pressure; below `0.5` net selling pressure.
+    pub fn imbalance_ratio(ticks: &[Tick]) -> Option<Decimal> {
+        let total: Decimal = ticks.iter().map(|t| t.quantity.value()).sum();
+        if total.is_zero() {
+            return None;
+        }
+        let buy_vol = Self::buy_volume(ticks);
+        Some(buy_vol / total)
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.

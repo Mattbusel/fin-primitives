@@ -2188,6 +2188,34 @@ impl OhlcvSeries {
         let start = self.bars.len().saturating_sub(n);
         self.bars[start..].iter().map(|b| b.volume.value()).sum()
     }
+
+    /// Dual-period momentum score: `(sma_short - sma_long) / sma_long * 100`.
+    ///
+    /// Returns `None` when the series has fewer than `long` bars, `short == 0`,
+    /// `long == 0`, `short >= long`, or the long SMA is zero.
+    pub fn momentum_score(&self, short: usize, long: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if short == 0 || long == 0 || short >= long || self.bars.len() < long {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let sma = |n: usize| -> Option<Decimal> {
+            let start = self.bars.len().saturating_sub(n);
+            let s: Decimal = self.bars[start..].iter().map(|b| b.close.value()).sum();
+            Some(s / Decimal::from(n as u32))
+        };
+        let sma_s = sma(short)?;
+        let sma_l = sma(long)?;
+        if sma_l.is_zero() {
+            return None;
+        }
+        ((sma_s - sma_l) / sma_l * Decimal::ONE_HUNDRED).to_f64()
+    }
+
+    /// Returns the first bar in the series, or `None` if empty.
+    pub fn first_bar(&self) -> Option<&OhlcvBar> {
+        self.bars.first()
+    }
 }
 
 impl Default for OhlcvSeries {
