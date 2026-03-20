@@ -6602,6 +6602,157 @@ impl OhlcvSeries {
         if count == 0 { return None; }
         sum.checked_div(Decimal::from(count))
     }
+
+    /// Ornstein-Uhlenbeck half-life of mean reversion over the last `n` bars.
+    ///
+    /// Estimates the half-life `τ = -ln(2) / λ` where `λ` is the mean-reversion
+    /// speed from a lag-1 AR(1) regression on close prices:
+    ///
+    /// ```text
+    /// ΔP[t] = α + λ × P[t-1] + ε[t]
+    /// ```
+    ///
+    /// A small positive half-life (< 10 bars) indicates fast mean reversion.
+    /// A very large half-life (> 100 bars) suggests a near-random-walk or trend.
+    /// Returns `None` if `n < 3`, fewer than `n` bars exist, or the regression
+    /// is degenerate (zero denominator).
+    pub fn half_life_of_mean_reversion(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 3 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let prices: Vec<f64> = slice.iter().filter_map(|b| b.close.value().to_f64()).collect();
+        let m = prices.len();
+        if m < 3 { return None; }
+        // OLS: regress delta[t] = prices[t] - prices[t-1] on prices[t-1]
+        let lagged: Vec<f64> = prices[..m - 1].to_vec();
+        let delta:  Vec<f64> = prices[1..].iter().zip(prices[..m-1].iter()).map(|(a, b)| a - b).collect();
+        let n_obs = lagged.len() as f64;
+        let mean_x = lagged.iter().sum::<f64>() / n_obs;
+        let mean_y = delta.iter().sum::<f64>() / n_obs;
+        let cov_xy = lagged.iter().zip(delta.iter()).map(|(x, y)| (x - mean_x) * (y - mean_y)).sum::<f64>();
+        let var_x  = lagged.iter().map(|x| (x - mean_x).powi(2)).sum::<f64>();
+        if var_x == 0.0 { return None; }
+        let lambda = cov_xy / var_x;
+        if lambda >= 0.0 { return None; } // no mean reversion
+        Some(-std::f64::consts::LN_2 / lambda)
+    }
+
+    /// Treynor Ratio over the last `n` bars relative to a `market` series.
+    ///
+    /// `Treynor = (R_p - R_f) / β` where `R_p` is the annualised portfolio return,
+    /// `R_f` is the risk-free rate, and `β` is the beta of this series against `market`.
+    ///
+    /// Returns `None` if `n < 3`, either series has fewer than `n` bars, or `β` is zero.
+    pub fn treynor_ratio(&self, market: &OhlcvSeries, n: usize, risk_free_rate: f64) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 3 || self.bars.len() < n || market.bars.len() < n { return None; }
+        let beta = self.beta(market, n)?;
+        if beta == 0.0 { return None; }
+        // Annualise using n bars
+        let start = self.bars.len() - n;
+        let first_c = self.bars[start].close.value().to_f64()?;
+        let last_c  = self.bars.last()?.close.value().to_f64()?;
+        if first_c == 0.0 { return None; }
+        let total_return = (last_c - first_c) / first_c;
+        Some((total_return - risk_free_rate) / beta)
+    }
+
+    /// Tracking Error vs a benchmark series over the last `n` bars.
+    ///
+    /// Tracking error is the standard deviation of the return differences
+    /// `R_portfolio[t] - R_benchmark[t]` for each bar in the window.
+    ///
+    /// Returns `None` if `n < 2`, either series has fewer than `n` bars.
+    pub fn tracking_error(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        let p_start = self.bars.len() - n;
+        let b_start = benchmark.bars.len() - n;
+        let p_slice = &self.bars[p_start..];
+        let b_slice = &benchmark.bars[b_start..];
+        let diffs: Vec<f64> = p_slice.windows(2).zip(b_slice.windows(2)).filter_map(|(pw, bw)| {
+            let pc0 = pw[0].close.value().to_f64()?;
+            let bc0 = bw[0].close.value().to_f64()?;
+            if pc0 == 0.0 || bc0 == 0.0 { return None; }
+            let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
+            let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
+            Some(pr - br)
+        }).collect();
+        let m = diffs.len() as f64;
+        if m < 1.0 { return None; }
+        let mean = diffs.iter().sum::<f64>() / m;
+        let var  = diffs.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / m;
+        Some(var.sqrt())
+    }
+
+    /// Upside Capture Ratio vs a benchmark over the last `n` bars.
+    ///
+    /// The upside capture ratio measures performance relative to the benchmark
+    /// during periods when the benchmark was up:
+    /// `upside_capture = avg_portfolio_return_on_up_bench / avg_bench_return_on_up_bench`.
+    ///
+    /// Returns `None` if `n < 2`, either series is too short, or the benchmark
+    /// had no up bars in the window.
+    pub fn up_capture(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        let p_start = self.bars.len() - n;
+        let b_start = benchmark.bars.len() - n;
+        let p_slice = &self.bars[p_start..];
+        let b_slice = &benchmark.bars[b_start..];
+        let mut p_up_sum = 0.0f64;
+        let mut b_up_sum = 0.0f64;
+        let mut count = 0u32;
+        for (pw, bw) in p_slice.windows(2).zip(b_slice.windows(2)) {
+            let bc0 = bw[0].close.value().to_f64()?;
+            let pc0 = pw[0].close.value().to_f64()?;
+            if bc0 == 0.0 || pc0 == 0.0 { continue; }
+            let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
+            if br <= 0.0 { continue; }
+            let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
+            p_up_sum += pr;
+            b_up_sum += br;
+            count += 1;
+        }
+        if count == 0 || b_up_sum == 0.0 { return None; }
+        Some(p_up_sum / b_up_sum)
+    }
+
+    /// Downside Capture Ratio vs a benchmark over the last `n` bars.
+    ///
+    /// The downside capture ratio measures performance relative to the benchmark
+    /// during periods when the benchmark was down:
+    /// `downside_capture = avg_portfolio_return_on_down_bench / avg_bench_return_on_down_bench`.
+    ///
+    /// A value < 1 means the portfolio fell less than the benchmark (desirable).
+    ///
+    /// Returns `None` if `n < 2`, either series is too short, or the benchmark
+    /// had no down bars in the window.
+    pub fn down_capture(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        let p_start = self.bars.len() - n;
+        let b_start = benchmark.bars.len() - n;
+        let p_slice = &self.bars[p_start..];
+        let b_slice = &benchmark.bars[b_start..];
+        let mut p_dn_sum = 0.0f64;
+        let mut b_dn_sum = 0.0f64;
+        let mut count = 0u32;
+        for (pw, bw) in p_slice.windows(2).zip(b_slice.windows(2)) {
+            let bc0 = bw[0].close.value().to_f64()?;
+            let pc0 = pw[0].close.value().to_f64()?;
+            if bc0 == 0.0 || pc0 == 0.0 { continue; }
+            let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
+            if br >= 0.0 { continue; }
+            let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
+            p_dn_sum += pr;
+            b_dn_sum += br;
+            count += 1;
+        }
+        if count == 0 || b_dn_sum == 0.0 { return None; }
+        Some(p_dn_sum / b_dn_sum)
+    }
 }
 
 #[cfg(test)]
