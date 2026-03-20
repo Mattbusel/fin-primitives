@@ -2794,4 +2794,17 @@ mod tests {
         series.push(make_bar("100", "110", "90", "105")).unwrap();
         assert!(series.sortino_ratio(0.0, 252.0).is_none());
     }
+
+    #[test]
+    fn test_ohlcv_bar_weighted_close_equals_hlcc4() {
+        let bar = make_bar("100", "120", "80", "110");
+        assert_eq!(bar.weighted_close(), bar.hlcc4());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_weighted_close_value() {
+        // (high + low + close*2) / 4 = (120 + 80 + 110 + 110) / 4 = 420/4 = 105
+        let bar = make_bar("100", "120", "80", "110");
+        assert_eq!(bar.weighted_close(), dec!(105));
+    }
 }

@@ -1247,6 +1247,44 @@ mod tests {
     }
 
     #[test]
+    fn test_orderbook_bid_depth_returns_top_n_descending() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "98", "3", 3)).unwrap();
+        let levels = book.bid_depth(2);
+        assert_eq!(levels.len(), 2);
+        assert_eq!(levels[0].price.value(), dec!(100)); // best bid first
+        assert_eq!(levels[1].price.value(), dec!(99));
+    }
+
+    #[test]
+    fn test_orderbook_ask_depth_returns_top_n_ascending() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "103", "3", 3)).unwrap();
+        let levels = book.ask_depth(2);
+        assert_eq!(levels.len(), 2);
+        assert_eq!(levels[0].price.value(), dec!(101)); // best ask first
+        assert_eq!(levels[1].price.value(), dec!(102));
+    }
+
+    #[test]
+    fn test_orderbook_bid_depth_fewer_than_n() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        let levels = book.bid_depth(5);
+        assert_eq!(levels.len(), 1);
+    }
+
+    #[test]
+    fn test_orderbook_ask_depth_empty_book() {
+        let book = make_book();
+        assert!(book.ask_depth(3).is_empty());
+    }
+
+    #[test]
     fn test_orderbook_remove_all_bids_clears_bid_side() {
         let mut book = make_book();
         book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();

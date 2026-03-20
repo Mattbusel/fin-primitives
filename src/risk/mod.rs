@@ -761,6 +761,27 @@ mod tests {
     }
 
     #[test]
+    fn test_recovery_to_peak_pct_at_peak_is_zero() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert_eq!(tracker.recovery_to_peak_pct(), dec!(0));
+    }
+
+    #[test]
+    fn test_recovery_to_peak_pct_with_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(8000)); // 20% drawdown → need 25% gain to recover
+        // (10000/8000 - 1) * 100 = 0.25 * 100 = 25
+        assert_eq!(tracker.recovery_to_peak_pct(), dec!(25));
+    }
+
+    #[test]
+    fn test_recovery_to_peak_pct_above_peak_is_zero() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(12000)); // new peak
+        assert_eq!(tracker.recovery_to_peak_pct(), dec!(0));
+    }
+
+    #[test]
     fn test_calmar_ratio_with_drawdown() {
         let mut tracker = DrawdownTracker::new(dec!(10000));
         tracker.update(dec!(9000)); // 10% drawdown

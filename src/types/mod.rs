@@ -1231,4 +1231,75 @@ mod tests {
         let b = Price::new(dec!(2)).unwrap();
         assert!(a.checked_add(b).is_some());
     }
+
+    #[test]
+    fn test_price_lerp_midpoint() {
+        let a = Price::new(dec!(100)).unwrap();
+        let b = Price::new(dec!(200)).unwrap();
+        let mid = a.lerp(b, dec!(0.5)).unwrap();
+        assert_eq!(mid.value(), dec!(150));
+    }
+
+    #[test]
+    fn test_price_lerp_at_zero_returns_self() {
+        let a = Price::new(dec!(100)).unwrap();
+        let b = Price::new(dec!(200)).unwrap();
+        assert_eq!(a.lerp(b, Decimal::ZERO).unwrap().value(), dec!(100));
+    }
+
+    #[test]
+    fn test_price_lerp_at_one_returns_other() {
+        let a = Price::new(dec!(100)).unwrap();
+        let b = Price::new(dec!(200)).unwrap();
+        assert_eq!(a.lerp(b, Decimal::ONE).unwrap().value(), dec!(200));
+    }
+
+    #[test]
+    fn test_price_lerp_out_of_range_returns_none() {
+        let a = Price::new(dec!(100)).unwrap();
+        let b = Price::new(dec!(200)).unwrap();
+        assert!(a.lerp(b, dec!(1.5)).is_none());
+        assert!(a.lerp(b, dec!(-0.1)).is_none());
+    }
+
+    #[test]
+    fn test_quantity_scale_half() {
+        let q = Quantity::new(dec!(100)).unwrap();
+        let result = q.scale(dec!(0.5)).unwrap();
+        assert_eq!(result.value(), dec!(50));
+    }
+
+    #[test]
+    fn test_quantity_scale_zero_factor() {
+        let q = Quantity::new(dec!(100)).unwrap();
+        let result = q.scale(Decimal::ZERO).unwrap();
+        assert_eq!(result.value(), dec!(0));
+    }
+
+    #[test]
+    fn test_quantity_scale_negative_factor_returns_none() {
+        let q = Quantity::new(dec!(100)).unwrap();
+        assert!(q.scale(dec!(-1)).is_none());
+    }
+
+    #[test]
+    fn test_nano_timestamp_elapsed_since_positive() {
+        let earlier = NanoTimestamp::new(1000);
+        let later = NanoTimestamp::new(3000);
+        assert_eq!(later.elapsed_since(earlier), 2000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_elapsed_since_negative() {
+        let earlier = NanoTimestamp::new(1000);
+        let later = NanoTimestamp::new(3000);
+        // reversed order gives negative result
+        assert_eq!(earlier.elapsed_since(later), -2000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_elapsed_since_same_is_zero() {
+        let ts = NanoTimestamp::new(5000);
+        assert_eq!(ts.elapsed_since(ts), 0);
+    }
 }

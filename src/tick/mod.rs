@@ -965,6 +965,45 @@ mod tests {
     }
 
     #[test]
+    fn test_tick_replayer_vwap_by_side_correct_values() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "10", Side::Bid, 1),  // bid: notional=1000, vol=10
+            make_tick("AAPL", "200", "5", Side::Ask, 2),   // ask: notional=1000, vol=5
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let (bid_vwap, ask_vwap) = replayer.vwap_by_side();
+        assert_eq!(bid_vwap, Some(dec_from_str("100")));
+        assert_eq!(ask_vwap, Some(dec_from_str("200")));
+    }
+
+    #[test]
+    fn test_tick_replayer_vwap_by_side_no_asks_returns_none_ask() {
+        let ticks = vec![make_tick("AAPL", "100", "10", Side::Bid, 1)];
+        let replayer = TickReplayer::new(ticks);
+        let (bid_vwap, ask_vwap) = replayer.vwap_by_side();
+        assert!(bid_vwap.is_some());
+        assert!(ask_vwap.is_none());
+    }
+
+    #[test]
+    fn test_tick_replayer_vwap_by_side_empty_returns_none_both() {
+        let replayer = TickReplayer::new(vec![]);
+        let (bid_vwap, ask_vwap) = replayer.vwap_by_side();
+        assert!(bid_vwap.is_none());
+        assert!(ask_vwap.is_none());
+    }
+
+    #[test]
+    fn test_tick_filter_clear_resets_all_predicates() {
+        let f = TickFilter::new()
+            .symbol(Symbol::new("AAPL").unwrap())
+            .side(Side::Bid)
+            .min_quantity(Quantity::new(dec!(1)).unwrap());
+        let cleared = f.clear();
+        assert!(cleared.is_empty());
+    }
+
+    #[test]
     fn test_tick_filter_has_notional_filter_false_when_unset() {
         let f = TickFilter::new();
         assert!(!f.has_notional_filter());

@@ -445,6 +445,27 @@ mod tests {
     }
 
     #[test]
+    fn test_signal_map_get_all_scalars_returns_owned_map() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("102"));
+        let map = pipeline.update(&bar("104"));
+        let scalars = map.get_all_scalars();
+        assert_eq!(scalars.len(), 2);
+        assert!(scalars.contains_key("sma3"));
+        assert!(scalars.contains_key("ema3"));
+    }
+
+    #[test]
+    fn test_signal_map_get_all_scalars_empty_before_warmup() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.get_all_scalars().is_empty());
+    }
+
+    #[test]
     fn test_signal_pipeline_update_series_last_map_has_value() {
         use crate::ohlcv::{OhlcvBar, OhlcvSeries};
         let bars: Vec<OhlcvBar> = ["100", "100", "100", "100"]
