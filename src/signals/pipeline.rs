@@ -132,6 +132,27 @@ impl SignalMap {
             .collect()
     }
 
+    /// Returns names of all signals whose scalar value is strictly below `threshold`.
+    pub fn below_threshold(&self, threshold: Decimal) -> Vec<&str> {
+        self.scalars()
+            .filter(|(_, v)| *v < threshold)
+            .map(|(name, _)| name)
+            .collect()
+    }
+
+    /// Returns the percentile rank (0–100) of signal `name` among all current scalar values.
+    ///
+    /// Returns `None` if the signal is not found, is `Unavailable`, or there are no scalars.
+    pub fn percentile_rank_of(&self, name: &str) -> Option<Decimal> {
+        let target = self.get_scalar(name)?;
+        let mut all: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
+        if all.is_empty() { return None; }
+        all.sort();
+        let below = all.iter().filter(|&&v| v < target).count();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(below as u32) / Decimal::from(all.len() as u32) * Decimal::ONE_HUNDRED)
+    }
+
     /// Collects all ready scalar values into an owned `HashMap<String, Decimal>`.
     ///
     /// Useful when the caller needs an owned snapshot of all current signal values,

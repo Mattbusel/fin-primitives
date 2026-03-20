@@ -1556,6 +1556,27 @@ impl PositionLedger {
     pub fn total_realized_pnl(&self) -> Decimal {
         self.positions.values().map(|p| p.realized_pnl).sum()
     }
+
+    /// Returns the number of positions whose realized P&L is strictly below `threshold`.
+    pub fn count_with_pnl_below(&self, threshold: Decimal) -> usize {
+        self.positions.values().filter(|p| p.realized_pnl < threshold).count()
+    }
+
+    /// Returns `true` if the sum of all position quantities is positive (net long exposure).
+    pub fn is_net_long(&self) -> bool {
+        let net: Decimal = self.positions.values().map(|p| p.quantity).sum();
+        net > Decimal::ZERO
+    }
+
+    /// Total unrealized P&L across all open positions that have a price available.
+    ///
+    /// Positions absent from `prices` contribute zero.
+    pub fn total_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Decimal {
+        self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .sum()
+    }
 }
 
 #[cfg(test)]

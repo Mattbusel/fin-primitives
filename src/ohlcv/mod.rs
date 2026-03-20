@@ -5327,6 +5327,87 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(changes.iter().sum::<Decimal>() / Decimal::from(changes.len() as u32))
     }
+
+    /// Returns the 0-based index from the end (0 = most recent) of the bar with the highest
+    /// volume in the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn max_volume_bar(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let (rel_idx, _) = self.bars[start..]
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, b)| b.volume.value())?;
+        Some(n - 1 - rel_idx)
+    }
+
+    /// Number of bars in the last `n` where the absolute open-to-open gap ≥ `min_pct`%.
+    ///
+    /// Gap is measured as `|open - prev_close| / prev_close * 100`.
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn gap_count(&self, n: usize, min_pct: Decimal) -> Option<usize> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n;
+        let count = (start..self.bars.len()).filter(|&i| {
+            let prev_close = self.bars[i - 1].close.value();
+            if prev_close.is_zero() { return false; }
+            let gap = (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::ONE_HUNDRED;
+            gap >= min_pct
+        }).count();
+        Some(count)
+    }
+
+    /// Mean close-to-close percentage change over the last `n` bars.
+    ///
+    /// `avg = mean((close[i] - close[i-1]) / close[i-1] * 100)` for the last n periods.
+    /// Returns `None` if `n == 0`, fewer than `n + 1` bars exist, or any previous close is zero.
+    pub fn avg_close_pct_change(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let mut sum = Decimal::ZERO;
+        for i in start..self.bars.len() - 1 {
+            let prev = self.bars[i].close.value();
+            if prev.is_zero() { return None; }
+            sum += (self.bars[i + 1].close.value() - prev) / prev * Decimal::ONE_HUNDRED;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Bollinger Band width: `(upper - lower) / sma(n)`.
+    ///
+    /// Normalized band expansion metric. Values approaching zero indicate a squeeze.
+    /// Returns `None` if `n == 0`, insufficient bars, or SMA is zero.
+    pub fn bollinger_width(&self, n: usize, multiplier: Decimal) -> Option<Decimal> {
+        let sma = self.sma(n)?;
+        if sma.is_zero() { return None; }
+        let std = self.std_dev(n)?;
+        let upper = sma + multiplier * std;
+        let lower = sma - multiplier * std;
+        Some((upper - lower) / sma)
+    }
+
+    /// Current consecutive run of bars where close >= SMA(period).
+    ///
+    /// Counts backward from the most recent bar. Returns `0` if current close is below SMA
+    /// or insufficient bars exist.
+    pub fn close_above_ma_streak(&self, period: usize) -> usize {
+        if self.bars.len() < period { return 0; }
+        let mut streak = 0usize;
+        // Walk backward: for each bar compute its SMA and check
+        for i in (period - 1..self.bars.len()).rev() {
+            let sum: Decimal = (0..period).map(|j| self.bars[i + 1 - period + j].close.value()).sum();
+            #[allow(clippy::cast_possible_truncation)]
+            let sma = sum / Decimal::from(period as u32);
+            if self.bars[i].close.value() >= sma {
+                streak += 1;
+            } else {
+                break;
+            }
+        }
+        streak
+    }
 }
 
 #[cfg(test)]

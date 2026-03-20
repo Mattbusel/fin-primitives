@@ -77,6 +77,11 @@ pub struct DrawdownTracker {
     /// Number of distinct drawdown episodes (each time equity drops below peak after being at/above it).
     #[serde(default)]
     drawdown_episodes: usize,
+    /// Current consecutive run of updates where equity decreased from the prior update.
+    #[serde(default)]
+    loss_streak_current: usize,
+    /// Initial equity (set at construction, unchanged by reset unless re-constructed).
+    initial_equity: Decimal,
 }
 
 impl DrawdownTracker {
@@ -106,6 +111,8 @@ impl DrawdownTracker {
             recovery_drawdown_pct_sum: Decimal::ZERO,
             max_gain_delta_pct: 0.0,
             drawdown_episodes: 0,
+            loss_streak_current: 0,
+            initial_equity,
         }
     }
 
@@ -147,6 +154,10 @@ impl DrawdownTracker {
             if self.gain_streak > self.max_gain_streak {
                 self.max_gain_streak = self.gain_streak;
             }
+            self.loss_streak_current = 0;
+        } else if equity < self.current_equity {
+            self.gain_streak = 0;
+            self.loss_streak_current += 1;
         } else {
             self.gain_streak = 0;
         }
@@ -286,6 +297,7 @@ impl DrawdownTracker {
         self.recovery_drawdown_pct_sum = Decimal::ZERO;
         self.max_gain_delta_pct = 0.0;
         self.drawdown_episodes = 0;
+        self.loss_streak_current = 0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -595,6 +607,23 @@ impl DrawdownTracker {
     /// Equals the all-time peak. If equity is already at peak, this is the current equity.
     pub fn breakeven_equity(&self) -> Decimal {
         self.peak_equity
+    }
+
+    /// Current consecutive count of updates where equity decreased.
+    ///
+    /// Resets to 0 as soon as equity increases or stays flat.
+    pub fn loss_streak(&self) -> usize {
+        self.loss_streak_current
+    }
+
+    /// Net return as a percentage: `(current_equity - initial_equity) / initial_equity * 100`.
+    ///
+    /// Returns `None` if `initial_equity` is zero.
+    pub fn net_return_pct(&self) -> Option<f64> {
+        let init = self.initial_equity.to_f64()?;
+        if init == 0.0 { return None; }
+        let curr = self.current_equity.to_f64()?;
+        Some((curr - init) / init * 100.0)
     }
 
     /// Sortino ratio from a slice of period returns.
@@ -1174,6 +1203,16 @@ impl DrawdownTracker {
             self.updates_since_peak,
             self.max_drawdown_streak,
         )
+    }
+
+    /// Quick Sharpe proxy: `annualized_return / annualized_volatility(periods_per_year)`.
+    ///
+    /// Uses the Welford-tracked equity change volatility maintained by the tracker.
+    /// Returns `None` if volatility is unavailable or zero.
+    pub fn sharpe_proxy(&self, annualized_return: f64, periods_per_year: u32) -> Option<f64> {
+        let vol = self.annualized_volatility(periods_per_year)?;
+        if vol == 0.0 { return None; }
+        Some(annualized_return / vol)
     }
 }
 
