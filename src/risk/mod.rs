@@ -420,6 +420,36 @@ impl DrawdownTracker {
         }
     }
 
+    /// Returns the running mean of per-update equity changes.
+    ///
+    /// Computed via Welford's online algorithm. Returns `None` until at least one
+    /// equity change has been recorded (requires 2+ updates).
+    pub fn equity_change_mean(&self) -> Option<f64> {
+        if self.equity_change_count == 0 {
+            return None;
+        }
+        Some(self.equity_change_mean)
+    }
+
+    /// Returns the hypothetical drawdown percentage if equity dropped by `shock_pct` from current.
+    ///
+    /// `stress_drawdown = current_drawdown + shock_pct × (1 - current_drawdown/100)`
+    ///
+    /// This estimates the total drawdown from peak if the current equity fell an additional
+    /// `shock_pct` percent. Returns the result as a percentage (0–100+).
+    pub fn stress_test(&self, shock_pct: Decimal) -> Decimal {
+        if self.peak_equity.is_zero() {
+            return shock_pct;
+        }
+        let stressed_equity = self.current_equity
+            * (Decimal::ONE_HUNDRED - shock_pct)
+            / Decimal::ONE_HUNDRED;
+        if stressed_equity >= self.peak_equity {
+            return Decimal::ZERO;
+        }
+        (self.peak_equity - stressed_equity) / self.peak_equity * Decimal::ONE_HUNDRED
+    }
+
     /// Sortino ratio from a slice of period returns.
     ///
     /// `sortino = (mean_return - target) / downside_deviation`
@@ -887,6 +917,45 @@ impl RiskMonitor {
         let mean_r: f64 = returns.iter().map(|r| r.to_f64().unwrap_or(0.0)).sum::<f64>() / n;
         let annual = (1.0 + mean_r).powf(periods_per_year as f64) - 1.0;
         Some(annual)
+    }
+
+    /// Tail ratio: 95th-percentile gain divided by the absolute 5th-percentile loss.
+    ///
+    /// Measures the ratio of upside tail to downside tail. Values > 1 indicate
+    /// the positive tail is larger; < 1 indicate the negative tail dominates.
+    ///
+    /// Returns `None` if `returns` has fewer than 20 observations (minimum for meaningful quantiles).
+    pub fn tail_ratio(returns: &[Decimal]) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if returns.len() < 20 { return None; }
+        let mut vals: Vec<f64> = returns.iter().filter_map(|r| r.to_f64()).collect();
+        vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let n = vals.len();
+        let p95_idx = ((n as f64 * 0.95) as usize).min(n - 1);
+        let p05_idx = ((n as f64 * 0.05) as usize).min(n - 1);
+        let p95 = vals[p95_idx];
+        let p05 = vals[p05_idx].abs();
+        if p05 == 0.0 { return None; }
+        Some(p95 / p05)
+    }
+
+    /// Skewness of returns (third standardised moment).
+    ///
+    /// Positive skew means the distribution has a longer right tail;
+    /// negative skew means a longer left tail.
+    ///
+    /// Returns `None` if fewer than 3 observations are provided or standard deviation is zero.
+    pub fn skewness(returns: &[Decimal]) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if returns.len() < 3 { return None; }
+        let vals: Vec<f64> = returns.iter().filter_map(|r| r.to_f64()).collect();
+        let n = vals.len() as f64;
+        let mean = vals.iter().sum::<f64>() / n;
+        let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 { return None; }
+        let skew = vals.iter().map(|v| ((v - mean) / std_dev).powi(3)).sum::<f64>() / n;
+        Some(skew)
     }
 }
 
@@ -1595,5 +1664,42 @@ mod tests {
     fn test_omega_ratio_no_downside_returns_none() {
         let returns = vec![dec!(0.01), dec!(0.02), dec!(0.03)];
         assert!(DrawdownTracker::omega_ratio(&returns, Decimal::ZERO).is_none());
+    }
+
+    #[test]
+    fn test_tail_ratio_none_below_20_obs() {
+        let returns: Vec<Decimal> = (0..19).map(|_| dec!(0.01)).collect();
+        assert!(RiskMonitor::tail_ratio(&returns).is_none());
+    }
+
+    #[test]
+    fn test_tail_ratio_positive_skewed_series() {
+        // 20 observations: 19 small losses, 1 large gain → ratio > 1
+        let mut returns: Vec<Decimal> = (0..19).map(|_| dec!(-0.005)).collect();
+        returns.push(dec!(0.1)); // large upside at 95th pct
+        let ratio = RiskMonitor::tail_ratio(&returns).unwrap();
+        assert!(ratio > 0.0, "tail ratio should be positive: {ratio}");
+    }
+
+    #[test]
+    fn test_skewness_none_below_3() {
+        assert!(RiskMonitor::skewness(&[dec!(0.01), dec!(0.02)]).is_none());
+    }
+
+    #[test]
+    fn test_skewness_symmetric_near_zero() {
+        // Symmetric distribution: [-1, 0, 1]
+        let returns = vec![dec!(-1), dec!(0), dec!(1)];
+        let sk = RiskMonitor::skewness(&returns).unwrap();
+        assert!(sk.abs() < 1e-9, "symmetric series should have ~0 skew: {sk}");
+    }
+
+    #[test]
+    fn test_skewness_right_skewed_positive() {
+        // Heavy right tail: many small values, one large outlier
+        let mut returns: Vec<Decimal> = (0..10).map(|_| dec!(0)).collect();
+        returns.push(dec!(100));
+        let sk = RiskMonitor::skewness(&returns).unwrap();
+        assert!(sk > 0.0, "right-skewed series should have positive skew: {sk}");
     }
 }

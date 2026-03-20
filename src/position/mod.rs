@@ -598,6 +598,24 @@ impl PositionLedger {
         self.positions.values().map(|p| p.quantity).sum()
     }
 
+    /// Net market exposure using current prices: sum of (quantity × price) across all positions.
+    ///
+    /// Long positions contribute positive values; short positions contribute negative values.
+    /// Prices missing from `prices` are skipped.
+    /// Returns `None` if no open positions have prices available.
+    pub fn net_market_exposure(&self, prices: &std::collections::HashMap<String, Price>) -> Option<Decimal> {
+        let mut found = false;
+        let mut net = Decimal::ZERO;
+        for pos in self.positions.values() {
+            if pos.quantity.is_zero() { continue; }
+            if let Some(&price) = prices.get(pos.symbol.as_str()) {
+                found = true;
+                net += pos.quantity * price.value();
+            }
+        }
+        if found { Some(net) } else { None }
+    }
+
     /// Returns the gross (absolute) quantity exposure across all positions.
     ///
     /// Sums `|quantity|` for every position regardless of direction.
@@ -1251,6 +1269,65 @@ impl PositionLedger {
     /// Returns `None` if no positions have positive unrealized PnL.
     pub fn largest_unrealized_gain<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Position> {
         self.largest_winner(prices)
+    }
+
+    /// Average realized P&L per symbol across all positions (including flat ones).
+    ///
+    /// Returns `None` if there are no positions.
+    pub fn avg_realized_pnl_per_symbol(&self) -> Option<Decimal> {
+        if self.positions.is_empty() { return None; }
+        let total: Decimal = self.positions.values().map(|p| p.realized_pnl).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(total / Decimal::from(self.positions.len() as u32))
+    }
+
+    /// Total P&L (realized + unrealized) excluding a specific symbol.
+    ///
+    /// Useful for single-symbol attribution analysis.
+    /// Returns `Err` if any open position's price is missing from `prices`.
+    pub fn net_pnl_excluding(
+        &self,
+        exclude: &Symbol,
+        prices: &HashMap<String, Price>,
+    ) -> Result<Decimal, FinError> {
+        let total = self.net_pnl(prices)?;
+        let excluded_rpnl = self.realized_pnl(exclude).unwrap_or(Decimal::ZERO);
+        let excluded_upnl = if let Some(pos) = self.positions.get(exclude) {
+            if !pos.is_flat() {
+                let price = prices.get(exclude.as_str())
+                    .copied()
+                    .ok_or_else(|| FinError::InvalidSymbol(exclude.as_str().to_string()))?;
+                pos.unrealized_pnl(price)
+            } else {
+                Decimal::ZERO
+            }
+        } else {
+            Decimal::ZERO
+        };
+        Ok(total - excluded_rpnl - excluded_upnl)
+    }
+
+    /// Ratio of total long market exposure to total absolute short market exposure.
+    ///
+    /// `long_short_ratio = long_exposure / |short_exposure|`
+    ///
+    /// Returns `None` if there is no short exposure or `short_exposure` is zero.
+    pub fn long_short_ratio(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let long_exp = self.long_exposure(prices);
+        let short_exp = self.short_exposure(prices).abs();
+        if short_exp.is_zero() { return None; }
+        long_exp.checked_div(short_exp)
+    }
+
+    /// Returns `(long_count, short_count)` — the number of open long and short positions.
+    pub fn position_count_by_direction(&self) -> (usize, usize) {
+        let longs = self.positions.values()
+            .filter(|p| !p.is_flat() && p.quantity > Decimal::ZERO)
+            .count();
+        let shorts = self.positions.values()
+            .filter(|p| !p.is_flat() && p.quantity < Decimal::ZERO)
+            .count();
+        (longs, shorts)
     }
 }
 
@@ -2027,5 +2104,38 @@ mod tests {
         let sym = Symbol::new("AAPL").unwrap();
         let prices = HashMap::new(); // empty price map
         assert!(ledger.concentration_pct(&sym, &prices).is_none());
+    }
+
+    #[test]
+    fn test_avg_realized_pnl_per_symbol_none_when_empty() {
+        let ledger = PositionLedger::new(dec!(100000));
+        assert!(ledger.avg_realized_pnl_per_symbol().is_none());
+    }
+
+    #[test]
+    fn test_avg_realized_pnl_per_symbol_with_closed_trade() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        // Buy 10 @ 100, sell 10 @ 110 → realized = +100
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"));
+        let avg = ledger.avg_realized_pnl_per_symbol().unwrap();
+        assert_eq!(avg, dec!(100));
+    }
+
+    #[test]
+    fn test_net_exposure_no_prices_returns_none() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        let prices = HashMap::new();
+        assert!(ledger.net_market_exposure(&prices).is_none());
+    }
+
+    #[test]
+    fn test_net_exposure_long_only() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"));
+        let mut prices = HashMap::new();
+        prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
+        assert_eq!(ledger.net_market_exposure(&prices).unwrap(), dec!(1100));
     }
 }

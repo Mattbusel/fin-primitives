@@ -504,6 +504,64 @@ impl SignalValue {
             if curr < threshold && p >= threshold
         )
     }
+
+    /// Returns this scalar as a percentage of `other`.
+    ///
+    /// `result = (self / other) × 100`
+    ///
+    /// Returns `Unavailable` if either value is unavailable or `other` is zero.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(50));
+    /// let base = SignalValue::Scalar(dec!(200));
+    /// assert_eq!(v.pct_of(base), SignalValue::Scalar(dec!(25)));
+    /// ```
+    pub fn pct_of(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => {
+                if b.is_zero() {
+                    return SignalValue::Unavailable;
+                }
+                match a.checked_div(b) {
+                    Some(r) => SignalValue::Scalar(r * Decimal::ONE_HUNDRED),
+                    None => SignalValue::Unavailable,
+                }
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns `-1`, `0`, or `+1` depending on how this value crosses `threshold` from `prev`.
+    ///
+    /// - `+1` if `prev <= threshold` and `self > threshold` (upward crossing)
+    /// - `-1` if `prev >= threshold` and `self < threshold` (downward crossing)
+    /// - `0` otherwise (no crossing, or either value is unavailable)
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let prev = SignalValue::Scalar(dec!(49));
+    /// let curr = SignalValue::Scalar(dec!(51));
+    /// assert_eq!(curr.threshold_cross(dec!(50), prev), SignalValue::Scalar(dec!(1)));
+    /// ```
+    pub fn threshold_cross(self, threshold: Decimal, prev: SignalValue) -> SignalValue {
+        match (self, prev) {
+            (SignalValue::Scalar(curr), SignalValue::Scalar(p)) => {
+                if curr > threshold && p <= threshold {
+                    SignalValue::Scalar(Decimal::ONE)
+                } else if curr < threshold && p >= threshold {
+                    SignalValue::Scalar(Decimal::NEGATIVE_ONE)
+                } else {
+                    SignalValue::Scalar(Decimal::ZERO)
+                }
+            }
+            _ => SignalValue::Scalar(Decimal::ZERO),
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

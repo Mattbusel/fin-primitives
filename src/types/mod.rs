@@ -895,6 +895,22 @@ impl NanoTimestamp {
         let month = self.to_datetime().month();
         ((month - 1) / 3 + 1) as u8
     }
+
+    /// Returns the ISO 8601 week number (1–53).
+    ///
+    /// Uses the UTC calendar. Week 1 is the first week containing a Thursday.
+    pub fn week_of_year(self) -> u32 {
+        use chrono::{Datelike, IsoWeek};
+        self.to_datetime().iso_week().week()
+    }
+
+    /// Returns `true` if `self` and `other` fall in the same ISO calendar week and year.
+    pub fn is_same_week(self, other: NanoTimestamp) -> bool {
+        use chrono::{Datelike, IsoWeek};
+        let a = self.to_datetime().iso_week();
+        let b = other.to_datetime().iso_week();
+        a.week() == b.week() && a.year() == b.year()
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

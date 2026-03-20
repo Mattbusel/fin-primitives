@@ -4453,6 +4453,139 @@ impl OhlcvSeries {
         let sum: u64 = self.bars[start..].iter().map(|b| b.tick_count).sum();
         Some(Decimal::from(sum) / Decimal::from(n as u32))
     }
+
+    /// Current bar's high-low range as a fraction of the maximum range over the last `n` bars.
+    ///
+    /// `range_compression = last_range / max_range(n)`
+    ///
+    /// Values near 1 mean the current bar's range is close to the recent maximum (expansion);
+    /// values near 0 mean the range is compressed relative to recent history.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or max range is zero.
+    pub fn range_compression(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let max_range = self.bars[start..]
+            .iter()
+            .map(|b| b.high.value() - b.low.value())
+            .max()?;
+        if max_range.is_zero() {
+            return None;
+        }
+        let last = self.bars.last()?;
+        let last_range = last.high.value() - last.low.value();
+        last_range.checked_div(max_range)
+    }
+
+    /// Largest absolute gap (open-to-prev-close) as a percentage of the prior close
+    /// over the last `n` bars.
+    ///
+    /// `gap_pct[i] = |open[i] - close[i-1]| / close[i-1] × 100`
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist, or if any close is zero.
+    pub fn largest_gap_pct(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut max_gap = Decimal::ZERO;
+        for i in start + 1..self.bars.len() {
+            let prev_close = self.bars[i - 1].close.value();
+            if prev_close.is_zero() { return None; }
+            let gap = (self.bars[i].open.value() - prev_close).abs()
+                / prev_close
+                * Decimal::from(100u32);
+            if gap > max_gap { max_gap = gap; }
+        }
+        Some(max_gap)
+    }
+
+    /// Returns `1` if the last close crossed above SMA(n), `-1` if it crossed below, `0` otherwise.
+    ///
+    /// A crossover is defined as: the previous close was on one side of the SMA, and the
+    /// current close is on the other side (strict inequality crossing).
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn close_sma_crossover(&self, n: usize) -> Option<i8> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let total = self.bars.len();
+        #[allow(clippy::cast_possible_truncation)]
+        let sma_now: Decimal = self.bars[total - n..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>() / Decimal::from(n as u32);
+        let sma_prev: Decimal = self.bars[total - n - 1..total - 1]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>() / Decimal::from(n as u32);
+        let close_now = self.bars[total - 1].close.value();
+        let close_prev = self.bars[total - 2].close.value();
+        if close_prev <= sma_prev && close_now > sma_now {
+            Some(1)
+        } else if close_prev >= sma_prev && close_now < sma_now {
+            Some(-1)
+        } else {
+            Some(0)
+        }
+    }
+
+    /// Simple average true range over the last `n` bars (not EMA-smoothed).
+    ///
+    /// `ATR = mean(true_range[i])` where `true_range[i] = max(H−L, |H−C_prev|, |L−C_prev|)`.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn avg_true_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let total = self.bars.len();
+        let start = total - n;
+        #[allow(clippy::cast_possible_truncation)]
+        let atr = self.bars[start..].iter().enumerate().map(|(i, b)| {
+            let prev_close = if i == 0 {
+                self.bars[start - 1].close.value()
+            } else {
+                self.bars[start + i - 1].close.value()
+            };
+            let hl = b.high.value() - b.low.value();
+            let hpc = (b.high.value() - prev_close).abs();
+            let lpc = (b.low.value() - prev_close).abs();
+            hl.max(hpc).max(lpc)
+        }).sum::<Decimal>() / Decimal::from(n as u32);
+        Some(atr)
+    }
+
+    /// Index (0-based within the last `n` bars) of the bar with the highest volume.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn max_volume_bar_idx(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.volume.value().cmp(&b.1.volume.value()))
+            .map(|(i, _)| i)
+    }
+
+    /// Last bar's range (high−low) as a percentage of the simple ATR over `n` bars.
+    ///
+    /// Values > 100% indicate an unusually wide bar; values < 100% indicate compression.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n + 1` bars exist, or ATR is zero.
+    pub fn range_pct_of_atr(&self, n: usize) -> Option<Decimal> {
+        let atr = self.avg_true_range(n)?;
+        if atr.is_zero() { return None; }
+        let last = self.bars.last()?;
+        let range = last.high.value() - last.low.value();
+        range.checked_div(atr).map(|r| r * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]
@@ -6048,5 +6181,35 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.avg_gap(0).is_none());
         assert!(series.avg_gap(1).is_none());
+    }
+
+    #[test]
+    fn test_largest_gap_pct_no_gap() {
+        // all bars open == prev close → gap = 0
+        let bars: Vec<_> = (0..5).map(|_| bar("100")).collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.largest_gap_pct(4).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_largest_gap_pct_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.largest_gap_pct(2).is_none());
+        assert!(series.largest_gap_pct(1).is_none());
+    }
+
+    #[test]
+    fn test_close_momentum_flat_zero() {
+        let bars: Vec<_> = (0..6).map(|_| bar("100")).collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.close_momentum(3).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_close_momentum_none_insufficient() {
+        // close_momentum(n) needs n+1 bars; with 2 bars, n=1 is valid but n=2 is not
+        let series = OhlcvSeries::from_bars(vec![bar("100"), bar("101")]).unwrap();
+        assert!(series.close_momentum(2).is_none()); // need 3 bars
+        assert!(series.close_momentum(0).is_none());
     }
 }
