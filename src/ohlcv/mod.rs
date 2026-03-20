@@ -7145,6 +7145,88 @@ impl OhlcvSeries {
         p95.checked_div(p05)
     }
 
+    /// Returns the rolling sum of overnight gaps (`open - prev_close`) over the
+    /// last `n` bars (requires `n + 1` bars).
+    ///
+    /// Positive = net upward gap bias; negative = net downward gap bias.
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn signed_gap_sum(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let sum: Decimal = slice.windows(2)
+            .map(|w| w[1].open.value() - w[0].close.value())
+            .sum();
+        Some(sum)
+    }
+
+    /// Returns the fraction of the last `n` bars where `close > open` (bullish candles).
+    ///
+    /// Returns `None` if fewer than `n` bars are available.
+    pub fn bull_bar_fraction(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let count = slice.iter().filter(|b| b.close.value() > b.open.value()).count();
+        #[allow(clippy::cast_possible_truncation)]
+        Decimal::from(count as u32).checked_div(Decimal::from(n as u32))
+    }
+
+    /// Returns the rolling sum of bar deltas (`close - open`) over the last `n` bars.
+    ///
+    /// Positive = net buying pressure; negative = net selling pressure.
+    /// Returns `None` if fewer than `n` bars are available.
+    pub fn cumulative_delta(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let sum: Decimal = self.bars[self.bars.len() - n..]
+            .iter()
+            .map(|b| b.close.value() - b.open.value())
+            .sum();
+        Some(sum)
+    }
+
+    /// Returns the average body-to-ATR ratio over the last `n` bars.
+    ///
+    /// Measures whether recent candles are large or small relative to their
+    /// volatility context. Requires `n + 1` bars (ATR uses prior close).
+    /// Returns `None` if fewer than `n + 1` bars or ATR is zero.
+    pub fn avg_body_to_atr(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let trs: Vec<Decimal> = slice.windows(2).map(|w| {
+            let h = w[1].high.value();
+            let l = w[1].low.value();
+            let pc = w[0].close.value();
+            (h - l).max((h - pc).abs()).max((l - pc).abs())
+        }).collect();
+        let atr: Decimal = trs.iter().sum::<Decimal>();
+        if atr.is_zero() { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        let n_d = Decimal::from(n as u32);
+        let avg_atr = atr / n_d;
+        let avg_body: Decimal = slice[1..].iter()
+            .map(|b| (b.close.value() - b.open.value()).abs())
+            .sum::<Decimal>() / n_d;
+        avg_body.checked_div(avg_atr)
+    }
+
+    /// Returns the number of direction-changes in `close - open` sign over the
+    /// last `n` bars (excluding doji bars).
+    ///
+    /// High values indicate choppy price action; low values suggest trending.
+    /// Returns `None` if fewer than `n` bars are available.
+    pub fn candle_direction_changes(&self, n: usize) -> Option<usize> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let directions: Vec<i32> = slice.iter()
+            .map(|b| {
+                let d = b.close.value() - b.open.value();
+                if d > Decimal::ZERO { 1 } else if d < Decimal::ZERO { -1 } else { 0 }
+            })
+            .filter(|d| *d != 0)
+            .collect();
+        let changes = directions.windows(2).filter(|w| w[0] != w[1]).count();
+        Some(changes)
+    }
+
 }
 
 #[cfg(test)]

@@ -1,84 +1,52 @@
-//! Cumulative Volume Delta indicator -- rolling net volume delta.
+//! Cumulative Delta indicator.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Cumulative Delta -- rolling signed volume sum over the last `period` bars.
+/// Cumulative Delta — rolling sum of bar delta (`close - open`) over the last
+/// `period` bars.
 ///
-/// Each bar contributes:
-/// - `+volume` if close > open (up-bar / buying pressure)
-/// - `-volume` if close < open (down-bar / selling pressure)
-/// - `0` if close == open (doji / neutral)
-///
-/// ```text
-/// delta[t]     = volume[t]  if close > open
-///              = -volume[t] if close < open
-///              = 0          if close == open
-/// cum_delta[t] = sum(delta, period)
-/// ```
-///
-/// Positive values indicate net buying pressure; negative values indicate net selling.
-///
-/// Returns [`SignalValue::Unavailable`] until `period` bars have been accumulated.
+/// Returns [`SignalValue::Unavailable`] until `period` bars have been seen.
 ///
 /// # Example
 /// ```rust
 /// use fin_primitives::signals::indicators::CumulativeDelta;
 /// use fin_primitives::signals::Signal;
+///
 /// let cd = CumulativeDelta::new("cd", 10).unwrap();
 /// assert_eq!(cd.period(), 10);
 /// ```
 pub struct CumulativeDelta {
     name: String,
     period: usize,
-    window: VecDeque<Decimal>,
-    sum: Decimal,
+    deltas: VecDeque<Decimal>,
 }
 
 impl CumulativeDelta {
-    /// Constructs a new `CumulativeDelta`.
-    ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
         if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        Ok(Self {
-            name: name.into(),
-            period,
-            window: VecDeque::with_capacity(period),
-            sum: Decimal::ZERO,
-        })
+        Ok(Self { name: name.into(), period, deltas: VecDeque::with_capacity(period) })
     }
 }
 
 impl Signal for CumulativeDelta {
     fn name(&self) -> &str { &self.name }
     fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn is_ready(&self) -> bool { self.deltas.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let delta = if bar.close > bar.open {
-            bar.volume
-        } else if bar.close < bar.open {
-            -bar.volume
-        } else {
-            Decimal::ZERO
-        };
-        self.window.push_back(delta);
-        self.sum += delta;
-        if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
-        }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
-        Ok(SignalValue::Scalar(self.sum))
+        let delta = bar.close - bar.open;
+        self.deltas.push_back(delta);
+        if self.deltas.len() > self.period { self.deltas.pop_front(); }
+        if self.deltas.len() < self.period { return Ok(SignalValue::Unavailable); }
+        Ok(SignalValue::Scalar(self.deltas.iter().sum()))
     }
 
-    fn reset(&mut self) {
-        self.window.clear();
-        self.sum = Decimal::ZERO;
-    }
+    fn reset(&mut self) { self.deltas.clear(); }
 }
 
 #[cfg(test)]
@@ -89,15 +57,13 @@ mod tests {
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(o: &str, c: &str, vol: &str) -> OhlcvBar {
+    fn bar(o: &str, c: &str) -> OhlcvBar {
         let op = Price::new(o.parse().unwrap()).unwrap();
         let cp = Price::new(c.parse().unwrap()).unwrap();
-        let v = Quantity::new(vol.parse().unwrap()).unwrap();
-        let high = if cp.value() > op.value() { cp } else { op };
-        let low  = if cp.value() < op.value() { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp, volume: v,
+            open: op, high: cp, low: op, close: cp,
+            volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -105,55 +71,38 @@ mod tests {
     }
 
     #[test]
-    fn test_cd_period_0_error() { assert!(CumulativeDelta::new("cd", 0).is_err()); }
+    fn test_cd_invalid() { assert!(CumulativeDelta::new("c", 0).is_err()); }
 
     #[test]
-    fn test_cd_unavailable_before_period() {
-        let mut cd = CumulativeDelta::new("cd", 3).unwrap();
-        assert_eq!(cd.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+    fn test_cd_unavailable() {
+        let mut cd = CumulativeDelta::new("c", 3).unwrap();
+        for _ in 0..2 {
+            assert_eq!(cd.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        }
     }
 
     #[test]
-    fn test_cd_all_up_bars() {
-        let mut cd = CumulativeDelta::new("cd", 3).unwrap();
-        cd.update_bar(&bar("100", "105", "1000")).unwrap();
-        cd.update_bar(&bar("100", "105", "2000")).unwrap();
-        let v = cd.update_bar(&bar("100", "105", "3000")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(6000)));
+    fn test_cd_sum() {
+        let mut cd = CumulativeDelta::new("c", 3).unwrap();
+        let mut last = SignalValue::Unavailable;
+        for _ in 0..3 { last = cd.update_bar(&bar("100", "105")).unwrap(); }
+        assert_eq!(last, SignalValue::Scalar(dec!(15)));
     }
 
     #[test]
-    fn test_cd_all_down_bars() {
-        let mut cd = CumulativeDelta::new("cd", 3).unwrap();
-        cd.update_bar(&bar("105", "100", "1000")).unwrap();
-        cd.update_bar(&bar("105", "100", "2000")).unwrap();
-        let v = cd.update_bar(&bar("105", "100", "3000")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(-6000)));
-    }
-
-    #[test]
-    fn test_cd_mixed_nets_zero() {
-        let mut cd = CumulativeDelta::new("cd", 2).unwrap();
-        cd.update_bar(&bar("100", "105", "1000")).unwrap(); // +1000
-        let v = cd.update_bar(&bar("105", "100", "1000")).unwrap(); // -1000, sum=0
-        assert_eq!(v, SignalValue::Scalar(dec!(0)));
-    }
-
-    #[test]
-    fn test_cd_window_slides() {
-        let mut cd = CumulativeDelta::new("cd", 2).unwrap();
-        cd.update_bar(&bar("100", "105", "1000")).unwrap(); // +1000, not ready
-        cd.update_bar(&bar("100", "105", "2000")).unwrap(); // +2000, sum=3000
-        let v = cd.update_bar(&bar("100", "105", "500")).unwrap(); // +500, drop 1000 -> 2500
-        assert_eq!(v, SignalValue::Scalar(dec!(2500)));
+    fn test_cd_mixed() {
+        let mut cd = CumulativeDelta::new("c", 3).unwrap();
+        let mut last = SignalValue::Unavailable;
+        last = cd.update_bar(&bar("100", "105")).unwrap();
+        last = cd.update_bar(&bar("105", "102")).unwrap();
+        last = cd.update_bar(&bar("100", "102")).unwrap();
+        assert_eq!(last, SignalValue::Scalar(dec!(4)));
     }
 
     #[test]
     fn test_cd_reset() {
-        let mut cd = CumulativeDelta::new("cd", 2).unwrap();
-        cd.update_bar(&bar("100", "105", "1000")).unwrap();
-        cd.update_bar(&bar("100", "105", "1000")).unwrap();
-        assert!(cd.is_ready());
+        let mut cd = CumulativeDelta::new("c", 3).unwrap();
+        for _ in 0..3 { cd.update_bar(&bar("100", "105")).unwrap(); }
         cd.reset();
         assert!(!cd.is_ready());
     }

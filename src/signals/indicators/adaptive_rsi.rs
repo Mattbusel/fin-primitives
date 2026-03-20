@@ -97,6 +97,7 @@ impl Signal for AdaptiveRsi {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push(bar.close);
+        if self.closes.len() > self.er_period + 1 { self.closes.remove(0); }
 
         // Need enough bars for ER calculation
         if self.closes.len() < self.er_period + 1 {
