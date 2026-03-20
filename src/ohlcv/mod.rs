@@ -1551,6 +1551,58 @@ impl OhlcvSeries {
         count
     }
 
+    /// Returns `true` if the latest close is above the EMA(period) of closes.
+    ///
+    /// Returns `false` if there are fewer than `period` bars or `period == 0`.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn above_ema(&self, period: usize) -> bool {
+        if period == 0 || self.bars.len() < period {
+            return false;
+        }
+        let k = Decimal::TWO / Decimal::from((period + 1) as u32);
+        let seed: Decimal = self.bars[..period].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(period as u32);
+        let mut ema = seed;
+        for bar in &self.bars[period..] {
+            ema = bar.close.value() * k + ema * (Decimal::ONE - k);
+        }
+        self.bars.last().map_or(false, |b| b.close.value() > ema)
+    }
+
+    /// Returns the count of bullish engulfing patterns in the last `n` bars.
+    ///
+    /// A bullish engulfing occurs when a bar's body fully engulfs the previous bar's
+    /// body and the bar closes higher than it opens.
+    pub fn bullish_engulfing_count(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
+            let prev = &self.bars[start + i - 1];
+            bar.is_bullish_engulfing(prev)
+        }).count()
+    }
+
+    /// Returns the ratio of the current bar's range to the average range over the last `n` bars.
+    ///
+    /// Values > 1 indicate range expansion; < 1 indicate contraction.
+    /// Returns `None` if fewer than `n` bars exist, `n == 0`, or average range is zero.
+    pub fn range_expansion(&self, n: usize) -> Option<Decimal> {
+        let last = self.bars.last()?;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let avg_range: Decimal = self.bars[start..].iter().map(|b| b.range()).sum::<Decimal>();
+        #[allow(clippy::cast_possible_truncation)]
+        let avg_range = avg_range / Decimal::from(n as u32);
+        if avg_range == Decimal::ZERO {
+            return None;
+        }
+        Some(last.range() / avg_range)
+    }
+
     /// Returns the average volume over the last `n` bars, or `None` if the series is empty.
     ///
     /// If `n` exceeds the series length, all bars are included.

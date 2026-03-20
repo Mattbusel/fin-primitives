@@ -21,6 +21,10 @@ pub struct DrawdownTracker {
     worst_drawdown_pct: Decimal,
     /// Number of updates since the last new peak.
     updates_since_peak: usize,
+    /// Total number of equity updates processed.
+    update_count: usize,
+    /// Number of updates where equity was below peak (in drawdown).
+    drawdown_update_count: usize,
 }
 
 impl DrawdownTracker {
@@ -31,16 +35,20 @@ impl DrawdownTracker {
             current_equity: initial_equity,
             worst_drawdown_pct: Decimal::ZERO,
             updates_since_peak: 0,
+            update_count: 0,
+            drawdown_update_count: 0,
         }
     }
 
     /// Updates the tracker with the latest equity value, updating the peak if higher.
     pub fn update(&mut self, equity: Decimal) {
+        self.update_count += 1;
         if equity > self.peak_equity {
             self.peak_equity = equity;
             self.updates_since_peak = 0;
         } else {
             self.updates_since_peak += 1;
+            self.drawdown_update_count += 1;
         }
         self.current_equity = equity;
         let dd = self.current_drawdown_pct();

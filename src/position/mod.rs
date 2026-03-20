@@ -1227,4 +1227,25 @@ mod tests {
         let symbols: Vec<_> = ledger.open_symbols().collect();
         assert!(symbols.is_empty());
     }
+
+    #[test]
+    fn test_position_ledger_total_long_exposure() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        // 10 * avg_cost(100) = 1000
+        assert_eq!(ledger.total_long_exposure(), dec!(1000));
+    }
+
+    #[test]
+    fn test_position_ledger_total_long_exposure_zero_when_flat() {
+        let ledger = PositionLedger::new(dec!(10000));
+        assert_eq!(ledger.total_long_exposure(), dec!(0));
+    }
+
+    #[test]
+    fn test_position_ledger_total_short_exposure_zero_when_no_shorts() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        assert_eq!(ledger.total_short_exposure(), dec!(0));
+    }
 }
