@@ -59,15 +59,7 @@ impl Signal for ChoppinessIndex {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        // True range = max(high-low, |high-prev_close|, |low-prev_close|)
-        let tr = if let Some(pc) = self.prev_close {
-            let hl = bar.range();
-            let hpc = (bar.high - pc).abs();
-            let lpc = (bar.low - pc).abs();
-            hl.max(hpc).max(lpc)
-        } else {
-            bar.range()
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
         self.trs.push_back(tr);
         self.highs.push_back(bar.high);

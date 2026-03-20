@@ -64,15 +64,7 @@ impl Signal for Vam {
             self.closes.pop_front();
         }
 
-        let tr = match self.prev_close {
-            None => bar.range(),
-            Some(pc) => {
-                let hl = bar.range();
-                let hpc = (bar.high - pc).abs();
-                let lpc = (bar.low - pc).abs();
-                hl.max(hpc).max(lpc)
-            }
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         self.true_ranges.push_back(tr);

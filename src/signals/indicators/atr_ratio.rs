@@ -59,14 +59,7 @@ impl Signal for AtrRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let hl = bar.range();
-        let tr = match self.prev_close {
-            None => hl,
-            Some(pc) => {
-                let hc = (bar.high - pc).abs();
-                let lc = (bar.low - pc).abs();
-                hl.max(hc).max(lc)
-            }
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         self.tr_window.push_back(tr);

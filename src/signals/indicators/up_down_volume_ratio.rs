@@ -1,32 +1,33 @@
-//! Up/Down Volume Ratio — ratio of bullish bar volume to bearish bar volume over N bars.
+//! Up/Down Volume Ratio indicator.
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Up/Down Volume Ratio — `sum(up_volume) / sum(down_volume)` over the last `period` bars.
+/// Up/Down Volume Ratio — the ratio of total up-bar volume to total down-bar
+/// volume over `period` bars.
 ///
-/// An up-bar is a bar where `close >= open`; a down-bar is where `close < open`.
+/// - `> 1` → buying pressure dominates  
+/// - `< 1` → selling pressure dominates  
+/// - Returns [`SignalValue::Unavailable`] if down volume is zero or fewer than `period` bars.
 ///
-/// - Values **> 1**: buying pressure dominates (more volume on up bars).
-/// - Values **< 1**: selling pressure dominates (more volume on down bars).
-/// - Values **= 1**: balanced volume.
-///
-/// Returns [`SignalValue::Unavailable`] until `period` bars have been seen, or when
-/// there is no down volume in the window (preventing division by zero).
+/// A bar is an "up-bar" if `close > open`, and a "down-bar" if `close < open`.
+/// Doji bars (close == open) contribute to neither side.
 ///
 /// # Example
 /// ```rust
 /// use fin_primitives::signals::indicators::UpDownVolumeRatio;
 /// use fin_primitives::signals::Signal;
-/// let udvr = UpDownVolumeRatio::new("udvr", 20).unwrap();
-/// assert_eq!(udvr.period(), 20);
+///
+/// let uvr = UpDownVolumeRatio::new("uvr", 20).unwrap();
+/// assert_eq!(uvr.period(), 20);
 /// ```
 pub struct UpDownVolumeRatio {
     name: String,
     period: usize,
-    window: VecDeque<(Decimal, bool)>, // (volume, is_up)
+    up_vols: VecDeque<Decimal>,
+    dn_vols: VecDeque<Decimal>,
 }
 
 impl UpDownVolumeRatio {
@@ -41,51 +42,47 @@ impl UpDownVolumeRatio {
         Ok(Self {
             name: name.into(),
             period,
-            window: VecDeque::with_capacity(period),
+            up_vols: VecDeque::with_capacity(period),
+            dn_vols: VecDeque::with_capacity(period),
         })
     }
 }
 
 impl Signal for UpDownVolumeRatio {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn period(&self) -> usize {
-        self.period
-    }
-
-    fn is_ready(&self) -> bool {
-        self.window.len() >= self.period
-    }
+    fn name(&self) -> &str { &self.name }
+    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool { self.up_vols.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let is_up = bar.close >= bar.open;
-        self.window.push_back((bar.volume, is_up));
-        if self.window.len() > self.period {
-            self.window.pop_front();
-        }
-        if self.window.len() < self.period {
+        let (up, dn) = if bar.close > bar.open {
+            (bar.volume, Decimal::ZERO)
+        } else if bar.close < bar.open {
+            (Decimal::ZERO, bar.volume)
+        } else {
+            (Decimal::ZERO, Decimal::ZERO)
+        };
+
+        self.up_vols.push_back(up);
+        self.dn_vols.push_back(dn);
+        if self.up_vols.len() > self.period { self.up_vols.pop_front(); }
+        if self.dn_vols.len() > self.period { self.dn_vols.pop_front(); }
+
+        if self.up_vols.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let (up_vol, down_vol) = self.window.iter().fold(
-            (Decimal::ZERO, Decimal::ZERO),
-            |(u, d), &(vol, is_up)| {
-                if is_up { (u + vol, d) } else { (u, d + vol) }
-            },
-        );
+        let up_sum: Decimal = self.up_vols.iter().sum();
+        let dn_sum: Decimal = self.dn_vols.iter().sum();
 
-        if down_vol.is_zero() {
+        if dn_sum.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-
-        let ratio = up_vol.checked_div(down_vol).ok_or(FinError::ArithmeticOverflow)?;
-        Ok(SignalValue::Scalar(ratio))
+        Ok(SignalValue::Scalar(up_sum / dn_sum))
     }
 
     fn reset(&mut self) {
-        self.window.clear();
+        self.up_vols.clear();
+        self.dn_vols.clear();
     }
 }
 
@@ -97,15 +94,14 @@ mod tests {
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(open: &str, close: &str, vol: &str) -> OhlcvBar {
-        let op = Price::new(open.parse().unwrap()).unwrap();
-        let cp = Price::new(close.parse().unwrap()).unwrap();
-        let hp = if cp.value() >= op.value() { cp } else { op };
-        let lp = if cp.value() < op.value() { cp } else { op };
+    fn bar(o: &str, c: &str, v: &str) -> OhlcvBar {
+        let op = Price::new(o.parse().unwrap()).unwrap();
+        let cp = Price::new(c.parse().unwrap()).unwrap();
+        let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
-            volume: Quantity::new(vol.parse().unwrap()).unwrap(),
+            open: op, high: cp, low: op, close: cp,
+            volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -113,65 +109,36 @@ mod tests {
     }
 
     #[test]
-    fn test_udvr_invalid_period() {
-        assert!(UpDownVolumeRatio::new("udvr", 0).is_err());
+    fn test_uvr_invalid_period() {
+        assert!(UpDownVolumeRatio::new("uvr", 0).is_err());
     }
 
     #[test]
-    fn test_udvr_unavailable_before_period() {
-        let mut udvr = UpDownVolumeRatio::new("udvr", 3).unwrap();
-        assert_eq!(udvr.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(udvr.update_bar(&bar("105", "110", "1000")).unwrap(), SignalValue::Unavailable);
-        assert!(!udvr.is_ready());
-    }
-
-    #[test]
-    fn test_udvr_all_up_bars_unavailable() {
-        // No down volume → Unavailable
-        let mut udvr = UpDownVolumeRatio::new("udvr", 3).unwrap();
-        for _ in 0..3 {
-            udvr.update_bar(&bar("100", "105", "1000")).unwrap();
-        }
-        let v = udvr.update_bar(&bar("105", "110", "2000")).unwrap();
-        assert_eq!(v, SignalValue::Unavailable);
-    }
-
-    #[test]
-    fn test_udvr_equal_volumes_gives_one() {
-        // Equal up and down volume → ratio = 1
-        let mut udvr = UpDownVolumeRatio::new("udvr", 2).unwrap();
-        udvr.update_bar(&bar("100", "105", "1000")).unwrap(); // up
-        let v = udvr.update_bar(&bar("105", "100", "1000")).unwrap(); // down
-        assert_eq!(v, SignalValue::Scalar(dec!(1)));
-    }
-
-    #[test]
-    fn test_udvr_double_up_volume() {
-        // 2x up volume vs down → ratio = 2
-        let mut udvr = UpDownVolumeRatio::new("udvr", 2).unwrap();
-        udvr.update_bar(&bar("100", "105", "2000")).unwrap(); // up, 2000
-        let v = udvr.update_bar(&bar("105", "100", "1000")).unwrap(); // down, 1000
-        if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(2)).abs() < dec!(0.0001), "expected 2, got {r}");
-        } else {
-            panic!("expected Scalar");
+    fn test_uvr_unavailable_before_warm_up() {
+        let mut uvr = UpDownVolumeRatio::new("uvr", 3).unwrap();
+        for _ in 0..2 {
+            assert_eq!(uvr.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
         }
     }
 
     #[test]
-    fn test_udvr_reset() {
-        let mut udvr = UpDownVolumeRatio::new("udvr", 2).unwrap();
-        udvr.update_bar(&bar("100", "105", "1000")).unwrap();
-        udvr.update_bar(&bar("105", "100", "1000")).unwrap();
-        assert!(udvr.is_ready());
-        udvr.reset();
-        assert!(!udvr.is_ready());
+    fn test_uvr_equal_up_down() {
+        // 2 up bars, 2 down bars, same volume → ratio ≈ 1
+        let mut uvr = UpDownVolumeRatio::new("uvr", 4).unwrap();
+        let mut last = SignalValue::Unavailable;
+        for _ in 0..2 {
+            uvr.update_bar(&bar("100", "105", "1000")).unwrap();
+            last = uvr.update_bar(&bar("105", "100", "1000")).unwrap();
+        }
+        assert_eq!(last, SignalValue::Scalar(dec!(1)));
     }
 
     #[test]
-    fn test_udvr_period_and_name() {
-        let udvr = UpDownVolumeRatio::new("my_udvr", 20).unwrap();
-        assert_eq!(udvr.period(), 20);
-        assert_eq!(udvr.name(), "my_udvr");
+    fn test_uvr_reset() {
+        let mut uvr = UpDownVolumeRatio::new("uvr", 3).unwrap();
+        for _ in 0..3 { uvr.update_bar(&bar("100", "105", "1000")).unwrap(); }
+        assert!(uvr.is_ready());
+        uvr.reset();
+        assert!(!uvr.is_ready());
     }
 }

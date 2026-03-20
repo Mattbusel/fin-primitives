@@ -62,15 +62,7 @@ impl Signal for PriceCompressionIndex {
     fn is_ready(&self) -> bool { self.closes.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tr = match self.prev_close {
-            None => bar.range(),
-            Some(pc) => {
-                let hl = bar.range();
-                let hpc = (bar.high - pc).abs();
-                let lpc = (bar.low - pc).abs();
-                hl.max(hpc).max(lpc)
-            }
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         self.trs.push_back(tr);

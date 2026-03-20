@@ -93,12 +93,7 @@ impl Signal for TtmSqueeze {
         if self.highs.len() > self.period { self.highs.pop_front(); }
         if self.lows.len() > self.period { self.lows.pop_front(); }
 
-        let tr = match self.prev_close {
-            None => bar.range(),
-            Some(pc) => (bar.range())
-                .max((bar.high - pc).abs())
-                .max((bar.low - pc).abs()),
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         if self.closes.len() < self.period {

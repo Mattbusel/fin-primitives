@@ -54,12 +54,7 @@ impl Signal for TrueRangeEma {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tr = match self.prev_close {
-            None => bar.range(),
-            Some(pc) => (bar.range())
-                .max((bar.high - pc).abs())
-                .max((bar.low - pc).abs()),
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         let k = Decimal::from(2u32) / Decimal::from((self.period + 1) as u32);

@@ -106,15 +106,7 @@ impl Signal for KeltnerChannel {
             self.period, self.ema_k, bar.close,
         );
 
-        // True range
-        let tr = if let Some(pc) = self.prev_close {
-            let hl = bar.range();
-            let hpc = (bar.high - pc).abs();
-            let lpc = (bar.low - pc).abs();
-            hl.max(hpc).max(lpc)
-        } else {
-            bar.range()
-        };
+        let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         let atr_val = Self::ema_update(
