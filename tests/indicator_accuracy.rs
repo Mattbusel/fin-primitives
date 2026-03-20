@@ -609,18 +609,20 @@ fn stochastic_k_close_equals_high_returns_100() {
 
 #[test]
 fn stochastic_k_close_equals_low_returns_0() {
+    // Window: bars with lows [5,6,5], min_low=5; high_max=20.
+    // Last bar close=5 = min_low → %K = 0
     let mut sk = StochasticK::new("sk3", 3).unwrap();
     sk.update_bar(&ohlc_bar("10", "15", "5", "12")).unwrap();
     sk.update_bar(&ohlc_bar("11", "16", "6", "13")).unwrap();
-    let v = scalar(sk.update_bar(&ohlc_bar("12", "20", "8", "8")).unwrap());
+    let v = scalar(sk.update_bar(&ohlc_bar("10", "20", "5", "5")).unwrap());
     assert_eq!(v, dec!(0));
 }
 
 #[test]
 fn stochastic_k_midpoint() {
-    // high=20, low=0, close=10 → %K = (10-0)/(20-0)*100 = 50
+    // high=21, low=1, close=11 → %K = (11-1)/(21-1)*100 = 10/20*100 = 50
     let mut sk = StochasticK::new("sk1", 1).unwrap();
-    let v = scalar(sk.update_bar(&ohlc_bar("10", "20", "0", "10")).unwrap());
+    let v = scalar(sk.update_bar(&ohlc_bar("11", "21", "1", "11")).unwrap());
     assert_eq!(v, dec!(50));
 }
 

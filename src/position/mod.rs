@@ -769,4 +769,28 @@ mod tests {
         ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
         assert_eq!(ledger.flat_positions().count(), 0);
     }
+
+    #[test]
+    fn test_position_ledger_deposit_increases_cash() {
+        let mut ledger = PositionLedger::new(dec!(1000));
+        ledger.deposit(dec!(500));
+        assert_eq!(ledger.cash(), dec!(1500));
+    }
+
+    #[test]
+    fn test_position_ledger_withdraw_decreases_cash() {
+        let mut ledger = PositionLedger::new(dec!(1000));
+        ledger.withdraw(dec!(300)).unwrap();
+        assert_eq!(ledger.cash(), dec!(700));
+    }
+
+    #[test]
+    fn test_position_ledger_withdraw_insufficient_fails() {
+        let mut ledger = PositionLedger::new(dec!(100));
+        assert!(matches!(
+            ledger.withdraw(dec!(200)),
+            Err(FinError::InsufficientFunds { .. })
+        ));
+        assert_eq!(ledger.cash(), dec!(100), "cash unchanged on failure");
+    }
 }

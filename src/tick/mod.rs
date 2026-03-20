@@ -94,6 +94,8 @@ pub struct TickFilter {
     max_price: Option<Price>,
     min_notional: Option<rust_decimal::Decimal>,
     max_notional: Option<rust_decimal::Decimal>,
+    from_ts: Option<NanoTimestamp>,
+    to_ts: Option<NanoTimestamp>,
 }
 
 impl TickFilter {
@@ -108,6 +110,8 @@ impl TickFilter {
             max_price: None,
             min_notional: None,
             max_notional: None,
+            from_ts: None,
+            to_ts: None,
         }
     }
 
@@ -167,6 +171,14 @@ impl TickFilter {
         self
     }
 
+    /// Restrict matches to ticks whose timestamp falls within `[from, to]` (inclusive).
+    #[must_use]
+    pub fn timestamp_range(mut self, from: NanoTimestamp, to: NanoTimestamp) -> Self {
+        self.from_ts = Some(from);
+        self.to_ts = Some(to);
+        self
+    }
+
     /// Returns `true` if a symbol predicate has been set on this filter.
     pub fn has_symbol_filter(&self) -> bool {
         self.symbol.is_some()
@@ -200,6 +212,8 @@ impl TickFilter {
             && self.max_price.is_none()
             && self.min_notional.is_none()
             && self.max_notional.is_none()
+            && self.from_ts.is_none()
+            && self.to_ts.is_none()
     }
 
     /// Returns `true` if the tick satisfies all configured predicates.
@@ -241,6 +255,16 @@ impl TickFilter {
         }
         if let Some(ref max_n) = self.max_notional {
             if tick.notional() > *max_n {
+                return false;
+            }
+        }
+        if let Some(from) = self.from_ts {
+            if tick.timestamp.is_before(from) {
+                return false;
+            }
+        }
+        if let Some(to) = self.to_ts {
+            if tick.timestamp.is_after(to) {
                 return false;
             }
         }
@@ -696,5 +720,17 @@ mod tests {
     fn test_tick_filter_not_empty_after_side_set() {
         let f = TickFilter::new().side(Side::Ask);
         assert!(!f.is_empty());
+    }
+
+    #[test]
+    fn test_tick_notional_checked_matches_notional() {
+        let t = make_tick("AAPL", "150.50", "10", Side::Bid, 0);
+        assert_eq!(t.notional_checked(), Some(t.notional()));
+    }
+
+    #[test]
+    fn test_tick_notional_checked_zero_qty() {
+        let t = make_tick("AAPL", "100", "0", Side::Bid, 0);
+        assert_eq!(t.notional_checked(), Some(dec!(0)));
     }
 }

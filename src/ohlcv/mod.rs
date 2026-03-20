@@ -1353,4 +1353,26 @@ mod tests {
         assert_eq!(input.close, bar.close.value());
         assert_eq!(input.volume, bar.volume.value());
     }
+
+    #[test]
+    fn test_ohlcv_series_retain_removes_gap_fills() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        // add a gap-fill bar (tick_count == 0)
+        let mut gap = make_bar("105", "105", "105", "105");
+        gap.tick_count = 0;
+        series.push(gap).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.retain(|b| !b.is_gap_fill());
+        assert_eq!(series.len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_retain_keeps_all() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.retain(|_| true);
+        assert_eq!(series.len(), 2);
+    }
 }
