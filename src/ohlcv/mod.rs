@@ -6402,4 +6402,25 @@ mod tests {
         let series = OhlcvSeries::from_bars(bars).unwrap();
         assert_eq!(series.swing_high_count(7, 1).unwrap(), 0);
     }
+
+    #[test]
+    fn test_avg_wick_pct_none_when_zero_range() {
+        let bars = vec![bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert!(series.avg_wick_pct(2).is_none()); // zero-range bars → None
+    }
+
+    #[test]
+    fn test_avg_wick_pct_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.avg_wick_pct(0).is_none());
+        assert!(series.avg_wick_pct(2).is_none());
+    }
+
+    #[test]
+    fn test_trend_continuation_pct_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.trend_continuation_pct(0).is_none());
+        assert!(series.trend_continuation_pct(1).is_none()); // need n+1=2 bars
+    }
 }

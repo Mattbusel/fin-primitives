@@ -73,9 +73,11 @@ impl Signal for CandlePattern {
                 let lower_wick = bar.open.min(bar.close) - bar.low;
                 let body_pct = if range.is_zero() { Decimal::ZERO } else { body / range };
 
-                if body_pct < Decimal::new(3, 1) && lower_wick >= body * Decimal::TWO && upper_wick <= body {
+                if range.is_zero() {
+                    Decimal::ZERO  // No pattern for doji/flat bars
+                } else if body_pct < Decimal::new(3, 1) && lower_wick >= body * Decimal::TWO && upper_wick <= body && lower_wick > Decimal::ZERO {
                     Decimal::ONE   // Hammer
-                } else if body_pct < Decimal::new(3, 1) && upper_wick >= body * Decimal::TWO && lower_wick <= body {
+                } else if body_pct < Decimal::new(3, 1) && upper_wick >= body * Decimal::TWO && lower_wick <= body && upper_wick > Decimal::ZERO {
                     -Decimal::ONE  // Shooting star
                 } else {
                     Decimal::ZERO

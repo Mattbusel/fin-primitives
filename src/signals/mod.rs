@@ -562,6 +562,35 @@ impl SignalValue {
             _ => SignalValue::Scalar(Decimal::ZERO),
         }
     }
+
+    /// Returns `e^x`. Returns `Unavailable` if the value is `Unavailable` or if `x > 700`
+    /// (overflow guard — `e^709 ≈ f64::MAX`).
+    pub fn exp(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                if v > Decimal::from(700) {
+                    return SignalValue::Unavailable;
+                }
+                let f = v.to_string().parse::<f64>().unwrap_or(f64::NAN);
+                if f.is_nan() { return SignalValue::Unavailable; }
+                match Decimal::try_from(f.exp()) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+        }
+    }
+
+    /// Returns the floor of the value (rounds toward negative infinity).
+    pub fn floor(self) -> SignalValue {
+        self.map(|v| v.floor())
+    }
+
+    /// Returns the ceiling of the value (rounds toward positive infinity).
+    pub fn ceil(self) -> SignalValue {
+        self.map(|v| v.ceil())
+    }
 }
 
 impl From<Decimal> for SignalValue {
