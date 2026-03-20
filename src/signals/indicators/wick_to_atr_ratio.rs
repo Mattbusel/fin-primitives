@@ -103,11 +103,8 @@ impl Signal for WickToAtrRatio {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        // Compute wicks: body bounds are [min(open,close), max(open,close)]
-        let body_top = bar.body_high();
-        let body_bot = bar.body_low();
-        let upper_wick = bar.high - body_top;
-        let lower_wick = body_bot - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
         let total_wick = upper_wick + lower_wick;
 
         let ratio = total_wick

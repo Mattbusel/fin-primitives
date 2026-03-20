@@ -1,25 +1,26 @@
-//! Upper Wick Percentage indicator.
+//! Shadow Ratio indicator.
 
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 
-/// Rolling average of upper wick as a percentage of total bar range.
+/// Rolling average of total wick (shadow) length relative to body length.
 ///
-/// `upper_wick = high - max(open, close)`
-/// `ratio = upper_wick / (high - low) * 100`
+/// `(upper_wick + lower_wick) / |close - open|`
 ///
-/// High values indicate consistent selling pressure at highs (bearish rejection).
-/// Zero for doji bars (range = 0) or bars with no upper wick.
-pub struct UpperWickPct {
+/// High values: large wicks relative to body (indecision, reversal signals).
+/// Low values: small wicks, price moves cleanly from open to close.
+/// Bars with zero body (doji) contribute a fixed value of 1.0.
+/// Bars with zero total wick contribute 0.0.
+pub struct ShadowRatio {
     period: usize,
     window: VecDeque<Decimal>,
     sum: Decimal,
 }
 
-impl UpperWickPct {
-    /// Creates a new `UpperWickPct` with the given rolling period.
+impl ShadowRatio {
+    /// Creates a new `ShadowRatio` with the given rolling period.
     pub fn new(period: usize) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
@@ -28,17 +29,21 @@ impl UpperWickPct {
     }
 }
 
-impl Signal for UpperWickPct {
+impl Signal for ShadowRatio {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
-        let pct = if range.is_zero() {
-            Decimal::ZERO
+        let body = (bar.close - bar.open).abs();
+        let body_high = bar.open.max(bar.close);
+        let body_low = bar.open.min(bar.close);
+        let total_wick = (bar.high - body_high) + (body_low - bar.low);
+
+        let ratio = if body.is_zero() {
+            Decimal::ONE
         } else {
-            let upper_wick = bar.upper_wick();
-            upper_wick / range * Decimal::ONE_HUNDRED
+            total_wick / body
         };
-        self.window.push_back(pct);
-        self.sum += pct;
+
+        self.window.push_back(ratio);
+        self.sum += ratio;
         if self.window.len() > self.period {
             if let Some(old) = self.window.pop_front() {
                 self.sum -= old;
@@ -54,7 +59,7 @@ impl Signal for UpperWickPct {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
     fn period(&self) -> usize { self.period }
     fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "UpperWickPct" }
+    fn name(&self) -> &str { "ShadowRatio" }
 }
 
 #[cfg(test)]
@@ -73,20 +78,21 @@ mod tests {
     }
 
     #[test]
-    fn test_uwp_no_upper_wick() {
-        // close = high → upper_wick = 0 → pct = 0
-        let mut sig = UpperWickPct::new(2).unwrap();
-        sig.update(&bar("90", "110", "90", "110")).unwrap();
+    fn test_sr_no_wicks() {
+        // open=low, close=high → body=range, no wicks → ratio = 0
+        let mut sig = ShadowRatio::new(2).unwrap();
+        sig.update(&bar("90", "110", "90", "110")).unwrap(); // no wicks, ratio=0
         let v = sig.update(&bar("90", "110", "90", "110")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
-    fn test_uwp_half_upper_wick() {
-        // open=90, close=90, high=110, low=90 → range=20, body_top=90, upper_wick=20 → 100%
-        let mut sig = UpperWickPct::new(2).unwrap();
-        sig.update(&bar("90", "110", "90", "90")).unwrap(); // upper_wick=20, range=20 → 100%
-        let v = sig.update(&bar("90", "110", "90", "90")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(100)));
+    fn test_sr_equal_body_and_wicks() {
+        // body=10, upper_wick=5, lower_wick=5 → total_wick=10 → ratio=1
+        let mut sig = ShadowRatio::new(2).unwrap();
+        // open=95, close=105 (body=10), high=110, low=90
+        sig.update(&bar("95", "110", "90", "105")).unwrap();
+        let v = sig.update(&bar("95", "110", "90", "105")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 }

@@ -28,10 +28,8 @@ impl CandleSymmetry {
 
 impl Signal for CandleSymmetry {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body_top = bar.body_high();
-        let body_bot = bar.body_low();
-        let upper = bar.high - body_top;
-        let lower = body_bot - bar.low;
+        let upper = bar.upper_wick();
+        let lower = bar.lower_wick();
 
         let max_wick = upper.max(lower);
         if !max_wick.is_zero() {

@@ -4003,7 +4003,6 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0usize;
         let hundred = Decimal::from(100u32);
-        let three = Decimal::from(3u32);
         for b in &self.bars[start..] {
             let tp = b.typical_price();
             if tp.is_zero() { continue; }

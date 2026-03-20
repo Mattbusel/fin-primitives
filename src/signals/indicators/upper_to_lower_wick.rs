@@ -53,10 +53,8 @@ impl Signal for UpperToLowerWick {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body_top = bar.body_high();
-        let body_bot = bar.body_low();
-        let upper_wick = bar.high - body_top;
-        let lower_wick = body_bot - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
         if lower_wick.is_zero() { return Ok(SignalValue::Unavailable); }
         let ratio = upper_wick / lower_wick;
         self.window.push_back(ratio);

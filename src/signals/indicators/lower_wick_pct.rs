@@ -34,8 +34,7 @@ impl Signal for LowerWickPct {
         let pct = if range.is_zero() {
             Decimal::ZERO
         } else {
-            let body_bottom = bar.open.min(bar.close);
-            let lower_wick = body_bottom - bar.low;
+            let lower_wick = bar.lower_wick();
             lower_wick / range * Decimal::ONE_HUNDRED
         };
         self.window.push_back(pct);

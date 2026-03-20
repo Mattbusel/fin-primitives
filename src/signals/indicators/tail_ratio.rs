@@ -31,10 +31,8 @@ impl TailRatio {
 
 impl Signal for TailRatio {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body_high = bar.body_high();
-        let body_low = bar.body_low();
-        let upper_wick = bar.high - body_high;
-        let lower_wick = body_low - bar.low;
+        let upper_wick = bar.upper_wick();
+        let lower_wick = bar.lower_wick();
 
         if !lower_wick.is_zero() {
             let ratio = upper_wick / lower_wick;

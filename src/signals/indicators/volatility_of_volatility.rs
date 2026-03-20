@@ -3,6 +3,7 @@
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use std::collections::VecDeque;
 
 /// Volatility of Volatility — std dev of rolling ATR values over a meta-window.
@@ -155,8 +156,9 @@ mod tests {
     #[test]
     fn test_vov_unavailable_during_warmup() {
         let mut s = VolatilityOfVolatility::new("vov", 3).unwrap();
-        // Need 2*period = 6 bars for ready
-        for _ in 0..5 {
+        // period=3: needs 3 bars to fill TR window, then 3 more ATR values to fill ATR window
+        // First 4 bars should be Unavailable (bars 1-3: no ATR yet, bar 4: only 2 ATR values)
+        for _ in 0..4 {
             assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
