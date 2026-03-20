@@ -319,6 +319,17 @@ impl Position {
         }
         (target_pct / stop_pct).to_f64()
     }
+
+    /// Leverage: `|quantity × avg_cost| / portfolio_value`.
+    ///
+    /// Returns `None` if the position is flat, `avg_cost` is zero, or `portfolio_value` is zero.
+    pub fn leverage(&self, portfolio_value: Decimal) -> Option<Decimal> {
+        if self.is_flat() || self.avg_cost.is_zero() || portfolio_value.is_zero() {
+            return None;
+        }
+        let notional = self.quantity.abs() * self.avg_cost;
+        Some(notional / portfolio_value)
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
