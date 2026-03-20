@@ -195,6 +195,16 @@ impl SignalValue {
         }
     }
 
+    /// Adds `delta` to the scalar value.
+    ///
+    /// Returns [`SignalValue::Unavailable`] unchanged.
+    pub fn offset(self, delta: rust_decimal::Decimal) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => SignalValue::Scalar(v + delta),
+        }
+    }
+
     /// Returns the absolute value of the scalar: `Scalar(|x|)` or `Unavailable`.
     ///
     /// Useful when you only care about the magnitude of a signal (e.g. absolute momentum).

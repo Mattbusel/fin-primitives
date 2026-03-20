@@ -5408,6 +5408,101 @@ impl OhlcvSeries {
         }
         streak
     }
+
+    /// Average `|close − open| / (high − low)` (body-to-range ratio) over the last `n` bars.
+    ///
+    /// Bars with zero range are skipped.  Returns `None` if all bars have zero range.
+    pub fn avg_body_to_range_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let range = bar.high.value() - bar.low.value();
+            if range.is_zero() { continue; }
+            sum += (bar.close.value() - bar.open.value()).abs() / range;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
+
+    /// Net directional volume over the last `n` bars.
+    ///
+    /// Approximates buy-side volume as `volume * (close - low) / (high - low)` and sell-side as
+    /// the remainder.  Net = buy_vol − sell_vol.  Bars with zero range contribute zero.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn net_volume(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut net = Decimal::ZERO;
+        for bar in &self.bars[start..] {
+            let range = bar.high.value() - bar.low.value();
+            let vol = bar.volume.value();
+            if range.is_zero() { continue; }
+            let buy_frac = (bar.close.value() - bar.low.value()) / range;
+            let buy_vol = vol * buy_frac;
+            let sell_vol = vol - buy_vol;
+            net += buy_vol - sell_vol;
+        }
+        Some(net)
+    }
+
+    /// Average `high − open` over the last `n` bars.
+    ///
+    /// Measures the typical upper extension from the open.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_high_minus_open(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        #[allow(clippy::cast_possible_truncation)]
+        let sum: Decimal = self.bars[start..].iter()
+            .map(|b| b.high.value() - b.open.value())
+            .sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Percentage of the last `n` bars where close is in the upper half of the bar's range.
+    ///
+    /// A close is in the upper half when `close >= (high + low) / 2`.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn close_consistency(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let upper = self.bars[start..].iter().filter(|b| {
+            let mid = (b.high.value() + b.low.value()) / Decimal::TWO;
+            b.close.value() >= mid
+        }).count();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(upper as u32) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Difference in momentum between a fast window and a slow window.
+    ///
+    /// Momentum is `close - close[n]`. Divergence = `fast_momentum - slow_momentum`.
+    /// Positive values indicate short-term momentum is stronger than longer-term.
+    /// Returns `None` if `fast >= slow` or insufficient bars.
+    pub fn momentum_divergence(&self, fast: usize, slow: usize) -> Option<Decimal> {
+        if fast == 0 || slow == 0 || fast >= slow { return None; }
+        if self.bars.len() <= slow { return None; }
+        let n = self.bars.len();
+        let current = self.bars[n - 1].close.value();
+        let fast_prev = self.bars[n - 1 - fast].close.value();
+        let slow_prev = self.bars[n - 1 - slow].close.value();
+        Some((current - fast_prev) - (current - slow_prev))
+    }
+
+    /// Normalized price range: `(highest_high - lowest_low) / lowest_low * 100` over `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or lowest_low is zero.
+    pub fn price_range_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
+        let low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
+        if low.is_zero() { return None; }
+        Some((high - low) / low * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

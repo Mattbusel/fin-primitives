@@ -1577,6 +1577,30 @@ impl PositionLedger {
             .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
             .sum()
     }
+
+    /// Returns symbols that have a flat (zero-quantity) position in this ledger, sorted.
+    pub fn symbols_flat(&self) -> Vec<&Symbol> {
+        let mut flat: Vec<&Symbol> = self.positions.iter()
+            .filter(|(_, p)| p.is_flat())
+            .map(|(sym, _)| sym)
+            .collect();
+        flat.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        flat
+    }
+
+    /// Returns the symbol with the worst (most negative) unrealized P&L.
+    ///
+    /// Returns `None` if there are no open positions or none have a price in `prices`.
+    pub fn max_drawdown_symbol<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Symbol> {
+        self.positions.iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| (sym, p.unrealized_pnl(price)))
+            })
+            .min_by(|(_, a), (_, b)| a.cmp(b))
+            .map(|(sym, _)| sym)
+    }
 }
 
 #[cfg(test)]

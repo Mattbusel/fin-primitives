@@ -82,6 +82,9 @@ pub struct DrawdownTracker {
     loss_streak_current: usize,
     /// Initial equity (set at construction, unchanged by reset unless re-constructed).
     initial_equity: Decimal,
+    /// Current consecutive run of updates where equity was unchanged.
+    #[serde(default)]
+    flat_streak: usize,
 }
 
 impl DrawdownTracker {
@@ -113,6 +116,7 @@ impl DrawdownTracker {
             drawdown_episodes: 0,
             loss_streak_current: 0,
             initial_equity,
+            flat_streak: 0,
         }
     }
 
@@ -155,11 +159,15 @@ impl DrawdownTracker {
                 self.max_gain_streak = self.gain_streak;
             }
             self.loss_streak_current = 0;
+            self.flat_streak = 0;
         } else if equity < self.current_equity {
             self.gain_streak = 0;
             self.loss_streak_current += 1;
+            self.flat_streak = 0;
         } else {
             self.gain_streak = 0;
+            self.loss_streak_current = 0;
+            self.flat_streak += 1;
         }
         if equity > self.peak_equity {
             if self.updates_since_peak > 0 {
@@ -298,6 +306,7 @@ impl DrawdownTracker {
         self.max_gain_delta_pct = 0.0;
         self.drawdown_episodes = 0;
         self.loss_streak_current = 0;
+        self.flat_streak = 0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -624,6 +633,26 @@ impl DrawdownTracker {
         if init == 0.0 { return None; }
         let curr = self.current_equity.to_f64()?;
         Some((curr - init) / init * 100.0)
+    }
+
+    /// Current count of consecutive updates where equity did not change.
+    pub fn consecutive_flat_count(&self) -> usize {
+        self.flat_streak
+    }
+
+    /// Median of a slice of drawdown percentages.
+    ///
+    /// The input need not be sorted. Returns `None` if the slice is empty.
+    pub fn median_drawdown_pct(drawdowns: &[Decimal]) -> Option<Decimal> {
+        if drawdowns.is_empty() { return None; }
+        let mut sorted = drawdowns.to_vec();
+        sorted.sort();
+        let mid = sorted.len() / 2;
+        if sorted.len() % 2 == 1 {
+            Some(sorted[mid])
+        } else {
+            Some((sorted[mid - 1] + sorted[mid]) / Decimal::TWO)
+        }
     }
 
     /// Sortino ratio from a slice of period returns.
@@ -1213,6 +1242,15 @@ impl DrawdownTracker {
         let vol = self.annualized_volatility(periods_per_year)?;
         if vol == 0.0 { return None; }
         Some(annualized_return / vol)
+    }
+
+    /// Average duration of underwater periods: `drawdown_update_count / drawdown_count`.
+    ///
+    /// Returns `None` if there have been no drawdown periods.
+    pub fn underwater_duration_avg(&self) -> Option<f64> {
+        let count = self.drawdown_count();
+        if count == 0 { return None; }
+        Some(self.drawdown_update_count as f64 / count as f64)
     }
 }
 

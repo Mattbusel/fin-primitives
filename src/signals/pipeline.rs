@@ -108,6 +108,16 @@ impl SignalMap {
             .reduce(|acc, item| if item.1 > acc.1 { item } else { acc })
     }
 
+    /// Returns the name of the signal with the highest scalar value, or `None` if no scalars.
+    pub fn name_of_max(&self) -> Option<&str> {
+        self.max_scalar().map(|(name, _)| name)
+    }
+
+    /// Returns the name of the signal with the lowest scalar value, or `None` if no scalars.
+    pub fn name_of_min(&self) -> Option<&str> {
+        self.min_scalar().map(|(name, _)| name)
+    }
+
     /// Returns the sum of all ready scalar values in this map.
     pub fn sum_scalars(&self) -> Decimal {
         self.scalars().map(|(_, v)| v).sum()

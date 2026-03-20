@@ -800,6 +800,12 @@ impl NanoTimestamp {
         NanoTimestamp(self.0.div_euclid(HOUR_NANOS) * HOUR_NANOS)
     }
 
+    /// Returns the UTC hour of day (0–23).
+    pub fn hour_of_day(self) -> u8 {
+        use chrono::Timelike;
+        self.to_datetime().hour() as u8
+    }
+
     /// Floors this timestamp to midnight UTC (start of the day).
     ///
     /// Truncates hours, minutes, seconds, and nanoseconds: returns `00:00:00.000000000`.
