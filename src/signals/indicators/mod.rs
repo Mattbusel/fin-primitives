@@ -194,6 +194,7 @@ pub mod mean_reversion_score;
 pub mod adaptive_rsi;
 pub mod rsi_stochastic;
 pub mod price_oscillator;
+pub mod volume_breadth;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -386,3 +387,4 @@ pub use mean_reversion_score::MeanReversionScore;
 pub use adaptive_rsi::AdaptiveRsi;
 pub use rsi_stochastic::RsiStochastic;
 pub use price_oscillator::PriceOscillator;
+pub use volume_breadth::VolumeBreadth;
