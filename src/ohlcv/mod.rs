@@ -6959,6 +6959,115 @@ impl OhlcvSeries {
         }
         sum.checked_div(Decimal::from(n as u32))
     }
+
+    /// Average ratio of total shadow to body over the last `n` bars.
+    ///
+    /// Per bar: `(upper_shadow + lower_shadow) / body_size`.
+    /// Bars with zero body are skipped (doji). Returns `None` if `n == 0`,
+    /// fewer than `n` bars exist, or all bars are doji.
+    pub fn avg_wicks_to_body(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let body = bar.body_size();
+            if body.is_zero() { continue; }
+            sum += (bar.upper_shadow() + bar.lower_shadow()) / body;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
+
+    /// Volume-trend correlation over the last `n` bars.
+    ///
+    /// Pearson correlation between bar volume and price direction (`+1` for up
+    /// bars, `-1` for down bars, `0` for flat). A positive correlation indicates
+    /// volume is heavier on up bars (bullish confirmation); negative indicates
+    /// heavier volume on down bars.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or either series
+    /// has zero standard deviation.
+    pub fn volume_trend_correlation(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let vols: Vec<f64> = slice.iter().filter_map(|b| b.volume.value().to_f64()).collect();
+        let dirs: Vec<f64> = slice.iter().map(|b| {
+            if b.is_bullish() { 1.0 } else if b.is_bearish() { -1.0 } else { 0.0 }
+        }).collect();
+        let m = vols.len().min(dirs.len()) as f64;
+        if m < 2.0 { return None; }
+        let mv = vols.iter().sum::<f64>() / m;
+        let md = dirs.iter().sum::<f64>() / m;
+        let cov  = vols.iter().zip(dirs.iter()).map(|(v, d)| (v - mv) * (d - md)).sum::<f64>() / m;
+        let sv = (vols.iter().map(|v| (v - mv).powi(2)).sum::<f64>() / m).sqrt();
+        let sd = (dirs.iter().map(|d| (d - md).powi(2)).sum::<f64>() / m).sqrt();
+        if sv == 0.0 || sd == 0.0 { return None; }
+        Some(cov / (sv * sd))
+    }
+
+    /// Candle consistency over the last `n` bars.
+    ///
+    /// Measures the percentage of bars where the close direction (up/down)
+    /// matches the previous bar's close direction. A high value (near 100%)
+    /// indicates persistent trending; a low value indicates choppiness.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    pub fn candle_consistency(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let dirs: Vec<i8> = slice.iter().map(|b| {
+            if b.is_bullish() { 1 } else if b.is_bearish() { -1 } else { 0 }
+        }).collect();
+        let consistent = dirs.windows(2).filter(|w| w[0] != 0 && w[1] != 0 && w[0] == w[1]).count();
+        let total = dirs.windows(2).filter(|w| w[0] != 0 && w[1] != 0).count();
+        if total == 0 { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(consistent as u32) / Decimal::from(total as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Average absolute open-to-close spread over the last `n` bars.
+    ///
+    /// Per bar: `|close - open|`. This measures the average bar body size in
+    /// absolute price terms, indicating intraday momentum strength.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_open_close_spread(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter()
+            .map(|b| (b.close.value() - b.open.value()).abs())
+            .sum();
+        sum.checked_div(Decimal::from(n as u32))
+    }
+
+    /// High-frequency volatility ratio over the last `n` bars.
+    ///
+    /// Per bar: `range / prev_close` where `range = high - low`. This measures
+    /// the intraday price swing as a fraction of the prior close, combining
+    /// elements of ATR and volatility. Returns the average over `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn avg_range_to_prev_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let slice = &self.bars[start..];
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for w in slice.windows(2) {
+            let pc = w[0].close.value();
+            if pc.is_zero() { continue; }
+            let range = w[1].high.value() - w[1].low.value();
+            sum += range / pc;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
 }
 
 #[cfg(test)]
