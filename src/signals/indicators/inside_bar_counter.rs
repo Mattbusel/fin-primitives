@@ -30,7 +30,6 @@ pub struct InsideBarCounter {
     prev_high: Option<Decimal>,
     prev_low: Option<Decimal>,
     streak: u32,
-    ready: bool,
 }
 
 impl InsideBarCounter {
@@ -41,7 +40,6 @@ impl InsideBarCounter {
             prev_high: None,
             prev_low: None,
             streak: 0,
-            ready: false,
         }
     }
 }
@@ -56,7 +54,7 @@ impl Signal for InsideBarCounter {
     }
 
     fn is_ready(&self) -> bool {
-        self.ready
+        self.prev_high.is_some()
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
@@ -75,7 +73,6 @@ impl Signal for InsideBarCounter {
 
         self.prev_high = Some(bar.high);
         self.prev_low = Some(bar.low);
-        self.ready = true;
 
         #[allow(clippy::cast_possible_truncation)]
         Ok(SignalValue::Scalar(Decimal::from(self.streak)))
@@ -85,7 +82,6 @@ impl Signal for InsideBarCounter {
         self.prev_high = None;
         self.prev_low = None;
         self.streak = 0;
-        self.ready = false;
     }
 }
 
@@ -155,12 +151,10 @@ mod tests {
     }
 
     #[test]
-    fn test_ibc_ready_after_second_bar() {
+    fn test_ibc_ready_after_first_bar() {
         let mut ibc = InsideBarCounter::new("ibc");
         assert!(!ibc.is_ready());
-        ibc.update_bar(&bar("110", "90")).unwrap(); // first bar: Unavailable, not ready
-        assert!(!ibc.is_ready());
-        ibc.update_bar(&bar("108", "92")).unwrap(); // second bar: Scalar, ready
+        ibc.update_bar(&bar("110", "90")).unwrap(); // prev stored → ready for next update
         assert!(ibc.is_ready());
     }
 

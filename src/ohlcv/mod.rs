@@ -6753,6 +6753,111 @@ impl OhlcvSeries {
         if count == 0 || b_dn_sum == 0.0 { return None; }
         Some(p_dn_sum / b_dn_sum)
     }
+
+    /// Payoff Ratio over the last `n` bars.
+    ///
+    /// `Payoff Ratio = average_win / average_loss` where wins and losses are
+    /// defined by positive and negative close-to-close returns respectively.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or there are no
+    /// winning or losing bars.
+    pub fn payoff_ratio(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut win_sum  = Decimal::ZERO;
+        let mut loss_sum = Decimal::ZERO;
+        let mut win_cnt  = 0u32;
+        let mut loss_cnt = 0u32;
+        for w in slice.windows(2) {
+            let pc = w[0].close.value();
+            if pc.is_zero() { continue; }
+            let ret = (w[1].close.value() - pc) / pc;
+            if ret > Decimal::ZERO { win_sum  += ret; win_cnt  += 1; }
+            else if ret < Decimal::ZERO { loss_sum += -ret; loss_cnt += 1; }
+        }
+        if win_cnt == 0 || loss_cnt == 0 { return None; }
+        let avg_win  = win_sum  / Decimal::from(win_cnt);
+        let avg_loss = loss_sum / Decimal::from(loss_cnt);
+        avg_win.checked_div(avg_loss)
+    }
+
+    /// Expected Value (EV) of a trade over the last `n` bars.
+    ///
+    /// `EV = win_rate × avg_win - loss_rate × avg_loss`
+    ///
+    /// where returns are computed bar-to-bar (close-to-close). A positive EV
+    /// indicates the strategy has a statistical edge over the sample.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    pub fn expected_value(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut wins  = Vec::new();
+        let mut losses = Vec::new();
+        for w in slice.windows(2) {
+            let pc = w[0].close.value();
+            if pc.is_zero() { continue; }
+            let ret = (w[1].close.value() - pc) / pc;
+            if ret > Decimal::ZERO { wins.push(ret); }
+            else if ret < Decimal::ZERO { losses.push(-ret); }
+        }
+        let total = wins.len() + losses.len();
+        if total == 0 { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        let total_d = Decimal::from(total as u32);
+        let win_rate  = Decimal::from(wins.len() as u32) / total_d;
+        let loss_rate = Decimal::ONE - win_rate;
+        let avg_win  = if wins.is_empty()   { Decimal::ZERO } else { wins.iter().copied().sum::<Decimal>()   / Decimal::from(wins.len() as u32) };
+        let avg_loss = if losses.is_empty() { Decimal::ZERO } else { losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32) };
+        Some(win_rate * avg_win - loss_rate * avg_loss)
+    }
+
+    /// Count of bars within the last `n` bars where the close broke above the
+    /// rolling `lookback`-bar high (i.e. `close > max(close[-lookback..-1])`).
+    ///
+    /// Useful for measuring breakout frequency. Returns `None` if `n == 0`,
+    /// `lookback == 0`, or there are fewer than `n + lookback` bars.
+    pub fn breakout_count(&self, n: usize, lookback: usize) -> Option<usize> {
+        if n == 0 || lookback == 0 { return None; }
+        let required = n + lookback;
+        if self.bars.len() < required { return None; }
+        let slice = &self.bars[self.bars.len() - required..];
+        let count = (lookback..slice.len()).filter(|&i| {
+            let current_close = slice[i].close.value();
+            let prior_high = slice[i - lookback..i].iter().map(|b| b.close.value()).fold(Decimal::MIN, Decimal::max);
+            current_close > prior_high
+        }).count();
+        Some(count)
+    }
+
+    /// Percentage of bars in the last `n` where close is above its `period`-bar EMA.
+    ///
+    /// Computes a rolling EMA with the standard `2/(period+1)` factor across the
+    /// window and counts how many of the last `n` closes lie above it.
+    ///
+    /// Returns `None` if `n == 0`, `period == 0`, or fewer than `n + period` bars exist.
+    pub fn pct_close_above_ema(&self, n: usize, period: usize) -> Option<Decimal> {
+        if n == 0 || period == 0 { return None; }
+        let required = n + period - 1;
+        if self.bars.len() < required { return None; }
+        let slice = &self.bars[self.bars.len() - required..];
+        // Seed EMA with first `period` bars
+        #[allow(clippy::cast_possible_truncation)]
+        let k = Decimal::TWO / Decimal::from((period + 1) as u32);
+        let seed_sum: Decimal = slice[..period].iter().map(|b| b.close.value()).sum();
+        let seed_avg = seed_sum / Decimal::from(period as u32);
+        let mut ema = seed_avg;
+        let mut above = 0u32;
+        for bar in &slice[period..] {
+            let c = bar.close.value();
+            ema = c * k + ema * (Decimal::ONE - k);
+            if c > ema { above += 1; }
+        }
+        let n_d = Decimal::from(n as u32);
+        Some(Decimal::from(above) / n_d * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

@@ -1132,6 +1132,142 @@ impl RiskRule for MaxLossFromInitialRule {
     }
 }
 
+/// Triggers a breach when equity has declined for `max_consecutive` consecutive updates.
+///
+/// Each call to [`RiskMonitor::update`] where equity is lower than the previous
+/// update counts as a loss. When the streak reaches `max_consecutive`, a breach
+/// is returned for every subsequent declining update until the streak resets.
+///
+/// Because this rule must track state across calls, it holds a mutable counter
+/// internally using [`std::cell::Cell`].
+pub struct MaxConsecutiveLossRule {
+    /// Maximum number of consecutive declining equity updates before breach.
+    pub max_consecutive: usize,
+    streak: std::cell::Cell<usize>,
+    last_equity: std::cell::Cell<u64>, // stored as bits via f64::to_bits for Cell compatibility
+}
+
+impl MaxConsecutiveLossRule {
+    /// Constructs a new `MaxConsecutiveLossRule`.
+    pub fn new(max_consecutive: usize) -> Self {
+        Self {
+            max_consecutive,
+            streak: std::cell::Cell::new(0),
+            last_equity: std::cell::Cell::new(f64::NAN.to_bits()),
+        }
+    }
+}
+
+impl RiskRule for MaxConsecutiveLossRule {
+    fn name(&self) -> &str {
+        "max_consecutive_loss"
+    }
+
+    fn check(&self, equity: Decimal, _drawdown_pct: Decimal) -> Option<RiskBreach> {
+        use rust_decimal::prelude::ToPrimitive;
+        let prev_bits = self.last_equity.get();
+        let prev = f64::from_bits(prev_bits);
+        let curr = equity.to_f64().unwrap_or(f64::NAN);
+        self.last_equity.set(curr.to_bits());
+
+        if prev.is_nan() {
+            // First call — no previous equity to compare
+            self.streak.set(0);
+            return None;
+        }
+
+        if curr < prev {
+            self.streak.set(self.streak.get() + 1);
+        } else {
+            self.streak.set(0);
+        }
+
+        if self.streak.get() >= self.max_consecutive {
+            Some(RiskBreach {
+                rule: self.name().to_owned(),
+                detail: format!(
+                    "{} consecutive losing updates (limit {})",
+                    self.streak.get(),
+                    self.max_consecutive
+                ),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// Triggers a breach when the rolling volatility of equity returns exceeds a threshold.
+///
+/// Volatility is measured as the standard deviation of the last `window` equity
+/// updates (as percentage returns). When `vol_pct > threshold_pct`, a breach fires.
+pub struct VolatilityLimitRule {
+    /// Maximum allowable equity-return volatility in percent (e.g. `dec!(2)` = 2%).
+    pub threshold_pct: Decimal,
+    /// Number of equity samples used to compute volatility.
+    pub window: usize,
+    history: std::cell::RefCell<std::collections::VecDeque<Decimal>>,
+}
+
+impl VolatilityLimitRule {
+    /// Constructs a new `VolatilityLimitRule`.
+    ///
+    /// `window` must be ≥ 2.
+    pub fn new(threshold_pct: Decimal, window: usize) -> Self {
+        Self {
+            threshold_pct,
+            window: window.max(2),
+            history: std::cell::RefCell::new(std::collections::VecDeque::with_capacity(window.max(2))),
+        }
+    }
+}
+
+impl RiskRule for VolatilityLimitRule {
+    fn name(&self) -> &str {
+        "volatility_limit"
+    }
+
+    fn check(&self, equity: Decimal, _drawdown_pct: Decimal) -> Option<RiskBreach> {
+        let mut hist = self.history.borrow_mut();
+        hist.push_back(equity);
+        if hist.len() > self.window {
+            hist.pop_front();
+        }
+        if hist.len() < 2 {
+            return None;
+        }
+
+        // Compute std-dev of pct returns within window
+        let returns: Vec<Decimal> = hist.iter().zip(hist.iter().skip(1)).filter_map(|(a, b)| {
+            if a.is_zero() { return None; }
+            Some((b - a) / *a * Decimal::ONE_HUNDRED)
+        }).collect();
+        if returns.len() < 2 { return None; }
+
+        #[allow(clippy::cast_possible_truncation)]
+        let n = Decimal::from(returns.len() as u32);
+        let mean = returns.iter().copied().sum::<Decimal>() / n;
+        let variance = returns.iter().map(|r| (*r - mean) * (*r - mean)).sum::<Decimal>() / n;
+        let std_dev_sq = variance;
+
+        // Compare variance to threshold² to avoid sqrt
+        let threshold_sq = self.threshold_pct * self.threshold_pct;
+        if std_dev_sq > threshold_sq {
+            use rust_decimal::prelude::ToPrimitive;
+            let vol_approx = std_dev_sq.to_f64().unwrap_or(0.0).sqrt();
+            Some(RiskBreach {
+                rule: self.name().to_owned(),
+                detail: format!(
+                    "equity volatility {vol_approx:.2}% > limit {:.2}%",
+                    self.threshold_pct
+                ),
+            })
+        } else {
+            None
+        }
+    }
+}
+
 /// Evaluates multiple `RiskRule`s on each equity update and returns all breaches.
 pub struct RiskMonitor {
     rules: Vec<Box<dyn RiskRule>>,
