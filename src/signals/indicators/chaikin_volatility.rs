@@ -28,7 +28,7 @@ impl ChaikinVolatility {
 
 impl Signal for ChaikinVolatility {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
         let ema = match self.ema {
             None => hl,
             Some(prev) => hl * self.k + prev * (Decimal::ONE - self.k),

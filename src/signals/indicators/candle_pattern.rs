@@ -42,7 +42,7 @@ impl Signal for CandlePattern {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let body = (bar.close - bar.open).abs();
 
         let prev = self.prev.replace(*bar);

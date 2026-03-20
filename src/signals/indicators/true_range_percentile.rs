@@ -28,9 +28,9 @@ impl TrueRangePercentile {
 impl Signal for TrueRangePercentile {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = match self.prev_close {
-            None => bar.high - bar.low,
+            None => bar.range(),
             Some(pc) => {
-                let hl = bar.high - bar.low;
+                let hl = bar.range();
                 let hc = (bar.high - pc).abs();
                 let lc = (bar.low - pc).abs();
                 hl.max(hc).max(lc)

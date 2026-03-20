@@ -79,7 +79,7 @@ impl Signal for VolatilityBreak {
                 return Ok(SignalValue::Unavailable);
             }
             Some(pc) => {
-                let hl = bar.high - bar.low;
+                let hl = bar.range();
                 let hc = (bar.high - pc).abs();
                 let lc = (bar.low - pc).abs();
                 hl.max(hc).max(lc)
@@ -106,7 +106,7 @@ impl Signal for VolatilityBreak {
             .checked_mul(self.multiplier)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let current_range = bar.high - bar.low;
+        let current_range = bar.range();
         let breakout = if current_range > threshold { Decimal::ONE } else { Decimal::ZERO };
         Ok(SignalValue::Scalar(breakout))
     }

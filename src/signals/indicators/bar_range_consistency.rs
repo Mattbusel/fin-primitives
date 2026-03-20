@@ -54,7 +54,7 @@ impl Signal for BarRangeConsistency {
     fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {

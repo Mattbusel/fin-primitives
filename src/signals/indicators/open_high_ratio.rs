@@ -43,7 +43,7 @@ impl Signal for OpenHighRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() { return Ok(SignalValue::Unavailable); }
         Ok(SignalValue::Scalar((bar.high - bar.open) / range * Decimal::ONE_HUNDRED))
     }

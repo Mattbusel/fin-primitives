@@ -68,7 +68,7 @@ impl Signal for MassIndex {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
 
         // EMA1: EMA of (high - low)
         self.ema1_count += 1;

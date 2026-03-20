@@ -48,7 +48,7 @@ impl Signal for GapRangeRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
-            let bar_range = bar.high - bar.low;
+            let bar_range = bar.range();
             let tr_high = bar.high.max(pc);
             let tr_low = bar.low.min(pc);
             let true_range = tr_high - tr_low;

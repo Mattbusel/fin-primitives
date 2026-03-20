@@ -1,137 +1,92 @@
-//! Volume Price Impact — price movement per unit of volume.
+//! Volume Price Impact indicator.
 
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 
-/// Volume Price Impact — measures how much price moved per unit of traded volume.
+/// Rolling average of `|close - prev_close| / volume`.
 ///
-/// Defined as `|close - open| / volume` on each bar. A higher value means
-/// each unit of volume moved price more (less liquid, or more directional flow).
-/// A lower value means large volume with little price change (absorption).
-///
-/// Returns [`SignalValue::Unavailable`] when volume is zero (no trades occurred).
-/// Returns [`SignalValue::Scalar`] on every bar with non-zero volume, making this a
-/// **period-1 indicator**.
-///
-/// # Example
-/// ```rust
-/// use fin_primitives::signals::indicators::VolumePriceImpact;
-/// use fin_primitives::signals::Signal;
-/// let vpi = VolumePriceImpact::new("vpi");
-/// assert_eq!(vpi.period(), 1);
-/// ```
+/// Measures price change per unit of volume (market impact / price efficiency).
+/// Low values indicate high liquidity; high values indicate thin liquidity.
+/// Bars with zero volume are skipped.
 pub struct VolumePriceImpact {
-    name: String,
-    ready: bool,
+    period: usize,
+    prev_close: Option<Decimal>,
+    window: VecDeque<Decimal>,
+    sum: Decimal,
 }
 
 impl VolumePriceImpact {
-    /// Constructs a new `VolumePriceImpact`.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+    /// Creates a new `VolumePriceImpact` with the given rolling period.
+    pub fn new(period: usize) -> Result<Self, FinError> {
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
     }
 }
 
 impl Signal for VolumePriceImpact {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn period(&self) -> usize {
-        1
-    }
-
-    fn is_ready(&self) -> bool {
-        self.ready
-    }
-
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        if bar.volume.is_zero() {
+        if let Some(pc) = self.prev_close {
+            if !bar.volume.is_zero() {
+                let impact = (bar.close - pc).abs() / bar.volume;
+                self.window.push_back(impact);
+                self.sum += impact;
+                if self.window.len() > self.period {
+                    if let Some(old) = self.window.pop_front() {
+                        self.sum -= old;
+                    }
+                }
+            }
+        }
+        self.prev_close = Some(bar.close);
+
+        if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let body = (bar.close - bar.open).abs();
-        let impact = body
-            .checked_div(bar.volume)
-            .ok_or(FinError::ArithmeticOverflow)?;
-        self.ready = true;
-        Ok(SignalValue::Scalar(impact))
+        let len = Decimal::from(self.period as u32);
+        Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn reset(&mut self) {
-        self.ready = false;
-    }
+    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn period(&self) -> usize { self.period }
+    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = Decimal::ZERO; }
+    fn name(&self) -> &str { "VolumePriceImpact" }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ohlcv::OhlcvBar;
-    use crate::signals::Signal;
-    use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(open: &str, close: &str, vol: &str) -> OhlcvBar {
-        let o = Price::new(open.parse().unwrap()).unwrap();
-        let c = Price::new(close.parse().unwrap()).unwrap();
-        let h = if o.value() >= c.value() { o } else { c };
-        let l = if o.value() <= c.value() { o } else { c };
-        OhlcvBar {
-            symbol: Symbol::new("X").unwrap(),
-            open: o, high: h, low: l, close: c,
-            volume: Quantity::new(vol.parse().unwrap()).unwrap(),
-            ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1),
-            tick_count: 1,
+    fn bar(c: &str, v: &str) -> BarInput {
+        BarInput {
+            open: c.parse().unwrap(),
+            high: c.parse().unwrap(),
+            low: c.parse().unwrap(),
+            close: c.parse().unwrap(),
+            volume: v.parse().unwrap(),
         }
     }
 
     #[test]
-    fn test_vpi_zero_volume_unavailable() {
-        let mut vpi = VolumePriceImpact::new("vpi");
-        let v = vpi.update_bar(&bar("100", "105", "0")).unwrap();
-        assert_eq!(v, SignalValue::Unavailable);
-        assert!(!vpi.is_ready());
-    }
-
-    #[test]
-    fn test_vpi_computes_correctly() {
-        let mut vpi = VolumePriceImpact::new("vpi");
-        // body = |110 - 100| = 10, volume = 100, impact = 0.1
-        let v = vpi.update_bar(&bar("100", "110", "100")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(0.1)));
-        assert!(vpi.is_ready());
-    }
-
-    #[test]
-    fn test_vpi_doji_gives_zero() {
-        let mut vpi = VolumePriceImpact::new("vpi");
-        // close = open → body = 0 → impact = 0
-        let v = vpi.update_bar(&bar("100", "100", "500")).unwrap();
+    fn test_vpi_no_price_change() {
+        let mut sig = VolumePriceImpact::new(2).unwrap();
+        sig.update(&bar("100", "1000")).unwrap();
+        sig.update(&bar("100", "1000")).unwrap();
+        let v = sig.update(&bar("100", "1000")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
-    fn test_vpi_period_is_one() {
-        let vpi = VolumePriceImpact::new("vpi");
-        assert_eq!(vpi.period(), 1);
-    }
-
-    #[test]
-    fn test_vpi_reset() {
-        let mut vpi = VolumePriceImpact::new("vpi");
-        vpi.update_bar(&bar("100", "110", "100")).unwrap();
-        assert!(vpi.is_ready());
-        vpi.reset();
-        assert!(!vpi.is_ready());
-    }
-
-    #[test]
-    fn test_vpi_always_non_negative() {
-        let mut vpi = VolumePriceImpact::new("vpi");
-        // Bearish bar: body = |95 - 100| = 5, volume = 50, impact = 0.1
-        let v = vpi.update_bar(&bar("100", "95", "50")).unwrap();
-        if let SignalValue::Scalar(r) = v {
-            assert!(r >= dec!(0), "impact should be non-negative: {r}");
-        }
+    fn test_vpi_basic_impact() {
+        // Price change = 1, volume = 1000 → impact = 0.001
+        let mut sig = VolumePriceImpact::new(2).unwrap();
+        sig.update(&bar("100", "1000")).unwrap(); // seeds prev_close=100
+        sig.update(&bar("101", "1000")).unwrap(); // impact=1/1000=0.001
+        let v = sig.update(&bar("102", "1000")).unwrap(); // impact=0.001, avg=0.001
+        assert_eq!(v, SignalValue::Scalar(dec!(0.001)));
     }
 }

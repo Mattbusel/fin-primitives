@@ -97,7 +97,7 @@ impl Signal for Kvo {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let typical = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
-        let dm = bar.high - bar.low;
+        let dm = bar.range();
         let vol = bar.volume;
 
         let (trend, cm) = if let Some(pt) = self.prev_typical {

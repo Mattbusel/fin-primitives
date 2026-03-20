@@ -59,7 +59,7 @@ impl Signal for GapMomentum {
     fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
 
         if let Some(prev) = self.prev_close {
             let gap = bar.open - prev;

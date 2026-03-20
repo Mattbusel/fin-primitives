@@ -64,7 +64,7 @@ impl Signal for EaseOfMovement {
             .ok_or(FinError::ArithmeticOverflow)?;
 
         let raw_emv = if let Some(prev_mid) = self.prev_mid {
-            let range = bar.high - bar.low;
+            let range = bar.range();
             if range.is_zero() || bar.volume.is_zero() {
                 self.prev_mid = Some(mid);
                 return Ok(SignalValue::Unavailable);

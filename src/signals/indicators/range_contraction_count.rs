@@ -41,7 +41,7 @@ impl Signal for RangeContractionCount {
     fn is_ready(&self) -> bool { self.prev_range.is_some() }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let result = match self.prev_range {
             None => SignalValue::Unavailable,
             Some(pr) => {

@@ -41,7 +41,7 @@ impl Signal for BarOverlapRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let (Some(ph), Some(pl)) = (self.prev_high, self.prev_low) {
-            let range = bar.high - bar.low;
+            let range = bar.range();
             if range.is_zero() {
                 Ok(SignalValue::Unavailable)
             } else {

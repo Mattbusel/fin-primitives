@@ -25,7 +25,7 @@ impl BarEfficiency {
 
 impl Signal for BarEfficiency {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let body = if bar.close >= bar.open {
             bar.close - bar.open
         } else {

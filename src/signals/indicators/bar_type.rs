@@ -42,7 +42,7 @@ impl Signal for BarType {
     fn is_ready(&self) -> bool { true }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let body = bar.close - bar.open;
 
         if range.is_zero() || body.is_zero() {

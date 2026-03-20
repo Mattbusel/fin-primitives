@@ -56,7 +56,7 @@ impl Signal for OhlcSpread {
         if bar.close.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let spread = (bar.high - bar.low) / bar.close;
+        let spread = (bar.range()) / bar.close;
         self.spreads.push_back(spread);
         self.sum += spread;
         if self.spreads.len() > self.period {

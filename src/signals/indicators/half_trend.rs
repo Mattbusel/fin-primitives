@@ -112,7 +112,7 @@ impl Signal for HalfTrend {
                 return Ok(SignalValue::Unavailable);
             }
             Some(pc) => {
-                let hl = bar.high - bar.low;
+                let hl = bar.range();
                 let hc = (bar.high - pc).abs();
                 let lc = (bar.low - pc).abs();
                 hl.max(hc).max(lc)

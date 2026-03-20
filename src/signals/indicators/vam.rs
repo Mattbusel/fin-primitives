@@ -65,9 +65,9 @@ impl Signal for Vam {
         }
 
         let tr = match self.prev_close {
-            None => bar.high - bar.low,
+            None => bar.range(),
             Some(pc) => {
-                let hl = bar.high - bar.low;
+                let hl = bar.range();
                 let hpc = (bar.high - pc).abs();
                 let lpc = (bar.low - pc).abs();
                 hl.max(hpc).max(lpc)

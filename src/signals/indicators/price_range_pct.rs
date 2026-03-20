@@ -47,7 +47,7 @@ impl Signal for PriceRangePct {
         if bar.close.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let pct = range
             .checked_div(bar.close)
             .ok_or(FinError::ArithmeticOverflow)?

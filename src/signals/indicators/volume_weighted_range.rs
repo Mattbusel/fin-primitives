@@ -55,7 +55,7 @@ impl Signal for VolumeWeightedRange {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let rv = range * bar.volume;
         self.range_vol_sum += rv;
         self.vol_sum += bar.volume;

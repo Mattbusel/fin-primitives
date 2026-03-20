@@ -65,7 +65,7 @@ impl DualATRRatio {
     }
 
     fn true_range(bar: &BarInput, prev_close: Option<Decimal>) -> Decimal {
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
         if let Some(pc) = prev_close {
             hl.max((bar.high - pc).abs()).max((bar.low - pc).abs())
         } else {

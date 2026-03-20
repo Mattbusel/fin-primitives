@@ -28,7 +28,7 @@ impl PriceRangeExpansion {
 
 impl Signal for PriceRangeExpansion {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if let Some(pr) = self.prev_range {
             let expanded: u8 = if range > pr { 1 } else { 0 };
             self.window.push_back(expanded);

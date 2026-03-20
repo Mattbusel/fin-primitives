@@ -51,7 +51,7 @@ impl Signal for RangeRatio {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         self.ranges.push_back(range);
         if self.ranges.len() > self.period { self.ranges.pop_front(); }
         if self.ranges.len() < self.period { return Ok(SignalValue::Unavailable); }

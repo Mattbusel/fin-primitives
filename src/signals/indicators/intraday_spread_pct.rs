@@ -42,7 +42,7 @@ impl Signal for IntradaySpreadPct {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let mid = bar.high + bar.low;
         if mid.is_zero() { return Ok(SignalValue::Unavailable); }
-        let spread_pct = (bar.high - bar.low) / mid * Decimal::from(200u32);
+        let spread_pct = (bar.range()) / mid * Decimal::from(200u32);
         Ok(SignalValue::Scalar(spread_pct))
     }
 

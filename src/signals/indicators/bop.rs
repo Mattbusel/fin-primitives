@@ -68,7 +68,7 @@ impl Signal for Bop {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let raw = if range.is_zero() {
             Decimal::ZERO
         } else {

@@ -41,7 +41,7 @@ impl Signal for VolumeDirectionRatio {
     fn is_ready(&self) -> bool { true }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() { return Ok(SignalValue::Unavailable); }
         let close_pct = (bar.close - bar.low) / range;
         let vdr = Decimal::from(2u32) * close_pct - Decimal::ONE;

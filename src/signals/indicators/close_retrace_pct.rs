@@ -45,7 +45,7 @@ impl Signal for CloseRetracePct {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() { return Ok(SignalValue::Unavailable); }
         let retrace = (bar.high - bar.close) / range * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(retrace))

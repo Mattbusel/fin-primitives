@@ -53,9 +53,9 @@ impl Signal for Pgo {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = if let Some(pc) = self.prev_close {
-            (bar.high - bar.low).max((bar.high - pc).abs()).max((bar.low - pc).abs())
+            (bar.range()).max((bar.high - pc).abs()).max((bar.low - pc).abs())
         } else {
-            bar.high - bar.low
+            bar.range()
         };
         self.prev_close = Some(bar.close);
 

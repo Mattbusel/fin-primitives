@@ -53,7 +53,7 @@ impl Signal for BodyFillRatio {
     fn is_ready(&self) -> bool { self.ratios.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let ratio = if range.is_zero() {
             Decimal::ZERO
         } else {

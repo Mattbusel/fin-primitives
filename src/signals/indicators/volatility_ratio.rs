@@ -59,8 +59,8 @@ impl Signal for VolatilityRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = match self.prev_close {
-            None => bar.high - bar.low,
-            Some(pc) => (bar.high - bar.low)
+            None => bar.range(),
+            Some(pc) => (bar.range())
                 .max((bar.high - pc).abs())
                 .max((bar.low - pc).abs()),
         };

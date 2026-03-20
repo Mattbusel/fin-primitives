@@ -59,7 +59,7 @@ impl Signal for AverageGap {
     fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
 
         if let Some(prev) = self.prev_close {
             let gap = if bar.open >= prev { bar.open - prev } else { prev - bar.open };

@@ -63,6 +63,11 @@ impl BarInput {
         (self.high + self.low + self.close + self.close) / Decimal::from(4u32)
     }
 
+    /// Returns the price range: `high - low`.
+    pub fn range(&self) -> Decimal {
+        self.high - self.low
+    }
+
     /// Returns the midpoint of the bar: `(high + low) / 2`.
     pub fn midpoint(&self) -> Decimal {
         (self.high + self.low) / Decimal::from(2u32)

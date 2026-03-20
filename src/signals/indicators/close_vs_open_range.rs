@@ -31,7 +31,7 @@ impl CloseVsOpenRange {
 
 impl Signal for CloseVsOpenRange {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if !range.is_zero() {
             let ratio = (bar.close - bar.open) / range;
             self.window.push_back(ratio);

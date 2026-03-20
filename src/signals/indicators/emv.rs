@@ -57,7 +57,7 @@ impl Signal for Emv {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let mid = (bar.high + bar.low) / Decimal::TWO;
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
 
         if let Some(prev_mid) = self.prev_mid {
             if !hl.is_zero() && !bar.volume.is_zero() {

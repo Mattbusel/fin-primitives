@@ -68,7 +68,7 @@ impl Signal for Natr {
                 return Ok(SignalValue::Unavailable);
             }
             Some(prev) => {
-                let hl = bar.high - bar.low;
+                let hl = bar.range();
                 let hc = (bar.high - prev).abs();
                 let lc = (bar.low - prev).abs();
                 hl.max(hc).max(lc)

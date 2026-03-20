@@ -50,7 +50,7 @@ impl Signal for CandleRangeMa {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         self.window.push_back(range);
         self.sum += range;
         if self.window.len() > self.period {

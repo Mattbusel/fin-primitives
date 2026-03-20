@@ -49,7 +49,7 @@ impl Signal for CandleEfficiency {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }

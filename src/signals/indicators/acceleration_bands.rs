@@ -111,7 +111,7 @@ impl Signal for AccelerationBands {
         let spread_factor = if hl_sum.is_zero() {
             Decimal::ZERO
         } else {
-            Decimal::from(4u32) * (bar.high - bar.low) / hl_sum
+            Decimal::from(4u32) * (bar.range()) / hl_sum
         };
 
         let upper_raw = bar.high * (Decimal::ONE + spread_factor);

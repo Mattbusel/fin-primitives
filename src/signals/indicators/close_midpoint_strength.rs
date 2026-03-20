@@ -39,12 +39,12 @@ impl Signal for CloseMidpointStrength {
     fn is_ready(&self) -> bool { true }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
         // (2*close - high - low) / range
-        let numerator = bar.close * Decimal::TWO - bar.high - bar.low;
+        let numerator = bar.close * Decimal::TWO - bar.range();
         let strength = numerator
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?;

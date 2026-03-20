@@ -83,7 +83,7 @@ impl Signal for SwingIndex {
 
         let r1 = (bar.high - pc).abs();
         let r2 = (bar.low - pc).abs();
-        let r3 = bar.high - bar.low;
+        let r3 = bar.range();
 
         // R = max(|high - prev_close|, |low - prev_close|, high - low)
         let r = r1.max(r2).max(r3);

@@ -48,7 +48,7 @@ impl Signal for CandleBodySize {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         if range.is_zero() {
             // Cannot compute body-to-range for flat bars; mark ready but return Unavailable
             self.ready = true;

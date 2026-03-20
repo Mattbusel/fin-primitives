@@ -27,7 +27,7 @@ impl RangeZScore {
 
 impl Signal for RangeZScore {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         self.window.push_back(range);
         if self.window.len() > self.period {
             self.window.pop_front();

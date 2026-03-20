@@ -52,11 +52,11 @@ impl Signal for CloseLocationValue {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.high - bar.low;
+        let range = bar.range();
         let clv = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (Decimal::from(2u32) * bar.close - bar.high - bar.low) / range
+            (Decimal::from(2u32) * bar.close - bar.range()) / range
         };
 
         self.clvs.push_back(clv);

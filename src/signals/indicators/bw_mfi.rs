@@ -44,7 +44,7 @@ impl Signal for BwMfi {
             return Ok(SignalValue::Unavailable);
         }
         self.ready = true;
-        let range = bar.high - bar.low;
+        let range = bar.range();
         Ok(SignalValue::Scalar(range / bar.volume))
     }
 

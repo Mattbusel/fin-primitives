@@ -58,7 +58,7 @@ impl Signal for AtrRatio {
     fn is_ready(&self) -> bool { self.tr_window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
         let tr = match self.prev_close {
             None => hl,
             Some(pc) => {

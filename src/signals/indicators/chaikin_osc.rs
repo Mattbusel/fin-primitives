@@ -78,7 +78,7 @@ impl Signal for ChaikinOsc {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.bar_count += 1;
-        let hl = bar.high - bar.low;
+        let hl = bar.range();
         let clv = if hl.is_zero() {
             Decimal::ZERO
         } else {
