@@ -29,7 +29,6 @@ use std::collections::VecDeque;
 /// ```
 pub struct PriceOscillator2 {
     name: String,
-    fast_period: usize,
     slow_period: usize,
     ema: Option<Decimal>,
     ema_k: Decimal,
@@ -51,7 +50,6 @@ impl PriceOscillator2 {
         let k = Decimal::TWO / Decimal::from((fast_period + 1) as u32);
         Ok(Self {
             name: name.into(),
-            fast_period,
             slow_period,
             ema: None,
             ema_k: k,

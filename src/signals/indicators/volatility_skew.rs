@@ -183,7 +183,7 @@ mod tests {
         let mut last = SignalValue::Unavailable;
         for _ in 0..3 {
             v.update_bar(&bar("100")).unwrap();
-            last = v.update_bar(&bar("110")).unwrap();
+            v.update_bar(&bar("110")).unwrap();
             v.update_bar(&bar("110")).unwrap();
             last = v.update_bar(&bar("100")).unwrap();
         }

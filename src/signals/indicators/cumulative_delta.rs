@@ -92,10 +92,9 @@ mod tests {
     #[test]
     fn test_cd_mixed() {
         let mut cd = CumulativeDelta::new("c", 3).unwrap();
-        let mut last = SignalValue::Unavailable;
-        last = cd.update_bar(&bar("100", "105")).unwrap();
-        last = cd.update_bar(&bar("105", "102")).unwrap();
-        last = cd.update_bar(&bar("100", "102")).unwrap();
+        cd.update_bar(&bar("100", "105")).unwrap();
+        cd.update_bar(&bar("105", "102")).unwrap();
+        let last = cd.update_bar(&bar("100", "102")).unwrap();
         assert_eq!(last, SignalValue::Scalar(dec!(4)));
     }
 
