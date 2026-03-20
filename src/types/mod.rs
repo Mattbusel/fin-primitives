@@ -900,13 +900,13 @@ impl NanoTimestamp {
     ///
     /// Uses the UTC calendar. Week 1 is the first week containing a Thursday.
     pub fn week_of_year(self) -> u32 {
-        use chrono::{Datelike, IsoWeek};
+        use chrono::Datelike;
         self.to_datetime().iso_week().week()
     }
 
     /// Returns `true` if `self` and `other` fall in the same ISO calendar week and year.
     pub fn is_same_week(self, other: NanoTimestamp) -> bool {
-        use chrono::{Datelike, IsoWeek};
+        use chrono::Datelike;
         let a = self.to_datetime().iso_week();
         let b = other.to_datetime().iso_week();
         a.week() == b.week() && a.year() == b.year()
