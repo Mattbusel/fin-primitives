@@ -1506,6 +1506,26 @@ impl PositionLedger {
         open.sort_by(|a, b| a.symbol.as_str().cmp(b.symbol.as_str()));
         open
     }
+
+    /// Returns all symbols whose realized P&L strictly exceeds `threshold`.
+    ///
+    /// Results are sorted by realized P&L descending.
+    pub fn symbols_with_pnl_above(&self, threshold: Decimal) -> Vec<Symbol> {
+        let mut pairs: Vec<(Symbol, Decimal)> = self.positions.iter()
+            .filter_map(|(sym, pos)| {
+                if pos.realized_pnl > threshold { Some((sym.clone(), pos.realized_pnl)) } else { None }
+            })
+            .collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs.into_iter().map(|(s, _)| s).collect()
+    }
+
+    /// Returns `(long_count, short_count)` of currently open (non-flat) positions.
+    pub fn net_long_short_count(&self) -> (usize, usize) {
+        let long = self.positions.values().filter(|p| p.is_long()).count();
+        let short = self.positions.values().filter(|p| p.is_short()).count();
+        (long, short)
+    }
 }
 
 #[cfg(test)]

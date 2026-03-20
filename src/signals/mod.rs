@@ -650,6 +650,38 @@ impl SignalValue {
             }
         }
     }
+
+    /// Returns the hyperbolic sine of the scalar value.
+    ///
+    /// Returns [`SignalValue::Unavailable`] if the result is non-finite.
+    pub fn sinh(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                match Decimal::try_from(f.sinh()) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+        }
+    }
+
+    /// Returns the hyperbolic cosine of the scalar value.
+    ///
+    /// Returns [`SignalValue::Unavailable`] if the result is non-finite.
+    pub fn cosh(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                match Decimal::try_from(f.cosh()) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

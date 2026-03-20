@@ -5049,6 +5049,48 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(near) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
+
+    /// Average candle body size as a percentage of the bar's range over the last `n` bars.
+    ///
+    /// Body % per bar = `|close − open| / (high − low) * 100`.  Bars with zero range are skipped.
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero range.
+    pub fn avg_body_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let range = bar.high.value() - bar.low.value();
+            if range.is_zero() { continue; }
+            sum += (bar.close.value() - bar.open.value()).abs() / range * Decimal::ONE_HUNDRED;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
+
+    /// Average upper-to-lower wick ratio over the last `n` bars.
+    ///
+    /// Upper wick = `high − max(open, close)`.  Lower wick = `min(open, close) − low`.
+    /// Bars where the lower wick is zero are skipped.
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero lower wick.
+    pub fn tail_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let body_top = bar.open.value().max(bar.close.value());
+            let body_bot = bar.open.value().min(bar.close.value());
+            let upper = bar.high.value() - body_top;
+            let lower = body_bot - bar.low.value();
+            if lower.is_zero() { continue; }
+            sum += upper / lower;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
 }
 
 #[cfg(test)]

@@ -68,6 +68,9 @@ pub struct DrawdownTracker {
     /// Sum of `updates_since_peak` values at the moment each recovery completed.
     #[serde(default)]
     total_recovery_updates: usize,
+    /// Sum of drawdown percentages at the start of each recovery (for averaging).
+    #[serde(default)]
+    recovery_drawdown_pct_sum: Decimal,
 }
 
 impl DrawdownTracker {
@@ -94,6 +97,7 @@ impl DrawdownTracker {
             total_loss_sum: 0.0,
             completed_recoveries: 0,
             total_recovery_updates: 0,
+            recovery_drawdown_pct_sum: Decimal::ZERO,
         }
     }
 
@@ -135,6 +139,7 @@ impl DrawdownTracker {
         if equity > self.peak_equity {
             if self.updates_since_peak > 0 {
                 self.total_recovery_updates += self.updates_since_peak;
+                self.recovery_drawdown_pct_sum += self.current_drawdown_pct();
                 self.completed_recoveries += 1;
             }
             self.peak_equity = equity;
@@ -261,6 +266,7 @@ impl DrawdownTracker {
         self.total_loss_sum = 0.0;
         self.completed_recoveries = 0;
         self.total_recovery_updates = 0;
+        self.recovery_drawdown_pct_sum = Decimal::ZERO;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -539,6 +545,15 @@ impl DrawdownTracker {
     /// This equals the number of `update()` calls where equity exceeded the prior peak.
     pub fn peak_hit_count(&self) -> usize {
         self.peak_count
+    }
+
+    /// Average drawdown percentage at the moment each recovery began.
+    ///
+    /// Returns `None` if no drawdown has ever been fully recovered.
+    pub fn avg_recovery_drawdown_pct(&self) -> Option<Decimal> {
+        if self.completed_recoveries == 0 { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(self.recovery_drawdown_pct_sum / Decimal::from(self.completed_recoveries as u32))
     }
 
     /// Sortino ratio from a slice of period returns.

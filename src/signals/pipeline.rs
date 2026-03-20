@@ -68,6 +68,11 @@ impl SignalMap {
             .unwrap_or(default)
     }
 
+    /// Returns the number of signals in this map that produced a `Scalar` (i.e. are available).
+    pub fn count_available(&self) -> usize {
+        self.values.values().filter(|v| matches!(v, SignalValue::Scalar(_))).count()
+    }
+
     /// Returns an iterator over `(name, Decimal)` for every signal that produced a `Scalar` value.
     pub fn scalars(&self) -> impl Iterator<Item = (&str, Decimal)> {
         self.values.iter().filter_map(|(k, v)| match v {
