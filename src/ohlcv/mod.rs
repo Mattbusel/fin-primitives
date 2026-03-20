@@ -7227,6 +7227,81 @@ impl OhlcvSeries {
         Some(changes)
     }
 
+    /// Returns the fraction of the last `n` bars with a positive close-to-close return.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn win_rate(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let wins = slice.windows(2)
+            .filter(|w| w[1].close.value() > w[0].close.value())
+            .count();
+        #[allow(clippy::cast_possible_truncation)]
+        Decimal::from(wins as u32).checked_div(Decimal::from(n as u32))
+    }
+
+    /// Returns the best (maximum) single-bar close-to-close return over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available or all prior closes are zero.
+    pub fn best_return(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        slice.windows(2).filter_map(|w| {
+            let pc = w[0].close.value();
+            if pc.is_zero() { return None; }
+            Some((w[1].close.value() - pc) / pc)
+        }).reduce(|a, b| if a > b { a } else { b })
+    }
+
+    /// Returns the worst (minimum) single-bar close-to-close return over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available or all prior closes are zero.
+    pub fn worst_return(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        slice.windows(2).filter_map(|w| {
+            let pc = w[0].close.value();
+            if pc.is_zero() { return None; }
+            Some((w[1].close.value() - pc) / pc)
+        }).reduce(|a, b| if a < b { a } else { b })
+    }
+
+    /// Returns the median close-to-close return over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars are available.
+    pub fn median_return(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let slice = &self.bars[self.bars.len() - n - 1..];
+        let mut returns: Vec<Decimal> = slice.windows(2).filter_map(|w| {
+            let pc = w[0].close.value();
+            if pc.is_zero() { return None; }
+            Some((w[1].close.value() - pc) / pc)
+        }).collect();
+        if returns.is_empty() { return None; }
+        returns.sort();
+        let m = returns.len();
+        if m % 2 == 1 { Some(returns[m / 2]) }
+        else { (returns[m / 2 - 1] + returns[m / 2]).checked_div(Decimal::TWO) }
+    }
+
+    /// Returns `(current_close - N-bar_median_close) / N-bar_median_close × 100`.
+    ///
+    /// Measures where the current price sits relative to the robust central tendency
+    /// of recent prices. Returns `None` if fewer than `n` bars are available or the
+    /// median is zero.
+    pub fn price_vs_median(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let slice = &self.bars[self.bars.len() - n..];
+        let mut closes: Vec<Decimal> = slice.iter().map(|b| b.close.value()).collect();
+        closes.sort();
+        let m = closes.len();
+        let median = if m % 2 == 1 { closes[m / 2] }
+            else { (closes[m / 2 - 1] + closes[m / 2]) / Decimal::TWO };
+        if median.is_zero() { return None; }
+        let current = self.bars.last()?.close.value();
+        (current - median).checked_div(median).map(|r| r * Decimal::ONE_HUNDRED)
+    }
+
 }
 
 #[cfg(test)]
