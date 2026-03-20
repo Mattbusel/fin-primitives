@@ -1032,6 +1032,13 @@ impl PositionLedger {
     pub fn net_delta(&self, prices: &HashMap<String, Price>) -> Decimal {
         self.long_exposure(prices) - self.short_exposure(prices)
     }
+
+    /// Returns the average cost basis for `symbol`, or `None` if the position is flat or unknown.
+    pub fn avg_cost_basis(&self, symbol: &Symbol) -> Option<Decimal> {
+        let pos = self.positions.get(symbol)?;
+        if pos.is_flat() { return None; }
+        Some(pos.avg_cost)
+    }
 }
 
 #[cfg(test)]
