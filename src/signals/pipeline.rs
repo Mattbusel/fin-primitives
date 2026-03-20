@@ -52,12 +52,28 @@ impl SignalMap {
         self.values.is_empty()
     }
 
+    /// Returns the scalar value for `name`, or `default` if absent or unavailable.
+    ///
+    /// Combines `.get(name)` and `.as_decimal()` in one call. Useful in hot paths
+    /// where downstream logic needs a numeric fallback rather than an `Option`.
+    pub fn scalar_or(&self, name: &str, default: Decimal) -> Decimal {
+        self.values
+            .get(name)
+            .and_then(SignalValue::as_decimal)
+            .unwrap_or(default)
+    }
+
     /// Returns an iterator over `(name, Decimal)` for every signal that produced a `Scalar` value.
     pub fn scalars(&self) -> impl Iterator<Item = (&str, Decimal)> {
         self.values.iter().filter_map(|(k, v)| match v {
             SignalValue::Scalar(d) => Some((k.as_str(), *d)),
             SignalValue::Unavailable => None,
         })
+    }
+
+    /// Returns the scalar value for `name` if it exists and is ready, or `None` otherwise.
+    pub fn get_scalar(&self, name: &str) -> Option<Decimal> {
+        self.values.get(name)?.as_decimal()
     }
 }
 
@@ -88,11 +104,19 @@ impl SignalPipeline {
     /// stored in the returned `SignalMap` (accessible via `map.error(name)`) rather
     /// than aborting the pipeline. Erroring signals appear as `Unavailable` in the map.
     pub fn update(&mut self, bar: &OhlcvBar) -> SignalMap {
+        self.update_bar_input(&crate::signals::BarInput::from(bar))
+    }
+
+    /// Update all signals from a [`BarInput`] directly, without requiring an [`OhlcvBar`].
+    ///
+    /// Use this variant when working with synthetic or non-OHLCV data sources that
+    /// already produce [`BarInput`] (e.g. custom tick aggregators, external feeds).
+    pub fn update_bar_input(&mut self, bar: &crate::signals::BarInput) -> SignalMap {
         let mut values = HashMap::with_capacity(self.signals.len());
         let mut errors = HashMap::new();
         for signal in &mut self.signals {
             let name = signal.name().to_owned();
-            match signal.update_bar(bar) {
+            match signal.update(bar) {
                 Ok(value) => {
                     values.insert(name, value);
                 }
@@ -270,5 +294,28 @@ mod tests {
         let map = pipeline.update(&bar("100")); // only 1 bar
         let scalars: Vec<_> = map.scalars().collect();
         assert!(scalars.is_empty());
+    }
+
+    #[test]
+    fn test_pipeline_get_signal_found() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
+        assert!(pipeline.get_signal("sma3").is_some());
+        assert_eq!(pipeline.get_signal("sma3").unwrap().name(), "sma3");
+    }
+
+    #[test]
+    fn test_pipeline_get_signal_not_found() {
+        let pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        assert!(pipeline.get_signal("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_pipeline_get_signal_returns_correct_period() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("sma10", 10).unwrap())
+            .add(Ema::new("ema20", 20).unwrap());
+        assert_eq!(pipeline.get_signal("ema20").unwrap().period(), 20);
     }
 }

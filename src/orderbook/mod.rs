@@ -361,6 +361,23 @@ impl OrderBook {
         }
     }
 
+    /// Returns the quantity-weighted midpoint (micro-price).
+    ///
+    /// Weights best-bid by ask quantity and best-ask by bid quantity:
+    /// `(bid_price × ask_qty + ask_price × bid_qty) / (bid_qty + ask_qty)`.
+    /// Returns `None` when either side is empty.
+    pub fn weighted_mid(&self) -> Option<Decimal> {
+        let bid = self.best_bid()?;
+        let ask = self.best_ask()?;
+        let bid_qty = bid.quantity.value();
+        let ask_qty = ask.quantity.value();
+        let total = bid_qty + ask_qty;
+        if total.is_zero() {
+            return None;
+        }
+        Some((bid.price.value() * ask_qty + ask.price.value() * bid_qty) / total)
+    }
+
     /// Returns the order-book imbalance: `(bid_vol - ask_vol) / (bid_vol + ask_vol)`.
     ///
     /// Returns `None` when both sides are empty (division by zero).

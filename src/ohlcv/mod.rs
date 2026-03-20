@@ -162,6 +162,20 @@ impl OhlcvBar {
         self.high.value() < prev.high.value() && self.low.value() > prev.low.value()
     }
 
+    /// Returns `true` if this bar engulfs the previous bar (bullish or bearish engulfing).
+    ///
+    /// A bullish engulfing bar: `prev` is bearish and `self` is a bullish bar whose
+    /// body completely contains `prev`'s body. Bearish is the mirror image.
+    pub fn is_engulfing(&self, prev: &OhlcvBar) -> bool {
+        let s_o = self.open.value();
+        let s_c = self.close.value();
+        let p_o = prev.open.value();
+        let p_c = prev.close.value();
+        let bullish = p_c < p_o && s_c > s_o && s_c >= p_o && s_o <= p_c;
+        let bearish = p_c > p_o && s_c < s_o && s_c <= p_o && s_o >= p_c;
+        bullish || bearish
+    }
+
     /// Returns `true` if `close >= open`.
     pub fn is_bullish(&self) -> bool {
         self.close.value() >= self.open.value()
@@ -305,6 +319,38 @@ impl OhlcvBar {
         };
         bar.validate()?;
         Ok(bar)
+    }
+
+    /// Returns `true` if this bar is a bullish engulfing of `prev`.
+    ///
+    /// Conditions:
+    /// - `prev` is bearish (`open > close`)
+    /// - `self` is bullish (`close > open`)
+    /// - `self.open <= prev.close` (opens at or below prev close)
+    /// - `self.close >= prev.open` (closes at or above prev open)
+    pub fn is_bullish_engulfing(&self, prev: &OhlcvBar) -> bool {
+        let prev_bearish = prev.open.value() > prev.close.value();
+        let self_bullish = self.close.value() > self.open.value();
+        prev_bearish
+            && self_bullish
+            && self.open.value() <= prev.close.value()
+            && self.close.value() >= prev.open.value()
+    }
+
+    /// Returns `true` if this bar is a bearish engulfing of `prev`.
+    ///
+    /// Conditions:
+    /// - `prev` is bullish (`close > open`)
+    /// - `self` is bearish (`open > close`)
+    /// - `self.open >= prev.close` (opens at or above prev close)
+    /// - `self.close <= prev.open` (closes at or below prev open)
+    pub fn is_bearish_engulfing(&self, prev: &OhlcvBar) -> bool {
+        let prev_bullish = prev.close.value() > prev.open.value();
+        let self_bearish = self.open.value() > self.close.value();
+        prev_bullish
+            && self_bearish
+            && self.open.value() >= prev.close.value()
+            && self.close.value() <= prev.open.value()
     }
 }
 
@@ -812,6 +858,36 @@ impl OhlcvSeries {
         let std_x = decimal_sqrt(var_x).ok()?;
         let std_y = decimal_sqrt(var_y).ok()?;
         Some(cov / (std_x * std_y))
+    }
+
+    /// Returns log returns: `ln(close[i] / close[i-1])` for each consecutive bar pair.
+    ///
+    /// Returns an empty `Vec` when fewer than 2 bars are present.
+    /// Bars where `close[i-1]` is zero are skipped (yielding no entry at that position).
+    ///
+    /// Uses `f64` arithmetic since `rust_decimal` does not provide a logarithm function.
+    #[allow(clippy::cast_precision_loss)]
+    pub fn log_returns(&self) -> Vec<f64> {
+        if self.bars.len() < 2 {
+            return Vec::new();
+        }
+        self.bars
+            .windows(2)
+            .filter_map(|w| {
+                let prev = w[0].close.value();
+                if prev.is_zero() {
+                    return None;
+                }
+                let ratio = w[1].close.value().checked_div(prev)?;
+                use rust_decimal::prelude::ToPrimitive;
+                let ratio_f64 = ratio.to_f64()?;
+                if ratio_f64 > 0.0 {
+                    Some(ratio_f64.ln())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 

@@ -87,6 +87,17 @@ impl DrawdownTracker {
         self.current_equity = initial;
         self.worst_drawdown_pct = Decimal::ZERO;
     }
+
+    /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.
+    ///
+    /// A higher value indicates better risk-adjusted performance.
+    /// Returns `None` when `worst_drawdown_pct` is zero (no drawdown has occurred).
+    pub fn recovery_factor(&self, net_profit_pct: Decimal) -> Option<Decimal> {
+        if self.worst_drawdown_pct.is_zero() {
+            return None;
+        }
+        Some(net_profit_pct / self.worst_drawdown_pct)
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {
@@ -245,6 +256,22 @@ impl RiskMonitor {
     /// without going through the monitor's forwarding accessors.
     pub fn drawdown_tracker(&self) -> &DrawdownTracker {
         &self.tracker
+    }
+
+    /// Checks all rules against `equity` without updating the peak or current equity.
+    ///
+    /// Useful for prospective checks (e.g., "would this trade breach a rule?") where
+    /// you do not want to alter tracked state.
+    pub fn check(&self, equity: Decimal) -> Vec<RiskBreach> {
+        let dd = if self.tracker.peak() == Decimal::ZERO {
+            Decimal::ZERO
+        } else {
+            (self.tracker.peak() - equity) / self.tracker.peak() * Decimal::ONE_HUNDRED
+        };
+        self.rules
+            .iter()
+            .filter_map(|r| r.check(equity, dd))
+            .collect()
     }
 }
 

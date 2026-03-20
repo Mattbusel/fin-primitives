@@ -232,6 +232,11 @@ impl Position {
         let cost_basis = (self.avg_cost * self.quantity.abs()).abs();
         Some(pnl / cost_basis * Decimal::ONE_HUNDRED)
     }
+
+    /// Returns `true` if unrealized PnL at `current_price` is strictly positive.
+    pub fn is_profitable(&self, current_price: Price) -> bool {
+        self.unrealized_pnl(current_price) > Decimal::ZERO
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
@@ -293,6 +298,16 @@ impl PositionLedger {
     /// Returns an iterator over flat (zero-quantity) positions.
     pub fn flat_positions(&self) -> impl Iterator<Item = &Position> {
         self.positions.values().filter(|p| p.is_flat())
+    }
+
+    /// Returns an iterator over long (positive-quantity) positions.
+    pub fn long_positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values().filter(|p| p.is_long())
+    }
+
+    /// Returns an iterator over short (negative-quantity) positions.
+    pub fn short_positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values().filter(|p| p.is_short())
     }
 
     /// Returns an iterator over the symbols being tracked by this ledger.

@@ -331,6 +331,20 @@ impl TickReplayer {
         self.ticks.len()
     }
 
+    /// Returns the volume-weighted average price (VWAP) across all ticks.
+    ///
+    /// `VWAP = Σ(price × quantity) / Σ(quantity)`.
+    ///
+    /// Returns `None` if no ticks are loaded or total volume is zero.
+    pub fn vwap(&self) -> Option<Decimal> {
+        let total_vol: Decimal = self.ticks.iter().map(|t| t.quantity.value()).sum();
+        if total_vol.is_zero() {
+            return None;
+        }
+        let total_notional: Decimal = self.ticks.iter().map(|t| t.notional()).sum();
+        Some(total_notional / total_vol)
+    }
+
     /// Returns all ticks (from the full sorted slice) that match `filter`.
     pub fn filter_ticks(&self, filter: &TickFilter) -> Vec<Tick> {
         self.ticks
