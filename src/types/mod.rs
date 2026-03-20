@@ -212,6 +212,16 @@ impl Price {
 }
 
 impl Price {
+    /// Adds `other` to `self`, returning the result as a `Price`, or `None` on overflow.
+    ///
+    /// Useful when combining two price levels and needing a validated result.
+    pub fn checked_add(self, other: Price) -> Option<Price> {
+        let sum = self.0.checked_add(other.0)?;
+        Price::new(sum).ok()
+    }
+}
+
+impl Price {
     /// Multiplies this price by `qty`, returning `None` if the result overflows.
     ///
     /// Prefer this over the `*` operator when overflow is a concern (e.g., large
@@ -385,6 +395,16 @@ pub enum Side {
     Bid,
     /// Sell side (asks).
     Ask,
+}
+
+impl Side {
+    /// Returns the opposite side: `Bid` → `Ask`, `Ask` → `Bid`.
+    pub fn opposite(self) -> Side {
+        match self {
+            Side::Bid => Side::Ask,
+            Side::Ask => Side::Bid,
+        }
+    }
 }
 
 impl std::fmt::Display for Side {

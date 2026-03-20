@@ -21,6 +21,7 @@ pub mod stddev;
 pub mod stochastic;
 pub mod stochastic_d;
 pub mod tema;
+pub mod vwap;
 pub mod williams_r;
 pub mod wma;
 
@@ -42,5 +43,6 @@ pub use stddev::StdDev;
 pub use stochastic::StochasticK;
 pub use stochastic_d::StochasticD;
 pub use tema::Tema;
+pub use vwap::Vwap;
 pub use williams_r::WilliamsR;
 pub use wma::Wma;

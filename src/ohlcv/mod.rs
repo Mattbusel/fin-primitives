@@ -205,6 +205,42 @@ impl OhlcvBar {
         self.lower_shadow() >= body * Decimal::TWO && self.upper_shadow() <= body
     }
 
+    /// Returns `true` if the bar is a marubozu: a full-body candle with negligible shadows.
+    ///
+    /// Criteria: both upper and lower shadows are each < 5% of the bar's total range,
+    /// and the body is non-zero.
+    pub fn is_marubozu(&self) -> bool {
+        let range = self.range();
+        if range.is_zero() {
+            return false;
+        }
+        let body = self.body_size();
+        if body.is_zero() {
+            return false;
+        }
+        let threshold = range / Decimal::from(20u32); // 5% of range
+        self.upper_shadow() < threshold && self.lower_shadow() < threshold
+    }
+
+    /// Returns `true` if the bar is a spinning top: a small body with significant upper
+    /// and lower shadows.
+    ///
+    /// Criteria: body is less than 30% of the total range, and both shadows are each
+    /// at least 20% of the range.
+    pub fn is_spinning_top(&self) -> bool {
+        let range = self.range();
+        if range.is_zero() {
+            return false;
+        }
+        let body = self.body_size();
+        let body_ratio = body / range;
+        let upper_ratio = self.upper_shadow() / range;
+        let lower_ratio = self.lower_shadow() / range;
+        let threshold_30 = Decimal::from_str_exact("0.30").unwrap_or(Decimal::ZERO);
+        let threshold_20 = Decimal::from_str_exact("0.20").unwrap_or(Decimal::ZERO);
+        body_ratio < threshold_30 && upper_ratio >= threshold_20 && lower_ratio >= threshold_20
+    }
+
     /// Returns `true` if the bar has a shooting star candlestick shape.
     ///
     /// Criteria: upper shadow ≥ 2 × body size, lower shadow ≤ body size, non-zero body.
@@ -282,6 +318,18 @@ impl OhlcvBar {
                 hl.max(hc).max(lc)
             }
         }
+    }
+
+    /// Returns the ratio of total shadow to range: `(upper_shadow + lower_shadow) / range`.
+    ///
+    /// A value near `1.0` indicates most of the bar's range is wick (indecision).
+    /// Returns `None` when `range == 0`.
+    pub fn shadow_ratio(&self) -> Option<Decimal> {
+        let r = self.range();
+        if r.is_zero() {
+            return None;
+        }
+        Some((self.upper_shadow() + self.lower_shadow()) / r)
     }
 
     /// Returns the upper shadow length: `high - max(open, close)`.
@@ -1330,6 +1378,95 @@ impl OhlcvSeries {
         }
         let _ = window_start; // used indirectly via sma_start logic
         count
+    }
+
+    /// Returns the count of bars (in the last `n`) where `close < SMA(close, period)`.
+    ///
+    /// Mirrors [`OhlcvSeries::above_sma`] for the bearish side.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn below_sma(&self, period: usize, n: usize) -> usize {
+        if self.bars.len() < period || period == 0 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let mut count = 0usize;
+        for i in start..self.bars.len() {
+            if i + 1 < period {
+                continue;
+            }
+            let sma_start = i + 1 - period;
+            let sma: Decimal = self.bars[sma_start..=i]
+                .iter()
+                .map(|b| b.close.value())
+                .sum::<Decimal>()
+                / Decimal::from(period as u32);
+            if self.bars[i].close.value() < sma {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Returns the average volume over the last `n` bars, or `None` if the series is empty.
+    ///
+    /// If `n` exceeds the series length, all bars are included.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn average_volume(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let sum: Decimal = slice.iter().map(|b| b.volume.value()).sum();
+        Some(sum / Decimal::from(slice.len() as u32))
+    }
+
+    /// Returns the average bar range (high − low) over the last `n` bars, or `None` if empty.
+    ///
+    /// If `n` exceeds the series length, all bars are included.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn average_range(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let sum: Decimal = slice.iter().map(|b| b.range()).sum();
+        Some(sum / Decimal::from(slice.len() as u32))
+    }
+
+    /// Returns the mean of typical prices `(high + low + close) / 3` over the last `n` bars.
+    ///
+    /// Returns `None` if the series is empty.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn typical_price_mean(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let sum: Decimal = slice.iter().map(|b| b.typical_price()).sum();
+        Some(sum / Decimal::from(slice.len() as u32))
+    }
+
+    /// Returns the Sortino ratio using bar log-returns.
+    ///
+    /// Only negative returns contribute to the downside deviation denominator.
+    /// Returns `None` if there are fewer than 2 bars or if downside deviation is zero.
+    pub fn sortino_ratio(&self, risk_free_rate: f64, bars_per_year: f64) -> Option<f64> {
+        let log_rets = self.log_returns();
+        if log_rets.len() < 2 {
+            return None;
+        }
+        let mean_ret = log_rets.iter().copied().sum::<f64>() / log_rets.len() as f64;
+        let downside: Vec<f64> = log_rets.iter().map(|&r| if r < 0.0 { r * r } else { 0.0 }).collect();
+        let downside_var = downside.iter().copied().sum::<f64>() / downside.len() as f64;
+        let downside_dev = downside_var.sqrt();
+        if downside_dev == 0.0 {
+            return None;
+        }
+        let rf_per_bar = risk_free_rate / bars_per_year;
+        Some((mean_ret - rf_per_bar) / downside_dev * bars_per_year.sqrt())
     }
 }
 

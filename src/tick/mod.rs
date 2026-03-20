@@ -409,6 +409,16 @@ impl TickReplayer {
             .collect()
     }
 
+    /// Returns a reference to the first tick in the replay sequence, or `None` if empty.
+    pub fn first(&self) -> Option<&Tick> {
+        self.ticks.first()
+    }
+
+    /// Returns a reference to the last tick in the replay sequence, or `None` if empty.
+    pub fn last(&self) -> Option<&Tick> {
+        self.ticks.last()
+    }
+
     /// Groups all ticks in this replayer by symbol.
     ///
     /// Returns a `HashMap` mapping each symbol to a `Vec<Tick>` in timestamp order.
