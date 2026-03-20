@@ -201,6 +201,7 @@ pub mod candle_momentum;
 pub mod wick_ratio;
 pub mod volume_acceleration;
 pub mod price_reversal;
+pub mod trend_score;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -400,3 +401,4 @@ pub use candle_momentum::CandleMomentum;
 pub use wick_ratio::WickRatio;
 pub use volume_acceleration::VolumeAcceleration;
 pub use price_reversal::PriceReversal;
+pub use trend_score::TrendScore;
