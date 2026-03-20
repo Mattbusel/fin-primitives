@@ -75,6 +75,8 @@ pub mod stoch_rsi;
 pub mod force_index;
 pub mod cog;
 pub mod env;
+pub mod pfe;
+pub mod rsx;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -148,3 +150,5 @@ pub use force_index::ForceIndex;
 pub use stoch_rsi::StochRsi;
 pub use cog::Cog;
 pub use env::Envelope;
+pub use pfe::Pfe;
+pub use rsx::Rsx;
