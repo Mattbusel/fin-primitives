@@ -252,6 +252,13 @@ impl Tick {
         let sell = ticks.len() - buy;
         (buy, sell)
     }
+
+    /// Returns the total notional value: `Σ(price × quantity)` across all ticks.
+    ///
+    /// Zero when the slice is empty.
+    pub fn notional_volume(ticks: &[Tick]) -> Decimal {
+        ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum()
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.

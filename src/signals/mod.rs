@@ -309,6 +309,16 @@ impl SignalValue {
     pub fn is_below(&self, threshold: Decimal) -> bool {
         matches!(self, SignalValue::Scalar(d) if *d < threshold)
     }
+
+    /// Rounds the scalar to `dp` decimal places using banker's rounding.
+    ///
+    /// Returns `Unavailable` unchanged.
+    pub fn round(self, dp: u32) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(d.round_dp(dp)),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

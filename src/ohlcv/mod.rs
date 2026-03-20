@@ -2584,6 +2584,134 @@ impl OhlcvSeries {
         let start = self.bars.len().saturating_sub(n + 1);
         self.bars[start..].windows(2).filter(|w| w[1].close.value() > w[0].high.value()).count()
     }
+
+    /// Skewness of close prices over the last `n` bars (Fisher's moment coefficient of skewness).
+    ///
+    /// Returns `None` if `n < 3`, series has fewer than `n` bars, or std dev is zero.
+    pub fn skewness(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 3 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let vals: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        if vals.len() < 3 {
+            return None;
+        }
+        let n_f = vals.len() as f64;
+        let mean = vals.iter().sum::<f64>() / n_f;
+        let variance = vals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n_f;
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 {
+            return None;
+        }
+        let skew = vals.iter().map(|x| ((x - mean) / std_dev).powi(3)).sum::<f64>() / n_f;
+        Some(skew)
+    }
+
+    /// Excess kurtosis of close prices over the last `n` bars.
+    ///
+    /// Excess kurtosis = (fourth central moment / variance²) - 3.
+    /// Returns `None` if `n < 4`, series has fewer than `n` bars, or variance is zero.
+    pub fn kurtosis(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 4 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let vals: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        if vals.len() < 4 {
+            return None;
+        }
+        let n_f = vals.len() as f64;
+        let mean = vals.iter().sum::<f64>() / n_f;
+        let variance = vals.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n_f;
+        if variance == 0.0 {
+            return None;
+        }
+        let kurt = vals.iter().map(|x| ((x - mean) / variance.sqrt()).powi(4)).sum::<f64>() / n_f - 3.0;
+        Some(kurt)
+    }
+
+    /// Returns `true` when the fast SMA is above the slow SMA (golden-cross condition).
+    ///
+    /// Returns `false` if the series does not have enough bars for the slow period,
+    /// or if `fast_period >= slow_period`.
+    pub fn sma_crossover(&self, fast_period: usize, slow_period: usize) -> bool {
+        if fast_period == 0 || slow_period == 0 || fast_period >= slow_period {
+            return false;
+        }
+        if self.bars.len() < slow_period {
+            return false;
+        }
+        let fast_start = self.bars.len() - fast_period;
+        let slow_start = self.bars.len() - slow_period;
+        let fast_avg: Decimal = self.bars[fast_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(fast_period as u32);
+        let slow_avg: Decimal = self.bars[slow_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(slow_period as u32);
+        fast_avg > slow_avg
+    }
+
+    /// Fraction of the last `n` closing prices that are at or below `price`.
+    ///
+    /// Returns a value in `[0.0, 1.0]`. Returns `None` if `n == 0` or the series is empty.
+    pub fn price_percentile(&self, price: Decimal, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.is_empty() {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        let count = slice.iter().filter(|b| b.close.value() <= price).count();
+        Some(count as f64 / slice.len() as f64)
+    }
+
+    /// Mean of `(high - low)` over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn intraday_range_mean(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.high.value() - b.low.value()).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Mean absolute gap percentage over the last `n` bars.
+    ///
+    /// `gap_pct[i] = |open[i] - close[i-1]| / close[i-1] * 100`.
+    /// Returns `None` if fewer than `n+1` bars or `n == 0`.
+    pub fn average_gap_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
+        let start = self.bars.len() - n - 1;
+        let slice = &self.bars[start..];
+        let mut count = 0;
+        let mut sum = Decimal::ZERO;
+        for pair in slice.windows(2) {
+            let pc = pair[0].close.value();
+            if pc.is_zero() {
+                continue;
+            }
+            sum += (pair[1].open.value() - pc).abs() / pc * Decimal::ONE_HUNDRED;
+            count += 1;
+        }
+        if count == 0 {
+            None
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            Some(sum / Decimal::from(count as u32))
+        }
+    }
 }
 
 impl Default for OhlcvSeries {

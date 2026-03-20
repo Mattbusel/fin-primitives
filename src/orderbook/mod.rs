@@ -171,6 +171,13 @@ impl OrderBook {
         })
     }
 
+    /// Returns `(best_bid, best_ask)` as a tuple, or `None` if either side is empty.
+    ///
+    /// Convenience wrapper for accessing both sides of the top-of-book in one call.
+    pub fn best_quote(&self) -> Option<(PriceLevel, PriceLevel)> {
+        Some((self.best_bid()?, self.best_ask()?))
+    }
+
     /// Returns the best ask (lowest price) or `None` if the ask side is empty.
     ///
     /// Returns `None` if the book is empty or if the stored price is somehow

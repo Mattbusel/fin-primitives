@@ -709,6 +709,13 @@ impl NanoTimestamp {
         self.0 - earlier.0
     }
 
+    /// Returns the difference in whole seconds: `(self - earlier) / 1_000_000_000`.
+    ///
+    /// Positive when `self` is after `earlier`.
+    pub fn seconds_since(self, earlier: NanoTimestamp) -> i64 {
+        (self.0 - earlier.0) / 1_000_000_000
+    }
+
     /// Returns the difference in whole minutes: `(self - earlier) / 60_000_000_000`.
     ///
     /// Positive when `self` is after `earlier`.
@@ -755,6 +762,18 @@ impl NanoTimestamp {
         // Two timestamps are on the same day when they share the same `floor(nanos / 86400e9)`.
         const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
         self.0.div_euclid(DAY_NANOS) == other.0.div_euclid(DAY_NANOS)
+    }
+
+    /// Formats this timestamp as a UTC datetime string `"YYYY-MM-DD HH:MM:SS"`.
+    ///
+    /// Useful for logging and display when a full datetime is needed rather than just the date.
+    pub fn to_datetime_string(&self) -> String {
+        use chrono::{DateTime, Utc};
+        let secs = self.0 / 1_000_000_000;
+        let nanos_part = (self.0 % 1_000_000_000).unsigned_abs() as u32;
+        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
+            .unwrap_or_default();
+        dt.format("%Y-%m-%d %H:%M:%S").to_string()
     }
 }
 
