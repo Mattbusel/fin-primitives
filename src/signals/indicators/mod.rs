@@ -1117,3 +1117,15 @@ pub use close_high_frequency::CloseHighFrequency;
 
 pub mod open_midpoint_deviation;
 pub use open_midpoint_deviation::OpenMidpointDeviation;
+
+pub mod rolling_shadow_balance;
+pub use rolling_shadow_balance::RollingShadowBalance;
+
+pub mod range_breakout_count;
+pub use range_breakout_count::RangeBreakoutCount;
+
+pub mod high_volume_bar_ratio;
+pub use high_volume_bar_ratio::HighVolumeBarRatio;
+
+pub mod body_position;
+pub use body_position::BodyPosition;
