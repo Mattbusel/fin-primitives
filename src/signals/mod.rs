@@ -682,6 +682,46 @@ mod tests {
     fn test_signal_value_clamp_unavailable_passthrough() {
         assert_eq!(SignalValue::Unavailable.clamp(dec!(0), dec!(100)), SignalValue::Unavailable);
     }
+
+    #[test]
+    fn test_signal_value_exp_zero() {
+        // e^0 = 1
+        let v = SignalValue::Scalar(dec!(0));
+        if let SignalValue::Scalar(r) = v.exp() {
+            let diff = (r - dec!(1)).abs();
+            assert!(diff < dec!(0.0001), "e^0 should be ~1, got {r}");
+        } else { panic!("expected Scalar"); }
+    }
+
+    #[test]
+    fn test_signal_value_exp_overflow_guard() {
+        assert_eq!(SignalValue::Scalar(dec!(701)).exp(), SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_exp_unavailable_passthrough() {
+        assert_eq!(SignalValue::Unavailable.exp(), SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_floor_positive() {
+        assert_eq!(SignalValue::Scalar(dec!(3.7)).floor(), SignalValue::Scalar(dec!(3)));
+    }
+
+    #[test]
+    fn test_signal_value_floor_negative() {
+        assert_eq!(SignalValue::Scalar(dec!(-2.3)).floor(), SignalValue::Scalar(dec!(-3)));
+    }
+
+    #[test]
+    fn test_signal_value_ceil_positive() {
+        assert_eq!(SignalValue::Scalar(dec!(3.2)).ceil(), SignalValue::Scalar(dec!(4)));
+    }
+
+    #[test]
+    fn test_signal_value_ceil_integer() {
+        assert_eq!(SignalValue::Scalar(dec!(5)).ceil(), SignalValue::Scalar(dec!(5)));
+    }
 }
 
 /// A stateful indicator that updates on each new bar input.

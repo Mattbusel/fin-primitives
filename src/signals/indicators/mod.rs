@@ -137,6 +137,9 @@ pub mod qqe;
 pub mod bars_since;
 pub mod candle_pattern;
 pub mod vw_momentum;
+pub mod elder_impulse;
+pub mod change_from_high;
+pub mod obv_momentum;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -272,3 +275,6 @@ pub use qqe::Qqe;
 pub use bars_since::BarsSince;
 pub use candle_pattern::CandlePattern;
 pub use vw_momentum::VwMomentum;
+pub use elder_impulse::ElderImpulse;
+pub use change_from_high::ChangeFromHigh;
+pub use obv_momentum::ObvMomentum;

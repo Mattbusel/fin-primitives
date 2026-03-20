@@ -106,6 +106,11 @@ impl DrawdownTracker {
                 if delta < self.min_equity_delta {
                     self.min_equity_delta = delta;
                 }
+                if delta > 0.0 {
+                    self.total_gain_sum += delta;
+                } else if delta < 0.0 {
+                    self.total_loss_sum += -delta;
+                }
             }
         }
         self.prev_equity = equity;
@@ -113,6 +118,9 @@ impl DrawdownTracker {
         self.update_count += 1;
         if equity > self.current_equity {
             self.gain_streak += 1;
+            if self.gain_streak > self.max_gain_streak {
+                self.max_gain_streak = self.gain_streak;
+            }
         } else {
             self.gain_streak = 0;
         }
@@ -236,6 +244,9 @@ impl DrawdownTracker {
         self.equity_change_m2 = 0.0;
         self.equity_change_count = 0;
         self.min_equity_delta = 0.0;
+        self.max_gain_streak = 0;
+        self.total_gain_sum = 0.0;
+        self.total_loss_sum = 0.0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -460,6 +471,25 @@ impl DrawdownTracker {
             return Decimal::ZERO;
         }
         (self.peak_equity - stressed_equity) / self.peak_equity * Decimal::ONE_HUNDRED
+    }
+
+    /// Returns the longest consecutive run of equity increases seen since construction or reset.
+    pub fn max_gain_streak(&self) -> usize {
+        self.max_gain_streak
+    }
+
+    /// Returns the cumulative sum of all positive per-update equity changes.
+    ///
+    /// Returns `0.0` if no gains have been recorded.
+    pub fn total_gain_sum(&self) -> f64 {
+        self.total_gain_sum
+    }
+
+    /// Returns the cumulative sum of absolute values of all negative per-update equity changes.
+    ///
+    /// Returns `0.0` if no losses have been recorded.
+    pub fn total_loss_sum(&self) -> f64 {
+        self.total_loss_sum
     }
 
     /// Sortino ratio from a slice of period returns.
