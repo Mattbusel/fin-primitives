@@ -543,4 +543,38 @@ mod tests {
         // Only 2 bars total — still below period of 3
         assert!(map.get_scalar("sma3").is_none());
     }
+
+    #[test]
+    fn test_signal_pipeline_reset_all_clears_state() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("101"));
+        pipeline.update(&bar("102")); // now ready
+        pipeline.reset_all();
+        // After reset, signal should not be ready
+        let map = pipeline.update(&bar("103"));
+        assert!(map.get_scalar("sma3").is_none());
+    }
+
+    #[test]
+    fn test_signal_pipeline_ready_signal_names_empty_before_warmup() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Sma::new("sma5", 5).unwrap());
+        pipeline.update(&bar("100"));
+        assert!(pipeline.ready_signal_names().is_empty());
+    }
+
+    #[test]
+    fn test_signal_pipeline_ready_signal_names_after_warmup() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Sma::new("sma5", 5).unwrap());
+        for i in 0..3 {
+            let p = format!("{}", 100 + i);
+            pipeline.update(&bar(&p));
+        }
+        let names = pipeline.ready_signal_names();
+        assert_eq!(names, vec!["sma3"]);
+    }
 }

@@ -134,6 +134,26 @@ impl Signal for BollingerB {
     }
 }
 
+impl BollingerB {
+    /// Returns `(upper, middle, lower)` band values if the indicator is ready.
+    ///
+    /// Returns `None` if fewer than `period` bars have been seen or sqrt fails.
+    pub fn bands(&self) -> Option<(Decimal, Decimal, Decimal)> {
+        if self.values.len() < self.period {
+            return None;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let n = Decimal::from(self.period as u32);
+        let sum: Decimal = self.values.iter().copied().sum();
+        let mean = sum.checked_div(n)?;
+        let variance_sum: Decimal = self.values.iter().map(|v| { let d = *v - mean; d * d }).sum();
+        let variance = variance_sum.checked_div(n)?;
+        let std_dev = decimal_sqrt(variance).ok()?;
+        let band_width = self.multiplier * std_dev;
+        Some((mean + band_width, mean, mean - band_width))
+    }
+}
+
 /// Newton-Raphson square root for `Decimal`.
 ///
 /// Returns `0` for zero input. Converges within ~10 iterations for typical price ranges.

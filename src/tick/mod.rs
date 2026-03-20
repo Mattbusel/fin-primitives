@@ -1286,4 +1286,70 @@ mod tests {
         let replayer = TickReplayer::new(vec![]);
         assert_eq!(replayer.time_span_nanos(), None);
     }
+
+    #[test]
+    fn test_tick_replayer_price_range_returns_spread() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "105", "1", Side::Ask, 2),
+            make_tick("AAPL", "98", "1", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.price_range(), Some(dec_from_str("7")));
+    }
+
+    #[test]
+    fn test_tick_replayer_price_range_none_for_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.price_range(), None);
+    }
+
+    #[test]
+    fn test_tick_replayer_price_range_zero_for_single_price() {
+        let ticks = vec![make_tick("AAPL", "100", "1", Side::Bid, 1)];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.price_range(), Some(dec_from_str("0")));
+    }
+
+    #[test]
+    fn test_tick_replayer_tick_count_by_side() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "100", "1", Side::Bid, 2),
+            make_tick("AAPL", "100", "1", Side::Ask, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.tick_count_by_side(), (2, 1));
+    }
+
+    #[test]
+    fn test_tick_replayer_tick_count_by_side_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.tick_count_by_side(), (0, 0));
+    }
+
+    #[test]
+    fn test_tick_replayer_median_trade_size_single() {
+        let ticks = vec![make_tick("AAPL", "100", "5", Side::Bid, 1)];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.median_trade_size(), Some(dec_from_str("5")));
+    }
+
+    #[test]
+    fn test_tick_replayer_median_trade_size_odd_count() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "100", "3", Side::Bid, 2),
+            make_tick("AAPL", "100", "5", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        // Sorted: [1, 3, 5], median = index 1 = 3
+        assert_eq!(replayer.median_trade_size(), Some(dec_from_str("3")));
+    }
+
+    #[test]
+    fn test_tick_replayer_median_trade_size_none_for_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.median_trade_size(), None);
+    }
 }

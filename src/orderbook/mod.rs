@@ -675,6 +675,16 @@ impl OrderBook {
         }
         Some(ask_qty / bid_qty)
     }
+
+    /// Returns the total quantity across all bid price levels.
+    pub fn total_bid_depth(&self) -> Decimal {
+        self.bids.values().sum()
+    }
+
+    /// Returns the total quantity across all ask price levels.
+    pub fn total_ask_depth(&self) -> Decimal {
+        self.asks.values().sum()
+    }
 }
 
 #[cfg(test)]

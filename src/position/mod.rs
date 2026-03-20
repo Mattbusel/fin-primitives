@@ -254,6 +254,20 @@ impl Position {
         Price::new(self.avg_cost).ok()
     }
 
+    /// Returns the position's current market value as a percentage of `total_portfolio_value`.
+    ///
+    /// `exposure_pct = |quantity × current_price| / total_portfolio_value × 100`
+    ///
+    /// Returns `None` when `total_portfolio_value` is zero, the position is flat, or
+    /// `current_price` is zero.
+    pub fn exposure_pct(&self, current_price: Price, total_portfolio_value: Decimal) -> Option<Decimal> {
+        if total_portfolio_value.is_zero() || self.is_flat() {
+            return None;
+        }
+        let market_value = (self.quantity * current_price.value()).abs();
+        Some(market_value / total_portfolio_value * Decimal::ONE_HUNDRED)
+    }
+
     /// Returns the stop-loss price at `stop_pct` percent below (long) or above (short) entry.
     ///
     /// - Long: `stop = avg_cost × (1 - stop_pct / 100)`
@@ -758,6 +772,53 @@ impl PositionLedger {
             mv_b.cmp(&mv_a)
         });
         open.into_iter().take(n).collect()
+    }
+
+    /// Returns the Herfindahl-Hirschman Index of position weights (0–1).
+    ///
+    /// `HHI = Σ(weight_i²)` where `weight_i = |mv_i| / gross_exposure`.
+    ///
+    /// Values near 1 indicate high concentration (single dominant position);
+    /// near `1/n` indicate equal distribution. Returns `None` when no open positions.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn concentration(&self, prices: &HashMap<String, Price>) -> Result<Option<Decimal>, FinError> {
+        let gross = self.gross_exposure();
+        if gross == Decimal::ZERO {
+            return Ok(None);
+        }
+        let mut hhi = Decimal::ZERO;
+        for (symbol, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(symbol.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(symbol.to_string()))?;
+            let mv = (pos.quantity * price.value()).abs();
+            let w = mv / gross;
+            hhi += w * w;
+        }
+        Ok(Some(hhi))
+    }
+
+    /// Returns the margin required: `gross_exposure × margin_rate`.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn margin_used(&self, prices: &HashMap<String, Price>, margin_rate: Decimal) -> Result<Decimal, FinError> {
+        let mut gross = Decimal::ZERO;
+        for (symbol, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(symbol.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(symbol.to_string()))?;
+            gross += (pos.quantity * price.value()).abs();
+        }
+        Ok(gross * margin_rate)
     }
 }
 
@@ -1435,5 +1496,49 @@ mod tests {
         let mut ledger = PositionLedger::new(dec!(100000));
         ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         assert_eq!(ledger.total_short_exposure(), dec!(0));
+    }
+
+    #[test]
+    fn test_allocation_pct_single_position() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        let mut prices = HashMap::new();
+        let sym = Symbol::new("AAPL").unwrap();
+        prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
+        let pct = ledger.allocation_pct(&sym, &prices).unwrap();
+        // 10 shares * $100 / ($1000 total) = 100%
+        assert_eq!(pct, Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_allocation_pct_flat_position_returns_none() {
+        let ledger = PositionLedger::new(dec!(100000));
+        let mut prices = HashMap::new();
+        let sym = Symbol::new("AAPL").unwrap();
+        prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
+        // No fill → no position in ledger → error
+        assert!(ledger.allocation_pct(&sym, &prices).is_err());
+    }
+
+    #[test]
+    fn test_positions_sorted_by_pnl_descending() {
+        let mut ledger = PositionLedger::new(dec!(100000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "1", "200", "0")).unwrap();
+        let mut prices = HashMap::new();
+        // AAPL gained $10, GOOG gained $50
+        prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
+        prices.insert("GOOG".to_string(), Price::new(dec!(250)).unwrap());
+        let sorted = ledger.positions_sorted_by_pnl(&prices);
+        // GOOG (pnl=50) should come before AAPL (pnl=10)
+        assert_eq!(sorted[0].symbol.as_str(), "GOOG");
+        assert_eq!(sorted[1].symbol.as_str(), "AAPL");
+    }
+
+    #[test]
+    fn test_positions_sorted_by_pnl_empty_when_all_flat() {
+        let ledger = PositionLedger::new(dec!(100000));
+        let prices = HashMap::new();
+        assert!(ledger.positions_sorted_by_pnl(&prices).is_empty());
     }
 }

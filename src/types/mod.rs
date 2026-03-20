@@ -1505,4 +1505,57 @@ mod tests {
         let b = NanoTimestamp::new(2_000_000_000);
         assert_eq!(a.duration_millis(b), -2000);
     }
+
+    #[test]
+    fn test_nano_timestamp_minutes_since_positive() {
+        let a = NanoTimestamp::new(0);
+        let b = NanoTimestamp::new(3 * 60_000_000_000i64);
+        assert_eq!(b.minutes_since(a), 3);
+    }
+
+    #[test]
+    fn test_nano_timestamp_minutes_since_negative() {
+        let a = NanoTimestamp::new(0);
+        let b = NanoTimestamp::new(3 * 60_000_000_000i64);
+        assert_eq!(a.minutes_since(b), -3);
+    }
+
+    #[test]
+    fn test_nano_timestamp_hours_since_positive() {
+        let a = NanoTimestamp::new(0);
+        let b = NanoTimestamp::new(2 * 3_600_000_000_000i64);
+        assert_eq!(b.hours_since(a), 2);
+    }
+
+    #[test]
+    fn test_nano_timestamp_hours_since_same_returns_zero() {
+        let a = NanoTimestamp::new(1_000_000);
+        assert_eq!(a.hours_since(a), 0);
+    }
+
+    #[test]
+    fn test_price_is_within_pct_same_price() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert!(p.is_within_pct(p, dec!(0)));
+    }
+
+    #[test]
+    fn test_price_is_within_pct_within_range() {
+        let p = Price::new(dec!(100)).unwrap();
+        let q = Price::new(dec!(101)).unwrap();
+        assert!(p.is_within_pct(q, dec!(2)));
+    }
+
+    #[test]
+    fn test_price_is_within_pct_outside_range() {
+        let p = Price::new(dec!(100)).unwrap();
+        let q = Price::new(dec!(110)).unwrap();
+        assert!(!p.is_within_pct(q, dec!(5)));
+    }
+
+    #[test]
+    fn test_price_is_within_pct_negative_pct_returns_false() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert!(!p.is_within_pct(p, dec!(-1)));
+    }
 }

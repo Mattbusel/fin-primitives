@@ -1707,6 +1707,66 @@ impl OhlcvSeries {
         }).count()
     }
 
+    /// Returns the average overnight gap percentage over the last `n` bars.
+    ///
+    /// `overnight_gap_pct = (open - prev_close) / prev_close × 100`
+    ///
+    /// Returns `None` if fewer than 2 bars in window, `n == 0`, or any prev_close is zero.
+    pub fn overnight_gap_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < 2 {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        let window_len = self.bars.len() - start;
+        if window_len == 0 {
+            return None;
+        }
+        let mut sum = Decimal::ZERO;
+        for i in start..self.bars.len() {
+            let pc = self.bars[i - 1].close.value();
+            if pc == Decimal::ZERO {
+                return None;
+            }
+            sum += (self.bars[i].open.value() - pc) / pc * Decimal::ONE_HUNDRED;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(window_len as u32))
+    }
+
+    /// Returns the percentile rank (0–100) of the latest close within the last `n` closes.
+    ///
+    /// `close_rank = count(closes < current) / (n-1) × 100`
+    ///
+    /// Returns `None` if fewer than 2 bars in window or `n == 0`.
+    pub fn close_rank(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let current = self.bars.last()?.close.value();
+        let below = self.bars[start..self.bars.len() - 1]
+            .iter()
+            .filter(|b| b.close.value() < current)
+            .count();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(below as u32) / Decimal::from((n - 1) as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns `highest_high(n) / lowest_low(n)` over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n` bars, `n == 0`, or lowest_low is zero.
+    pub fn high_low_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let hh = self.highest_high(n)?;
+        let ll = self.lowest_low(n)?;
+        if ll == Decimal::ZERO {
+            return None;
+        }
+        Some(hh / ll)
+    }
+
     /// If `n` exceeds the series length, all bars are included.
     #[allow(clippy::cast_possible_truncation)]
     pub fn average_volume(&self, n: usize) -> Option<Decimal> {
@@ -2226,6 +2286,50 @@ impl OhlcvSeries {
             .enumerate()
             .filter(|(i, b)| b.high.value() > self.bars[start + i - 1].high.value())
             .count()
+    }
+
+    /// Counts bars where each bar's low is strictly below the prior bar's low,
+    /// looking at the last `n` consecutive bar pairs.
+    ///
+    /// Returns `0` when `n == 0` or the series has fewer than 2 bars.
+    pub fn consecutive_lower_lows(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| b.low.value() < self.bars[start + i - 1].low.value())
+            .count()
+    }
+
+    /// Distance of the latest close from its `n`-bar VWAP, as a percentage of VWAP.
+    ///
+    /// `deviation_pct = (close - vwap) / vwap * 100`
+    ///
+    /// Returns `None` if `n == 0`, series is shorter than `n`, or total volume is zero.
+    pub fn vwap_deviation(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        let total_vol: Decimal = slice.iter().map(|b| b.volume.value()).sum();
+        if total_vol.is_zero() {
+            return None;
+        }
+        let vwap: Decimal = slice.iter()
+            .map(|b| {
+                let tp = (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32);
+                tp * b.volume.value()
+            })
+            .sum::<Decimal>() / total_vol;
+        if vwap.is_zero() {
+            return None;
+        }
+        let last_close = self.bars.last()?.close.value();
+        Some((last_close - vwap) / vwap * Decimal::ONE_HUNDRED)
     }
 
     /// ATR as a percentage of the last closing price over the last `n` bars.
@@ -3782,5 +3886,83 @@ mod tests {
             }).unwrap();
         }
         assert!(!series.volume_spike(3, dec!(3)));
+    }
+
+    #[test]
+    fn test_efficiency_ratio_trending() {
+        let mut series = OhlcvSeries::new();
+        // Strictly rising prices → direction == path → ER = 1
+        for i in 0..6u32 {
+            series.push(make_bar(&format!("{}", 100 + i), &format!("{}", 105 + i), &format!("{}", 99 + i), &format!("{}", 100 + i))).unwrap();
+        }
+        let er = series.efficiency_ratio(5).unwrap();
+        assert_eq!(er, dec!(1));
+    }
+
+    #[test]
+    fn test_efficiency_ratio_none_when_not_enough_bars() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert!(series.efficiency_ratio(5).is_none());
+    }
+
+    #[test]
+    fn test_efficiency_ratio_zero_period_returns_none() {
+        let series = OhlcvSeries::new();
+        assert!(series.efficiency_ratio(0).is_none());
+    }
+
+    #[test]
+    fn test_body_pct_series_full_body() {
+        let mut series = OhlcvSeries::new();
+        // Bar: open=90, close=110, high=110, low=90 → body=20, range=20 → 100%
+        series.push(make_bar("90", "110", "90", "110")).unwrap();
+        let v = series.body_pct_series(1);
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0], Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_body_pct_series_zero_range_returns_none() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        let v = series.body_pct_series(1);
+        assert_eq!(v[0], None);
+    }
+
+    #[test]
+    fn test_candle_color_changes_alternating() {
+        let mut series = OhlcvSeries::new();
+        // Bullish, Bearish, Bullish → 2 changes
+        series.push(make_bar("95", "110", "90", "105")).unwrap();  // bull
+        series.push(make_bar("105", "115", "100", "102")).unwrap(); // bear
+        series.push(make_bar("102", "115", "98", "110")).unwrap();  // bull
+        assert_eq!(series.candle_color_changes(3), 2);
+    }
+
+    #[test]
+    fn test_candle_color_changes_no_changes() {
+        let mut series = OhlcvSeries::new();
+        // All bullish → 0 changes
+        for _ in 0..3 {
+            series.push(make_bar("95", "110", "90", "105")).unwrap();
+        }
+        assert_eq!(series.candle_color_changes(3), 0);
+    }
+
+    #[test]
+    fn test_typical_price_series_values() {
+        let mut series = OhlcvSeries::new();
+        // H=110, L=90, C=100 → tp = (110+90+100)/3 = 100
+        series.push(make_bar("95", "110", "90", "100")).unwrap();
+        let v = series.typical_price_series(1);
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0], dec!(100));
+    }
+
+    #[test]
+    fn test_typical_price_series_empty_series_returns_empty() {
+        let series = OhlcvSeries::new();
+        assert!(series.typical_price_series(3).is_empty());
     }
 }

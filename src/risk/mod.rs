@@ -502,6 +502,27 @@ impl RiskMonitor {
     pub fn trailing_stop_level(&self, pct: Decimal) -> Decimal {
         self.tracker.peak() * (Decimal::ONE_HUNDRED - pct) / Decimal::ONE_HUNDRED
     }
+
+    /// Computes historical Value-at-Risk at `confidence_pct` percent confidence.
+    ///
+    /// Sorts `returns` ascending and returns the value at the `(1 - confidence_pct/100)`
+    /// quantile — the loss exceeded only `(100 - confidence_pct)%` of the time.
+    /// Example: `var_pct(&returns, dec!(95))` gives the 5th-percentile return.
+    ///
+    /// Returns `None` when `returns` is empty.
+    pub fn var_pct(returns: &[Decimal], confidence_pct: Decimal) -> Option<Decimal> {
+        if returns.is_empty() {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let mut sorted = returns.to_vec();
+        sorted.sort();
+        let tail_pct = (Decimal::ONE_HUNDRED - confidence_pct) / Decimal::ONE_HUNDRED;
+        let idx_f = tail_pct.to_f64()? * sorted.len() as f64;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let idx = (idx_f as usize).min(sorted.len() - 1);
+        Some(sorted[idx])
+    }
 }
 
 #[cfg(test)]
@@ -1035,5 +1056,72 @@ mod tests {
     fn test_sharpe_ratio_none_when_vol_zero() {
         let tracker = DrawdownTracker::new(dec!(10000));
         assert!(tracker.sharpe_ratio(dec!(15), dec!(0)).is_none());
+    }
+
+    #[test]
+    fn test_time_underwater_pct_no_updates_returns_zero() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert_eq!(tracker.time_underwater_pct(), dec!(0));
+    }
+
+    #[test]
+    fn test_time_underwater_pct_all_in_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000));
+        tracker.update(dec!(8000));
+        // 2 updates, both below peak → 100%
+        assert_eq!(tracker.time_underwater_pct(), dec!(1));
+    }
+
+    #[test]
+    fn test_time_underwater_pct_half_in_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000)); // new peak, not in dd
+        tracker.update(dec!(10000)); // in drawdown
+        assert_eq!(tracker.time_underwater_pct(), Decimal::new(5, 1));
+    }
+
+    #[test]
+    fn test_avg_drawdown_pct_none_when_no_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        assert!(tracker.avg_drawdown_pct().is_none());
+    }
+
+    #[test]
+    fn test_avg_drawdown_pct_positive_when_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000)); // 10% drawdown
+        let avg = tracker.avg_drawdown_pct().unwrap();
+        assert!(avg > dec!(0));
+    }
+
+    #[test]
+    fn test_max_loss_streak_zero_when_no_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        tracker.update(dec!(12000));
+        assert_eq!(tracker.max_loss_streak(), 0);
+    }
+
+    #[test]
+    fn test_max_loss_streak_tracks_longest_run() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000)); // streak=1
+        tracker.update(dec!(8000)); // streak=2
+        tracker.update(dec!(11000)); // new peak, streak resets
+        tracker.update(dec!(10000)); // streak=1
+        assert_eq!(tracker.max_loss_streak(), 2);
+    }
+
+    #[test]
+    fn test_reset_clears_new_fields() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000));
+        tracker.update(dec!(8000));
+        tracker.reset(dec!(10000));
+        assert_eq!(tracker.time_underwater_pct(), dec!(0));
+        assert!(tracker.avg_drawdown_pct().is_none());
+        assert_eq!(tracker.max_loss_streak(), 0);
     }
 }
