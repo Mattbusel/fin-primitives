@@ -553,6 +553,16 @@ impl DrawdownTracker {
         }
         Some(mean_excess / tracking_error)
     }
+
+    /// Annualized volatility of equity changes: `std_dev_of_changes * sqrt(periods_per_year)`.
+    ///
+    /// Returns `None` if fewer than 2 updates have been recorded.
+    pub fn annualized_volatility(&self, periods_per_year: u32) -> Option<f64> {
+        if self.equity_change_count < 2 { return None; }
+        let n = self.equity_change_count as f64;
+        let variance = self.equity_change_m2 / (n - 1.0);
+        Some(variance.sqrt() * (periods_per_year as f64).sqrt())
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {

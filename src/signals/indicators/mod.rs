@@ -136,6 +136,7 @@ pub mod price_position;
 pub mod qqe;
 pub mod bars_since;
 pub mod candle_pattern;
+pub mod vw_momentum;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -270,3 +271,4 @@ pub use price_position::PricePosition;
 pub use qqe::Qqe;
 pub use bars_since::BarsSince;
 pub use candle_pattern::CandlePattern;
+pub use vw_momentum::VwMomentum;

@@ -1345,6 +1345,54 @@ impl PositionLedger {
             .count();
         (longs, shorts)
     }
+
+    /// Returns the age in bars of the oldest open position.
+    ///
+    /// Returns `None` if there are no open positions or no position has an open bar set.
+    pub fn max_position_age_bars(&self, current_bar: usize) -> Option<usize> {
+        self.positions.values()
+            .filter(|p| !p.is_flat())
+            .map(|p| p.position_age_bars(current_bar))
+            .max()
+    }
+
+    /// Returns the mean age in bars of all open positions.
+    ///
+    /// Returns `None` if there are no open positions.
+    pub fn avg_position_age_bars(&self, current_bar: usize) -> Option<Decimal> {
+        let ages: Vec<usize> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .map(|p| p.position_age_bars(current_bar))
+            .collect();
+        if ages.is_empty() { return None; }
+        let sum: usize = ages.iter().sum();
+        Some(Decimal::from(sum as u64) / Decimal::from(ages.len() as u64))
+    }
+
+    /// Herfindahl-Hirschman Index (HHI) of portfolio concentration by market value.
+    ///
+    /// HHI = Σ(weight_i²) where weight_i = |market_value_i| / total_gross_exposure.
+    /// Range [0, 1]: 0 = perfectly diversified, 1 = entirely in one position.
+    ///
+    /// Returns `None` if there are no open positions or total gross exposure is zero.
+    pub fn hhi_concentration(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let open_positions: Vec<_> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .collect();
+        if open_positions.is_empty() { return None; }
+        let mvs: Vec<Decimal> = open_positions.iter()
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| p.market_value(price).abs())
+            })
+            .collect();
+        let total: Decimal = mvs.iter().sum();
+        if total.is_zero() { return None; }
+        Some(mvs.iter().map(|mv| {
+            let w = mv / total;
+            w * w
+        }).sum())
+    }
 }
 
 #[cfg(test)]

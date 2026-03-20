@@ -4752,6 +4752,61 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(continuing) / Decimal::from(n as u32) * Decimal::from(100u32))
     }
+
+    /// Count of inside bars (high ≤ prev high AND low ≥ prev low) in the last `n` bars.
+    pub fn inside_bar_count(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut count = 0usize;
+        for i in start..self.bars.len() {
+            if i == 0 { continue; }
+            let prev = &self.bars[i - 1];
+            let cur = &self.bars[i];
+            if cur.high <= prev.high && cur.low >= prev.low { count += 1; }
+        }
+        Some(count)
+    }
+
+    /// Count of outside bars (high > prev high AND low < prev low) in the last `n` bars.
+    pub fn outside_bar_count(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut count = 0usize;
+        for i in start..self.bars.len() {
+            if i == 0 { continue; }
+            let prev = &self.bars[i - 1];
+            let cur = &self.bars[i];
+            if cur.high > prev.high && cur.low < prev.low { count += 1; }
+        }
+        Some(count)
+    }
+
+    /// Close price of the bar with the highest volume among the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn high_volume_price(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        self.bars[start..].iter()
+            .max_by_key(|b| b.volume.value())
+            .map(|b| b.close.value())
+    }
+
+    /// Average of `close - open` over the last `n` bars.
+    ///
+    /// Positive values indicate a net bullish directional bias; negative indicate bearish.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_close_minus_open(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value() - b.open.value())
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]

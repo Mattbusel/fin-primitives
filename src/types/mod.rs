@@ -911,6 +911,27 @@ impl NanoTimestamp {
         let b = other.to_datetime().iso_week();
         a.week() == b.week() && a.year() == b.year()
     }
+
+    /// Returns `true` if `self` and `other` fall in the same calendar month and year.
+    pub fn is_same_month(self, other: NanoTimestamp) -> bool {
+        use chrono::Datelike;
+        let a = self.to_datetime();
+        let b = other.to_datetime();
+        a.year() == b.year() && a.month() == b.month()
+    }
+
+    /// Snaps this timestamp to the most recent Monday at 00:00:00 UTC (start of ISO week).
+    pub fn floor_to_week(self) -> NanoTimestamp {
+        use chrono::{Datelike, Duration, TimeZone, Weekday};
+        let dt = self.to_datetime();
+        let days_since_monday = dt.weekday().num_days_from_monday() as i64;
+        let monday = dt - Duration::days(days_since_monday);
+        let monday_midnight = Utc
+            .with_ymd_and_hms(monday.year(), monday.month(), monday.day(), 0, 0, 0)
+            .single()
+            .expect("valid date");
+        NanoTimestamp::from_datetime(monday_midnight)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

@@ -186,6 +186,41 @@ impl SignalMap {
             Some(vals[mid])
         }
     }
+
+    /// Returns the population standard deviation of all scalar signal values.
+    ///
+    /// Returns `None` if there are fewer than 2 scalar values.
+    pub fn std_dev(&self) -> Option<Decimal> {
+        let vals: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
+        if vals.len() < 2 {
+            return None;
+        }
+        let n = Decimal::from(vals.len() as u64);
+        let mean = vals.iter().sum::<Decimal>() / n;
+        let variance = vals.iter().map(|v| {
+            let diff = v - mean;
+            diff * diff
+        }).sum::<Decimal>() / n;
+        // Approximate sqrt via f64
+        let var_f: f64 = variance.to_string().parse().ok()?;
+        Decimal::try_from(var_f.sqrt()).ok()
+    }
+
+    /// Returns the min-max normalized value of the named signal relative to all scalars.
+    ///
+    /// `(value - min_scalar) / (max_scalar - min_scalar)` — in `[0, 1]`.
+    ///
+    /// Returns `None` if the signal is not found, is `Unavailable`, or all scalars are equal.
+    pub fn normalize_scalar(&self, name: &str) -> Option<Decimal> {
+        let v = self.get_scalar(name)?;
+        let (_, min) = self.min_scalar()?;
+        let (_, max) = self.max_scalar()?;
+        let range = max - min;
+        if range.is_zero() {
+            return None;
+        }
+        Some((v - min) / range)
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -413,7 +448,6 @@ impl SignalPipeline {
         }
         self.ready_count() as f64 / self.signals.len() as f64
     }
-
 }
 
 impl Default for SignalPipeline {
