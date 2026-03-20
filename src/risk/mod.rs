@@ -807,6 +807,39 @@ impl RiskMonitor {
         if downside.is_zero() { return None; }
         Some(upside / downside)
     }
+
+    /// Computes the Kelly Criterion fraction: optimal bet size as a fraction of bankroll.
+    ///
+    /// ```text
+    /// f* = win_rate - (1 - win_rate) / (avg_win / avg_loss)
+    /// ```
+    ///
+    /// Returns `None` if `avg_loss` is zero (undefined).
+    /// Negative values indicate the strategy has negative expectancy.
+    pub fn kelly_fraction(
+        win_rate: Decimal,
+        avg_win: Decimal,
+        avg_loss: Decimal,
+    ) -> Option<Decimal> {
+        if avg_loss.is_zero() { return None; }
+        let loss_rate = Decimal::ONE - win_rate;
+        let odds = avg_win / avg_loss;
+        Some(win_rate - loss_rate / odds)
+    }
+
+    /// Annualised return from a series of per-period returns.
+    ///
+    /// `annualized = ((1 + mean_return)^periods_per_year) - 1`
+    ///
+    /// Returns `None` if `returns` is empty or `periods_per_year == 0`.
+    pub fn annualized_return(returns: &[Decimal], periods_per_year: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if returns.is_empty() || periods_per_year == 0 { return None; }
+        let n = returns.len() as f64;
+        let mean_r: f64 = returns.iter().map(|r| r.to_f64().unwrap_or(0.0)).sum::<f64>() / n;
+        let annual = (1.0 + mean_r).powf(periods_per_year as f64) - 1.0;
+        Some(annual)
+    }
 }
 
 #[cfg(test)]

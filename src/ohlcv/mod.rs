@@ -4105,6 +4105,44 @@ impl OhlcvSeries {
             .sum();
         Some(sum / Decimal::from(n as u32))
     }
+
+    /// Count of bars in the last `n` with volume > `threshold × average_volume`.
+    ///
+    /// A `threshold` of `2.0` finds bars with more than twice the average volume.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or average volume is zero.
+    pub fn volume_spike_count(&self, n: usize, threshold: Decimal) -> Option<usize> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let avg_vol: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.volume.value())
+            .sum::<Decimal>()
+            / Decimal::from(n as u32);
+        if avg_vol.is_zero() { return None; }
+        let limit = avg_vol * threshold;
+        let count = self.bars[start..].iter().filter(|b| b.volume.value() > limit).count();
+        Some(count)
+    }
+
+    /// Acceleration of closing prices over the last `n` bars (second derivative).
+    ///
+    /// Computes `Δmom = mom[last] - mom[first]` where `mom[i] = close[i] - close[i-1]`.
+    /// Requires at least `n + 2` bars in the series.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n + 2` bars exist.
+    pub fn close_acceleration(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 2 {
+            return None;
+        }
+        let total = self.bars.len();
+        let last_mom = self.bars[total - 1].close.value() - self.bars[total - 2].close.value();
+        let first_idx = total - n - 1;
+        let first_mom = self.bars[first_idx + 1].close.value() - self.bars[first_idx].close.value();
+        Some(last_mom - first_mom)
+    }
 }
 
 #[cfg(test)]

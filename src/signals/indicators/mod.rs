@@ -109,6 +109,10 @@ pub mod candle_body_size;
 pub mod laguerre;
 pub mod linreg_channel;
 pub mod trend_angle;
+pub mod alligator;
+pub mod disparity;
+pub mod price_acceleration;
+pub mod high_low_spread;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -216,3 +220,4 @@ pub use candle_body_size::CandleBodySize;
 pub use laguerre::LaguerreRsi;
 pub use linreg_channel::LinRegChannel;
 pub use trend_angle::TrendAngle;
+pub use alligator::Alligator;
