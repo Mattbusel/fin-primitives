@@ -850,6 +850,22 @@ impl SignalValue {
             SignalValue::Unavailable => default,
         }
     }
+
+    /// Returns `true` if `self >= other` (both scalar). Returns `false` if either is `Unavailable`.
+    pub fn gte(&self, other: &SignalValue) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => a >= b,
+            _ => false,
+        }
+    }
+
+    /// Returns `true` if `self <= other` (both scalar). Returns `false` if either is `Unavailable`.
+    pub fn lte(&self, other: &SignalValue) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => a <= b,
+            _ => false,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

@@ -185,6 +185,7 @@ pub mod weighted_close;
 pub mod price_intensity;
 pub mod smoothed_rsi;
 pub mod volume_weighted_rsi;
+pub mod ema_slope;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -368,3 +369,4 @@ pub use weighted_close::WeightedClose;
 pub use price_intensity::PriceIntensity;
 pub use smoothed_rsi::SmoothedRsi;
 pub use volume_weighted_rsi::VolumeWeightedRsi;
+pub use ema_slope::EmaSlope;

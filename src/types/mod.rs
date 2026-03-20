@@ -1092,6 +1092,18 @@ impl NanoTimestamp {
     pub fn nanoseconds_between(self, other: NanoTimestamp) -> u64 {
         (self.0 - other.0).unsigned_abs()
     }
+
+    /// Elapsed time in minutes between `self` and `other` (always non-negative).
+    pub fn elapsed_minutes(&self, other: NanoTimestamp) -> f64 {
+        let diff = (self.0 - other.0).unsigned_abs();
+        diff as f64 / (60.0 * 1_000_000_000.0)
+    }
+
+    /// Elapsed time in calendar days (as a float) between `self` and `other`.
+    pub fn elapsed_days(&self, other: NanoTimestamp) -> f64 {
+        let diff = (self.0 - other.0).unsigned_abs();
+        diff as f64 / (86_400.0 * 1_000_000_000.0)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

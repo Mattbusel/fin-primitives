@@ -470,6 +470,16 @@ impl SignalMap {
     pub fn count_zero(&self) -> usize {
         self.scalars().filter(|(_, v)| v.is_zero()).count()
     }
+
+    /// Returns `true` if the named signal has a scalar (non-Unavailable) value.
+    pub fn has_scalar(&self, name: &str) -> bool {
+        self.get_scalar(name).is_some()
+    }
+
+    /// All scalar values as a `HashMap<String, Decimal>` (Unavailable entries excluded).
+    pub fn remove_unavailable(&self) -> HashMap<String, Decimal> {
+        self.scalars().map(|(name, v)| (name.to_string(), v)).collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

@@ -6031,6 +6031,56 @@ impl OhlcvSeries {
         }
         Some(sum / Decimal::from(n))
     }
+
+    /// Ratio of latest close to the close `n` bars ago.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars or the reference close is zero.
+    pub fn close_momentum_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n { return None; }
+        let prev = self.bars[self.bars.len() - 1 - n].close.value();
+        if prev.is_zero() { return None; }
+        Some(self.bars.last()?.close.value() / prev)
+    }
+
+    /// Change in momentum: `pct_change(fast) - pct_change(slow)`.
+    ///
+    /// Returns `None` if insufficient bars or a reference close is zero.
+    pub fn price_velocity(&self, fast: usize, slow: usize) -> Option<Decimal> {
+        let fast_chg = self.pct_change_n(fast)?;
+        let slow_chg = self.pct_change_n(slow)?;
+        Some(fast_chg - slow_chg)
+    }
+
+    /// Longest run of consecutive bars where `close == open`.
+    pub fn longest_flat_streak(&self) -> usize {
+        let mut max_run = 0usize;
+        let mut run = 0usize;
+        for b in &self.bars {
+            if b.close.value() == b.open.value() {
+                run += 1;
+                max_run = max_run.max(run);
+            } else {
+                run = 0;
+            }
+        }
+        max_run
+    }
+
+    /// Number of bars since the last new all-time high close.
+    ///
+    /// Returns `None` if there are no bars.
+    pub fn bars_since_new_high(&self) -> Option<usize> {
+        if self.bars.is_empty() { return None; }
+        let mut last_high_idx = 0;
+        let mut peak = self.bars[0].close.value();
+        for (i, b) in self.bars.iter().enumerate() {
+            if b.close.value() >= peak {
+                peak = b.close.value();
+                last_high_idx = i;
+            }
+        }
+        Some(self.bars.len() - 1 - last_high_idx)
+    }
 }
 
 #[cfg(test)]
