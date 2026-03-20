@@ -198,6 +198,7 @@ pub mod volume_breadth;
 pub mod max_drawdown_window;
 pub mod ema_convergence;
 pub mod candle_momentum;
+pub mod wick_ratio;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -394,3 +395,4 @@ pub use volume_breadth::VolumeBreadth;
 pub use max_drawdown_window::MaxDrawdownWindow;
 pub use ema_convergence::EmaConvergence;
 pub use candle_momentum::CandleMomentum;
+pub use wick_ratio::WickRatio;
