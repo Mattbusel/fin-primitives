@@ -63,7 +63,7 @@ impl Signal for HammerPattern {
         let lower_shadow = body_lo - low;
 
         let two  = Decimal::TWO;
-        let ratio_30 = Decimal::from_str_exact("0.30").unwrap_or(Decimal::ZERO);
+        let ratio_30 = Decimal::new(30, 2);
 
         // Hammer: long lower shadow, small upper shadow
         let is_hammer = lower_shadow >= two * body

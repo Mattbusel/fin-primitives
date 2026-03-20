@@ -50,15 +50,15 @@ impl Signal for BarType {
         }
 
         let ratio = body.abs() / range;
-        let threshold = Decimal::from_str_exact("0.6").unwrap_or(Decimal::ZERO);
+        let threshold = Decimal::new(6, 1);
 
         let level = if body > Decimal::ZERO {
             if ratio >= threshold { Decimal::ONE }
-            else { Decimal::from_str_exact("0.5").unwrap_or(Decimal::ZERO) }
+            else { Decimal::new(5, 1) }
         } else if ratio >= threshold {
             Decimal::NEGATIVE_ONE
         } else {
-            Decimal::from_str_exact("-0.5").unwrap_or(Decimal::ZERO)
+            -Decimal::new(5, 1)
         };
         Ok(SignalValue::Scalar(level))
     }

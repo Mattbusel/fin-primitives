@@ -272,8 +272,8 @@ impl OhlcvBar {
         let body_ratio = body / range;
         let upper_ratio = self.upper_shadow() / range;
         let lower_ratio = self.lower_shadow() / range;
-        let threshold_30 = Decimal::from_str_exact("0.30").unwrap_or(Decimal::ZERO);
-        let threshold_20 = Decimal::from_str_exact("0.20").unwrap_or(Decimal::ZERO);
+        let threshold_30 = Decimal::new(30, 2);
+        let threshold_20 = Decimal::new(20, 2);
         body_ratio < threshold_30 && upper_ratio >= threshold_20 && lower_ratio >= threshold_20
     }
 
