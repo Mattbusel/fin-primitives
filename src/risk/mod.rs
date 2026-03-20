@@ -957,6 +957,25 @@ impl DrawdownTracker {
         }
         Decimal::ONE - self.time_underwater_pct()
     }
+
+    /// Sample standard deviation of per-update equity changes.
+    ///
+    /// Uses the Welford running variance accumulator. Returns `None` when
+    /// fewer than 2 equity changes have been recorded.
+    pub fn equity_change_std_dev(&self) -> Option<f64> {
+        if self.equity_change_count < 2 { return None; }
+        let variance = self.equity_change_m2 / (self.equity_change_count - 1) as f64;
+        Some(variance.sqrt())
+    }
+
+    /// Ratio of the longest gain streak to total updates.
+    ///
+    /// Higher values indicate equity spent a larger fraction of updates trending upward.
+    /// Returns `None` when no updates have been processed.
+    pub fn gain_streak_ratio(&self) -> Option<f64> {
+        if self.update_count == 0 { return None; }
+        Some(self.max_gain_streak as f64 / self.update_count as f64)
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {

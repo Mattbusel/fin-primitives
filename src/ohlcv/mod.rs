@@ -6248,6 +6248,33 @@ impl OhlcvSeries {
             _ => false,
         }
     }
+
+    /// Count of the most recent consecutive bars whose close is above `price`.
+    ///
+    /// Starts from the latest bar and counts backwards. Returns `0` if the
+    /// latest bar's close is not above `price`, or if the series is empty.
+    pub fn consecutive_closes_above(&self, price: Decimal) -> usize {
+        self.bars.iter().rev().take_while(|b| b.close.value() > price).count()
+    }
+
+    /// Average `(open - low) / (high - low) * 100` over the last `n` bars.
+    ///
+    /// Measures where the open sits within the bar's range. Returns `None` if
+    /// fewer than `n` bars exist or `n` is zero. Bars with zero range are skipped.
+    pub fn open_range_pct(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let vals: Vec<f64> = self.bars[start..].iter().filter_map(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { return None; }
+            let num = (b.open.value() - b.low.value()).to_f64()?;
+            let den = range.to_f64()?;
+            Some(num / den * 100.0)
+        }).collect();
+        if vals.is_empty() { return None; }
+        Some(vals.iter().sum::<f64>() / vals.len() as f64)
+    }
 }
 
 #[cfg(test)]
