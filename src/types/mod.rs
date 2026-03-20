@@ -1017,9 +1017,6 @@ impl NanoTimestamp {
             .with_ymd_and_hms(next_year, next_month, 1, 0, 0, 0)
             .single()
             .unwrap_or(dt);
-        let eom = start_of_next
-            .with_nanosecond(0)
-            .unwrap_or(start_of_next);
         let nanos = start_of_next.timestamp_nanos_opt().unwrap_or(self.0) - 1;
         NanoTimestamp(nanos)
     }
