@@ -747,6 +747,28 @@ impl DrawdownTracker {
         Some((self.min_equity_delta / peak).abs() * 100.0)
     }
 
+    /// Win rate divided by loss rate (win probability / loss probability).
+    ///
+    /// Returns `None` if either rate is unavailable or loss rate is zero.
+    pub fn win_loss_ratio(&self) -> Option<f64> {
+        let wr = self.win_rate()?.to_string().parse::<f64>().ok()?;
+        let lr = self.loss_rate()?;
+        if lr == 0.0 { return None; }
+        Some(wr / (lr * 100.0))
+    }
+
+    /// Max single gain percentage divided by worst drawdown percentage (reward/risk ratio).
+    ///
+    /// Returns `None` if no drawdown or no gain has been recorded.
+    pub fn best_drawdown_recovery(&self) -> Option<f64> {
+        if self.worst_drawdown_pct.is_zero() { return None; }
+        let max_gain = self.max_gain_pct();
+        if max_gain <= 0.0 { return None; }
+        let dd: f64 = self.worst_drawdown_pct.to_string().parse().ok()?;
+        if dd == 0.0 { return None; }
+        Some(max_gain / dd)
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.

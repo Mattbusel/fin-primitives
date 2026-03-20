@@ -1748,6 +1748,18 @@ impl PositionLedger {
     pub fn realized_pnl_total_abs(&self) -> Decimal {
         self.positions.values().map(|p| p.realized_pnl.abs()).sum()
     }
+
+    /// Average entry price for a symbol's current position.
+    ///
+    /// Returns `None` if the symbol is not tracked or the position is flat.
+    pub fn average_entry_price(&self, symbol: &Symbol) -> Option<Price> {
+        self.positions.get(symbol)?.avg_entry_price()
+    }
+
+    /// Net sum of all position quantities across all symbols.
+    pub fn net_quantity(&self) -> Decimal {
+        self.positions.values().map(|p| p.quantity).sum()
+    }
 }
 
 #[cfg(test)]
