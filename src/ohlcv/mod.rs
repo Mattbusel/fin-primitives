@@ -2710,7 +2710,7 @@ impl OhlcvSeries {
             return None;
         }
         let last = self.bars.last()?;
-        let current_range = last.high.value() - last.low.value();
+        let current_range = last.range();
         Some(current_range / atr * Decimal::ONE_HUNDRED)
     }
 
@@ -3607,7 +3607,7 @@ impl OhlcvSeries {
             .map(|(i, bar)| {
                 let abs_i = start + i;
                 if abs_i == 0 {
-                    bar.high.value() - bar.low.value()
+                    bar.range()
                 } else {
                     let prev_close = self.bars[abs_i - 1].close.value();
                     let high = bar.high.value().max(prev_close);
@@ -4552,7 +4552,7 @@ impl OhlcvSeries {
             return None;
         }
         let last = self.bars.last()?;
-        let last_range = last.high.value() - last.low.value();
+        let last_range = last.range();
         last_range.checked_div(max_range)
     }
 
@@ -4635,7 +4635,7 @@ impl OhlcvSeries {
         let atr = self.avg_true_range(n)?;
         if atr.is_zero() { return None; }
         let last = self.bars.last()?;
-        let range = last.high.value() - last.low.value();
+        let range = last.range();
         range.checked_div(atr).map(|r| r * Decimal::ONE_HUNDRED)
     }
 
@@ -5062,7 +5062,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
-            let range = bar.high.value() - bar.low.value();
+            let range = bar.range();
             if range.is_zero() { continue; }
             sum += (bar.close.value() - bar.open.value()) / range;
             count += 1;
@@ -5112,9 +5112,9 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
-            let range = bar.high.value() - bar.low.value();
+            let range = bar.range();
             if range.is_zero() { continue; }
-            sum += (bar.close.value() - bar.open.value()).abs() / range * Decimal::ONE_HUNDRED;
+            sum += bar.body_size() / range * Decimal::ONE_HUNDRED;
             count += 1;
         }
         if count == 0 { return None; }
@@ -5470,9 +5470,9 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
-            let range = bar.high.value() - bar.low.value();
+            let range = bar.range();
             if range.is_zero() { continue; }
-            sum += (bar.close.value() - bar.open.value()).abs() / range;
+            sum += bar.body_size() / range;
             count += 1;
         }
         if count == 0 { return None; }
@@ -5489,7 +5489,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let mut net = Decimal::ZERO;
         for bar in &self.bars[start..] {
-            let range = bar.high.value() - bar.low.value();
+            let range = bar.range();
             let vol = bar.volume.value();
             if range.is_zero() { continue; }
             let buy_frac = (bar.close.value() - bar.low.value()) / range;
@@ -5765,7 +5765,7 @@ impl OhlcvSeries {
             .sum::<Decimal>() / Decimal::from(n);
         if avg_range.is_zero() { return None; }
         let last = self.bars.last()?;
-        Some((last.high.value() - last.low.value()) / avg_range)
+        Some((last.range()) / avg_range)
     }
 
     /// Average volume on bullish bars (close > open) over the last `n` bars.
@@ -7061,7 +7061,7 @@ impl OhlcvSeries {
         for w in slice.windows(2) {
             let pc = w[0].close.value();
             if pc.is_zero() { continue; }
-            let range = w[1].high.value() - w[1].low.value();
+            let range = w[1].range();
             sum += range / pc;
             count += 1;
         }
