@@ -953,7 +953,7 @@ mod tests {
     }
 
     #[test]
-    fn test_signal_pipeline_signal_count() {
+    fn test_signal_pipeline_signal_count_v2() {
         let p = SignalPipeline::new()
             .add(Sma::new("s3", 3).unwrap())
             .add(Ema::new("e5", 5).unwrap());

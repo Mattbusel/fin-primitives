@@ -6538,70 +6538,77 @@ mod tests {
         assert!(series.trend_continuation_pct(1).is_none()); // need n+1=2 bars
     }
 
-    #[test]
-    fn test_close_to_open_ratio_bullish() {
-        // All bullish bars: close > open
-        let bars: Vec<OhlcvBar> = vec![
-            bar_ohlcv("100", "110", "95", "100", "1000"),
-            bar_ohlcv("105", "115", "100", "105", "1000"),
-        ];
-        let series = OhlcvSeries::from_bars(bars).unwrap();
-        let ratio = series.close_to_open_ratio(2).unwrap();
-        // close/open: 110/100=1.1, 115/105≈1.0952 → avg ≈ 1.0976
-        assert!(ratio > dec!(1), "bullish bars should have ratio > 1, got {ratio}");
-    }
-
-    #[test]
-    fn test_close_to_open_ratio_none_zero_open() {
-        let b = OhlcvBar {
+    fn make_bar_vol(o: &str, h: &str, l: &str, c: &str, vol: &str) -> OhlcvBar {
+        OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: Price::new(dec!(0)).unwrap_or_else(|_| Price::new(dec!(1)).unwrap()),
-            high: Price::new(dec!(10)).unwrap(),
-            low: Price::new(dec!(1)).unwrap(),
-            close: Price::new(dec!(5)).unwrap(),
-            volume: Quantity::zero(),
+            open: make_price(o),
+            high: make_price(h),
+            low: make_price(l),
+            close: make_price(c),
+            volume: make_qty(vol),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
-        };
-        // Use bar with valid open for test; just verify n==0 returns None
+        }
+    }
+
+    #[test]
+    fn test_close_to_open_ratio_bullish() {
+        // close > open → ratio > 1
+        let bars = vec![
+            make_bar_vol("100", "110", "95", "110", "1000"),  // close/open = 1.1
+            make_bar_vol("105", "115", "100", "115", "1000"), // close/open ≈ 1.095
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let ratio = series.close_to_open_ratio(2).unwrap();
+        assert!(ratio > dec!(1), "bullish bars: ratio > 1, got {ratio}");
+    }
+
+    #[test]
+    fn test_close_to_open_ratio_none_zero_n() {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.close_to_open_ratio(0).is_none());
     }
 
     #[test]
     fn test_volume_trend_rising() {
-        let bars: Vec<OhlcvBar> = (1..=5).map(|i| {
-            bar_with_volume("100", &(i * 100).to_string())
+        let bars: Vec<OhlcvBar> = (1..=5u32).map(|i| {
+            make_bar_vol("100", "100", "100", "100", &(i * 100).to_string())
         }).collect();
         let series = OhlcvSeries::from_bars(bars).unwrap();
         let slope = series.volume_trend(5).unwrap();
-        assert!(slope > dec!(0), "rising volume should have positive slope, got {slope}");
+        assert!(slope > 0.0_f64, "rising volume: positive slope, got {slope}");
     }
 
     #[test]
     fn test_volume_trend_none_insufficient() {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.volume_trend(0).is_none());
-        assert!(series.volume_trend(2).is_none()); // need >= 2 bars
+        assert!(series.volume_trend(2).is_none()); // only 1 bar, need >= 2
     }
 
     #[test]
     fn test_high_volume_price_returns_close_of_max_vol_bar() {
         let bars = vec![
-            bar_with_volume("100", "500"),
-            bar_with_volume("200", "1000"), // highest volume
-            bar_with_volume("150", "300"),
+            make_bar_vol("100", "100", "100", "100", "500"),
+            make_bar_vol("200", "200", "200", "200", "1000"), // highest volume
+            make_bar_vol("150", "150", "150", "150", "300"),
         ];
         let series = OhlcvSeries::from_bars(bars).unwrap();
         assert_eq!(series.high_volume_price(3), Some(dec!(200)));
     }
 
     #[test]
+    fn test_high_volume_price_none_zero_n() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.high_volume_price(0).is_none());
+    }
+
+    #[test]
     fn test_avg_close_minus_open_bullish() {
-        let bars: Vec<OhlcvBar> = vec![
-            bar_ohlcv("105", "110", "95", "100", "1000"), // +5
-            bar_ohlcv("108", "115", "100", "105", "1000"), // +3
+        let bars = vec![
+            make_bar_vol("100", "110", "95", "105", "1000"), // +5
+            make_bar_vol("105", "115", "100", "108", "1000"), // +3
         ];
         let series = OhlcvSeries::from_bars(bars).unwrap();
         let avg = series.avg_close_minus_open(2).unwrap();

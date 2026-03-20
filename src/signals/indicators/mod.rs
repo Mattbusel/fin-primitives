@@ -140,6 +140,9 @@ pub mod vw_momentum;
 pub mod elder_impulse;
 pub mod change_from_high;
 pub mod obv_momentum;
+pub mod trend_strength;
+pub mod linear_deviation;
+pub mod volume_weighted_close;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -278,3 +281,6 @@ pub use vw_momentum::VwMomentum;
 pub use elder_impulse::ElderImpulse;
 pub use change_from_high::ChangeFromHigh;
 pub use obv_momentum::ObvMomentum;
+pub use trend_strength::TrendStrength;
+pub use linear_deviation::LinearDeviation;
+pub use volume_weighted_close::VolumeWeightedClose;
