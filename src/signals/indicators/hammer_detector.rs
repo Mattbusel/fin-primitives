@@ -83,7 +83,7 @@ impl Signal for HammerDetector {
             return Ok(SignalValue::Unavailable);
         }
 
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
         let upper_wick = bar.upper_wick();
         let lower_wick = bar.lower_wick();
 

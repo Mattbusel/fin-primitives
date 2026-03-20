@@ -56,7 +56,7 @@ impl Signal for WickRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
         let wick = range - body;
         let ratio = if body.is_zero() { Decimal::ZERO } else { wick / body };
 

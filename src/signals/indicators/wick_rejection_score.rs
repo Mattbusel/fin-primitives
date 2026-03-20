@@ -28,7 +28,7 @@ impl WickRejectionScore {
 
 impl Signal for WickRejectionScore {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
         if !body.is_zero() {
             let upper = bar.upper_wick();
             let lower = bar.lower_wick();

@@ -57,7 +57,7 @@ impl Signal for BodyFillRatio {
         let ratio = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (bar.net_move()).abs() / range
+            bar.body_size() / range
         };
 
         self.ratios.push_back(ratio);

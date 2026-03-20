@@ -66,7 +66,7 @@ impl Signal for ClimaxVolume {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
 
         self.volumes.push_back(vol);
         self.bodies.push_back(body);

@@ -54,7 +54,7 @@ impl Signal for CandleBodySize {
             self.ready = true;
             return Ok(SignalValue::Unavailable);
         }
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
         let pct = body
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?

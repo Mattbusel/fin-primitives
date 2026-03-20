@@ -2,6 +2,7 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
@@ -87,8 +88,8 @@ impl Signal for VolumeReturnCorrelation {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             if !pc.is_zero() {
-                let ret = ((bar.close - pc) / pc).to_f64_saturating();
-                let vol = bar.volume.to_f64_saturating();
+                let ret = ((bar.close - pc) / pc).to_f64().unwrap_or(f64::NAN);
+                let vol = bar.volume.to_f64().unwrap_or(f64::NAN);
                 if vol.is_finite() && ret.is_finite() {
                     self.window.push_back((ret, vol));
                     if self.window.len() > self.period {
@@ -132,7 +133,7 @@ mod tests {
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
             open: p, high: p, low: p, close: p,
-            volume: Quantity::new(Decimal::from(vol)),
+            volume: Quantity::new(Decimal::from(vol)).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,

@@ -53,7 +53,7 @@ impl Signal for BodySizeRank {
     fn is_ready(&self) -> bool { self.bodies.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = (bar.net_move()).abs();
+        let body = bar.body_size();
         self.bodies.push_back(body);
         if self.bodies.len() > self.period {
             self.bodies.pop_front();
