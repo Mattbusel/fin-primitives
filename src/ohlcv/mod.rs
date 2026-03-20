@@ -3788,10 +3788,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..]
             .iter()
-            .map(|b| {
-                let body_top = b.open.value().max(b.close.value());
-                b.high.value() - body_top
-            })
+            .map(|b| b.upper_shadow())
             .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
