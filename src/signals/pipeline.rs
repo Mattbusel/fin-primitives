@@ -107,6 +107,16 @@ impl SignalMap {
     pub fn names_with_errors(&self) -> Vec<&str> {
         self.errors.keys().map(String::as_str).collect()
     }
+
+    /// Returns a `HashMap` of signal names to scalar values for all signals whose scalar
+    /// value is strictly greater than `threshold`.
+    ///
+    /// Signals that are `Unavailable` or whose value does not exceed the threshold are excluded.
+    pub fn filter_scalars_above(&self, threshold: Decimal) -> std::collections::HashMap<&str, Decimal> {
+        self.scalars()
+            .filter(|(_, v)| *v > threshold)
+            .collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -256,6 +266,18 @@ impl SignalPipeline {
             .filter(|s| s.is_ready())
             .map(|s| s.name())
             .collect()
+    }
+
+    /// Removes the signal with the given `name` from the pipeline, returning `true` if found.
+    ///
+    /// If multiple signals share the same name (not recommended), only the first is removed.
+    pub fn remove(&mut self, name: &str) -> bool {
+        if let Some(pos) = self.signals.iter().position(|s| s.name() == name) {
+            self.signals.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -576,5 +598,68 @@ mod tests {
         }
         let names = pipeline.ready_signal_names();
         assert_eq!(names, vec!["sma3"]);
+    }
+
+    #[test]
+    fn test_signal_pipeline_remove_existing_signal() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
+        assert!(pipeline.remove("sma3"));
+        assert_eq!(pipeline.signal_count(), 1);
+        assert!(pipeline.get_signal("sma3").is_none());
+        assert!(pipeline.get_signal("ema5").is_some());
+    }
+
+    #[test]
+    fn test_signal_pipeline_remove_nonexistent_returns_false() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        assert!(!pipeline.remove("nonexistent"));
+        assert_eq!(pipeline.signal_count(), 1);
+    }
+
+    #[test]
+    fn test_signal_pipeline_remove_then_update_only_remaining() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema3", 3).unwrap());
+        pipeline.remove("sma3");
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("102"));
+        let map = pipeline.update(&bar("104"));
+        assert!(map.get("sma3").is_none());
+        assert!(map.get("ema3").is_some());
+    }
+
+    #[test]
+    fn test_signal_map_filter_scalars_above_returns_matching() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma2", 2).unwrap())
+            .add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("110"));
+        let map = pipeline.update(&bar("120"));
+        // sma2 = (110+120)/2 = 115; sma3 = (100+110+120)/3 = 110
+        let above = map.filter_scalars_above(dec!(112));
+        assert_eq!(above.len(), 1);
+        assert!(above.contains_key("sma2"));
+    }
+
+    #[test]
+    fn test_signal_map_filter_scalars_above_empty_when_none_qualify() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("100"));
+        let map = pipeline.update(&bar("100"));
+        let above = map.filter_scalars_above(dec!(200));
+        assert!(above.is_empty());
+    }
+
+    #[test]
+    fn test_signal_map_filter_scalars_above_excludes_unavailable() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100")); // not yet ready
+        let above = map.filter_scalars_above(dec!(0));
+        assert!(above.is_empty());
     }
 }

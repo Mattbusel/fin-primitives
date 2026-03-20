@@ -31,6 +31,9 @@ pub struct DrawdownTracker {
     /// Longest consecutive run of updates spent below peak.
     #[serde(default)]
     max_drawdown_streak: usize,
+    /// Current consecutive run of updates where equity increased from the prior update.
+    #[serde(default)]
+    gain_streak: usize,
 }
 
 impl DrawdownTracker {
@@ -45,12 +48,18 @@ impl DrawdownTracker {
             drawdown_update_count: 0,
             drawdown_pct_sum: Decimal::ZERO,
             max_drawdown_streak: 0,
+            gain_streak: 0,
         }
     }
 
     /// Updates the tracker with the latest equity value, updating the peak if higher.
     pub fn update(&mut self, equity: Decimal) {
         self.update_count += 1;
+        if equity > self.current_equity {
+            self.gain_streak += 1;
+        } else {
+            self.gain_streak = 0;
+        }
         if equity > self.peak_equity {
             self.peak_equity = equity;
             self.updates_since_peak = 0;
@@ -163,6 +172,7 @@ impl DrawdownTracker {
         self.updates_since_peak = 0;
         self.update_count = 0;
         self.drawdown_update_count = 0;
+        self.gain_streak = 0;
     }
 
     /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.
@@ -260,6 +270,13 @@ impl DrawdownTracker {
     /// Longest consecutive run of updates where equity was below peak.
     pub fn max_loss_streak(&self) -> usize {
         self.max_drawdown_streak.max(self.updates_since_peak)
+    }
+
+    /// Returns the current consecutive run of updates where equity increased from the prior update.
+    ///
+    /// Resets to zero on any non-increasing update. Useful for detecting sustained rallies.
+    pub fn consecutive_gain_updates(&self) -> usize {
+        self.gain_streak
     }
 
     /// Returns `true` if `equity` is strictly greater than the current peak (new high-water mark).
@@ -1123,5 +1140,48 @@ mod tests {
         assert_eq!(tracker.time_underwater_pct(), dec!(0));
         assert!(tracker.avg_drawdown_pct().is_none());
         assert_eq!(tracker.max_loss_streak(), 0);
+    }
+
+    #[test]
+    fn test_consecutive_gain_updates_zero_initially() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert_eq!(tracker.consecutive_gain_updates(), 0);
+    }
+
+    #[test]
+    fn test_consecutive_gain_updates_increments_on_rising_equity() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10100));
+        tracker.update(dec!(10200));
+        tracker.update(dec!(10300));
+        assert_eq!(tracker.consecutive_gain_updates(), 3);
+    }
+
+    #[test]
+    fn test_consecutive_gain_updates_resets_on_drop() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10100));
+        tracker.update(dec!(10200));
+        tracker.update(dec!(10100)); // drop
+        assert_eq!(tracker.consecutive_gain_updates(), 0);
+    }
+
+    #[test]
+    fn test_consecutive_gain_updates_resumes_after_drop() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(10100));
+        tracker.update(dec!(9900)); // drop — resets
+        tracker.update(dec!(10000)); // gain resumes
+        tracker.update(dec!(10100));
+        assert_eq!(tracker.consecutive_gain_updates(), 2);
+    }
+
+    #[test]
+    fn test_consecutive_gain_updates_clears_on_reset() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        tracker.update(dec!(12000));
+        tracker.reset(dec!(10000));
+        assert_eq!(tracker.consecutive_gain_updates(), 0);
     }
 }
