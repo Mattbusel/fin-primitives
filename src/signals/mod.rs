@@ -38,6 +38,19 @@ pub struct BarInput {
     pub volume: Decimal,
 }
 
+impl BarInput {
+    /// Constructs a `BarInput` with all fields explicitly specified.
+    pub fn new(close: Decimal, high: Decimal, low: Decimal, open: Decimal, volume: Decimal) -> Self {
+        Self { close, high, low, open, volume }
+    }
+
+    /// Constructs a `BarInput` from a single close price, setting all OHLC fields to `close`
+    /// and volume to zero. Useful in tests and for close-only indicators (SMA/EMA/RSI).
+    pub fn from_close(close: Decimal) -> Self {
+        Self { close, high: close, low: close, open: close, volume: Decimal::ZERO }
+    }
+}
+
 impl From<&OhlcvBar> for BarInput {
     fn from(bar: &OhlcvBar) -> Self {
         Self {

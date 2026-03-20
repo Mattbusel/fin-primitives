@@ -89,6 +89,18 @@ impl DrawdownTracker {
     }
 }
 
+impl std::fmt::Display for DrawdownTracker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "equity={} peak={} drawdown={:.2}%",
+            self.current_equity,
+            self.peak_equity,
+            self.current_drawdown_pct()
+        )
+    }
+}
+
 /// A triggered risk rule violation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RiskBreach {
@@ -522,5 +534,15 @@ mod tests {
     fn test_risk_monitor_worst_drawdown_zero_at_start() {
         let monitor = RiskMonitor::new(dec!(10000));
         assert_eq!(monitor.worst_drawdown_pct(), dec!(0));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_display() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(9000));
+        let s = format!("{t}");
+        assert!(s.contains("9000"), "display should include current equity");
+        assert!(s.contains("10000"), "display should include peak");
+        assert!(s.contains("10.00"), "display should include drawdown pct");
     }
 }

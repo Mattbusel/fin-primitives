@@ -344,6 +344,15 @@ impl OrderBook {
         self.asks.values().copied().sum()
     }
 
+    /// Returns `true` if `price` is present in the given `side` of the book.
+    pub fn has_price(&self, side: Side, price: Price) -> bool {
+        let key = price.value();
+        match side {
+            Side::Bid => self.bids.contains_key(&key),
+            Side::Ask => self.asks.contains_key(&key),
+        }
+    }
+
     /// Returns the order-book imbalance: `(bid_vol - ask_vol) / (bid_vol + ask_vol)`.
     ///
     /// Returns `None` when both sides are empty (division by zero).
@@ -802,5 +811,47 @@ mod tests {
     fn test_orderbook_imbalance_empty_returns_none() {
         let book = make_book();
         assert!(book.imbalance().is_none());
+    }
+
+    #[test]
+    fn test_orderbook_has_price_bid_present() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        let price = Price::new(dec!(100)).unwrap();
+        assert!(book.has_price(Side::Bid, price));
+        assert!(!book.has_price(Side::Ask, price));
+    }
+
+    #[test]
+    fn test_orderbook_has_price_ask_present() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "3", 1)).unwrap();
+        let price = Price::new(dec!(101)).unwrap();
+        assert!(book.has_price(Side::Ask, price));
+        assert!(!book.has_price(Side::Bid, price));
+    }
+
+    #[test]
+    fn test_orderbook_has_price_absent() {
+        let book = make_book();
+        let price = Price::new(dec!(100)).unwrap();
+        assert!(!book.has_price(Side::Bid, price));
+        assert!(!book.has_price(Side::Ask, price));
+    }
+
+    #[test]
+    fn test_orderbook_has_price_false_after_remove() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        book.apply_delta(BookDelta {
+            side: Side::Bid,
+            price: Price::new(dec!(100)).unwrap(),
+            quantity: Quantity::zero(),
+            action: DeltaAction::Remove,
+            sequence: 2,
+        })
+        .unwrap();
+        let price = Price::new(dec!(100)).unwrap();
+        assert!(!book.has_price(Side::Bid, price));
     }
 }

@@ -168,6 +168,15 @@ impl Price {
     }
 }
 
+impl Price {
+    /// Returns the percentage change from `self` to `other`: `(other - self) / self * 100`.
+    ///
+    /// Positive values indicate a price increase; negative values indicate a decrease.
+    pub fn pct_change_to(self, other: Price) -> Decimal {
+        (other.0 - self.0) / self.0 * Decimal::ONE_HUNDRED
+    }
+}
+
 impl std::fmt::Display for Price {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -333,6 +342,13 @@ impl NanoTimestamp {
     /// Falls back to `0` if the system clock overflows nanosecond range (extremely unlikely).
     pub fn now() -> Self {
         Self(Utc::now().timestamp_nanos_opt().unwrap_or(0))
+    }
+
+    /// Returns the nanoseconds elapsed since `self` (i.e. `NanoTimestamp::now() - self`).
+    ///
+    /// Positive when `self` is in the past, negative when `self` is in the future.
+    pub fn elapsed(&self) -> i64 {
+        NanoTimestamp::now().0 - self.0
     }
 
     /// Returns the signed nanosecond difference `self - other`.
@@ -833,5 +849,31 @@ mod tests {
         m.insert(Symbol::new("M").unwrap(), 2);
         let keys: Vec<_> = m.keys().map(|s| s.as_str()).collect();
         assert_eq!(keys, ["A", "M", "Z"]);
+    }
+
+    #[test]
+    fn test_price_pct_change_positive() {
+        let p1 = Price::new(dec!(100)).unwrap();
+        let p2 = Price::new(dec!(110)).unwrap();
+        assert_eq!(p1.pct_change_to(p2), dec!(10));
+    }
+
+    #[test]
+    fn test_price_pct_change_negative() {
+        let p1 = Price::new(dec!(100)).unwrap();
+        let p2 = Price::new(dec!(90)).unwrap();
+        assert_eq!(p1.pct_change_to(p2), dec!(-10));
+    }
+
+    #[test]
+    fn test_price_pct_change_zero() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert_eq!(p.pct_change_to(p), dec!(0));
+    }
+
+    #[test]
+    fn test_nano_timestamp_elapsed_is_non_negative_for_past() {
+        let past = NanoTimestamp::new(0); // epoch — definitely in the past
+        assert!(past.elapsed() > 0);
     }
 }

@@ -290,6 +290,11 @@ impl PositionLedger {
         self.positions.values().filter(|p| !p.is_flat())
     }
 
+    /// Returns an iterator over flat (zero-quantity) positions.
+    pub fn flat_positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values().filter(|p| p.is_flat())
+    }
+
     /// Returns an iterator over the symbols being tracked by this ledger.
     pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
         self.positions.keys()
@@ -720,5 +725,25 @@ mod tests {
         assert!(pos.is_flat());
         assert!(!pos.is_long());
         assert!(!pos.is_short());
+    }
+
+    #[test]
+    fn test_position_ledger_flat_positions() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        // open AAPL, then close it
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0")).unwrap();
+        // leave MSFT open
+        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0")).unwrap();
+        let flat: Vec<_> = ledger.flat_positions().collect();
+        assert_eq!(flat.len(), 1);
+        assert_eq!(flat[0].symbol, sym("AAPL"));
+    }
+
+    #[test]
+    fn test_position_ledger_flat_positions_empty_when_all_open() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
+        assert_eq!(ledger.flat_positions().count(), 0);
     }
 }
