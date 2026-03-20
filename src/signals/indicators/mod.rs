@@ -98,6 +98,7 @@ pub mod deviation_from_ma;
 pub mod volume_oscillator;
 pub mod dsp;
 pub mod stoch_rsi_smoothed;
+pub mod ctm;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -194,3 +195,4 @@ pub use deviation_from_ma::DeviationFromMa;
 pub use volume_oscillator::VolumeOscillator;
 pub use dsp::Dsp;
 pub use stoch_rsi_smoothed::StochRsiSmoothed;
+pub use ctm::Ctm;

@@ -360,6 +360,25 @@ impl SignalValue {
             _ => SignalValue::Unavailable,
         }
     }
+
+    /// Returns `Scalar(-1)`, `Scalar(0)`, or `Scalar(1)` based on the sign of the value.
+    ///
+    /// Returns `Unavailable` if the value is unavailable.
+    pub fn signum(self) -> SignalValue {
+        match self {
+            SignalValue::Scalar(v) => {
+                let s = if v > Decimal::ZERO {
+                    Decimal::ONE
+                } else if v < Decimal::ZERO {
+                    -Decimal::ONE
+                } else {
+                    Decimal::ZERO
+                };
+                SignalValue::Scalar(s)
+            }
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

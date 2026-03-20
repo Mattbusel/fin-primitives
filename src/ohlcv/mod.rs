@@ -3630,6 +3630,65 @@ impl OhlcvSeries {
         Some(sum / Decimal::from(n as u32))
     }
 
+    /// Population variance of log-returns over the last `n + 1` bars.
+    ///
+    /// `log_return[i] = ln(close[i] / close[i-1])`.
+    /// Requires `n + 1` closes → `n` log-returns.
+    /// Returns `None` if `n < 2` or the series has fewer than `n + 1` bars.
+    pub fn realized_variance(&self, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let start = self.bars.len() - (n + 1);
+        let mut rets = Vec::with_capacity(n);
+        for i in (start + 1)..=(start + n) {
+            let prev = self.bars[i - 1].close.value();
+            let curr = self.bars[i].close.value();
+            use rust_decimal::prelude::ToPrimitive;
+            let r = prev.to_f64()?;
+            let c = curr.to_f64()?;
+            if r <= 0.0 { return None; }
+            rets.push((c / r).ln());
+        }
+        let mean = rets.iter().sum::<f64>() / rets.len() as f64;
+        let var = rets.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / rets.len() as f64;
+        Some(var)
+    }
+
+    /// Mean signed close-to-close change per bar over the last `n` bars.
+    ///
+    /// `velocity = (close[-1] - close[-n]) / n`
+    ///
+    /// Returns `None` if `n < 2` or the series has fewer than `n` bars.
+    pub fn close_velocity(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let delta = self.bars.last()?.close.value() - self.bars[start].close.value();
+        #[allow(clippy::cast_possible_truncation)]
+        delta.checked_div(Decimal::from(n as u32))
+    }
+
+    /// Mean upper wick length `(high − max(open, close))` over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn avg_upper_wick(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| {
+                let body_top = b.open.value().max(b.close.value());
+                b.high.value() - body_top
+            })
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
     /// Length of the longest run of consecutive higher closes within the last `n` bars.
     ///
     /// A "higher close" means `close[i] > close[i-1]`.  The run is computed across
@@ -3788,6 +3847,62 @@ impl OhlcvSeries {
         }
         if count == 0 { return None; }
         Some(sum / Decimal::from(count as u32))
+    }
+
+    /// Bar efficiency over the last `n` bars: net directional move / total path length.
+    ///
+    /// `efficiency = |close[last] - close[first]| / Σ|close[i] - close[i-1]|`
+    ///
+    /// A value of 1.0 means perfectly directional; near 0 means highly erratic.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or total path is zero.
+    pub fn bar_efficiency(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let net = (self.bars.last().unwrap().close.value()
+            - self.bars[start].close.value())
+            .abs()
+            .to_f64()
+            .unwrap_or(0.0);
+        let path: f64 = (start + 1..self.bars.len())
+            .map(|i| {
+                (self.bars[i].close.value() - self.bars[i - 1].close.value())
+                    .abs()
+                    .to_f64()
+                    .unwrap_or(0.0)
+            })
+            .sum();
+        if path == 0.0 { return None; }
+        Some(net / path)
+    }
+
+    /// Average number of bars between successive new `n`-bar highs in the last `m` bars.
+    ///
+    /// A new high at bar `i` means `close[i] > max(close[i-n..i])`.
+    ///
+    /// Returns `None` if `m <= n`, fewer than `m` bars exist, or no new high is found.
+    pub fn avg_bars_between_highs(&self, n: usize, m: usize) -> Option<f64> {
+        if n == 0 || m <= n || self.bars.len() < m {
+            return None;
+        }
+        let start = self.bars.len() - m;
+        let mut high_indices: Vec<usize> = Vec::new();
+        for i in (start + n)..self.bars.len() {
+            let prev_max = self.bars[(i - n)..i]
+                .iter()
+                .map(|b| b.close.value())
+                .max()
+                .unwrap_or(Decimal::ZERO);
+            if self.bars[i].close.value() > prev_max {
+                high_indices.push(i);
+            }
+        }
+        if high_indices.len() < 2 { return None; }
+        let gaps: Vec<usize> = high_indices.windows(2).map(|w| w[1] - w[0]).collect();
+        Some(gaps.iter().sum::<usize>() as f64 / gaps.len() as f64)
     }
 }
 

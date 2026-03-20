@@ -732,6 +732,33 @@ impl RiskMonitor {
             / Decimal::from(tail_count as u32);
         Some(mean)
     }
+
+    /// Computes the profit factor: `gross_wins / gross_losses` from a series of trade returns.
+    ///
+    /// `returns` should contain per-trade P&L values (positive = win, negative = loss).
+    ///
+    /// Returns `None` if there are no losing trades (to avoid division by zero) or if
+    /// `returns` is empty.
+    pub fn profit_factor(returns: &[Decimal]) -> Option<Decimal> {
+        if returns.is_empty() { return None; }
+        let gross_wins: Decimal = returns.iter().filter(|&&r| r > Decimal::ZERO).copied().sum();
+        let gross_losses: Decimal = returns.iter().filter(|&&r| r < Decimal::ZERO).map(|r| r.abs()).sum();
+        if gross_losses.is_zero() { return None; }
+        Some(gross_wins / gross_losses)
+    }
+
+    /// Computes the Omega Ratio for a given threshold return.
+    ///
+    /// `Ω = Σmax(r - threshold, 0) / Σmax(threshold - r, 0)`
+    ///
+    /// Returns `None` if all returns are above the threshold (no downside) or if `returns` is empty.
+    pub fn omega_ratio(returns: &[Decimal], threshold: Decimal) -> Option<Decimal> {
+        if returns.is_empty() { return None; }
+        let upside: Decimal = returns.iter().map(|&r| (r - threshold).max(Decimal::ZERO)).sum();
+        let downside: Decimal = returns.iter().map(|&r| (threshold - r).max(Decimal::ZERO)).sum();
+        if downside.is_zero() { return None; }
+        Some(upside / downside)
+    }
 }
 
 #[cfg(test)]
