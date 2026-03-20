@@ -5715,6 +5715,54 @@ impl OhlcvSeries {
         let last = self.bars.last()?;
         Some((last.high.value() - last.low.value()) / avg_range)
     }
+
+    /// Average volume on bullish bars (close > open) over the last `n` bars.
+    pub fn avg_volume_on_up_bars(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let up_vols: Vec<Decimal> = self.bars[start..].iter()
+            .filter(|b| b.close.value() > b.open.value())
+            .map(|b| b.volume.value())
+            .collect();
+        if up_vols.is_empty() { return None; }
+        Some(up_vols.iter().sum::<Decimal>() / Decimal::from(up_vols.len() as u32))
+    }
+
+    /// Average volume on bearish bars (close < open) over the last `n` bars.
+    pub fn avg_volume_on_down_bars(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let down_vols: Vec<Decimal> = self.bars[start..].iter()
+            .filter(|b| b.close.value() < b.open.value())
+            .map(|b| b.volume.value())
+            .collect();
+        if down_vols.is_empty() { return None; }
+        Some(down_vols.iter().sum::<Decimal>() / Decimal::from(down_vols.len() as u32))
+    }
+
+    /// Percentage of bars over the last `n` where close > open.
+    pub fn pct_bars_close_above_open(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let bull = self.bars[start..].iter()
+            .filter(|b| b.close.value() > b.open.value())
+            .count() as u32;
+        Some(Decimal::from(bull) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Where the latest open sits within the recent `n`-bar high-low range, in `[0, 1]`.
+    ///
+    /// `0` = at the low, `1` = at the high. Returns `None` if range is zero.
+    pub fn open_range_position(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
+        let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
+        let range = max_high - min_low;
+        if range.is_zero() { return None; }
+        let last_open = self.bars.last()?.open.value();
+        Some((last_open - min_low) / range)
+    }
 }
 
 #[cfg(test)]

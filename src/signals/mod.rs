@@ -760,6 +760,29 @@ impl SignalValue {
             _ => SignalValue::Unavailable,
         }
     }
+
+    /// Linear interpolation: `self * (1 - t) + other * t`.
+    ///
+    /// `t` is clamped to `[0, 1]`. Returns `Unavailable` if either operand is `Unavailable`.
+    pub fn lerp(self, other: SignalValue, t: Decimal) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => {
+                let t_clamped = t.max(Decimal::ZERO).min(Decimal::ONE);
+                SignalValue::Scalar(a * (Decimal::ONE - t_clamped) + b * t_clamped)
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns `true` if `self` is a scalar strictly greater than `other`.
+    ///
+    /// Returns `false` if either operand is `Unavailable`.
+    pub fn gt(&self, other: &SignalValue) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => a > b,
+            _ => false,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

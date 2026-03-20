@@ -392,6 +392,29 @@ impl SignalMap {
             .map(|((name, _), x)| (name.to_string(), (x - mean) / std_dev))
             .collect()
     }
+
+    /// Names of the top `n` scalar signals by value (descending).
+    pub fn top_n_names(&self, n: usize) -> Vec<&str> {
+        let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
+        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.truncate(n);
+        items.into_iter().map(|(name, _)| name).collect()
+    }
+
+    /// Min-max normalize all scalar values to `[0, 1]`.
+    ///
+    /// Returns an empty map if there are fewer than 2 scalars or all values are equal.
+    pub fn normalize_all(&self) -> HashMap<String, Decimal> {
+        let pairs: Vec<(&str, Decimal)> = self.scalars().collect();
+        if pairs.len() < 2 { return HashMap::new(); }
+        let min = pairs.iter().map(|(_, v)| *v).min().unwrap_or(Decimal::ZERO);
+        let max = pairs.iter().map(|(_, v)| *v).max().unwrap_or(Decimal::ZERO);
+        let range = max - min;
+        if range.is_zero() { return HashMap::new(); }
+        pairs.into_iter()
+            .map(|(name, v)| (name.to_string(), (v - min) / range))
+            .collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
