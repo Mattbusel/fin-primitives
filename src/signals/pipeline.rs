@@ -250,7 +250,7 @@ impl Default for SignalPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ohlcv::OhlcvBar;
+    use crate::ohlcv::{OhlcvBar, OhlcvSeries};
     use crate::signals::indicators::{Ema, Rsi, Sma};
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
@@ -498,5 +498,31 @@ mod tests {
         let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
         let map = pipeline.update(&bar("100"));
         assert!(map.names_with_errors().is_empty());
+    }
+
+    #[test]
+    fn test_signal_pipeline_warm_up_bars_advances_state() {
+        let bars: Vec<OhlcvBar> = ["100", "101", "102", "103", "104"]
+            .iter()
+            .map(|p| bar(p))
+            .collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        pipeline.warm_up_bars(&series);
+        // After 5 bars the SMA(3) should be ready; next update should yield a scalar
+        let map = pipeline.update(&bar("100"));
+        assert!(map.get_scalar("sma3").is_some());
+    }
+
+    #[test]
+    fn test_signal_pipeline_warm_up_bars_fewer_bars_than_period() {
+        let bars: Vec<OhlcvBar> = vec![bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        // Should not panic even when series has fewer bars than period
+        pipeline.warm_up_bars(&series);
+        let map = pipeline.update(&bar("100"));
+        // Only 2 bars total — still below period of 3
+        assert!(map.get_scalar("sma3").is_none());
     }
 }

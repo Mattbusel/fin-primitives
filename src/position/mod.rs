@@ -307,6 +307,18 @@ impl Position {
         let notional = self.quantity.abs() * self.avg_cost;
         Some(notional * margin_pct / Decimal::ONE_HUNDRED)
     }
+
+    /// Returns the risk/reward ratio: `target_pct / stop_pct`.
+    ///
+    /// This is a pure calculation and does not depend on position state.
+    /// Returns `None` if `stop_pct` is zero or negative.
+    pub fn risk_reward_ratio(stop_pct: Decimal, target_pct: Decimal) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if stop_pct <= Decimal::ZERO {
+            return None;
+        }
+        (target_pct / stop_pct).to_f64()
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
@@ -620,6 +632,26 @@ impl PositionLedger {
             total += pos.quantity * price.value();
         }
         Ok(total)
+    }
+
+    /// Returns the gross exposure: sum of `|quantity × price|` across all open positions.
+    ///
+    /// Returns unrealized P&L per symbol as a `HashMap`.
+    ///
+    /// # Errors
+    /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
+    pub fn pnl_by_symbol(&self, prices: &HashMap<String, Price>) -> Result<HashMap<Symbol, Decimal>, FinError> {
+        let mut map = HashMap::new();
+        for (symbol, pos) in &self.positions {
+            if pos.quantity == Decimal::ZERO {
+                continue;
+            }
+            let price = prices
+                .get(symbol.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(symbol.to_string()))?;
+            map.insert(symbol.clone(), pos.unrealized_pnl(*price));
+        }
+        Ok(map)
     }
 }
 

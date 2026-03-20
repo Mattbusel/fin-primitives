@@ -256,6 +256,16 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Returns `true` if the scalar value is strictly positive. `Unavailable` returns `false`.
+    pub fn is_positive(&self) -> bool {
+        matches!(self, SignalValue::Scalar(d) if *d > Decimal::ZERO)
+    }
+
+    /// Returns `true` if the scalar value is strictly negative. `Unavailable` returns `false`.
+    pub fn is_negative(&self) -> bool {
+        matches!(self, SignalValue::Scalar(d) if *d < Decimal::ZERO)
+    }
 }
 
 impl From<Decimal> for SignalValue {

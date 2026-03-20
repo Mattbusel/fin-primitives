@@ -2110,6 +2110,84 @@ impl OhlcvSeries {
             / Decimal::from(period as u32);
         Some(self.bars.last()?.close.value() > sma)
     }
+
+    /// Count bars in the last `n` where `high > prev_bar.high` (consecutive higher highs proxy).
+    ///
+    /// Returns 0 when the series has fewer than 2 bars or `n == 0`.
+    pub fn consecutive_higher_highs(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| b.high.value() > self.bars[start + i - 1].high.value())
+            .count()
+    }
+
+    /// ATR as a percentage of the last closing price over the last `n` bars.
+    ///
+    /// Computed as `mean(ATR) / close * 100`. Returns `None` if fewer than `n` bars,
+    /// `n == 0`, or the last close is zero.
+    pub fn average_true_range_pct(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let atrs = self.atr_series(n);
+        let last_close = self.bars.last()?.close.value();
+        if last_close.is_zero() {
+            return None;
+        }
+        let atr = (*atrs.last()?.as_ref()?).to_f64()?;
+        let close_f64 = last_close.to_f64()?;
+        Some(atr / close_f64 * 100.0)
+    }
+
+    /// Count bars in the last `n` that are doji candles (body ≤ `threshold` × range).
+    ///
+    /// Delegates to [`OhlcvBar::is_doji`] for each bar.
+    pub fn count_doji(&self, n: usize, threshold: Decimal) -> usize {
+        if n == 0 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().filter(|b| b.is_doji(threshold)).count()
+    }
+
+    /// Counts bars in the last `n` where `open > prev_close` (gap-up).
+    ///
+    /// Returns `0` if the series has fewer than 2 bars or `n == 0`.
+    pub fn gap_up_bars(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n + 1);
+        self.bars[start..].windows(2).filter(|w| w[1].gap_up_from(&w[0])).count()
+    }
+
+    /// Counts bars in the last `n` where `open < prev_close` (gap-down).
+    ///
+    /// Returns `0` if the series has fewer than 2 bars or `n == 0`.
+    pub fn gap_down_bars(&self, n: usize) -> usize {
+        if n == 0 || self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n + 1);
+        self.bars[start..].windows(2).filter(|w| w[1].gap_down_from(&w[0])).count()
+    }
+
+    /// Returns the cumulative volume over the last `n` bars.
+    ///
+    /// Returns `Decimal::ZERO` if `n == 0` or the series is empty.
+    pub fn cum_volume(&self, n: usize) -> Decimal {
+        if n == 0 {
+            return Decimal::ZERO;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.volume.value()).sum()
+    }
 }
 
 impl Default for OhlcvSeries {

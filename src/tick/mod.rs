@@ -170,6 +170,16 @@ impl Tick {
         Some(weighted / total_qty)
     }
 
+    /// Returns the highest traded price in the slice, or `None` if empty.
+    pub fn max_price(ticks: &[Tick]) -> Option<Price> {
+        ticks.iter().map(|t| t.price).max_by(|a, b| a.value().cmp(&b.value()))
+    }
+
+    /// Returns the lowest traded price in the slice, or `None` if empty.
+    pub fn min_price(ticks: &[Tick]) -> Option<Price> {
+        ticks.iter().map(|t| t.price).min_by(|a, b| a.value().cmp(&b.value()))
+    }
+
     /// Returns a static label classifying the aggressor side of this tick.
     ///
     /// - `"market_buy"` when the aggressor is the buyer (`Side::Bid`)
@@ -1129,5 +1139,58 @@ mod tests {
         ];
         let replayer = TickReplayer::new(ticks);
         assert_eq!(replayer.sell_volume(), dec_from_str("7"));
+    }
+
+    #[test]
+    fn test_tick_replayer_delta_positive_when_more_buys() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "10", Side::Bid, 1),
+            make_tick("AAPL", "100", "3", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.delta(), dec_from_str("7"));
+    }
+
+    #[test]
+    fn test_tick_replayer_delta_negative_when_more_sells() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "2", Side::Bid, 1),
+            make_tick("AAPL", "100", "8", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.delta(), dec_from_str("-6"));
+    }
+
+    #[test]
+    fn test_tick_replayer_delta_zero_when_balanced() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "5", Side::Bid, 1),
+            make_tick("AAPL", "100", "5", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.delta(), dec_from_str("0"));
+    }
+
+    #[test]
+    fn test_tick_replayer_time_span_nanos_correct() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1_000_000),
+            make_tick("AAPL", "100", "1", Side::Ask, 3_000_000),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.time_span_nanos(), Some(2_000_000));
+    }
+
+    #[test]
+    fn test_tick_replayer_time_span_nanos_none_for_single_tick() {
+        let ticks = vec![make_tick("AAPL", "100", "1", Side::Bid, 1_000_000)];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.time_span_nanos(), None);
+    }
+
+    #[test]
+    fn test_tick_replayer_time_span_nanos_none_for_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.time_span_nanos(), None);
     }
 }

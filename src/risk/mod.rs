@@ -104,12 +104,33 @@ impl DrawdownTracker {
         self.worst_drawdown_pct
     }
 
+    /// Returns the total number of equity updates since construction or last reset.
+    pub fn update_count(&self) -> usize {
+        self.update_count
+    }
+
+    /// Returns the fraction of updates where equity was at or above peak (not in drawdown).
+    ///
+    /// `win_rate = (update_count - drawdown_update_count) / update_count`
+    ///
+    /// Returns `None` if no updates have been processed.
+    pub fn win_rate(&self) -> Option<Decimal> {
+        if self.update_count == 0 {
+            return None;
+        }
+        let at_peak = self.update_count - self.drawdown_update_count;
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(at_peak as u64) / Decimal::from(self.update_count as u64))
+    }
+
     /// Fully resets the tracker as if it were freshly constructed with `initial` equity.
     pub fn reset(&mut self, initial: Decimal) {
         self.peak_equity = initial;
         self.current_equity = initial;
         self.worst_drawdown_pct = Decimal::ZERO;
         self.updates_since_peak = 0;
+        self.update_count = 0;
+        self.drawdown_update_count = 0;
     }
 
     /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.
@@ -340,6 +361,11 @@ impl RiskMonitor {
     /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
     pub fn worst_drawdown_pct(&self) -> Decimal {
         self.tracker.worst_drawdown_pct()
+    }
+
+    /// Returns the total number of equity updates processed since construction or last reset.
+    pub fn equity_history_len(&self) -> usize {
+        self.tracker.update_count()
     }
 
     /// Returns the total number of rule breaches triggered since construction or last reset.
