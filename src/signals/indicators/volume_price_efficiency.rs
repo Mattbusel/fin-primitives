@@ -57,10 +57,10 @@ impl VolumePriceEfficiency {
 impl Signal for VolumePriceEfficiency {
     fn name(&self) -> &str { &self.name }
     fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period }
+    fn is_ready(&self) -> bool { self.volumes.len() >= self.period && self.closes.len() > self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let vol = bar.volume.to_decimal();
+        let vol = bar.volume;
 
         self.closes.push_back(bar.close);
         if self.closes.len() > self.period + 1 {
