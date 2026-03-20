@@ -9,7 +9,6 @@ use crate::signals::{BarInput, Signal, SignalValue};
 /// Measures whether short-term volume is expanding or contracting
 /// relative to long-term volume. Positive = volume expansion, negative = contraction.
 pub struct VolumeOscillator {
-    fast_period: usize,
     slow_period: usize,
     fast_ema: Option<Decimal>,
     slow_ema: Option<Decimal>,
@@ -27,7 +26,6 @@ impl VolumeOscillator {
         let fast_k = Decimal::TWO / (Decimal::from(fast_period as u32) + Decimal::ONE);
         let slow_k = Decimal::TWO / (Decimal::from(slow_period as u32) + Decimal::ONE);
         Ok(Self {
-            fast_period,
             slow_period,
             fast_ema: None,
             slow_ema: None,
