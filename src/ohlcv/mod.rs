@@ -2210,4 +2210,37 @@ mod tests {
         }
         assert_eq!(series.percentile_rank(dec!(99), 4).unwrap(), dec!(0));
     }
+
+    #[test]
+    fn test_ohlcv_series_consecutive_ups_empty() {
+        assert_eq!(OhlcvSeries::new().consecutive_ups(), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_consecutive_ups_all_bullish() {
+        let mut series = OhlcvSeries::new();
+        // bullish bar: open < close, make_bar(o, h, l, c)
+        series.push(make_bar("100", "110", "90", "105")).unwrap(); // bullish
+        series.push(make_bar("105", "115", "95", "110")).unwrap(); // bullish
+        assert_eq!(series.consecutive_ups(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_consecutive_ups_broken_by_bearish() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap(); // bullish
+        series.push(make_bar("110", "115", "95", "108")).unwrap(); // bearish
+        series.push(make_bar("108", "115", "100", "112")).unwrap(); // bullish
+        assert_eq!(series.consecutive_ups(), 1);
+    }
+
+    #[test]
+    fn test_ohlcv_series_consecutive_downs_counts_bearish_tail() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap(); // bullish
+        series.push(make_bar("105", "110", "90", "100")).unwrap(); // bearish
+        series.push(make_bar("100", "105", "85", "95")).unwrap(); // bearish
+        assert_eq!(series.consecutive_downs(), 2);
+        assert_eq!(series.consecutive_ups(), 0);
+    }
 }
