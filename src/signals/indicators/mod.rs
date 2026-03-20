@@ -827,3 +827,9 @@ pub use price_above_ma_pct::PriceAboveMaPct;
 
 pub mod hammer_pattern;
 pub use hammer_pattern::HammerPattern;
+pub mod max_drawup_window;
+pub use max_drawup_window::MaxDrawupWindow;
+pub mod close_open_ema;
+pub use close_open_ema::CloseOpenEma;
+pub mod wick_to_atr_ratio;
+pub use wick_to_atr_ratio::WickToAtrRatio;
