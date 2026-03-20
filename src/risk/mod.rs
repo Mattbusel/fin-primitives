@@ -335,6 +335,14 @@ impl RiskMonitor {
     pub fn has_breaches(&self, equity: Decimal) -> bool {
         !self.check(equity).is_empty()
     }
+
+    /// Returns the absolute loss implied by `pct` percent drawdown from current peak equity.
+    ///
+    /// Useful for position-sizing calculations: "how much can I lose at X% drawdown?"
+    /// Returns `Decimal::ZERO` when peak equity is zero.
+    pub fn equity_at_risk(&self, pct: Decimal) -> Decimal {
+        self.tracker.peak() * pct / Decimal::ONE_HUNDRED
+    }
 }
 
 #[cfg(test)]

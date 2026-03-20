@@ -166,6 +166,13 @@ impl Price {
         let d = Decimal::from_f64(f)?;
         Self::new(d).ok()
     }
+
+    /// Returns a `String` representation rounded to `dp` decimal places.
+    ///
+    /// Useful for display/logging without losing the underlying decimal precision.
+    pub fn to_string_with_dp(&self, dp: u32) -> String {
+        self.0.round_dp(dp).to_string()
+    }
 }
 
 impl Price {

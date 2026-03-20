@@ -472,6 +472,29 @@ impl PositionLedger {
         self.cash
     }
 
+    /// Returns each open position's market value as a fraction of total market value.
+    ///
+    /// Returns a `Vec<(Symbol, Decimal)>` where the second element is `[0, 1]`.
+    /// Flat positions are excluded. Returns an empty vec if total market value is zero
+    /// or if `prices` lacks an entry for an open position (graceful skip).
+    pub fn position_weights(&self, prices: &HashMap<String, Price>) -> Vec<(Symbol, Decimal)> {
+        let mut mv_pairs: Vec<(Symbol, Decimal)> = self
+            .positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, pos)| {
+                let price = prices.get(sym.as_str())?;
+                Some((sym.clone(), pos.market_value(*price).abs()))
+            })
+            .collect();
+        let total: Decimal = mv_pairs.iter().map(|(_, v)| *v).sum();
+        if total.is_zero() {
+            return vec![];
+        }
+        mv_pairs.iter_mut().for_each(|(_, v)| *v /= total);
+        mv_pairs
+    }
+
     /// Returns the total realized P&L across all positions.
     pub fn realized_pnl_total(&self) -> Decimal {
         self.positions.values().map(|p| p.realized_pnl).sum()
