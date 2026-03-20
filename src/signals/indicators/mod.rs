@@ -196,6 +196,7 @@ pub mod rsi_stochastic;
 pub mod price_oscillator;
 pub mod volume_breadth;
 pub mod max_drawdown_window;
+pub mod ema_convergence;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -390,3 +391,4 @@ pub use rsi_stochastic::RsiStochastic;
 pub use price_oscillator::PriceOscillator;
 pub use volume_breadth::VolumeBreadth;
 pub use max_drawdown_window::MaxDrawdownWindow;
+pub use ema_convergence::EmaConvergence;
