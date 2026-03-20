@@ -922,7 +922,7 @@ impl NanoTimestamp {
 
     /// Snaps this timestamp to the most recent Monday at 00:00:00 UTC (start of ISO week).
     pub fn floor_to_week(self) -> NanoTimestamp {
-        use chrono::{Datelike, Duration, TimeZone, Weekday};
+        use chrono::{Datelike, Duration, TimeZone};
         let dt = self.to_datetime();
         let days_since_monday = dt.weekday().num_days_from_monday() as i64;
         let monday = dt - Duration::days(days_since_monday);
