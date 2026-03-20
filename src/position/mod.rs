@@ -261,6 +261,14 @@ impl Position {
         upnl.checked_div(cost_basis).map(|r| r * Decimal::from(100u32))
     }
 
+    /// Returns the total cost basis: `|quantity| * avg_cost`.
+    ///
+    /// Represents the total capital committed to this position.
+    /// Returns zero for flat positions.
+    pub fn total_cost_basis(&self) -> Decimal {
+        self.quantity.abs() * self.avg_cost
+    }
+
     /// Returns the market value of this position at `current_price`.
     pub fn market_value(&self, current_price: Price) -> Decimal {
         self.quantity * current_price.value()
@@ -1074,6 +1082,32 @@ impl PositionLedger {
             .collect();
         pairs.sort_by(|a, b| b.1.cmp(&a.1));
         pairs
+    }
+
+    /// Returns up to `n` open positions with the worst (most negative) unrealized P&L.
+    ///
+    /// Positions missing from `prices` receive an unrealized PnL of zero.
+    /// Returns an empty slice when `n == 0` or no open positions exist.
+    pub fn top_losers<'a>(
+        &'a self,
+        n: usize,
+        prices: &HashMap<String, Price>,
+    ) -> Vec<&'a Position> {
+        if n == 0 {
+            return vec![];
+        }
+        let mut open: Vec<&Position> =
+            self.positions.values().filter(|p| !p.is_flat()).collect();
+        open.sort_by(|a, b| {
+            let pnl_a = prices
+                .get(a.symbol.as_str())
+                .map_or(Decimal::ZERO, |&p| a.unrealized_pnl(p));
+            let pnl_b = prices
+                .get(b.symbol.as_str())
+                .map_or(Decimal::ZERO, |&p| b.unrealized_pnl(p));
+            pnl_a.cmp(&pnl_b) // ascending: worst first
+        });
+        open.into_iter().take(n).collect()
     }
 
 }

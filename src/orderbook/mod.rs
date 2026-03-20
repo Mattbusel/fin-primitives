@@ -767,6 +767,28 @@ impl OrderBook {
             })
             .collect()
     }
+
+    /// Returns the total quantity across the top `n` bid levels.
+    ///
+    /// Sweeps from the best (highest) bid downwards and sums quantities.
+    /// Returns zero when the bid side is empty or `n == 0`.
+    pub fn cumulative_bid_qty(&self, n: usize) -> Decimal {
+        if n == 0 {
+            return Decimal::ZERO;
+        }
+        self.bids.iter().rev().take(n).map(|(_, &qty)| qty).sum()
+    }
+
+    /// Returns the total quantity across the top `n` ask levels.
+    ///
+    /// Sweeps from the best (lowest) ask upwards and sums quantities.
+    /// Returns zero when the ask side is empty or `n == 0`.
+    pub fn cumulative_ask_qty(&self, n: usize) -> Decimal {
+        if n == 0 {
+            return Decimal::ZERO;
+        }
+        self.asks.iter().take(n).map(|(_, &qty)| qty).sum()
+    }
 }
 
 #[cfg(test)]

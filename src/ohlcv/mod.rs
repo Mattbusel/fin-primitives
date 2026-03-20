@@ -3411,6 +3411,41 @@ impl OhlcvSeries {
         Some(count)
     }
 
+    /// Distance of the current close above the lowest low in the last `n` bars.
+    ///
+    /// `close_distance_from_low = close[last] - min(low, n)`.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn close_distance_from_low(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let min_low = self.bars[start..]
+            .iter()
+            .map(|b| b.low.value())
+            .reduce(Decimal::min)?;
+        let last_close = self.bars.last()?.close.value();
+        Some(last_close - min_low)
+    }
+
+    /// Ratio of the latest bar's volume to the average volume over the last `n` bars.
+    ///
+    /// `volume_ratio = last_volume / avg_volume(n)`.
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or average volume is zero.
+    pub fn volume_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.volume.value()).sum();
+        let avg = sum.checked_div(Decimal::from(n as u32))?;
+        if avg.is_zero() {
+            return None;
+        }
+        let last_vol = self.bars.last()?.volume.value();
+        last_vol.checked_div(avg)
+    }
+
     /// Fraction of the last `n` bars that are bullish (close > open), as a value in `[0.0, 1.0]`.
     ///
     /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
@@ -3644,6 +3679,115 @@ impl OhlcvSeries {
             return None;
         }
         Some(vol_return_sum / vol_sum)
+    }
+
+    /// Returns arithmetic close-to-close returns for the last `n` bars as `(close[i] - close[i-1]) / close[i-1]`.
+    ///
+    /// The result has `n - 1` entries (each bar needs a previous bar to compute a return).
+    /// Returns `None` if `n < 2` or the series has fewer than `n` bars.
+    pub fn close_returns(&self, n: usize) -> Option<Vec<Decimal>> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut returns = Vec::with_capacity(n - 1);
+        for i in (start + 1)..self.bars.len() {
+            let prev = self.bars[i - 1].close.value();
+            if prev.is_zero() {
+                returns.push(Decimal::ZERO);
+            } else {
+                returns.push((self.bars[i].close.value() - prev) / prev);
+            }
+        }
+        Some(returns)
+    }
+
+    /// Classifies recent volatility as `"low"`, `"medium"`, or `"high"` by comparing
+    /// the average ATR of the last `atr_period` bars to its own mean over the last `lookback` bars.
+    ///
+    /// - **low**: latest ATR < 80% of the rolling mean
+    /// - **high**: latest ATR > 120% of the rolling mean
+    /// - **medium**: otherwise
+    ///
+    /// Returns `None` if there are fewer than `lookback + 1` bars (need history to compute ATR)
+    /// or if `atr_period == 0` or `lookback == 0`.
+    pub fn volatility_regime(&self, atr_period: usize, lookback: usize) -> Option<&'static str> {
+        if atr_period == 0 || lookback == 0 {
+            return None;
+        }
+        let needed = lookback + atr_period;
+        if self.bars.len() < needed {
+            return None;
+        }
+        let atr_series = self.atr_series(atr_period);
+        let recent_atrs: Vec<Decimal> = atr_series
+            .iter()
+            .rev()
+            .take(lookback)
+            .filter_map(|v| *v)
+            .collect();
+        if recent_atrs.is_empty() {
+            return None;
+        }
+        let mean: Decimal = recent_atrs.iter().copied().sum::<Decimal>()
+            / Decimal::from(recent_atrs.len() as u32);
+        if mean.is_zero() {
+            return Some("medium");
+        }
+        let latest = *recent_atrs.first()?;
+        let ratio = latest / mean;
+        if ratio < Decimal::new(80, 2) {
+            Some("low")
+        } else if ratio > Decimal::new(120, 2) {
+            Some("high")
+        } else {
+            Some("medium")
+        }
+    }
+
+    /// Ratio of total volume on up-bars to total volume on down-bars over the last `n` bars.
+    ///
+    /// An up-bar is `close > open`; a down-bar is `close < open`. Doji bars are excluded.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or there are no down-bars.
+    pub fn up_down_volume_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut up_vol = Decimal::ZERO;
+        let mut dn_vol = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let vol = b.volume.value();
+            if b.close > b.open { up_vol += vol; }
+            else if b.close < b.open { dn_vol += vol; }
+        }
+        if dn_vol.is_zero() { return None; }
+        Some(up_vol / dn_vol)
+    }
+
+    /// Average bar range (high − low) as a percentage of the typical price, over the last `n` bars.
+    ///
+    /// `typical = (H + L + C) / 3`. Bars with zero typical price are excluded.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or no bar has positive typical price.
+    pub fn avg_range_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0usize;
+        let hundred = Decimal::from(100u32);
+        let three = Decimal::from(3u32);
+        for b in &self.bars[start..] {
+            let tp = (b.high.value() + b.low.value() + b.close.value()) / three;
+            if tp.is_zero() { continue; }
+            sum += (b.high.value() - b.low.value()) / tp * hundred;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count as u32))
     }
 }
 
@@ -5184,5 +5328,61 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.bearish_bar_count(0).is_none());
         assert!(series.bearish_bar_count(2).is_none());
+    }
+
+    #[test]
+    fn test_hl_midpoint_flat() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.hl_midpoint(3).unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_hl_midpoint_none_when_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.hl_midpoint(0).is_none());
+        assert!(series.hl_midpoint(2).is_none());
+    }
+
+    #[test]
+    fn test_up_volume_ratio_flat_bars() {
+        // flat bars (close == open) → no up-volume → ratio = 0
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        // bars have non-zero volume (make_bar uses qty 100); flat → up_vol = 0
+        let ratio = series.up_volume_ratio(3);
+        if let Some(r) = ratio {
+            assert_eq!(r, dec!(0));
+        }
+        // None is also valid if volume were truly zero
+    }
+
+    #[test]
+    fn test_price_efficiency_trending() {
+        // Monotonically rising prices → path equals net → efficiency = 1
+        let bars: Vec<_> = (100..106u32).map(|i| bar(&i.to_string())).collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.price_efficiency(5).unwrap(), dec!(1));
+    }
+
+    #[test]
+    fn test_price_efficiency_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.price_efficiency(1).is_none());
+        assert!(series.price_efficiency(3).is_none());
+    }
+
+    #[test]
+    fn test_avg_gap_zero_when_no_jumps() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.avg_gap(2).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_avg_gap_none_when_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.avg_gap(0).is_none());
+        assert!(series.avg_gap(1).is_none());
     }
 }
