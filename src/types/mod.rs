@@ -187,6 +187,15 @@ impl Price {
     }
 }
 
+impl Price {
+    /// Returns the midpoint between `bid` and `ask`: `(bid + ask) / 2`.
+    ///
+    /// Useful for computing the theoretical fair value between two prices.
+    pub fn midpoint(bid: Price, ask: Price) -> Decimal {
+        (bid.0 + ask.0) / Decimal::TWO
+    }
+}
+
 impl std::fmt::Display for Price {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -344,6 +353,11 @@ impl std::fmt::Display for Side {
 pub struct NanoTimestamp(i64);
 
 impl NanoTimestamp {
+    /// Smallest representable timestamp (earliest possible time).
+    pub const MIN: NanoTimestamp = NanoTimestamp(i64::MIN);
+
+    /// Largest representable timestamp (latest possible time).
+    pub const MAX: NanoTimestamp = NanoTimestamp(i64::MAX);
     /// Constructs a `NanoTimestamp` from a raw nanosecond integer.
     pub fn new(nanos: i64) -> Self {
         Self(nanos)
@@ -913,5 +927,25 @@ mod tests {
         let a = Quantity::new(dec!(10)).unwrap();
         let b = Quantity::new(dec!(5)).unwrap();
         assert_eq!(a.checked_add(b).map(|q| q.value()), Some(dec!(15)));
+    }
+
+    #[test]
+    fn test_nano_timestamp_min_less_than_max() {
+        assert!(NanoTimestamp::MIN < NanoTimestamp::MAX);
+        assert!(NanoTimestamp::MIN < NanoTimestamp::new(0));
+        assert!(NanoTimestamp::new(0) < NanoTimestamp::MAX);
+    }
+
+    #[test]
+    fn test_price_midpoint() {
+        let bid = Price::new(dec!(99)).unwrap();
+        let ask = Price::new(dec!(101)).unwrap();
+        assert_eq!(Price::midpoint(bid, ask), dec!(100));
+    }
+
+    #[test]
+    fn test_price_midpoint_same_price() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert_eq!(Price::midpoint(p, p), dec!(100));
     }
 }

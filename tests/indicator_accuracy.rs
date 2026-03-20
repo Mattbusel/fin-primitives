@@ -1,7 +1,7 @@
 // Integration tests: Indicator accuracy and cross-indicator consistency.
 
 use fin_primitives::ohlcv::{OhlcvBar, OhlcvSeries};
-use fin_primitives::signals::indicators::{Ema, Rsi, Sma};
+use fin_primitives::signals::indicators::{Atr, BollingerB, Dema, Ema, Rsi, Sma, StochasticK, Wma};
 use fin_primitives::signals::pipeline::SignalPipeline;
 use fin_primitives::signals::{Signal, SignalValue};
 use fin_primitives::types::{NanoTimestamp, Price, Quantity, Symbol};
@@ -17,6 +17,20 @@ fn bar(close: &str) -> OhlcvBar {
         low: p,
         close: p,
         volume: Quantity::zero(),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
+        tick_count: 1,
+    }
+}
+
+fn ohlc_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
+    OhlcvBar {
+        symbol: Symbol::new("X").unwrap(),
+        open: Price::new(o.parse().unwrap()).unwrap(),
+        high: Price::new(h.parse().unwrap()).unwrap(),
+        low: Price::new(l.parse().unwrap()).unwrap(),
+        close: Price::new(c.parse().unwrap()).unwrap(),
+        volume: Quantity::new(dec!(100)).unwrap(),
         ts_open: NanoTimestamp::new(0),
         ts_close: NanoTimestamp::new(1),
         tick_count: 1,
@@ -496,4 +510,217 @@ fn sma_and_ema_converge_on_flat_price() {
     let e = scalar(ema.update_bar(&b).unwrap());
     assert_eq!(s, dec!(100));
     assert_eq!(e, dec!(100));
+}
+
+// ── ATR correctness ───────────────────────────────────────────────────────
+
+#[test]
+fn atr_unavailable_on_first_bar() {
+    let mut atr = Atr::new("atr5", 5).unwrap();
+    let v = atr.update_bar(&ohlc_bar("10", "15", "5", "10")).unwrap();
+    assert_eq!(v, SignalValue::Unavailable);
+}
+
+#[test]
+fn atr_known_values_period_3() {
+    // Bar0: no prev_close → unavailable
+    // Bar1: prev=10, TR=max(15-5=10, |15-10|=5, |5-10|=5) = 10
+    // Bar2: prev=10, TR=max(12-8=4,  |12-10|=2, |8-10|=2) = 4
+    // Bar3: prev=9,  TR=max(11-7=4,  |11-9|=2,  |7-9|=2)  = 4
+    // ATR(3) after 3 TRs = (10+4+4)/3 = 6
+    let mut atr = Atr::new("atr3", 3).unwrap();
+    atr.update_bar(&ohlc_bar("10", "15", "5", "10")).unwrap();
+    atr.update_bar(&ohlc_bar("10", "12", "8", "10")).unwrap();
+    atr.update_bar(&ohlc_bar("9", "11", "7", "9")).unwrap();
+    let v = scalar(atr.update_bar(&ohlc_bar("9", "11", "7", "9")).unwrap());
+    // After 4th bar: window shifts, still SMA of last 3 TRs
+    // bar3 TR: prev=9, bar=(11,7,9) → TR=max(4,2,2)=4
+    // window [4,4,4] → ATR = 4
+    assert_eq!(v, dec!(4));
+}
+
+#[test]
+fn atr_reset_restarts_accumulation() {
+    let mut atr = Atr::new("atr3", 3).unwrap();
+    for _ in 0..4 {
+        atr.update_bar(&ohlc_bar("10", "15", "5", "10")).unwrap();
+    }
+    assert!(atr.is_ready());
+    atr.reset();
+    assert!(!atr.is_ready());
+    let v = atr.update_bar(&ohlc_bar("10", "15", "5", "10")).unwrap();
+    assert_eq!(v, SignalValue::Unavailable);
+}
+
+// ── BollingerB correctness ────────────────────────────────────────────────
+
+#[test]
+fn bollinger_b_flat_prices_returns_half() {
+    // All same price → stddev=0 → returns 0.5 by convention
+    let mut bb = BollingerB::new("bb3", 3, dec!(2)).unwrap();
+    for _ in 0..3 {
+        bb.update_bar(&bar("100")).unwrap();
+    }
+    let v = scalar(bb.update_bar(&bar("100")).unwrap());
+    assert_eq!(v, dec!(0.5));
+}
+
+#[test]
+fn bollinger_b_above_1_on_spike() {
+    let mut bb = BollingerB::new("bb5", 5, dec!(1)).unwrap();
+    for _ in 0..5 {
+        bb.update_bar(&bar("100")).unwrap();
+    }
+    // After warmup (all 100), bands are tight; a spike to 200 is far above upper band
+    let v = scalar(bb.update_bar(&bar("200")).unwrap());
+    assert!(v > Decimal::ONE, "%B should be > 1 on spike, got {v}");
+}
+
+#[test]
+fn bollinger_b_below_0_on_drop() {
+    let mut bb = BollingerB::new("bb5", 5, dec!(1)).unwrap();
+    for _ in 0..5 {
+        bb.update_bar(&bar("100")).unwrap();
+    }
+    let v = scalar(bb.update_bar(&bar("10")).unwrap());
+    assert!(v < Decimal::ZERO, "%B should be < 0 on drop, got {v}");
+}
+
+#[test]
+fn bollinger_b_unavailable_before_period() {
+    let mut bb = BollingerB::new("bb5", 5, dec!(2)).unwrap();
+    for _ in 0..4 {
+        assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+    }
+}
+
+// ── StochasticK correctness ───────────────────────────────────────────────
+
+#[test]
+fn stochastic_k_close_equals_high_returns_100() {
+    // %K = (close - low_min) / (high_max - low_min) * 100
+    // When close == high_max: %K = 100
+    let mut sk = StochasticK::new("sk3", 3).unwrap();
+    sk.update_bar(&ohlc_bar("10", "15", "5", "12")).unwrap();
+    sk.update_bar(&ohlc_bar("11", "16", "6", "13")).unwrap();
+    let v = scalar(sk.update_bar(&ohlc_bar("12", "20", "8", "20")).unwrap());
+    assert_eq!(v, dec!(100));
+}
+
+#[test]
+fn stochastic_k_close_equals_low_returns_0() {
+    let mut sk = StochasticK::new("sk3", 3).unwrap();
+    sk.update_bar(&ohlc_bar("10", "15", "5", "12")).unwrap();
+    sk.update_bar(&ohlc_bar("11", "16", "6", "13")).unwrap();
+    let v = scalar(sk.update_bar(&ohlc_bar("12", "20", "8", "8")).unwrap());
+    assert_eq!(v, dec!(0));
+}
+
+#[test]
+fn stochastic_k_midpoint() {
+    // high=20, low=0, close=10 → %K = (10-0)/(20-0)*100 = 50
+    let mut sk = StochasticK::new("sk1", 1).unwrap();
+    let v = scalar(sk.update_bar(&ohlc_bar("10", "20", "0", "10")).unwrap());
+    assert_eq!(v, dec!(50));
+}
+
+#[test]
+fn stochastic_k_flat_range_returns_50() {
+    let mut sk = StochasticK::new("sk3", 3).unwrap();
+    for _ in 0..3 {
+        sk.update_bar(&bar("100")).unwrap();
+    }
+    let v = scalar(sk.update_bar(&bar("100")).unwrap());
+    assert_eq!(v, dec!(50));
+}
+
+#[test]
+fn stochastic_k_range_0_to_100() {
+    let mut sk = StochasticK::new("sk5", 5).unwrap();
+    let prices = [("90","95","85","92"), ("92","98","88","90"), ("90","100","80","95"),
+                  ("95","102","82","88"), ("88","96","78","93")];
+    for (o,h,l,c) in &prices {
+        if let SignalValue::Scalar(v) = sk.update_bar(&ohlc_bar(o,h,l,c)).unwrap() {
+            assert!(v >= Decimal::ZERO && v <= dec!(100), "%K out of range: {v}");
+        }
+    }
+}
+
+// ── WMA correctness ───────────────────────────────────────────────────────
+
+#[test]
+fn wma_known_values_period_3() {
+    // WMA(3) of [10, 20, 30]: weights [1,2,3], denom=6
+    // = (10*1 + 20*2 + 30*3)/6 = (10+40+90)/6 = 140/6
+    let mut wma = Wma::new("wma3", 3).unwrap();
+    wma.update_bar(&bar("10")).unwrap();
+    wma.update_bar(&bar("20")).unwrap();
+    let v = scalar(wma.update_bar(&bar("30")).unwrap());
+    let expected = dec!(140) / dec!(6);
+    assert_eq!(v, expected);
+}
+
+#[test]
+fn wma_constant_price_equals_price() {
+    let mut wma = Wma::new("wma5", 5).unwrap();
+    for _ in 0..5 {
+        wma.update_bar(&bar("42")).unwrap();
+    }
+    let v = scalar(wma.update_bar(&bar("42")).unwrap());
+    assert_eq!(v, dec!(42));
+}
+
+#[test]
+fn wma_most_recent_weighted_highest() {
+    // Most recent bar has the highest weight; if recent price > older prices,
+    // WMA should exceed SMA.
+    let period = 3;
+    let mut wma = Wma::new("wma3", period).unwrap();
+    let mut sma = Sma::new("sma3", period).unwrap();
+    for p in &["10", "20", "30"] {
+        wma.update_bar(&bar(p)).unwrap();
+        sma.update_bar(&bar(p)).unwrap();
+    }
+    let wma_v = scalar(wma.update_bar(&bar("100")).unwrap());
+    let sma_v = scalar(sma.update_bar(&bar("100")).unwrap());
+    assert!(wma_v > sma_v, "WMA ({wma_v}) should exceed SMA ({sma_v}) when recent price dominates");
+}
+
+// ── DEMA correctness ──────────────────────────────────────────────────────
+
+#[test]
+fn dema_constant_price_equals_price() {
+    let mut dema = Dema::new("d3", 3).unwrap();
+    let mut last = SignalValue::Unavailable;
+    for _ in 0..10 {
+        last = dema.update_bar(&bar("75")).unwrap();
+    }
+    assert_eq!(scalar(last), dec!(75));
+}
+
+#[test]
+fn dema_faster_than_ema_on_jump() {
+    let period = 5;
+    let mut dema = Dema::new("d5", period).unwrap();
+    let mut ema = Ema::new("e5", period).unwrap();
+    for _ in 0..(2 * period) {
+        dema.update_bar(&bar("100")).unwrap();
+    }
+    for _ in 0..period {
+        ema.update_bar(&bar("100")).unwrap();
+    }
+    let dema_v = scalar(dema.update_bar(&bar("300")).unwrap());
+    let ema_v = scalar(ema.update_bar(&bar("300")).unwrap());
+    assert!(dema_v > ema_v, "DEMA ({dema_v}) should react faster than EMA ({ema_v})");
+}
+
+#[test]
+fn dema_reset_clears_state() {
+    let mut dema = Dema::new("d3", 3).unwrap();
+    for _ in 0..6 {
+        dema.update_bar(&bar("100")).unwrap();
+    }
+    assert!(dema.is_ready());
+    dema.reset();
+    assert!(!dema.is_ready());
 }

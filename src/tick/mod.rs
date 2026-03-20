@@ -55,6 +55,11 @@ impl Tick {
         self.price.value() * self.quantity.value()
     }
 
+    /// Returns the notional value using checked arithmetic, or `None` on overflow.
+    pub fn notional_checked(&self) -> Option<Decimal> {
+        self.price.checked_mul(self.quantity)
+    }
+
     /// Returns `true` if this tick represents an aggressive buy (bid-side aggressor).
     pub fn is_buy_aggressor(&self) -> bool {
         self.side == Side::Bid
@@ -62,6 +67,16 @@ impl Tick {
 
     /// Returns `true` if this tick represents an aggressive sell (ask-side aggressor).
     pub fn is_sell_aggressor(&self) -> bool {
+        self.side == Side::Ask
+    }
+
+    /// Returns `true` if this tick is on the buy (bid) side.
+    pub fn is_buy(&self) -> bool {
+        self.side == Side::Bid
+    }
+
+    /// Returns `true` if this tick is on the sell (ask) side.
+    pub fn is_sell(&self) -> bool {
         self.side == Side::Ask
     }
 }
@@ -297,6 +312,15 @@ impl TickReplayer {
         self.ticks
             .iter()
             .filter(|t| filter.matches(t))
+            .cloned()
+            .collect()
+    }
+
+    /// Returns all ticks whose timestamp falls within `[from, to]` (inclusive).
+    pub fn between(&self, from: NanoTimestamp, to: NanoTimestamp) -> Vec<Tick> {
+        self.ticks
+            .iter()
+            .filter(|t| !t.timestamp.is_before(from) && !t.timestamp.is_after(to))
             .cloned()
             .collect()
     }

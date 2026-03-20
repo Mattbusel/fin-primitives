@@ -138,6 +138,14 @@ impl SignalPipeline {
         !self.signals.is_empty() && self.signals.iter().all(|s| s.is_ready())
     }
 
+    /// Returns a reference to the signal with the given `name`, or `None` if not registered.
+    pub fn get_signal(&self, name: &str) -> Option<&dyn Signal> {
+        self.signals
+            .iter()
+            .find(|s| s.name() == name)
+            .map(|s| s.as_ref())
+    }
+
     /// Resets all registered signals to their initial (warm-up) state.
     ///
     /// Equivalent to calling `signal.reset()` on each registered signal.

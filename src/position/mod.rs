@@ -305,6 +305,29 @@ impl PositionLedger {
         self.positions.len()
     }
 
+    /// Deposits `amount` into the cash balance (increases cash).
+    ///
+    /// # Panics
+    /// Does not panic; accepts any `Decimal` including negative (use `withdraw` for cleaner API).
+    pub fn deposit(&mut self, amount: Decimal) {
+        self.cash += amount;
+    }
+
+    /// Withdraws `amount` from the cash balance.
+    ///
+    /// # Errors
+    /// Returns [`FinError::InsufficientFunds`] if `amount > self.cash`.
+    pub fn withdraw(&mut self, amount: Decimal) -> Result<(), FinError> {
+        if amount > self.cash {
+            return Err(FinError::InsufficientFunds {
+                need: amount,
+                have: self.cash,
+            });
+        }
+        self.cash -= amount;
+        Ok(())
+    }
+
     /// Returns the number of non-flat (open) positions.
     pub fn open_position_count(&self) -> usize {
         self.positions.values().filter(|p| !p.is_flat()).count()

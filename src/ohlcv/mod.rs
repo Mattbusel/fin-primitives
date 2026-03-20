@@ -367,6 +367,8 @@ pub struct OhlcvAggregator {
     current_bucket_start: Option<NanoTimestamp>,
     /// Close price of the most recently completed bar, used for gap-filling.
     last_close: Option<Price>,
+    /// Count of fully completed bars emitted (via push_tick or flush).
+    bars_emitted: usize,
 }
 
 impl OhlcvAggregator {
@@ -382,6 +384,7 @@ impl OhlcvAggregator {
             current_bar: None,
             current_bucket_start: None,
             last_close: None,
+            bars_emitted: 0,
         })
     }
 
@@ -438,6 +441,7 @@ impl OhlcvAggregator {
                     gap_bucket = NanoTimestamp::new(gap_bucket.nanos() + nanos);
                 }
 
+                self.bars_emitted += out.len();
                 self.current_bucket_start = Some(bucket);
                 self.current_bar = Some(self.new_bar(tick));
                 Ok(out)
@@ -451,6 +455,7 @@ impl OhlcvAggregator {
         let bar = self.current_bar.take();
         if let Some(ref b) = bar {
             self.last_close = Some(b.close);
+            self.bars_emitted += 1;
         }
         bar
     }
@@ -473,6 +478,12 @@ impl OhlcvAggregator {
         self.current_bar = None;
         self.current_bucket_start = None;
         self.last_close = None;
+        self.bars_emitted = 0;
+    }
+
+    /// Returns the number of fully completed bars emitted so far (via `push_tick` or `flush`).
+    pub fn bar_count(&self) -> usize {
+        self.bars_emitted
     }
 
     /// Returns a reference to the current (incomplete) bar, if any.
@@ -554,6 +565,13 @@ impl OhlcvSeries {
     /// Removes all bars from the series, retaining allocated capacity.
     pub fn clear(&mut self) {
         self.bars.clear();
+    }
+
+    /// Retains only the bars for which `predicate` returns `true`, removing the rest in-place.
+    ///
+    /// Order is preserved. Useful for filtering out gap-fill bars or bars outside a time range.
+    pub fn retain(&mut self, mut predicate: impl FnMut(&OhlcvBar) -> bool) {
+        self.bars.retain(|b| predicate(b));
     }
 
     /// Returns the bar at `index`, or `None` if out of bounds.
