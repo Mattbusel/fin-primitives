@@ -957,6 +957,18 @@ impl RiskMonitor {
         let skew = vals.iter().map(|v| ((v - mean) / std_dev).powi(3)).sum::<f64>() / n;
         Some(skew)
     }
+
+    /// Calmar Ratio: annualized return divided by maximum drawdown percentage.
+    ///
+    /// `calmar = annualized_return(returns, periods_per_year) / max_drawdown_pct`
+    ///
+    /// A higher Calmar ratio indicates better risk-adjusted performance.
+    /// Returns `None` if `returns` is empty, `periods_per_year == 0`, or `max_drawdown_pct` is zero.
+    pub fn calmar_ratio(returns: &[Decimal], periods_per_year: usize, max_drawdown_pct: f64) -> Option<f64> {
+        if max_drawdown_pct == 0.0 { return None; }
+        let ann = Self::annualized_return(returns, periods_per_year)?;
+        Some(ann / max_drawdown_pct)
+    }
 }
 
 #[cfg(test)]
@@ -1701,5 +1713,23 @@ mod tests {
         returns.push(dec!(100));
         let sk = RiskMonitor::skewness(&returns).unwrap();
         assert!(sk > 0.0, "right-skewed series should have positive skew: {sk}");
+    }
+
+    #[test]
+    fn test_calmar_ratio_none_zero_drawdown() {
+        let returns = vec![dec!(0.01); 10];
+        assert!(RiskMonitor::calmar_ratio(&returns, 252, 0.0).is_none());
+    }
+
+    #[test]
+    fn test_calmar_ratio_none_empty_returns() {
+        assert!(RiskMonitor::calmar_ratio(&[], 252, 10.0).is_none());
+    }
+
+    #[test]
+    fn test_calmar_ratio_positive_returns() {
+        let returns = vec![dec!(0.001); 252]; // ~1% annualized compounded roughly
+        let calmar = RiskMonitor::calmar_ratio(&returns, 252, 5.0).unwrap();
+        assert!(calmar > 0.0, "positive return / positive drawdown should be positive: {calmar}");
     }
 }

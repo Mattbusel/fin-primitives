@@ -4586,6 +4586,77 @@ impl OhlcvSeries {
         let range = last.high.value() - last.low.value();
         range.checked_div(atr).map(|r| r * Decimal::ONE_HUNDRED)
     }
+
+    /// Maximum peak-to-trough drawdown of closing prices over the last `n` bars, as a percentage.
+    ///
+    /// Scans the window left-to-right; tracks a running peak and records the worst
+    /// (close - peak) / peak × 100 seen (a negative number or zero).
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn max_close_drawdown(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut peak = self.bars[start].close.value();
+        let mut max_dd = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let c = b.close.value();
+            if c > peak { peak = c; }
+            if !peak.is_zero() {
+                let dd = (c - peak) / peak * Decimal::ONE_HUNDRED;
+                if dd < max_dd { max_dd = dd; }
+            }
+        }
+        Some(max_dd)
+    }
+
+    /// Percentage of the last `n` bars where the close is above its `sma_period`-bar SMA.
+    ///
+    /// For each bar `i` in the window, the SMA uses the `sma_period` bars ending at `i`.
+    /// Bars with insufficient history (fewer than `sma_period` prior bars) are skipped.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n + sma_period - 1` total bars exist.
+    pub fn close_above_sma_pct(&self, n: usize, sma_period: usize) -> Option<Decimal> {
+        if n == 0 || sma_period == 0 || self.bars.len() < n + sma_period - 1 {
+            return None;
+        }
+        let window_start = self.bars.len() - n;
+        let mut above = 0u32;
+        for (offset, b) in self.bars[window_start..].iter().enumerate() {
+            let abs_idx = window_start + offset;
+            if abs_idx + 1 < sma_period { continue; }
+            let sma_start = abs_idx + 1 - sma_period;
+            let sma = self.bars[sma_start..=abs_idx]
+                .iter()
+                .map(|x| x.close.value())
+                .sum::<Decimal>()
+                / Decimal::from(sma_period as u32);
+            if b.close.value() > sma { above += 1; }
+        }
+        Some(Decimal::from(above) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Counts swing highs within the last `n` bars.
+    ///
+    /// A bar at index `i` is a swing high if its `high` is strictly greater than the
+    /// highs of the `lookback` bars immediately before and after it.
+    ///
+    /// Returns `None` if `n == 0`, `lookback == 0`, or fewer than `n` bars exist.
+    pub fn swing_high_count(&self, n: usize, lookback: usize) -> Option<usize> {
+        if n == 0 || lookback == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let len = slice.len();
+        let mut count = 0usize;
+        for i in lookback..len.saturating_sub(lookback) {
+            let peak = slice[i].high.value();
+            let is_high = (0..lookback).all(|k| peak > slice[i - 1 - k].high.value())
+                && (0..lookback).all(|k| peak > slice[i + 1 + k].high.value());
+            if is_high { count += 1; }
+        }
+        Some(count)
+    }
 }
 
 #[cfg(test)]
@@ -6211,5 +6282,29 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![bar("100"), bar("101")]).unwrap();
         assert!(series.close_momentum(2).is_none()); // need 3 bars
         assert!(series.close_momentum(0).is_none());
+    }
+
+    #[test]
+    fn test_swing_high_count_none_when_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100"), bar("101")]).unwrap();
+        assert!(series.swing_high_count(5, 1).is_none()); // fewer than n bars
+        assert!(series.swing_high_count(0, 1).is_none()); // n=0
+        assert!(series.swing_high_count(2, 0).is_none()); // lookback=0
+    }
+
+    #[test]
+    fn test_swing_high_count_detects_peak() {
+        // Pattern: 100, 110, 100, 100, 100 — middle bar is a swing high with lookback=1
+        let bars = vec![bar("100"), bar("110"), bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let count = series.swing_high_count(5, 1).unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_swing_high_count_flat_no_highs() {
+        let bars: Vec<_> = (0..7).map(|_| bar("100")).collect();
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.swing_high_count(7, 1).unwrap(), 0);
     }
 }

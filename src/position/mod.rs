@@ -1281,6 +1281,22 @@ impl PositionLedger {
         Some(total / Decimal::from(self.positions.len() as u32))
     }
 
+    /// Win rate: fraction of positions with strictly positive realized P&L, as a percentage.
+    ///
+    /// Only positions that have been at least partially closed (non-zero realized PnL activity)
+    /// are considered; positions with zero realized P&L are treated as losses.
+    ///
+    /// Returns `None` if there are no positions.
+    pub fn win_rate(&self) -> Option<Decimal> {
+        if self.positions.is_empty() { return None; }
+        let total = self.positions.len();
+        let winners = self.positions.values()
+            .filter(|p| p.realized_pnl > Decimal::ZERO)
+            .count();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(winners as u32) / Decimal::from(total as u32) * Decimal::from(100u32))
+    }
+
     /// Total P&L (realized + unrealized) excluding a specific symbol.
     ///
     /// Useful for single-symbol attribution analysis.
