@@ -1615,6 +1615,47 @@ impl OhlcvSeries {
         Some(last.range() / avg_range)
     }
 
+    /// Returns the count of bearish engulfing patterns in the last `n` bars.
+    ///
+    /// A bearish engulfing bar opens above the previous close and closes below the previous open.
+    pub fn bearish_engulfing_count(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
+            let prev = &self.bars[start + i - 1];
+            // bearish: prev bullish, current opens above prev close, closes below prev open
+            let p_o = prev.open.value();
+            let p_c = prev.close.value();
+            let s_o = bar.open.value();
+            let s_c = bar.close.value();
+            p_c > p_o && s_c < s_o && s_o >= p_c && s_c <= p_o
+        }).count()
+    }
+
+    /// Returns a trend-strength ratio over the last `n` bars.
+    ///
+    /// `trend_strength = |close[last] - close[first]| / Σ|close[i] - close[i-1]|`
+    ///
+    /// Values near 1 indicate a clean directional trend; near 0 indicate chop.
+    /// Returns `None` if fewer than 2 bars exist in the window or total movement is zero.
+    pub fn trend_strength(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let window = &self.bars[start..];
+        let net = (window.last()?.close.value() - window[0].close.value()).abs();
+        let total: Decimal = window.windows(2)
+            .map(|w| (w[1].close.value() - w[0].close.value()).abs())
+            .sum();
+        if total == Decimal::ZERO {
+            return None;
+        }
+        Some(net / total)
+    }
+
     /// Returns the average volume over the last `n` bars, or `None` if the series is empty.
     ///
     /// If `n` exceeds the series length, all bars are included.
@@ -2227,6 +2268,48 @@ impl OhlcvSeries {
     /// Returns the first bar in the series, or `None` if empty.
     pub fn first_bar(&self) -> Option<&OhlcvBar> {
         self.bars.first()
+    }
+
+    /// Volume-weighted close over the last `n` bars: `Σ(close × volume) / Σ(volume)`.
+    ///
+    /// Returns `None` when `n == 0`, the series has fewer than `n` bars, or total volume is zero.
+    pub fn volume_weighted_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let vol_sum: Decimal = self.bars[start..].iter().map(|b| b.volume.value()).sum();
+        if vol_sum.is_zero() {
+            return None;
+        }
+        let pv_sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value() * b.volume.value())
+            .sum();
+        Some(pv_sum / vol_sum)
+    }
+
+    /// Last bar range divided by average range over the last `n` bars.
+    ///
+    /// Values > 1 indicate volatility expansion; < 1 contraction.
+    /// Returns `None` when `n == 0`, the series has fewer than `n` bars, or average range is zero.
+    pub fn range_expansion_ratio(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let last_range = self.bars.last()?.range();
+        let start = self.bars.len() - n;
+        let avg_range = self.bars[start..]
+            .iter()
+            .map(|b| b.range())
+            .sum::<Decimal>();
+        #[allow(clippy::cast_possible_truncation)]
+        let avg = avg_range / Decimal::from(n as u32);
+        if avg.is_zero() {
+            return None;
+        }
+        (last_range / avg).to_f64()
     }
 }
 

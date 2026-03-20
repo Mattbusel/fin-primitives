@@ -299,6 +299,18 @@ impl Price {
         let result = self.0 + (other.0 - self.0) * t;
         Price::new(result).ok()
     }
+
+    /// Returns `true` if `other` is within `pct` percent of `self`.
+    ///
+    /// Computes `|self - other| / self * 100 <= pct`.
+    /// Returns `false` if `pct` is negative.
+    pub fn is_within_pct(self, other: Price, pct: Decimal) -> bool {
+        if pct < Decimal::ZERO {
+            return false;
+        }
+        let diff = (self.0 - other.0).abs();
+        diff / self.0 * Decimal::ONE_HUNDRED <= pct
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -688,6 +700,20 @@ impl NanoTimestamp {
     /// Use for computing durations between two timestamps without assuming ordering.
     pub fn elapsed_since(self, earlier: NanoTimestamp) -> i64 {
         self.0 - earlier.0
+    }
+
+    /// Returns the difference in whole minutes: `(self - earlier) / 60_000_000_000`.
+    ///
+    /// Positive when `self` is after `earlier`.
+    pub fn minutes_since(self, earlier: NanoTimestamp) -> i64 {
+        (self.0 - earlier.0) / 60_000_000_000
+    }
+
+    /// Returns the difference in whole hours: `(self - earlier) / 3_600_000_000_000`.
+    ///
+    /// Positive when `self` is after `earlier`.
+    pub fn hours_since(self, earlier: NanoTimestamp) -> i64 {
+        (self.0 - earlier.0) / 3_600_000_000_000
     }
 
     /// Snaps this timestamp down to the nearest multiple of `period_nanos`.
