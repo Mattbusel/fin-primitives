@@ -84,7 +84,7 @@ impl Signal for VolumeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         let vm = bar.volume
             .checked_mul(body)
             .ok_or(FinError::ArithmeticOverflow)?

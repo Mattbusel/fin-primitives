@@ -58,7 +58,7 @@ impl Signal for CloseOpenEma {
     fn is_ready(&self) -> bool { self.bars_seen > self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         let ema = match self.ema {
             None => body,
             Some(prev) => body * self.k + prev * (Decimal::ONE - self.k),

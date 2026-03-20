@@ -56,7 +56,7 @@ impl Signal for OpenToCloseRatio {
         let ratio = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (bar.close - bar.open) / range
+            (bar.net_move()) / range
         };
 
         self.ratios.push_back(ratio);

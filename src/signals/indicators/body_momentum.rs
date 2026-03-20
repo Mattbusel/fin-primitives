@@ -55,7 +55,7 @@ impl Signal for BodyMomentum {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         self.sum += body;
         self.window.push_back(body);
         if self.window.len() > self.period {

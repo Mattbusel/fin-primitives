@@ -43,7 +43,7 @@ impl Signal for BarType {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
 
         if range.is_zero() || body.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));

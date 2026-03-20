@@ -26,11 +26,7 @@ impl BarEfficiency {
 impl Signal for BarEfficiency {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
-        let body = if bar.close >= bar.open {
-            bar.close - bar.open
-        } else {
-            bar.open - bar.close
-        };
+        let body = bar.body_size();
         let eff = if range.is_zero() {
             Decimal::ZERO
         } else {

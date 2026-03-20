@@ -58,7 +58,7 @@ impl Signal for DojiDetector {
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        let body = (bar.close - bar.open).abs();
+        let body = (bar.net_move()).abs();
         let ratio = body / range;
         let is_doji = ratio < self.threshold;
         Ok(SignalValue::Scalar(if is_doji { Decimal::ONE } else { Decimal::ZERO }))

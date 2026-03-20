@@ -84,7 +84,7 @@ impl Signal for BarMomentumScore {
         if atr.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         Ok(SignalValue::Scalar(body / atr))
     }
 

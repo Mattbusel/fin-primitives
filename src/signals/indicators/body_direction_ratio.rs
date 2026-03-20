@@ -61,7 +61,7 @@ impl Signal for BodyDirectionRatio {
     fn is_ready(&self) -> bool { self.bull_window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = (bar.close - bar.open).abs();
+        let body = (bar.net_move()).abs();
         let bull = if bar.close > bar.open { body } else { Decimal::ZERO };
         let bear = if bar.close < bar.open { body } else { Decimal::ZERO };
         self.bull_window.push_back(bull);

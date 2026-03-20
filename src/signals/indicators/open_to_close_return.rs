@@ -40,7 +40,7 @@ impl Signal for OpenToCloseReturn {
         if bar.open.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let ret = (bar.close - bar.open)
+        let ret = (bar.net_move())
             .checked_div(bar.open)
             .ok_or(FinError::ArithmeticOverflow)?
             * Decimal::ONE_HUNDRED;

@@ -104,7 +104,7 @@ impl Signal for PriceVelocityRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         let ratio = body
             .checked_div(atr_val)
             .ok_or(FinError::ArithmeticOverflow)?;

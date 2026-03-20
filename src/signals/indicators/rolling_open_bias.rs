@@ -62,7 +62,7 @@ impl Signal for RollingOpenBias {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.bodies.push_back(bar.close - bar.open);
+        self.bodies.push_back(bar.net_move());
         if self.bodies.len() > self.period {
             self.bodies.pop_front();
         }

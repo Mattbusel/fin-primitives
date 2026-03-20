@@ -53,7 +53,7 @@ impl Signal for CloseMinusOpenMa {
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         self.window.push_back(body);
         self.sum += body;
         if self.window.len() > self.period {

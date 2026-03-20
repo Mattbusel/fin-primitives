@@ -83,7 +83,7 @@ impl Signal for HammerDetector {
             return Ok(SignalValue::Unavailable);
         }
 
-        let body = (bar.close - bar.open).abs();
+        let body = (bar.net_move()).abs();
         let upper_wick = bar.high - bar.open.max(bar.close);
         let lower_wick = bar.open.min(bar.close) - bar.low;
 

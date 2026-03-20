@@ -96,7 +96,7 @@ impl Signal for SwingIndex {
 
         // Swing index formula
         let numerator = (bar.close - pc)
-            + (bar.close - bar.open) / Decimal::from(2u32)
+            + (bar.net_move()) / Decimal::from(2u32)
             + (pc - po) / Decimal::from(4u32);
 
         // K/T normalization

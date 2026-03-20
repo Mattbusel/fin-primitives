@@ -72,7 +72,7 @@ impl Signal for Bop {
         let raw = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (bar.close - bar.open)
+            (bar.net_move())
                 .checked_div(range)
                 .ok_or(FinError::ArithmeticOverflow)?
         };

@@ -33,7 +33,7 @@ impl Signal for CloseVsOpenRange {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         if !range.is_zero() {
-            let ratio = (bar.close - bar.open) / range;
+            let ratio = (bar.net_move()) / range;
             self.window.push_back(ratio);
             self.sum += ratio;
             if self.window.len() > self.period {

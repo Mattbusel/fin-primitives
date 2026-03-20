@@ -50,7 +50,7 @@ impl Signal for CandleMomentum {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let body = bar.close - bar.open;
+        let body = bar.net_move();
         self.bodies.push_back(body);
         if self.bodies.len() > self.period { self.bodies.pop_front(); }
         if self.bodies.len() < self.period { return Ok(SignalValue::Unavailable); }

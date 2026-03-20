@@ -81,7 +81,7 @@ impl Signal for BodyHeightRatio {
 
         let atr = Self::atr(&self.highs, &self.lows, &self.closes, self.period);
         if atr.is_zero() { return Ok(SignalValue::Unavailable); }
-        let body = (bar.close - bar.open).abs();
+        let body = (bar.net_move()).abs();
         Ok(SignalValue::Scalar(body / atr))
     }
 

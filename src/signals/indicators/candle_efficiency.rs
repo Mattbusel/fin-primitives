@@ -53,7 +53,7 @@ impl Signal for CandleEfficiency {
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let body = (bar.close - bar.open).abs();
+        let body = (bar.net_move()).abs();
         let efficiency = body
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?;

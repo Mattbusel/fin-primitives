@@ -73,6 +73,14 @@ impl BarInput {
         (self.high + self.low) / Decimal::from(2u32)
     }
 
+    /// Returns the signed intrabar move: `close - open`.
+    ///
+    /// Positive for bullish bars, negative for bearish, zero for doji.
+    /// Unlike [`body_size`](Self::body_size), this preserves direction.
+    pub fn net_move(&self) -> Decimal {
+        self.close - self.open
+    }
+
     /// Returns the absolute body size: `|close - open|`.
     pub fn body_size(&self) -> Decimal {
         (self.close - self.open).abs()

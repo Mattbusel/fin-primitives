@@ -31,7 +31,7 @@ impl Signal for BodyToRangeRatio {
         let ratio = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (bar.close - bar.open).abs() / range
+            (bar.net_move()).abs() / range
         };
         self.window.push_back(ratio);
         self.sum += ratio;

@@ -56,7 +56,7 @@ impl Signal for CloseLocationValue {
         let clv = if range.is_zero() {
             Decimal::ZERO
         } else {
-            (Decimal::from(2u32) * bar.close - bar.range()) / range
+            (Decimal::from(2u32) * bar.close - bar.high - bar.low) / range
         };
 
         self.clvs.push_back(clv);

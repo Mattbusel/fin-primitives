@@ -54,9 +54,9 @@ impl Signal for WickToBodyRatio {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = if bar.close >= bar.open {
-            bar.close - bar.open
+            bar.net_move()
         } else {
-            bar.open - bar.close
+            -bar.net_move()
         };
 
         if body.is_zero() {

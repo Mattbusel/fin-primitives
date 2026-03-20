@@ -60,9 +60,9 @@ impl Signal for BullBearBalance {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let (bull, bear) = if bar.close > bar.open {
-            (bar.close - bar.open, Decimal::ZERO)
+            (bar.net_move(), Decimal::ZERO)
         } else if bar.open > bar.close {
-            (Decimal::ZERO, bar.open - bar.close)
+            (Decimal::ZERO, -bar.net_move())
         } else {
             (Decimal::ZERO, Decimal::ZERO)
         };

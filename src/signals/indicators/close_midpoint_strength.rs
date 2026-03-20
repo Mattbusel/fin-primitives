@@ -44,7 +44,7 @@ impl Signal for CloseMidpointStrength {
             return Ok(SignalValue::Unavailable);
         }
         // (2*close - high - low) / range
-        let numerator = bar.close * Decimal::TWO - bar.range();
+        let numerator = bar.close * Decimal::TWO - bar.high - bar.low;
         let strength = numerator
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?;

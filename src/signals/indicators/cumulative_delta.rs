@@ -39,7 +39,7 @@ impl Signal for CumulativeDelta {
     fn is_ready(&self) -> bool { self.deltas.len() >= self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let delta = bar.close - bar.open;
+        let delta = bar.net_move();
         self.deltas.push_back(delta);
         if self.deltas.len() > self.period { self.deltas.pop_front(); }
         if self.deltas.len() < self.period { return Ok(SignalValue::Unavailable); }

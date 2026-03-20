@@ -41,7 +41,7 @@ impl Signal for IntrabarReturn {
         if bar.open.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        Ok(SignalValue::Scalar((bar.close - bar.open) / bar.open * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar((bar.net_move()) / bar.open * Decimal::ONE_HUNDRED))
     }
 
     fn reset(&mut self) {}
