@@ -5950,6 +5950,87 @@ impl OhlcvSeries {
         }
         if count == 0 { None } else { Some(sum / Decimal::from(count)) }
     }
+
+    /// Average body-to-range ratio for bearish bars (close < open) over the last `n` bars.
+    pub fn bear_strength(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            if b.close.value() >= b.open.value() { continue; }
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            sum += (b.open.value() - b.close.value()) / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Open price of the most recent bar.
+    pub fn last_open(&self) -> Option<Decimal> {
+        self.bars.last().map(|b| b.open.value())
+    }
+
+    /// High price of the most recent bar.
+    pub fn last_high(&self) -> Option<Decimal> {
+        self.bars.last().map(|b| b.high.value())
+    }
+
+    /// Low price of the most recent bar.
+    pub fn last_low(&self) -> Option<Decimal> {
+        self.bars.last().map(|b| b.low.value())
+    }
+
+    /// Volume of the most recent bar.
+    pub fn last_volume(&self) -> Option<Decimal> {
+        self.bars.last().map(|b| b.volume.value())
+    }
+
+    /// Count of bars in the last `n` where the close exceeded the prior bar's high.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars exist.
+    pub fn close_above_prev_high(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() <= n { return None; }
+        let start = self.bars.len() - n;
+        // start >= 1 since bars.len() > n
+        let count = self.bars[start..].iter().enumerate()
+            .filter(|(i, b)| b.close.value() > self.bars[start - 1 + i].high.value())
+            .count();
+        Some(count)
+    }
+
+    /// Shannon entropy of close price direction over last `n` bars (in bits).
+    ///
+    /// Uses up/down proportions `p` and `1-p`. Returns `None` if `n < 2` or all moves same direction.
+    pub fn price_entropy(&self, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut ups = 0usize;
+        for i in start + 1..self.bars.len() {
+            if self.bars[i].close.value() > self.bars[i - 1].close.value() { ups += 1; }
+        }
+        let total = n - 1;
+        if ups == 0 || ups == total { return None; }
+        let p = ups as f64 / total as f64;
+        let q = 1.0 - p;
+        Some(-(p * p.log2() + q * q.log2()))
+    }
+
+    /// Average intraday spread percentage `(high - low) / close * 100` over last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or any close is zero.
+    pub fn avg_spread_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let close = b.close.value();
+            if close.is_zero() { return None; }
+            sum += (b.high.value() - b.low.value()) / close * Decimal::ONE_HUNDRED;
+        }
+        Some(sum / Decimal::from(n))
+    }
 }
 
 #[cfg(test)]

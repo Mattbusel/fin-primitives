@@ -1743,6 +1743,11 @@ impl PositionLedger {
         let shorts = open.iter().filter(|p| p.quantity < Decimal::ZERO).count() as u32;
         Some(Decimal::from(shorts) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
     }
+
+    /// Sum of absolute values of all realized P&L across positions.
+    pub fn realized_pnl_total_abs(&self) -> Decimal {
+        self.positions.values().map(|p| p.realized_pnl.abs()).sum()
+    }
 }
 
 #[cfg(test)]

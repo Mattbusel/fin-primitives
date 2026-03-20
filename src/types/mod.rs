@@ -1082,6 +1082,16 @@ impl NanoTimestamp {
         let diff = (self.0 - other.0).unsigned_abs();
         diff as f64 / (3_600.0 * 1_000_000_000.0)
     }
+
+    /// Returns `true` if this timestamp falls on the same UTC calendar day as `other`.
+    pub fn is_today(&self, other: NanoTimestamp) -> bool {
+        self.is_same_day(other)
+    }
+
+    /// Absolute difference in nanoseconds between `self` and `other`.
+    pub fn nanoseconds_between(self, other: NanoTimestamp) -> u64 {
+        (self.0 - other.0).unsigned_abs()
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

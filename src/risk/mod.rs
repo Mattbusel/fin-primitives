@@ -726,6 +726,27 @@ impl DrawdownTracker {
         self.flat_streak as f64 / self.update_count as f64 * 100.0
     }
 
+    /// Current consecutive streak length: positive = gains, negative = losses, 0 = flat.
+    pub fn current_streak(&self) -> i64 {
+        if self.gain_streak > 0 {
+            self.gain_streak as i64
+        } else if self.loss_streak_current > 0 {
+            -(self.loss_streak_current as i64)
+        } else {
+            0
+        }
+    }
+
+    /// The single largest equity loss as a percentage of the equity at the time of the loss.
+    ///
+    /// Returns `None` if no loss has been recorded (min_equity_delta >= 0).
+    pub fn max_loss_pct_single(&self) -> Option<f64> {
+        if self.min_equity_delta >= 0.0 { return None; }
+        let peak: f64 = self.peak_equity.to_string().parse().ok()?;
+        if peak <= 0.0 { return None; }
+        Some((self.min_equity_delta / peak).abs() * 100.0)
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
@@ -1374,6 +1395,16 @@ impl DrawdownTracker {
     pub fn gain_loss_ratio(&self) -> Option<f64> {
         if self.total_loss_sum == 0.0 { return None; }
         Some(self.total_gain_sum / self.total_loss_sum)
+    }
+
+    /// Recovery efficiency: `completed_recoveries / drawdown_count`.
+    ///
+    /// A ratio of 1.0 means every drawdown was fully recovered.
+    /// Returns `None` if no drawdowns have occurred.
+    pub fn recovery_efficiency(&self) -> Option<f64> {
+        let dd_count = self.drawdown_count();
+        if dd_count == 0 { return None; }
+        Some(self.completed_recoveries as f64 / dd_count as f64)
     }
 }
 

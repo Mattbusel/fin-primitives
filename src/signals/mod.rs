@@ -832,6 +832,24 @@ impl SignalValue {
             _ => false,
         }
     }
+
+    /// Adds a raw `Decimal` to this scalar value.
+    ///
+    /// Returns `Unavailable` if `self` is `Unavailable`.
+    pub fn add_scalar(self, delta: Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(v) => SignalValue::Scalar(v + delta),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Maps the scalar with `f`, falling back to `default` if `Unavailable`.
+    pub fn map_or(self, default: Decimal, f: impl FnOnce(Decimal) -> Decimal) -> Decimal {
+        match self {
+            SignalValue::Scalar(v) => f(v),
+            SignalValue::Unavailable => default,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

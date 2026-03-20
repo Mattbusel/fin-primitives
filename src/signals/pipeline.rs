@@ -445,6 +445,31 @@ impl SignalMap {
     pub fn count_negative(&self) -> usize {
         self.scalars().filter(|(_, v)| *v < Decimal::ZERO).count()
     }
+
+    /// Returns `true` if all scalar values are strictly positive.
+    pub fn all_positive(&self) -> bool {
+        let mut has_scalars = false;
+        for (_, v) in self.scalars() {
+            has_scalars = true;
+            if v <= Decimal::ZERO { return false; }
+        }
+        has_scalars
+    }
+
+    /// Returns `true` if all scalar values are strictly negative.
+    pub fn all_negative(&self) -> bool {
+        let mut has_scalars = false;
+        for (_, v) in self.scalars() {
+            has_scalars = true;
+            if v >= Decimal::ZERO { return false; }
+        }
+        has_scalars
+    }
+
+    /// Count of scalar values that are exactly zero.
+    pub fn count_zero(&self) -> usize {
+        self.scalars().filter(|(_, v)| v.is_zero()).count()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
