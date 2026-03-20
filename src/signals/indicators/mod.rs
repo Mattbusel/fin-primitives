@@ -1105,3 +1105,15 @@ pub use open_close_symmetry::OpenCloseSymmetry;
 pub mod range_return_ratio;
 pub use range_return_ratio::RangeReturnRatio;
 
+
+pub mod body_to_shadow_ratio;
+pub use body_to_shadow_ratio::BodyToShadowRatio;
+
+pub mod atr_percentile;
+pub use atr_percentile::AtrPercentile;
+
+pub mod close_high_frequency;
+pub use close_high_frequency::CloseHighFrequency;
+
+pub mod open_midpoint_deviation;
+pub use open_midpoint_deviation::OpenMidpointDeviation;
