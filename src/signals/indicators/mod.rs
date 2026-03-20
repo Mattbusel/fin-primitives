@@ -657,3 +657,16 @@ pub use value_at_risk5::ValueAtRisk5;
 pub use volume_price_corr::VolumePriceCorr;
 pub use net_high_low_count::NetHighLowCount;
 pub use rolling_skew_returns::RollingSkewReturns;
+
+pub mod price_impulse;
+pub use price_impulse::PriceImpulse;
+pub mod bar_overlap_ratio;
+pub mod direction_changes;
+pub mod bar_open_position;
+pub mod higher_high_lower_low;
+pub mod average_gap;
+pub use bar_overlap_ratio::BarOverlapRatio;
+pub use direction_changes::DirectionChanges;
+pub use bar_open_position::BarOpenPosition;
+pub use higher_high_lower_low::HigherHighLowerLow;
+pub use average_gap::AverageGap;
