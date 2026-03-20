@@ -409,6 +409,101 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Raises the scalar value to an integer power.
+    ///
+    /// Returns `Unavailable` if the value is unavailable.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(SignalValue::Scalar(dec!(3)).pow(2), SignalValue::Scalar(dec!(9)));
+    /// ```
+    pub fn pow(self, exp: u32) -> SignalValue {
+        match self {
+            SignalValue::Scalar(v) => {
+                let mut result = Decimal::ONE;
+                for _ in 0..exp {
+                    result *= v;
+                }
+                SignalValue::Scalar(result)
+            }
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns the natural logarithm of the scalar value.
+    ///
+    /// Returns `Unavailable` if the value is ≤ 0 or unavailable.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(1));
+    /// assert_eq!(v.ln(), SignalValue::Scalar(dec!(0)));
+    /// assert_eq!(SignalValue::Scalar(dec!(-1)).ln(), SignalValue::Unavailable);
+    /// ```
+    pub fn ln(self) -> SignalValue {
+        use rust_decimal::prelude::ToPrimitive;
+        match self {
+            SignalValue::Scalar(v) => {
+                if v <= Decimal::ZERO {
+                    return SignalValue::Unavailable;
+                }
+                let f = v.to_f64().unwrap_or(0.0).ln();
+                if f.is_finite() {
+                    Decimal::try_from(f)
+                        .map(SignalValue::Scalar)
+                        .unwrap_or(SignalValue::Unavailable)
+                } else {
+                    SignalValue::Unavailable
+                }
+            }
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns `true` if this value is above `threshold` while `prev` was at or below it.
+    ///
+    /// Detects an upward crossing of a threshold level. Both values must be scalar.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let prev = SignalValue::Scalar(dec!(49));
+    /// let curr = SignalValue::Scalar(dec!(51));
+    /// assert!(curr.cross_above(dec!(50), prev));
+    /// ```
+    pub fn cross_above(self, threshold: Decimal, prev: SignalValue) -> bool {
+        matches!(
+            (self, prev),
+            (SignalValue::Scalar(curr), SignalValue::Scalar(p))
+            if curr > threshold && p <= threshold
+        )
+    }
+
+    /// Returns `true` if this value is below `threshold` while `prev` was at or above it.
+    ///
+    /// Detects a downward crossing of a threshold level. Both values must be scalar.
+    ///
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let prev = SignalValue::Scalar(dec!(51));
+    /// let curr = SignalValue::Scalar(dec!(49));
+    /// assert!(curr.cross_below(dec!(50), prev));
+    /// ```
+    pub fn cross_below(self, threshold: Decimal, prev: SignalValue) -> bool {
+        matches!(
+            (self, prev),
+            (SignalValue::Scalar(curr), SignalValue::Scalar(p))
+            if curr < threshold && p >= threshold
+        )
+    }
 }
 
 impl From<Decimal> for SignalValue {

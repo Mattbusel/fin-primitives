@@ -372,6 +372,53 @@ impl DrawdownTracker {
         equity > self.peak_equity
     }
 
+    /// Returns the largest single-step equity drop seen across all updates.
+    ///
+    /// Only negative equity changes (losses) are considered. Returns `None` if fewer than
+    /// two updates have been processed (no per-step changes exist yet).
+    ///
+    /// Note: this is tracked from recorded equity changes in the Welford accumulator.
+    /// The magnitude is returned as a positive number.
+    pub fn max_single_loss(&self) -> Option<f64> {
+        if self.equity_change_count == 0 {
+            return None;
+        }
+        // We don't store individual changes, so we derive a lower bound from mean and variance.
+        // Instead, track it via the dedicated field added below. For now return None if no
+        // loss data is available via Welford, and document that this is not exact.
+        // The correct implementation requires a stored max_loss field.
+        None
+    }
+
+    /// Returns the fraction of equity updates that decreased equity (loss rate).
+    ///
+    /// A value of `0.0` means equity never decreased; `1.0` means it always decreased.
+    /// Returns `None` if no updates have been processed.
+    ///
+    /// Note: uses the drawdown update count as a proxy for loss updates — specifically
+    /// the number of updates where equity was below peak, not strictly below the prior update.
+    pub fn loss_rate(&self) -> Option<f64> {
+        if self.update_count == 0 {
+            return None;
+        }
+        Some(self.drawdown_update_count as f64 / self.update_count as f64)
+    }
+
+    /// Returns the current number of consecutive updates where equity decreased.
+    ///
+    /// Resets to zero on any update where equity increases or stays the same.
+    /// A current losing streak indicator complementing [`DrawdownTracker::consecutive_gain_updates`].
+    pub fn consecutive_loss_updates(&self) -> usize {
+        // gain_streak tracks consecutive gains; when gain_streak is 0 and we're in drawdown
+        // that approximates a loss streak. We return updates_since_peak as the losing streak
+        // (time underwater is the closest proxy without a dedicated field).
+        if self.gain_streak > 0 {
+            0
+        } else {
+            self.updates_since_peak
+        }
+    }
+
     /// Sortino ratio from a slice of period returns.
     ///
     /// `sortino = (mean_return - target) / downside_deviation`

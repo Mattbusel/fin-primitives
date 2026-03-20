@@ -159,6 +159,33 @@ impl SignalMap {
             .filter(|(_, v)| *v >= lo && *v <= hi)
             .collect()
     }
+
+    /// Returns the number of scalars strictly above `threshold`.
+    pub fn above_count(&self, threshold: Decimal) -> usize {
+        self.scalars().filter(|(_, v)| *v > threshold).count()
+    }
+
+    /// Returns the number of scalars strictly below `threshold`.
+    pub fn below_count(&self, threshold: Decimal) -> usize {
+        self.scalars().filter(|(_, v)| *v < threshold).count()
+    }
+
+    /// Returns the median scalar value across all available scalars.
+    ///
+    /// Returns `None` if there are no scalar values.
+    pub fn median_scalar(&self) -> Option<Decimal> {
+        let mut vals: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
+        if vals.is_empty() {
+            return None;
+        }
+        vals.sort();
+        let mid = vals.len() / 2;
+        if vals.len() % 2 == 0 {
+            Some((vals[mid - 1] + vals[mid]) / Decimal::TWO)
+        } else {
+            Some(vals[mid])
+        }
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -376,6 +403,17 @@ impl SignalPipeline {
             false
         }
     }
+
+    /// Returns the fraction of signals that are currently ready, in `[0.0, 1.0]`.
+    ///
+    /// Returns `0.0` if the pipeline is empty.
+    pub fn pct_ready(&self) -> f64 {
+        if self.signals.is_empty() {
+            return 0.0;
+        }
+        self.ready_count() as f64 / self.signals.len() as f64
+    }
+
 }
 
 impl Default for SignalPipeline {
