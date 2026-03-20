@@ -189,6 +189,7 @@ pub mod ema_slope;
 pub mod net_volume;
 pub mod high_low_pct;
 pub mod close_to_open;
+pub mod volatility_adjusted_momentum;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -376,3 +377,4 @@ pub use ema_slope::EmaSlope;
 pub use net_volume::NetVolume;
 pub use high_low_pct::HighLowPct;
 pub use close_to_open::CloseToOpen;
+pub use volatility_adjusted_momentum::VolatilityAdjustedMomentum;
