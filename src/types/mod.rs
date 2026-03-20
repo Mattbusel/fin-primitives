@@ -932,6 +932,18 @@ impl NanoTimestamp {
             .expect("valid date");
         NanoTimestamp::from_datetime(monday_midnight)
     }
+
+    /// Returns `true` if `self` and `other` fall in the same calendar year.
+    pub fn is_same_year(self, other: NanoTimestamp) -> bool {
+        use chrono::Datelike;
+        self.to_datetime().year() == other.to_datetime().year()
+    }
+
+    /// Returns the absolute number of calendar days between two timestamps.
+    pub fn days_between(self, other: NanoTimestamp) -> u64 {
+        let diff_nanos = (self.0 - other.0).unsigned_abs();
+        diff_nanos / 86_400_000_000_000
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

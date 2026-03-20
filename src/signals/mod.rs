@@ -591,6 +591,35 @@ impl SignalValue {
     pub fn ceil(self) -> SignalValue {
         self.map(|v| v.ceil())
     }
+
+    /// Returns `1 / self`. Returns `Unavailable` if the value is zero or `Unavailable`.
+    pub fn reciprocal(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                if v.is_zero() {
+                    SignalValue::Unavailable
+                } else {
+                    SignalValue::Scalar(Decimal::ONE / v)
+                }
+            }
+        }
+    }
+
+    /// Returns `(self / total) * 100`. Returns `Unavailable` if `total` is zero or either
+    /// value is `Unavailable`.
+    pub fn to_percent(self, total: SignalValue) -> SignalValue {
+        match (self, total) {
+            (SignalValue::Scalar(v), SignalValue::Scalar(t)) => {
+                if t.is_zero() {
+                    SignalValue::Unavailable
+                } else {
+                    SignalValue::Scalar(v / t * Decimal::ONE_HUNDRED)
+                }
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

@@ -4885,6 +4885,74 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
+
+    /// Price channel width over last `n` bars as a percentage of the channel low.
+    ///
+    /// `width = (max_high - min_low) / min_low × 100`
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or `min_low` is zero.
+    pub fn price_channel_width(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let max_high = slice.iter().map(|b| b.high.value()).max()?;
+        let min_low = slice.iter().map(|b| b.low.value()).min()?;
+        if min_low.is_zero() { return None; }
+        Some((max_high - min_low) / min_low * Decimal::ONE_HUNDRED)
+    }
+
+    /// Average candle efficiency over last `n` bars.
+    ///
+    /// `efficiency = |close - open| / (high - low)` per bar (0 = all wick, 1 = all body).
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
+    pub fn avg_candle_efficiency(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { return None; }
+            sum += (b.close.value() - b.open.value()).abs() / range;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Total volume on bars that made a new n-bar high.
+    ///
+    /// Counts volume on any bar whose high exceeds all previous bars in the window.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn volume_at_high(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut running_high = slice[0].high.value();
+        let mut total = slice[0].volume.value();
+        for b in &slice[1..] {
+            if b.high.value() > running_high {
+                running_high = b.high.value();
+                total += b.volume.value();
+            }
+        }
+        Some(total)
+    }
+
+    /// Percentage of last `n` bars where close > previous bar's close.
+    ///
+    /// Requires `n + 1` bars. Returns `None` if `n == 0` or insufficient bars.
+    pub fn close_momentum_consistency(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n - 1;
+        let mut up = 0u32;
+        for i in 0..n {
+            if self.bars[start + i + 1].close > self.bars[start + i].close {
+                up += 1;
+            }
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(up) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]
