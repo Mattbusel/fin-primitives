@@ -1212,6 +1212,46 @@ impl PositionLedger {
         if total_cost.is_zero() { return None; }
         Some(total_upnl / total_cost * Decimal::from(100u32))
     }
+
+    /// Returns the symbols of all open positions with positive unrealized P&L at `prices`.
+    ///
+    /// A position is "up" if `unrealized_pnl > 0` at the given prices.
+    pub fn symbols_up<'a>(&'a self, prices: &HashMap<String, Price>) -> Vec<&'a Symbol> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| p.unrealized_pnl(price) > Decimal::ZERO)
+                    .unwrap_or(false)
+            })
+            .map(|p| &p.symbol)
+            .collect()
+    }
+
+    /// Returns the symbols of all open positions with negative unrealized P&L at `prices`.
+    ///
+    /// A position is "down" if `unrealized_pnl < 0` at the given prices.
+    pub fn symbols_down<'a>(&'a self, prices: &HashMap<String, Price>) -> Vec<&'a Symbol> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| p.unrealized_pnl(price) < Decimal::ZERO)
+                    .unwrap_or(false)
+            })
+            .map(|p| &p.symbol)
+            .collect()
+    }
+
+    /// Returns the open position with the largest positive unrealized P&L at `prices`.
+    ///
+    /// Alias for [`PositionLedger::largest_winner`] with a more descriptive name.
+    /// Returns `None` if no positions have positive unrealized PnL.
+    pub fn largest_unrealized_gain<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Position> {
+        self.largest_winner(prices)
+    }
 }
 
 #[cfg(test)]

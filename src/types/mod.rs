@@ -878,6 +878,23 @@ impl NanoTimestamp {
         const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
         NanoTimestamp(self.0 + days * DAY_NANOS)
     }
+
+    /// Returns the day of the year (1 = January 1, 365/366 = December 31).
+    ///
+    /// Uses the UTC calendar. The Unix epoch (1970-01-01) is day 1.
+    pub fn day_of_year(self) -> u16 {
+        use chrono::Datelike;
+        self.to_datetime().ordinal() as u16
+    }
+
+    /// Returns the quarter number: 1 (Jan–Mar), 2 (Apr–Jun), 3 (Jul–Sep), or 4 (Oct–Dec).
+    ///
+    /// Uses the UTC calendar.
+    pub fn quarter(self) -> u8 {
+        use chrono::Datelike;
+        let month = self.to_datetime().month();
+        ((month - 1) / 3 + 1) as u8
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
