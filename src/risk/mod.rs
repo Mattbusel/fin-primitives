@@ -1504,6 +1504,24 @@ impl DrawdownTracker {
         if total == 0 { return None; }
         Some(self.max_gain_streak as f64 / total as f64)
     }
+
+    /// Sample standard deviation of per-update equity changes (Welford online algorithm).
+    /// Returns `None` if fewer than 2 updates have been recorded.
+    pub fn equity_change_std(&self) -> Option<f64> {
+        if self.equity_change_count < 2 { return None; }
+        let variance = self.equity_change_m2 / (self.equity_change_count as f64 - 1.0);
+        Some(variance.sqrt())
+    }
+
+    /// Average loss per loss-update (absolute value). Returns `None` if no losses have been
+    /// recorded.
+    pub fn avg_loss_pct(&self) -> Option<f64> {
+        if self.total_loss_sum == 0.0 || self.update_count == 0 { return None; }
+        let wr: f64 = self.win_rate()?.to_string().parse().ok()?;
+        let loss_count = ((1.0 - wr / 100.0) * self.update_count as f64).round() as usize;
+        if loss_count == 0 { return None; }
+        Some(self.total_loss_sum / loss_count as f64)
+    }
 }
 
 #[cfg(test)]

@@ -514,6 +514,40 @@ impl SignalMap {
     pub fn scale_all(&self, factor: Decimal) -> HashMap<String, Decimal> {
         self.scalars().map(|(name, v)| (name.to_string(), v * factor)).collect()
     }
+
+    /// Shannon entropy (bits) of the scalar distribution, treating each value's share of the
+    /// absolute total as a probability. Returns `None` if there are fewer than 2 scalars or the
+    /// total is zero.
+    pub fn entropy(&self) -> Option<f64> {
+        let vals: Vec<f64> = self.scalars()
+            .map(|(_, v)| v.abs().to_string().parse::<f64>().unwrap_or(0.0))
+            .collect();
+        if vals.len() < 2 { return None; }
+        let total: f64 = vals.iter().sum();
+        if total == 0.0 { return None; }
+        let entropy = vals.iter()
+            .filter(|&&x| x > 0.0)
+            .map(|&x| { let p = x / total; -p * p.log2() })
+            .sum::<f64>();
+        Some(entropy)
+    }
+
+    /// Gini coefficient of the scalar absolute values: 0 = perfect equality, 1 = maximum
+    /// concentration. Returns `None` if there are fewer than 2 scalars.
+    pub fn gini_coefficient(&self) -> Option<f64> {
+        let mut vals: Vec<f64> = self.scalars()
+            .map(|(_, v)| v.abs().to_string().parse::<f64>().unwrap_or(0.0))
+            .collect();
+        if vals.len() < 2 { return None; }
+        vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let n = vals.len() as f64;
+        let total: f64 = vals.iter().sum();
+        if total == 0.0 { return Some(0.0); }
+        let numerator: f64 = vals.iter().enumerate()
+            .map(|(i, &x)| (2.0 * (i as f64 + 1.0) - n - 1.0) * x)
+            .sum();
+        Some(numerator / (n * total))
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

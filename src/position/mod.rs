@@ -1828,6 +1828,32 @@ impl PositionLedger {
             .map(|(sym, _)| sym)
             .collect()
     }
+
+    /// Volume-weighted average entry price across all open long positions. Returns `None` if
+    /// there are no long positions.
+    pub fn avg_long_entry_price(&self) -> Option<Decimal> {
+        let longs: Vec<&Position> = self.positions.values()
+            .filter(|p| p.is_long())
+            .collect();
+        if longs.is_empty() { return None; }
+        let total_qty: Decimal = longs.iter().map(|p| p.quantity.abs()).sum();
+        if total_qty.is_zero() { return None; }
+        let weighted: Decimal = longs.iter().map(|p| p.avg_cost * p.quantity.abs()).sum();
+        Some(weighted / total_qty)
+    }
+
+    /// Volume-weighted average entry price across all open short positions. Returns `None` if
+    /// there are no short positions.
+    pub fn avg_short_entry_price(&self) -> Option<Decimal> {
+        let shorts: Vec<&Position> = self.positions.values()
+            .filter(|p| p.is_short())
+            .collect();
+        if shorts.is_empty() { return None; }
+        let total_qty: Decimal = shorts.iter().map(|p| p.quantity.abs()).sum();
+        if total_qty.is_zero() { return None; }
+        let weighted: Decimal = shorts.iter().map(|p| p.avg_cost * p.quantity.abs()).sum();
+        Some(weighted / total_qty)
+    }
 }
 
 #[cfg(test)]

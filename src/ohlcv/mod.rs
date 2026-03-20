@@ -3239,6 +3239,83 @@ impl OhlcvSeries {
         Some((recent - earlier) / earlier * Decimal::ONE_HUNDRED)
     }
 
+    /// Fraction of the last `n` closes that are above the VWAP over that window.
+    /// Returns `None` if `n` is 0, fewer than `n` bars exist, or total volume is zero.
+    pub fn close_above_vwap_pct(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let window = &self.bars[start..];
+        let total_vol: Decimal = window.iter().map(|b| b.volume.value()).sum();
+        if total_vol.is_zero() { return None; }
+        let vwap = window.iter()
+            .map(|b| b.typical_price() * b.volume.value())
+            .sum::<Decimal>() / total_vol;
+        let above = window.iter().filter(|b| b.close.value() > vwap).count();
+        Some(above as f64 / n as f64 * 100.0)
+    }
+
+    /// Count of direction reversals in the last `n` closes (close switches from up to down or
+    /// vice versa). Returns 0 if `n` < 2 or there are insufficient bars.
+    pub fn reversal_count(&self, n: usize) -> usize {
+        if n < 2 || self.bars.len() < n { return 0; }
+        let start = self.bars.len() - n;
+        self.bars[start..].windows(3)
+            .filter(|w| {
+                let prev_dir = w[1].close.value() > w[0].close.value();
+                let curr_dir = w[2].close.value() > w[1].close.value();
+                prev_dir != curr_dir
+            })
+            .count()
+    }
+
+    /// Percentage of the last `n` bars where a gap open (open != prior close) was filled
+    /// (i.e., price returned to the prior close within the same bar). Returns `None` if `n` is 0
+    /// or there are insufficient bars.
+    pub fn open_gap_fill_rate(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n;
+        let mut gap_count = 0usize;
+        let mut filled = 0usize;
+        for i in start..self.bars.len() {
+            let prior_close = self.bars[i - 1].close.value();
+            let bar = &self.bars[i];
+            let open = bar.open.value();
+            if open == prior_close { continue; }
+            gap_count += 1;
+            let gap_up = open > prior_close;
+            if gap_up && bar.low.value() <= prior_close {
+                filled += 1;
+            } else if !gap_up && bar.high.value() >= prior_close {
+                filled += 1;
+            }
+        }
+        if gap_count == 0 { return None; }
+        Some(filled as f64 / gap_count as f64 * 100.0)
+    }
+
+    /// Average candle symmetry over the last `n` bars: ratio of lower shadow to upper shadow
+    /// where 1.0 means perfectly symmetric. Returns `None` if `n` is 0, fewer than `n` bars
+    /// exist, or no bar has any shadows.
+    pub fn candle_symmetry(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut ratios = Vec::new();
+        for bar in &self.bars[start..] {
+            let body_top = bar.close.value().max(bar.open.value());
+            let body_bot = bar.close.value().min(bar.open.value());
+            let upper = bar.high.value() - body_top;
+            let lower = body_bot - bar.low.value();
+            if upper.is_zero() && lower.is_zero() { continue; }
+            let total = upper + lower;
+            if total.is_zero() { continue; }
+            let ratio: f64 = lower.to_string().parse::<f64>().unwrap_or(0.0)
+                / total.to_string().parse::<f64>().unwrap_or(1.0);
+            ratios.push(ratio);
+        }
+        if ratios.is_empty() { return None; }
+        Some(ratios.iter().sum::<f64>() / ratios.len() as f64)
+    }
+
 }
 
 impl Default for OhlcvSeries {

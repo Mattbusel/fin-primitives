@@ -1147,6 +1147,40 @@ impl NanoTimestamp {
             .unwrap_or(dt);
         NanoTimestamp(new_dt.timestamp_nanos_opt().unwrap_or(self.0))
     }
+
+    /// Returns the `NanoTimestamp` at the start of the current calendar quarter (Jan/Apr/Jul/Oct 1
+    /// 00:00:00.000000000 UTC).
+    pub fn start_of_quarter(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let quarter_start_month = ((dt.month() - 1) / 3) * 3 + 1;
+        chrono::Utc
+            .with_ymd_and_hms(dt.year(), quarter_start_month, 1, 0, 0, 0)
+            .single()
+            .map(|d| NanoTimestamp(d.timestamp_nanos_opt().unwrap_or(self.0)))
+            .unwrap_or(self)
+    }
+
+    /// Returns the `NanoTimestamp` at the last nanosecond of the current calendar quarter.
+    pub fn end_of_quarter(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let quarter_end_month = ((dt.month() - 1) / 3) * 3 + 3;
+        let last_day = days_in_month(dt.year(), quarter_end_month);
+        chrono::Utc
+            .with_ymd_and_hms(dt.year(), quarter_end_month, last_day, 23, 59, 59)
+            .single()
+            .map(|d| NanoTimestamp(d.timestamp_nanos_opt().unwrap_or(self.0) + 999_999_999))
+            .unwrap_or(self)
+    }
+
+    /// Returns `true` if `self` and `other` fall in the same calendar quarter and year.
+    pub fn is_same_quarter(self, other: NanoTimestamp) -> bool {
+        use chrono::{Datelike, TimeZone};
+        let a = chrono::Utc.timestamp_nanos(self.0);
+        let b = chrono::Utc.timestamp_nanos(other.0);
+        a.year() == b.year() && ((a.month() - 1) / 3) == ((b.month() - 1) / 3)
+    }
 }
 
 fn days_in_month(year: i32, month: u32) -> u32 {

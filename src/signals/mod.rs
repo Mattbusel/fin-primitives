@@ -903,6 +903,38 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Round the scalar to the nearest multiple of `step`. Returns `Unavailable` if unavailable
+    /// or `step` is zero.
+    pub fn quantize(self, step: Decimal) -> SignalValue {
+        if step.is_zero() {
+            return SignalValue::Unavailable;
+        }
+        match self {
+            SignalValue::Scalar(v) => SignalValue::Scalar((v / step).round() * step),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Absolute difference between `self` and `other`. Returns `Unavailable` if either is unavailable.
+    pub fn distance_to(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar((a - b).abs()),
+            _ => SignalValue::Unavailable,
+        }
+    }
+
+    /// Weighted blend: `self * (1 - weight) + other * weight`, clamping `weight` to `[0, 1]`.
+    /// Returns `Unavailable` if either operand is unavailable.
+    pub fn blend(self, other: SignalValue, weight: Decimal) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => {
+                let w = weight.max(Decimal::ZERO).min(Decimal::ONE);
+                SignalValue::Scalar(a * (Decimal::ONE - w) + b * w)
+            }
+            _ => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
