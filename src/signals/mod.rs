@@ -692,6 +692,21 @@ impl SignalValue {
             SignalValue::Scalar(v) => SignalValue::Scalar(v.round_dp(dp)),
         }
     }
+
+    /// Returns `true` if this is a `Scalar` with a non-zero value.
+    pub fn to_bool(&self) -> bool {
+        matches!(self, SignalValue::Scalar(v) if !v.is_zero())
+    }
+
+    /// Multiplies the scalar by `factor`, returning the product as a new `SignalValue`.
+    ///
+    /// Returns [`SignalValue::Unavailable`] unchanged.
+    pub fn scale_by(self, factor: rust_decimal::Decimal) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => SignalValue::Scalar(v * factor),
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
