@@ -326,6 +326,23 @@ impl SignalPipeline {
         self.signals.iter().map(|s| (s.name(), s.period())).collect()
     }
 
+    /// Returns a sorted `Vec<&str>` of all registered signal names.
+    pub fn names_sorted(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.signals.iter().map(|s| s.name()).collect();
+        names.sort_unstable();
+        names
+    }
+
+    /// Returns the maximum `period()` across all registered signals, or `0` if the pipeline is empty.
+    pub fn longest_period(&self) -> usize {
+        self.signals.iter().map(|s| s.period()).max().unwrap_or(0)
+    }
+
+    /// Returns the minimum `period()` across all registered signals, or `0` if the pipeline is empty.
+    pub fn shortest_period(&self) -> usize {
+        self.signals.iter().map(|s| s.period()).min().unwrap_or(0)
+    }
+
     /// Removes the signal with the given `name` from the pipeline, returning `true` if found.
     ///
     /// If multiple signals share the same name (not recommended), only the first is removed.
@@ -812,5 +829,32 @@ mod tests {
     fn test_signal_pipeline_signal_periods_empty() {
         let pipeline = SignalPipeline::new();
         assert!(pipeline.signal_periods().is_empty());
+    }
+
+    #[test]
+    fn test_signal_pipeline_names_sorted() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("zzz", 3).unwrap())
+            .add(Ema::new("aaa", 5).unwrap())
+            .add(Rsi::new("mmm", 7).unwrap());
+        let names = pipeline.names_sorted();
+        assert_eq!(names, vec!["aaa", "mmm", "zzz"]);
+    }
+
+    #[test]
+    fn test_signal_pipeline_longest_shortest_period() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("s3", 3).unwrap())
+            .add(Ema::new("e10", 10).unwrap())
+            .add(Rsi::new("r7", 7).unwrap());
+        assert_eq!(pipeline.longest_period(), 10);
+        assert_eq!(pipeline.shortest_period(), 3);
+    }
+
+    #[test]
+    fn test_signal_pipeline_longest_shortest_empty() {
+        let pipeline = SignalPipeline::new();
+        assert_eq!(pipeline.longest_period(), 0);
+        assert_eq!(pipeline.shortest_period(), 0);
     }
 }

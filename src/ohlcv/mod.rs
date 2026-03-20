@@ -3517,6 +3517,134 @@ impl OhlcvSeries {
             .sum();
         Some(sum / Decimal::from(n as u32))
     }
+
+    /// Average `(high + low) / 2` midpoint over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn hl_midpoint(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() + b.low.value()) / Decimal::TWO)
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Ratio of volume on up-bars (`close > open`) to total volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, the series has fewer than `n` bars, or total volume is zero.
+    pub fn up_volume_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let total_vol: Decimal = self.bars[start..].iter().map(|b| b.volume.value()).sum();
+        if total_vol.is_zero() {
+            return None;
+        }
+        let up_vol: Decimal = self.bars[start..]
+            .iter()
+            .filter(|b| b.close > b.open)
+            .map(|b| b.volume.value())
+            .sum();
+        up_vol.checked_div(total_vol)
+    }
+
+    /// Directional efficiency of price movement over the last `n` bars.
+    ///
+    /// `efficiency = |close[-1] − close[-n]| / Σ|close[i] − close[i-1]|`
+    ///
+    /// - 1.0 = perfectly trending (straight line).
+    /// - Near 0 = choppy (path much longer than net displacement).
+    ///
+    /// Returns `None` if `n < 2`, the series has fewer than `n` bars, or total path is zero.
+    pub fn price_efficiency(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let net = (self.bars.last()?.close.value() - self.bars[start].close.value()).abs();
+        let path: Decimal = self.bars[start..]
+            .windows(2)
+            .map(|w| (w[1].close.value() - w[0].close.value()).abs())
+            .sum();
+        if path.is_zero() {
+            return None;
+        }
+        net.checked_div(path)
+    }
+
+    /// Mean absolute gap (`|open[i] − close[i-1]|`) over the last `n` bars.
+    ///
+    /// Measures average overnight jump between bars.
+    /// Returns `None` if `n == 0` or the series has fewer than `n + 1` bars
+    /// (need one prior bar for each gap).
+    pub fn avg_gap(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = (start..self.bars.len())
+            .map(|i| (self.bars[i].open.value() - self.bars[i - 1].close.value()).abs())
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Length of the longest run of consecutive higher closes within the last `n` bars.
+    ///
+    /// A "higher close" means `close[i] > close[i-1]`.  The run is computed across
+    /// consecutive comparisons (not against a fixed baseline).
+    ///
+    /// Returns `None` if `n < 2` or the series has fewer than `n` bars.
+    pub fn consecutive_higher_closes(&self, n: usize) -> Option<usize> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut max_run = 0usize;
+        let mut cur_run = 0usize;
+        for i in (start + 1)..self.bars.len() {
+            if self.bars[i].close > self.bars[i - 1].close {
+                cur_run += 1;
+                if cur_run > max_run { max_run = cur_run; }
+            } else {
+                cur_run = 0;
+            }
+        }
+        Some(max_run)
+    }
+
+    /// Volume-weighted average return over the last `n` bars.
+    ///
+    /// `return[i] = (close[i] - close[i-1]) / close[i-1]`; each return is weighted by
+    /// the volume of bar `i`.  Bars with zero prior close are excluded from the sum.
+    ///
+    /// Returns `None` if `n < 2`, the series has fewer than `n` bars, or total volume is zero.
+    pub fn volume_weighted_return(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut vol_return_sum = Decimal::ZERO;
+        let mut vol_sum = Decimal::ZERO;
+        for i in (start + 1)..self.bars.len() {
+            let prev_close = self.bars[i - 1].close.value();
+            if prev_close.is_zero() { continue; }
+            let ret = (self.bars[i].close.value() - prev_close) / prev_close;
+            let vol = self.bars[i].volume.value();
+            vol_return_sum += ret * vol;
+            vol_sum += vol;
+        }
+        if vol_sum.is_zero() {
+            return None;
+        }
+        Some(vol_return_sum / vol_sum)
+    }
 }
 
 #[cfg(test)]

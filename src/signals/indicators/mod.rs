@@ -89,6 +89,9 @@ pub mod linreg_slope;
 pub mod kaufman_er;
 pub mod zscore;
 pub mod pmo;
+pub mod smi;
+pub mod rwi;
+pub mod roc_ratio;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -176,3 +179,6 @@ pub use linreg_slope::LinRegSlope;
 pub use kaufman_er::KaufmanEr;
 pub use zscore::Zscore;
 pub use pmo::Pmo;
+pub use smi::Smi;
+pub use rwi::Rwi;
+pub use roc_ratio::RocRatio;
