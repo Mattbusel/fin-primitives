@@ -415,6 +415,23 @@ impl SignalMap {
             .map(|(name, v)| (name.to_string(), (v - min) / range))
             .collect()
     }
+
+    /// Count of scalar values strictly greater than zero.
+    pub fn count_positive(&self) -> usize {
+        self.scalars().filter(|(_, v)| v > &Decimal::ZERO).count()
+    }
+
+    /// Population variance of all scalar values.
+    ///
+    /// Returns `None` if there are fewer than 2 scalars.
+    pub fn variance(&self) -> Option<Decimal> {
+        let vals: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
+        if vals.len() < 2 { return None; }
+        let n = Decimal::from(vals.len() as u32);
+        let mean = vals.iter().sum::<Decimal>() / n;
+        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<Decimal>() / n;
+        Some(var)
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

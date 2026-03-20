@@ -1690,6 +1690,49 @@ impl PositionLedger {
             .map(|(sym, _)| sym)
             .collect()
     }
+
+    /// Herfindahl-Hirschman Index of notional exposure: `Σ w_i²` where `w_i = |notional_i| / Σ|notional|`.
+    ///
+    /// Returns `1.0` (full concentration) for a single position.
+    /// Returns `None` if there are no open positions with available prices.
+    pub fn concentration_ratio(&self, prices: &HashMap<String, Price>) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        let notionals: Vec<Decimal> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&pr| (p.quantity * pr.value()).abs())
+            })
+            .collect();
+        if notionals.is_empty() { return None; }
+        let total: Decimal = notionals.iter().sum();
+        if total.is_zero() { return None; }
+        let hhi: f64 = notionals.iter()
+            .filter_map(|n| (n / total).to_f64())
+            .map(|w| w * w)
+            .sum();
+        Some(hhi)
+    }
+
+    /// Minimum unrealized P&L across all open positions.
+    ///
+    /// Returns `None` if there are no open positions with a known price.
+    pub fn min_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .min_by(|a, b| a.cmp(b))
+    }
+
+    /// Percentage of non-flat positions that are long (quantity > 0).
+    ///
+    /// Returns `None` if there are no open positions.
+    pub fn pct_long(&self) -> Option<Decimal> {
+        let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
+        if open.is_empty() { return None; }
+        let longs = open.iter().filter(|p| p.quantity > Decimal::ZERO).count() as u32;
+        Some(Decimal::from(longs) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

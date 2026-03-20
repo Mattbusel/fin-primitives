@@ -5763,6 +5763,73 @@ impl OhlcvSeries {
         let last_open = self.bars.last()?.open.value();
         Some((last_open - min_low) / range)
     }
+
+    /// Count of bars in last `n` where `|open - prev_close| / prev_close >= threshold_pct / 100`.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n+1` bars exist.
+    pub fn overnight_gap_count(&self, n: usize, threshold_pct: Decimal) -> Option<usize> {
+        if n < 2 || self.bars.len() <= n { return None; }
+        let start = self.bars.len() - n;
+        let threshold = threshold_pct / Decimal::ONE_HUNDRED;
+        let count = self.bars[start..].iter().enumerate().filter(|(i, b)| {
+            let prev_close = self.bars[start + i - 1].close.value();
+            if prev_close.is_zero() { return false; }
+            let gap = (b.open.value() - prev_close).abs() / prev_close;
+            gap >= threshold
+        }).count();
+        Some(count)
+    }
+
+    /// Fraction of bars in the last `n` where close direction matches the overall n-bar trend.
+    ///
+    /// Overall trend is up if `close[-1] > close[-n]`, down if < , flat otherwise.
+    /// Returns `None` if `n < 2` or fewer than `n` bars.
+    pub fn trend_consistency(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let first_close = self.bars[start].close.value();
+        let last_close = self.bars.last()?.close.value();
+        if first_close == last_close { return Some(Decimal::ZERO); }
+        let up_trend = last_close > first_close;
+        let consistent: usize = self.bars[start + 1..].iter().enumerate()
+            .filter(|(i, b)| {
+                let prev = self.bars[start + i].close.value();
+                if up_trend { b.close.value() > prev } else { b.close.value() < prev }
+            })
+            .count();
+        Some(Decimal::from(consistent) / Decimal::from(n - 1))
+    }
+
+    /// The close price of the most recent bar.
+    pub fn last_close(&self) -> Option<Decimal> {
+        self.bars.last().map(|b| b.close.value())
+    }
+
+    /// The close price of the earliest bar.
+    pub fn first_close(&self) -> Option<Decimal> {
+        self.bars.first().map(|b| b.close.value())
+    }
+
+    /// Absolute close price change between the bar `n` bars ago and the latest bar.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars exist.
+    pub fn close_change_n(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n { return None; }
+        let prev = self.bars[self.bars.len() - 1 - n].close.value();
+        let last = self.bars.last()?.close.value();
+        Some(last - prev)
+    }
+
+    /// Percentage close price change over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars exist or the reference close is zero.
+    pub fn pct_change_n(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() <= n { return None; }
+        let prev = self.bars[self.bars.len() - 1 - n].close.value();
+        if prev.is_zero() { return None; }
+        let last = self.bars.last()?.close.value();
+        Some((last - prev) / prev * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

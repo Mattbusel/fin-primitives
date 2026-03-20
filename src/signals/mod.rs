@@ -783,6 +783,26 @@ impl SignalValue {
             _ => false,
         }
     }
+
+    /// Returns `true` if `self` is a scalar strictly less than `other`.
+    ///
+    /// Returns `false` if either operand is `Unavailable`.
+    pub fn lt(&self, other: &SignalValue) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => a < b,
+            _ => false,
+        }
+    }
+
+    /// Returns `true` if both are scalars and `|self - other| <= tolerance`.
+    ///
+    /// Returns `false` if either is `Unavailable`.
+    pub fn eq_approx(&self, other: &SignalValue, tolerance: Decimal) -> bool {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => (a - b).abs() <= tolerance,
+            _ => false,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

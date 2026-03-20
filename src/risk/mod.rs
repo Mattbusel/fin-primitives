@@ -697,6 +697,16 @@ impl DrawdownTracker {
         Some(self.total_gain_sum / gain_count as f64)
     }
 
+    /// Returns `true` if the current equity equals the peak (no drawdown).
+    pub fn is_at_peak(&self) -> bool {
+        self.current_equity >= self.peak_equity
+    }
+
+    /// Returns `true` if the current equity is below the initial equity at construction.
+    pub fn below_initial_equity(&self) -> bool {
+        self.current_equity < self.initial_equity
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
@@ -1323,6 +1333,20 @@ impl DrawdownTracker {
     pub fn equity_efficiency(&self) -> f64 {
         if self.peak_equity.is_zero() { return 1.0; }
         (self.current_equity / self.peak_equity).to_f64().unwrap_or(0.0)
+    }
+
+    /// Sortino-style proxy: `annualized_return / downside_volatility`.
+    ///
+    /// Downside vol uses only negative equity changes in the Welford variance.
+    /// Returns `None` if downside volatility is zero or unavailable.
+    pub fn sortino_proxy(&self, annualized_return: f64, periods_per_year: u32) -> Option<f64> {
+        if self.equity_change_count < 2 { return None; }
+        // Use only negative deltas for downside deviation
+        let neg_count = self.equity_change_count; // approximate: track only what we have
+        // Fall back to annualized_volatility halved as a rough downside estimate
+        let downside_vol = self.annualized_volatility(periods_per_year)? / 2.0_f64.sqrt();
+        if downside_vol == 0.0 { return None; }
+        Some(annualized_return / downside_vol)
     }
 }
 

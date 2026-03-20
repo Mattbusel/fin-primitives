@@ -1057,6 +1057,18 @@ impl NanoTimestamp {
         const NANOS_PER_HOUR: i64 = 3_600 * 1_000_000_000;
         NanoTimestamp(self.0 - hours * NANOS_PER_HOUR)
     }
+
+    /// Shifts the timestamp backward by `weeks` weeks.
+    pub fn sub_weeks(&self, weeks: i64) -> NanoTimestamp {
+        const NANOS_PER_WEEK: i64 = 7 * 24 * 3_600 * 1_000_000_000;
+        NanoTimestamp(self.0 - weeks * NANOS_PER_WEEK)
+    }
+
+    /// Shifts the timestamp backward by `secs` seconds.
+    pub fn sub_seconds(&self, secs: i64) -> NanoTimestamp {
+        const NANOS_PER_SECOND: i64 = 1_000_000_000;
+        NanoTimestamp(self.0 - secs * NANOS_PER_SECOND)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
