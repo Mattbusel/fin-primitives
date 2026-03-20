@@ -7370,6 +7370,106 @@ impl OhlcvSeries {
         sum.checked_div(Decimal::from(count))
     }
 
+    /// Average upper shadow fraction — mean of  over  bars.
+    /// Returns  if  or fewer than  bars are available.
+    pub fn avg_upper_shadow_fraction(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::Zero;
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let sum: Decimal = bars.iter().map(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { Decimal::ZERO }
+            else {
+                let body_hi = b.close.value().max(b.open.value());
+                (b.high.value() - body_hi) / range
+            }
+        }).sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Average lower shadow fraction — mean of  over  bars.
+    /// Returns  if  or fewer than  bars are available.
+    pub fn avg_lower_shadow_fraction(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::Zero;
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let sum: Decimal = bars.iter().map(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { Decimal::ZERO }
+            else {
+                let body_lo = b.close.value().min(b.open.value());
+                (body_lo - b.low.value()) / range
+            }
+        }).sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Average intrabar return — mean of  over  bars.
+    /// Bars with zero open are excluded. Returns  if none qualify.
+    pub fn avg_intrabar_return(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
+            if b.open.value().is_zero() { None }
+            else {
+                Some((b.close.value() - b.open.value()) / b.open.value() * Decimal::ONE_HUNDRED)
+            }
+        }).collect();
+        if vals.is_empty() { return None; }
+        let sum: Decimal = vals.iter().sum();
+        Some(sum / Decimal::from(vals.len() as u32))
+    }
+
+    /// Average close position in range — mean of  over  bars.
+    /// Bars with zero range use 0.5. Returns  if fewer than  bars available.
+    pub fn avg_close_position(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::Zero;
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let half = Decimal::new(5, 1);
+        let sum: Decimal = bars.iter().map(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { half }
+            else { (b.close.value() - b.low.value()) / range }
+        }).sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Shadow imbalance average — mean of  over  bars.
+    /// Bars with zero range contribute 0. Returns  if fewer than  bars available.
+    pub fn avg_shadow_imbalance(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::Zero;
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let sum: Decimal = bars.iter().map(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { Decimal::ZERO }
+            else {
+                let body_hi = b.close.value().max(b.open.value());
+                let body_lo = b.close.value().min(b.open.value());
+                let upper = b.high.value() - body_hi;
+                let lower = body_lo - b.low.value();
+                (upper - lower) / range
+            }
+        }).sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Average normalized range — mean of  over  bars.
+    /// Bars with zero close are excluded. Returns  if none qualify.
+    pub fn avg_normalized_range(&self, n: usize) -> Option<Decimal> {
+        use rust_decimal::prelude::Zero;
+        if n == 0 || self.bars.len() < n { return None; }
+        let bars = &self.bars[self.bars.len() - n..];
+        let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
+            if b.close.value().is_zero() { None }
+            else { Some((b.high.value() - b.low.value()) / b.close.value()) }
+        }).collect();
+        if vals.is_empty() { return None; }
+        let sum: Decimal = vals.iter().sum();
+        Some(sum / Decimal::from(vals.len() as u32))
+    }
+
 }
 
 #[cfg(test)]
