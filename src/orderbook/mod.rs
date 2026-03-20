@@ -294,6 +294,18 @@ impl OrderBook {
         self.asks.clear();
         self.sequence = 0;
     }
+
+    /// Returns `true` if the book is currently in a crossed (inverted) state.
+    ///
+    /// A book is crossed when `best_bid >= best_ask`. Under normal operation this
+    /// is always `false` since `apply_delta` rejects crossing deltas.
+    /// Provided for diagnostic / assertion use.
+    pub fn is_crossed(&self) -> bool {
+        match (self.best_bid(), self.best_ask()) {
+            (Some(bid), Some(ask)) => bid.price >= ask.price,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

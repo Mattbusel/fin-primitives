@@ -120,6 +120,16 @@ impl SignalPipeline {
     pub fn ready_count(&self) -> usize {
         self.signals.iter().filter(|s| s.is_ready()).count()
     }
+
+    /// Resets all registered signals to their initial (warm-up) state.
+    ///
+    /// Equivalent to calling `signal.reset()` on each registered signal.
+    /// Useful for walk-forward backtesting without rebuilding the pipeline.
+    pub fn reset(&mut self) {
+        for signal in &mut self.signals {
+            signal.reset();
+        }
+    }
 }
 
 impl Default for SignalPipeline {

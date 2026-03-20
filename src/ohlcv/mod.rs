@@ -87,6 +87,15 @@ impl OhlcvBar {
         self.high.value() - self.low.value()
     }
 
+    /// Returns the HLCC/4 price: `(high + low + close + close) / 4`.
+    ///
+    /// Weights the close price twice, giving it more significance than the
+    /// typical price. Commonly used as a weighted price reference.
+    pub fn hlcc4(&self) -> Decimal {
+        (self.high.value() + self.low.value() + self.close.value() + self.close.value())
+            / Decimal::from(4u32)
+    }
+
     /// Returns `true` if `close >= open`.
     pub fn is_bullish(&self) -> bool {
         self.close.value() >= self.open.value()
@@ -125,6 +134,36 @@ impl OhlcvBar {
             return None;
         }
         Some(self.body_size() / r)
+    }
+
+    /// Returns the upper shadow length: `high - max(open, close)`.
+    pub fn upper_shadow(&self) -> Decimal {
+        let body_top = self.open.value().max(self.close.value());
+        self.high.value() - body_top
+    }
+
+    /// Returns the lower shadow length: `min(open, close) - low`.
+    pub fn lower_shadow(&self) -> Decimal {
+        let body_bottom = self.open.value().min(self.close.value());
+        body_bottom - self.low.value()
+    }
+
+    /// Creates a single-tick OHLCV bar from a `Tick`.
+    ///
+    /// All price fields are set to the tick's price, volume to the tick's quantity,
+    /// and both timestamps to the tick's timestamp.
+    pub fn from_tick(tick: &Tick) -> Self {
+        Self {
+            symbol: tick.symbol.clone(),
+            open: tick.price,
+            high: tick.price,
+            low: tick.price,
+            close: tick.price,
+            volume: tick.quantity,
+            ts_open: tick.timestamp,
+            ts_close: tick.timestamp,
+            tick_count: 1,
+        }
     }
 }
 
@@ -376,6 +415,11 @@ impl OhlcvSeries {
         self.bars.get(index)
     }
 
+    /// Returns the oldest (first inserted) bar, or `None` if empty.
+    pub fn first(&self) -> Option<&OhlcvBar> {
+        self.bars.first()
+    }
+
     /// Returns the most recent bar, or `None` if empty.
     pub fn last(&self) -> Option<&OhlcvBar> {
         self.bars.last()
@@ -424,6 +468,29 @@ impl OhlcvSeries {
     /// Returns a `Vec` of typical prices `(high + low + close) / 3` in series order.
     pub fn typical_prices(&self) -> Vec<Decimal> {
         self.bars.iter().map(|b| b.typical_price()).collect()
+    }
+
+    /// Returns a direct slice of all bars in insertion order.
+    pub fn bars(&self) -> &[OhlcvBar] {
+        &self.bars
+    }
+
+    /// Returns the maximum high price across all bars, or `None` if empty.
+    pub fn max_high(&self) -> Option<Decimal> {
+        self.bars.iter().map(|b| b.high.value()).reduce(Decimal::max)
+    }
+
+    /// Returns the minimum low price across all bars, or `None` if empty.
+    pub fn min_low(&self) -> Option<Decimal> {
+        self.bars.iter().map(|b| b.low.value()).reduce(Decimal::min)
+    }
+
+    /// Returns a sub-slice `bars[from..to]`, or `None` if the range is out of bounds.
+    pub fn slice(&self, from: usize, to: usize) -> Option<&[OhlcvBar]> {
+        if from > to || to > self.bars.len() {
+            return None;
+        }
+        Some(&self.bars[from..to])
     }
 }
 

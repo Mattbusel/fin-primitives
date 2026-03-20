@@ -135,6 +135,13 @@ impl Price {
     pub fn to_f64(&self) -> f64 {
         rust_decimal::prelude::ToPrimitive::to_f64(&self.0).unwrap_or(f64::NAN)
     }
+
+    /// Constructs a `Price` from an `f64`. Returns `None` if `f` is not finite or `<= 0`.
+    pub fn from_f64(f: f64) -> Option<Self> {
+        use rust_decimal::prelude::FromPrimitive;
+        let d = Decimal::from_f64(f)?;
+        Self::new(d).ok()
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -219,6 +226,13 @@ impl Quantity {
     /// Converts to `f64` with possible precision loss.
     pub fn to_f64(&self) -> f64 {
         rust_decimal::prelude::ToPrimitive::to_f64(&self.0).unwrap_or(f64::NAN)
+    }
+
+    /// Constructs a `Quantity` from an `f64`. Returns `None` if `f` is not finite or `< 0`.
+    pub fn from_f64(f: f64) -> Option<Self> {
+        use rust_decimal::prelude::FromPrimitive;
+        let d = Decimal::from_f64(f)?;
+        Self::new(d).ok()
     }
 }
 
@@ -309,6 +323,26 @@ impl NanoTimestamp {
         NanoTimestamp(self.0 + nanos)
     }
 
+    /// Returns a new `NanoTimestamp` offset by `ms` milliseconds.
+    pub fn add_millis(&self, ms: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + ms * 1_000_000)
+    }
+
+    /// Returns a new `NanoTimestamp` offset by `secs` seconds.
+    pub fn add_seconds(&self, secs: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + secs * 1_000_000_000)
+    }
+
+    /// Returns `true` if `self` is strictly earlier than `other`.
+    pub fn is_before(&self, other: NanoTimestamp) -> bool {
+        self.0 < other.0
+    }
+
+    /// Returns `true` if `self` is strictly later than `other`.
+    pub fn is_after(&self, other: NanoTimestamp) -> bool {
+        self.0 > other.0
+    }
+
     /// Constructs a `NanoTimestamp` from a [`DateTime<Utc>`].
     ///
     /// Falls back to `0` if the datetime is outside the representable nanosecond range.
@@ -326,6 +360,30 @@ impl NanoTimestamp {
                 .single()
                 .unwrap_or(DateTime::<Utc>::MIN_UTC)
         })
+    }
+}
+
+/// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
+impl std::ops::Add<i64> for NanoTimestamp {
+    type Output = NanoTimestamp;
+    fn add(self, rhs: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + rhs)
+    }
+}
+
+/// `NanoTimestamp - i64` shifts the timestamp backward by `nanos` nanoseconds.
+impl std::ops::Sub<i64> for NanoTimestamp {
+    type Output = NanoTimestamp;
+    fn sub(self, rhs: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 - rhs)
+    }
+}
+
+/// `NanoTimestamp - NanoTimestamp` returns the signed nanosecond difference.
+impl std::ops::Sub<NanoTimestamp> for NanoTimestamp {
+    type Output = i64;
+    fn sub(self, rhs: NanoTimestamp) -> i64 {
+        self.0 - rhs.0
     }
 }
 
@@ -630,5 +688,60 @@ mod tests {
     fn test_quantity_to_f64() {
         let q = Quantity::new(dec!(42)).unwrap();
         assert!((q.to_f64() - 42.0_f64).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_price_from_f64_valid() {
+        let p = Price::from_f64(42.5).unwrap();
+        assert!((p.to_f64() - 42.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_price_from_f64_zero_returns_none() {
+        assert!(Price::from_f64(0.0).is_none());
+    }
+
+    #[test]
+    fn test_price_from_f64_negative_returns_none() {
+        assert!(Price::from_f64(-1.0).is_none());
+    }
+
+    #[test]
+    fn test_quantity_from_f64_valid() {
+        let q = Quantity::from_f64(10.0).unwrap();
+        assert!((q.to_f64() - 10.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_quantity_from_f64_zero_valid() {
+        let q = Quantity::from_f64(0.0).unwrap();
+        assert!(q.is_zero());
+    }
+
+    #[test]
+    fn test_quantity_from_f64_negative_returns_none() {
+        assert!(Quantity::from_f64(-1.0).is_none());
+    }
+
+    #[test]
+    fn test_nano_timestamp_add_millis() {
+        let ts = NanoTimestamp::new(0);
+        assert_eq!(ts.add_millis(1).nanos(), 1_000_000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_add_seconds() {
+        let ts = NanoTimestamp::new(0);
+        assert_eq!(ts.add_seconds(2).nanos(), 2_000_000_000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_is_before_after() {
+        let a = NanoTimestamp::new(1_000);
+        let b = NanoTimestamp::new(2_000);
+        assert!(a.is_before(b));
+        assert!(b.is_after(a));
+        assert!(!a.is_after(b));
+        assert!(!b.is_before(a));
     }
 }

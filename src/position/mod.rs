@@ -19,7 +19,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 /// A single trade execution event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Fill {
     /// The instrument traded.
     pub symbol: Symbol,
@@ -203,6 +203,16 @@ impl PositionLedger {
     /// Returns an iterator over all tracked positions.
     pub fn positions(&self) -> impl Iterator<Item = &Position> {
         self.positions.values()
+    }
+
+    /// Returns an iterator over the symbols being tracked by this ledger.
+    pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.positions.keys()
+    }
+
+    /// Returns the number of non-flat (open) positions.
+    pub fn open_position_count(&self) -> usize {
+        self.positions.values().filter(|p| !p.is_flat()).count()
     }
 
     /// Returns the total market value of all open positions given a price map.

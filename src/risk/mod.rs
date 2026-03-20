@@ -196,6 +196,14 @@ impl RiskMonitor {
     pub fn rule_count(&self) -> usize {
         self.rules.len()
     }
+
+    /// Resets the drawdown peak to the current equity.
+    ///
+    /// Delegates to [`DrawdownTracker::reset_peak`]. Useful at session boundaries
+    /// when you want drawdown measured from the current level, not the all-time high.
+    pub fn reset_peak(&mut self) {
+        self.tracker.reset_peak();
+    }
 }
 
 #[cfg(test)]
