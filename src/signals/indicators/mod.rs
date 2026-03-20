@@ -985,3 +985,7 @@ pub mod price_gravity;
 pub use price_gravity::PriceGravity;
 pub mod return_sign_changes;
 pub use return_sign_changes::ReturnSignChanges;
+pub mod close_to_open_gap;
+pub use close_to_open_gap::CloseToOpenGap;
+pub mod high_low_return_correlation;
+pub use high_low_return_correlation::HighLowReturnCorrelation;

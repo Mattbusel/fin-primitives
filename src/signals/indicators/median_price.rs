@@ -49,7 +49,7 @@ impl Signal for MedianPrice {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let mid = (bar.high + bar.low) / Decimal::from(2u32);
+        let mid = bar.midpoint();
         self.midpoints.push_back(mid);
         if self.midpoints.len() > self.period { self.midpoints.pop_front(); }
         if self.midpoints.len() < self.period { return Ok(SignalValue::Unavailable); }

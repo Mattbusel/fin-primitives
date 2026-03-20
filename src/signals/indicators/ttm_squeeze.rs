@@ -133,7 +133,7 @@ impl Signal for TtmSqueeze {
         // Momentum: distance of midpoint of (high+low)/2 from SMA, relative to period high/low midpoint
         let period_high = self.highs.iter().cloned().max().unwrap_or(bar.high);
         let period_low = self.lows.iter().cloned().min().unwrap_or(bar.low);
-        let mid = (bar.high + bar.low) / Decimal::from(2u32);
+        let mid = bar.midpoint();
         let delta = bar.close - (period_high + period_low) / Decimal::from(2u32);
         let momentum = (mid - sma + delta) / Decimal::from(2u32);
 

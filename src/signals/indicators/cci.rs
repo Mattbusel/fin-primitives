@@ -61,7 +61,7 @@ impl Signal for Cci {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tp = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+        let tp = bar.typical_price();
         self.typical_prices.push_back(tp);
         if self.typical_prices.len() > self.period {
             self.typical_prices.pop_front();

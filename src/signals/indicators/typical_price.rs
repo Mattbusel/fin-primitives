@@ -50,7 +50,7 @@ impl Signal for TypicalPriceMa {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tp = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+        let tp = bar.typical_price();
         self.typicals.push_back(tp);
         if self.typicals.len() > self.period { self.typicals.pop_front(); }
         if self.typicals.len() < self.period { return Ok(SignalValue::Unavailable); }

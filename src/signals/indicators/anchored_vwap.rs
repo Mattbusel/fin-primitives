@@ -48,7 +48,7 @@ impl Signal for AnchoredVwap {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if bar.volume > Decimal::ZERO {
-            let tp = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+            let tp = bar.typical_price();
             self.cum_tp_vol += tp * bar.volume;
             self.cum_vol += bar.volume;
         }

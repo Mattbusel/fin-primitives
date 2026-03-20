@@ -61,7 +61,7 @@ impl Signal for Mfi {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tp = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+        let tp = bar.typical_price();
         let raw_mf = tp * bar.volume;
 
         if let Some(prev) = self.prev_tp {

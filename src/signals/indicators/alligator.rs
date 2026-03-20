@@ -97,7 +97,7 @@ impl Signal for Alligator {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Use median price (H+L+C)/3 as input
-        let price = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+        let price = bar.typical_price();
 
         Self::smma_step(&mut self.lips_seed, &mut self.lips, self.lips_alpha, price, 5);
         Self::smma_step(&mut self.teeth_seed, &mut self.teeth, self.teeth_alpha, price, 8);

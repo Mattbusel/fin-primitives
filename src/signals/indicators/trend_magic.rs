@@ -122,7 +122,7 @@ impl Signal for TrendMagic {
     fn is_ready(&self) -> bool { self.bullish.is_some() }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tp = (bar.high + bar.low + bar.close) / Decimal::from(3u32);
+        let tp = bar.typical_price();
         self.typical_prices.push_back(tp);
         if self.typical_prices.len() > self.cci_period { self.typical_prices.pop_front(); }
         self.highs.push_back(bar.high);
