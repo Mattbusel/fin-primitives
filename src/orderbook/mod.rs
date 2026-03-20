@@ -270,6 +270,14 @@ impl OrderBook {
         self.sequence
     }
 
+    /// Returns the top `n` bid and ask levels as a snapshot.
+    ///
+    /// Returns `(bids, asks)` where bids are in descending price order and
+    /// asks are in ascending price order.
+    pub fn snapshot(&self, n: usize) -> (Vec<PriceLevel>, Vec<PriceLevel>) {
+        (self.top_bids(n), self.top_asks(n))
+    }
+
     /// Returns the number of bid price levels.
     pub fn bid_count(&self) -> usize {
         self.bids.len()
@@ -626,5 +634,27 @@ mod tests {
     fn test_empty_book_spread_returns_none() {
         let book = make_book();
         assert!(book.spread().is_none());
+    }
+
+    #[test]
+    fn test_orderbook_snapshot_returns_top_n_both_sides() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "99", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 2)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "3", 3)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "7", 4)).unwrap();
+        let (bids, asks) = book.snapshot(2);
+        assert_eq!(bids.len(), 2);
+        assert_eq!(asks.len(), 2);
+        assert_eq!(bids[0].price.value(), dec!(100));
+        assert_eq!(asks[0].price.value(), dec!(101));
+    }
+
+    #[test]
+    fn test_orderbook_snapshot_empty_book() {
+        let book = make_book();
+        let (bids, asks) = book.snapshot(5);
+        assert!(bids.is_empty());
+        assert!(asks.is_empty());
     }
 }

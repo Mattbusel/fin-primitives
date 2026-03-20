@@ -84,6 +84,22 @@ impl std::borrow::Borrow<str> for Symbol {
     }
 }
 
+impl TryFrom<String> for Symbol {
+    type Error = FinError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Symbol::new(s)
+    }
+}
+
+impl TryFrom<&str> for Symbol {
+    type Error = FinError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Symbol::new(s)
+    }
+}
+
 /// A strictly positive price value backed by [`Decimal`].
 ///
 /// # Example
@@ -276,6 +292,13 @@ impl NanoTimestamp {
     /// Positive when `self` is later than `other`, negative when earlier.
     pub fn duration_since(&self, other: NanoTimestamp) -> i64 {
         self.0 - other.0
+    }
+
+    /// Constructs a `NanoTimestamp` from a [`DateTime<Utc>`].
+    ///
+    /// Falls back to `0` if the datetime is outside the representable nanosecond range.
+    pub fn from_datetime(dt: DateTime<Utc>) -> Self {
+        Self(dt.timestamp_nanos_opt().unwrap_or(0))
     }
 
     /// Converts this timestamp to a [`DateTime<Utc>`].
@@ -515,5 +538,69 @@ mod tests {
     fn test_nano_timestamp_nanos_roundtrip() {
         let ts = NanoTimestamp::new(42_000_000);
         assert_eq!(ts.nanos(), 42_000_000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_duration_since_positive() {
+        let a = NanoTimestamp::new(1_000);
+        let b = NanoTimestamp::new(600);
+        assert_eq!(a.duration_since(b), 400);
+    }
+
+    #[test]
+    fn test_nano_timestamp_duration_since_negative() {
+        let a = NanoTimestamp::new(500);
+        let b = NanoTimestamp::new(1_000);
+        assert_eq!(a.duration_since(b), -500);
+    }
+
+    #[test]
+    fn test_symbol_len() {
+        let sym = Symbol::new("AAPL").unwrap();
+        assert_eq!(sym.len(), 4);
+    }
+
+    #[test]
+    fn test_symbol_is_empty_always_false() {
+        let sym = Symbol::new("X").unwrap();
+        assert!(!sym.is_empty());
+    }
+
+    #[test]
+    fn test_symbol_try_from_string_valid() {
+        let sym = Symbol::try_from("AAPL".to_owned()).unwrap();
+        assert_eq!(sym.as_str(), "AAPL");
+    }
+
+    #[test]
+    fn test_symbol_try_from_str_valid() {
+        let sym = Symbol::try_from("ETH").unwrap();
+        assert_eq!(sym.as_str(), "ETH");
+    }
+
+    #[test]
+    fn test_symbol_try_from_empty_fails() {
+        assert!(Symbol::try_from("").is_err());
+    }
+
+    #[test]
+    fn test_symbol_try_from_whitespace_fails() {
+        assert!(Symbol::try_from("BTC USD").is_err());
+    }
+
+    #[test]
+    fn test_nano_timestamp_from_datetime_roundtrip() {
+        let original = NanoTimestamp::new(1_700_000_000_000_000_000_i64);
+        let dt = original.to_datetime();
+        let recovered = NanoTimestamp::from_datetime(dt);
+        assert_eq!(recovered.nanos(), original.nanos());
+    }
+
+    #[test]
+    fn test_nano_timestamp_from_datetime_epoch() {
+        use chrono::Utc;
+        let epoch = Utc.timestamp_opt(0, 0).single().unwrap();
+        let ts = NanoTimestamp::from_datetime(epoch);
+        assert_eq!(ts.nanos(), 0);
     }
 }

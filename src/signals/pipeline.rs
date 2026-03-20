@@ -81,6 +81,16 @@ impl SignalPipeline {
         SignalMap { values, errors }
     }
 
+    /// Returns an iterator over the names of all registered signals in insertion order.
+    pub fn signal_names(&self) -> impl Iterator<Item = &str> {
+        self.signals.iter().map(|s| s.name())
+    }
+
+    /// Returns the total number of registered signals.
+    pub fn signal_count(&self) -> usize {
+        self.signals.len()
+    }
+
     /// Returns the number of signals that are currently ready.
     pub fn ready_count(&self) -> usize {
         self.signals.iter().filter(|s| s.is_ready()).count()
@@ -149,6 +159,23 @@ mod tests {
         let map = pipeline.update(&bar("100"));
         assert!(map.get("any").is_none());
         assert!(!map.has_errors());
+    }
+
+    #[test]
+    fn test_signal_pipeline_signal_names() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
+        let names: Vec<&str> = pipeline.signal_names().collect();
+        assert_eq!(names, vec!["sma3", "ema5"]);
+    }
+
+    #[test]
+    fn test_signal_pipeline_signal_count() {
+        let pipeline = SignalPipeline::new()
+            .add(Sma::new("a", 2).unwrap())
+            .add(Rsi::new("b", 3).unwrap());
+        assert_eq!(pipeline.signal_count(), 2);
     }
 
     #[test]

@@ -114,6 +114,14 @@ impl Position {
         self.quantity * (current_price.value() - self.avg_cost)
     }
 
+    /// Returns unrealized P&L at `current_price`, returning `Err` on arithmetic overflow.
+    pub fn checked_unrealized_pnl(&self, current_price: Price) -> Result<Decimal, FinError> {
+        let diff = current_price.value() - self.avg_cost;
+        self.quantity
+            .checked_mul(diff)
+            .ok_or(FinError::ArithmeticOverflow)
+    }
+
     /// Returns the market value of this position at `current_price`.
     pub fn market_value(&self, current_price: Price) -> Decimal {
         self.quantity * current_price.value()
@@ -354,6 +362,25 @@ mod tests {
             .apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"))
             .unwrap();
         assert_eq!(ledger.cash(), dec!(10100));
+    }
+
+    #[test]
+    fn test_position_checked_unrealized_pnl_matches() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let price = Price::new(dec!(115)).unwrap();
+        let checked = pos.checked_unrealized_pnl(price).unwrap();
+        let unchecked = pos.unrealized_pnl(price);
+        assert_eq!(checked, unchecked);
+        assert_eq!(checked, dec!(150));
+    }
+
+    #[test]
+    fn test_position_checked_unrealized_pnl_flat_position() {
+        let pos = Position::new(sym("X"));
+        let price = Price::new(dec!(100)).unwrap();
+        assert_eq!(pos.checked_unrealized_pnl(price).unwrap(), dec!(0));
     }
 
     #[test]

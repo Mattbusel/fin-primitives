@@ -113,6 +113,19 @@ impl OhlcvBar {
         }
         self.body_size() / r < threshold
     }
+
+    /// Returns the ratio of body to range: `body_size / range`.
+    ///
+    /// Returns `None` when `range == 0` (doji / flat bar) to avoid division by zero.
+    /// Values close to `1` indicate a strong directional candle; values close to `0`
+    /// indicate a spinning top or doji.
+    pub fn body_ratio(&self) -> Option<Decimal> {
+        let r = self.range();
+        if r == Decimal::ZERO {
+            return None;
+        }
+        Some(self.body_size() / r)
+    }
 }
 
 /// A timeframe for bar aggregation.
@@ -262,6 +275,11 @@ impl OhlcvAggregator {
         bar
     }
 
+    /// Returns the symbol this aggregator is tracking.
+    pub fn symbol(&self) -> &Symbol {
+        &self.symbol
+    }
+
     /// Returns a reference to the current (incomplete) bar, if any.
     pub fn current_bar(&self) -> Option<&OhlcvBar> {
         self.current_bar.as_ref()
@@ -377,6 +395,11 @@ impl OhlcvSeries {
     /// Returns a `Vec` of volumes in series order.
     pub fn volumes(&self) -> Vec<Decimal> {
         self.bars.iter().map(|b| b.volume.value()).collect()
+    }
+
+    /// Returns a `Vec` of typical prices `(high + low + close) / 3` in series order.
+    pub fn typical_prices(&self) -> Vec<Decimal> {
+        self.bars.iter().map(|b| b.typical_price()).collect()
     }
 }
 
@@ -626,6 +649,13 @@ mod tests {
         let bar = agg.flush().unwrap();
         assert_eq!(bar.open.value(), dec!(100));
         assert!(agg.flush().is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_aggregator_symbol_getter() {
+        let sym = Symbol::new("BTC").unwrap();
+        let agg = OhlcvAggregator::new(sym.clone(), Timeframe::Seconds(60)).unwrap();
+        assert_eq!(agg.symbol(), &sym);
     }
 
     #[test]
