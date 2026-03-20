@@ -8,9 +8,9 @@
 [![Minimum Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 
 A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
-systems in Rust. `fin-primitives` provides the building blocks — validated types,
-order book, OHLCV aggregation, streaming technical indicators, position ledger, and
-composable risk monitoring — so that upstream crates and applications can focus on
+systems in Rust. `fin-primitives` provides the building blocks: validated types,
+order book, OHLCV aggregation, 90+ streaming technical indicators, position ledger, and
+composable risk monitoring, so that upstream crates and applications can focus on
 strategy rather than infrastructure.
 
 ---
@@ -23,7 +23,7 @@ strategy rather than infrastructure.
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
 | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, `Sma`, `Ema`, `Rsi` | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, 90+ built-in indicators | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker`, `RiskRule` trait, `MaxDrawdownRule`, `MinEquityRule`, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 
@@ -252,7 +252,7 @@ fn main() -> Result<(), fin_primitives::FinError> {
 ### `types` module
 
 ```rust
-// Validated newtypes — construction is the only fallible step.
+// Validated newtypes: construction is the only fallible step.
 Price::new(d: Decimal)    -> Result<Price, FinError>       // d > 0
 Quantity::new(d: Decimal) -> Result<Quantity, FinError>    // d >= 0
 Quantity::zero()          -> Quantity                      // convenience
@@ -322,7 +322,7 @@ OhlcvSeries::new()
 ### `signals` module
 
 ```rust
-// Signal trait — implement for custom indicators
+// Signal trait: implement for custom indicators
 trait Signal {
     fn name(&self)   -> &str;
     fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError>;
@@ -394,7 +394,7 @@ All prices and quantities use [`rust_decimal::Decimal`] (128-bit fixed-point).
 This eliminates all floating-point drift:
 
 ```rust
-// This is safe and exact with Decimal — never silently rounds:
+// This is safe and exact with Decimal, never silently rounds:
 let price = Price::new(dec!(150.25)).unwrap();
 let qty   = Quantity::new(dec!(1000)).unwrap();
 let notional = price.value() * qty.value();  // exactly 150250.00
@@ -413,7 +413,7 @@ let notional = price.value() * qty.value();  // exactly 150250.00
 ### Order book VWAP
 
 `vwap_for_qty` sweeps levels from best to worst with exact Decimal arithmetic.
-Result is `total_cost / total_qty` where both accumulators are Decimal — no
+Result is `total_cost / total_qty` where both accumulators are Decimal with no
 intermediate f64 conversion.
 
 ---
@@ -553,7 +553,7 @@ impl Signal for AlwaysZero {
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 > Also used inside [tokio-prompt-orchestrator](https://github.com/Mattbusel/tokio-prompt-orchestrator),
 > a production Rust orchestration layer for LLM pipelines.
