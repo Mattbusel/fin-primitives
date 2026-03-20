@@ -692,6 +692,44 @@ impl OrderBook {
     pub fn total_ask_depth(&self) -> Decimal {
         self.asks.values().sum()
     }
+
+    /// Walks the book on `side` to find the price level reached after consuming `target_qty`.
+    ///
+    /// For `Side::Ask` walks ascending (cheapest ask first).
+    /// For `Side::Bid` walks descending (highest bid first).
+    ///
+    /// Returns the price of the level where `target_qty` is fully absorbed, or the last
+    /// available level if the book lacks sufficient depth.
+    /// Returns `None` when the side has no levels or `target_qty` is zero.
+    pub fn price_at_volume(&self, side: Side, target_qty: Decimal) -> Option<Price> {
+        if target_qty.is_zero() {
+            return None;
+        }
+        let mut remaining = target_qty;
+        let mut last_price: Option<Price> = None;
+
+        match side {
+            Side::Ask => {
+                for (&px, &qty) in &self.asks {
+                    last_price = Price::new(px).ok();
+                    if qty >= remaining {
+                        return last_price;
+                    }
+                    remaining -= qty;
+                }
+            }
+            Side::Bid => {
+                for (&px, &qty) in self.bids.iter().rev() {
+                    last_price = Price::new(px).ok();
+                    if qty >= remaining {
+                        return last_price;
+                    }
+                    remaining -= qty;
+                }
+            }
+        }
+        last_price
+    }
 }
 
 #[cfg(test)]

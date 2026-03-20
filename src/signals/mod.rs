@@ -319,6 +319,14 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Converts to `Option<Decimal>`: `Some(d)` for `Scalar(d)`, `None` for `Unavailable`.
+    pub fn to_option(self) -> Option<Decimal> {
+        match self {
+            SignalValue::Scalar(d) => Some(d),
+            SignalValue::Unavailable => None,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
