@@ -1588,6 +1588,25 @@ impl PositionLedger {
         flat
     }
 
+    /// Returns the average unrealized P&L percentage across all open positions.
+    ///
+    /// Each position's unrealized PnL % is `unrealized_pnl / (avg_price * qty).abs() * 100`.
+    /// Returns `None` if there are no open positions with valid prices.
+    pub fn avg_unrealized_pnl_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let pcts: Vec<Decimal> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str()).and_then(|&pr| {
+                    let cost_basis = (p.avg_cost * p.quantity).abs();
+                    if cost_basis.is_zero() { return None; }
+                    Some(p.unrealized_pnl(pr) / cost_basis * Decimal::ONE_HUNDRED)
+                })
+            })
+            .collect();
+        if pcts.is_empty() { return None; }
+        Some(pcts.iter().sum::<Decimal>() / Decimal::from(pcts.len()))
+    }
+
     /// Returns the symbol with the worst (most negative) unrealized P&L.
     ///
     /// Returns `None` if there are no open positions or none have a price in `prices`.
@@ -1600,6 +1619,26 @@ impl PositionLedger {
             })
             .min_by(|(_, a), (_, b)| a.cmp(b))
             .map(|(sym, _)| sym)
+    }
+
+    /// Average unrealized P&L across all open positions that have a price in `prices`.
+    ///
+    /// Returns `None` if there are no open positions with prices available.
+    pub fn avg_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let pnls: Vec<Decimal> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .collect();
+        if pnls.is_empty() { return None; }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(pnls.iter().sum::<Decimal>() / Decimal::from(pnls.len() as u32))
+    }
+
+    /// Returns a sorted `Vec` of all symbols tracked by this ledger (open or closed).
+    pub fn position_symbols(&self) -> Vec<&Symbol> {
+        let mut syms: Vec<&Symbol> = self.positions.keys().collect();
+        syms.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        syms
     }
 }
 
