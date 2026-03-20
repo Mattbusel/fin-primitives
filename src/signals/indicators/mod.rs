@@ -428,3 +428,5 @@ pub mod close_above_open;
 pub use acceleration_bands::AccelerationBands;
 pub use delta_volume::DeltaVolume;
 pub use close_above_open::CloseAboveOpen;
+pub mod momentum_divergence;
+pub use momentum_divergence::MomentumDivergence;
