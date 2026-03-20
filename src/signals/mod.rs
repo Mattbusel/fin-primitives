@@ -93,6 +93,33 @@ impl BarInput {
         self.close < self.open
     }
 
+    /// Returns the close-to-close price change: `close - prev_close`.
+    ///
+    /// When `prev_close` is `None` (first bar), returns `Decimal::ZERO`.
+    pub fn price_change(&self, prev_close: Option<Decimal>) -> Decimal {
+        match prev_close {
+            None => Decimal::ZERO,
+            Some(pc) => self.close - pc,
+        }
+    }
+
+    /// Returns the log return: `ln(close / prev_close)` via f64.
+    ///
+    /// Returns `None` when `prev_close` is `None`, zero, or negative, or when the
+    /// f64 conversion fails.
+    pub fn log_return(&self, prev_close: Option<Decimal>) -> Option<Decimal> {
+        use rust_decimal::prelude::ToPrimitive;
+        let pc = prev_close?;
+        if pc <= Decimal::ZERO {
+            return None;
+        }
+        let ratio = self.close.to_f64()? / pc.to_f64()?;
+        if ratio <= 0.0 {
+            return None;
+        }
+        Decimal::try_from(ratio.ln()).ok()
+    }
+
     /// Returns the True Range of this bar given the previous bar's close.
     ///
     /// `TR = max(high - low, |high - prev_close|, |low - prev_close|)`
