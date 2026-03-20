@@ -171,6 +171,7 @@ pub mod relative_volatility;
 pub mod stiffness;
 pub mod ttm_squeeze;
 pub mod support_resistance_distance;
+pub mod ulcer_index;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -340,3 +341,4 @@ pub use relative_volatility::RelativeVolatility;
 pub use stiffness::Stiffness;
 pub use ttm_squeeze::TtmSqueeze;
 pub use support_resistance_distance::SupportResistanceDistance;
+pub use ulcer_index::UlcerIndex;
