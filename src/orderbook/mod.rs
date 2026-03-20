@@ -504,15 +504,11 @@ impl OrderBook {
     /// Returns the weighted mid price: `(best_bid * ask_qty + best_ask * bid_qty) / (bid_qty + ask_qty)`.
     ///
     /// Weights the midpoint by the opposite side's quantity, so a thick ask pulls the WMP toward bid.
-    /// Returns `None` when either side is empty.
+    ///
+    /// Alias for [`weighted_mid`](Self::weighted_mid).
+    #[deprecated(since = "2.1.0", note = "Use `weighted_mid` instead")]
     pub fn weighted_mid_price(&self) -> Option<Decimal> {
-        let (bid_p, bid_q) = self.bids.iter().next_back()?;
-        let (ask_p, ask_q) = self.asks.iter().next()?;
-        let total_q = bid_q + ask_q;
-        if total_q.is_zero() {
-            return None;
-        }
-        Some((*bid_p * *ask_q + *ask_p * *bid_q) / total_q)
+        self.weighted_mid()
     }
 
     /// Returns all price levels on `side` whose price falls within `[lo, hi]` (inclusive).
