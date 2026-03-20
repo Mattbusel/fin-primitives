@@ -3345,6 +3345,178 @@ impl OhlcvSeries {
         }
         Some(sum / count as f64)
     }
+
+    /// Average ratio of up-day return to down-day return magnitude over the last `n` bars.
+    ///
+    /// Computes log returns; averages positive returns as "gains" and the absolute value of
+    /// negative returns as "losses".  Returns `None` if `n == 0`, fewer than `n+1` bars exist,
+    /// or there are no losing bars (avoiding division by zero).
+    pub fn gain_loss_ratio(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let start = self.bars.len() - n - 1;
+        let slice = &self.bars[start..];
+        let mut gains = 0.0f64;
+        let mut losses = 0.0f64;
+        let mut gain_count = 0usize;
+        let mut loss_count = 0usize;
+        for w in slice.windows(2) {
+            let pc = w[0].close.value().to_f64()?;
+            let cc = w[1].close.value().to_f64()?;
+            if pc <= 0.0 { continue; }
+            let r = (cc / pc).ln();
+            if r > 0.0 {
+                gains += r;
+                gain_count += 1;
+            } else if r < 0.0 {
+                losses += r.abs();
+                loss_count += 1;
+            }
+        }
+        if loss_count == 0 || losses == 0.0 {
+            return None;
+        }
+        let avg_gain = gains / gain_count.max(1) as f64;
+        let avg_loss = losses / loss_count as f64;
+        Some(avg_gain / avg_loss)
+    }
+
+    /// Count of bars in the last `n` bars where `close > SMA(close, sma_period)` at that bar.
+    ///
+    /// The SMA is computed as a rolling SMA ending at each bar.  Bars that do not yet have
+    /// enough history for the SMA are skipped.  Returns `None` if `n == 0` or the series has
+    /// fewer than `n` bars.
+    pub fn bars_above_sma(&self, n: usize, sma_period: usize) -> Option<usize> {
+        if n == 0 || sma_period == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut count = 0usize;
+        for i in start..self.bars.len() {
+            if i + 1 < sma_period {
+                continue;
+            }
+            let sma_start = i + 1 - sma_period;
+            let sum: Decimal = self.bars[sma_start..=i]
+                .iter()
+                .map(|b| b.close.value())
+                .sum();
+            let sma = sum / Decimal::from(sma_period as u32);
+            if self.bars[i].close.value() > sma {
+                count += 1;
+            }
+        }
+        Some(count)
+    }
+
+    /// Fraction of the last `n` bars that are bullish (close > open), as a value in `[0.0, 1.0]`.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn bullish_candle_pct(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let bullish = self.bars[start..].iter().filter(|b| b.close > b.open).count();
+        Some(bullish as f64 / n as f64)
+    }
+
+    /// Fraction of the last `n` bars where close was above the `period`-bar SMA of closes,
+    /// as a value in `[0.0, 1.0]`.
+    ///
+    /// Returns `None` if `n == 0`, `period == 0`, or the series has fewer than `n + period - 1`
+    /// bars (not enough history to compute the SMA for all `n` windows).
+    pub fn price_above_ma_pct(&self, n: usize, period: usize) -> Option<f64> {
+        if n == 0 || period == 0 || self.bars.len() < n + period - 1 {
+            return None;
+        }
+        let total = self.bars.len();
+        let mut above = 0usize;
+        for i in (total - n)..total {
+            let sma_start = i + 1 - period;
+            let sma: Decimal = self.bars[sma_start..=i]
+                .iter()
+                .map(|b| b.close.value())
+                .sum::<Decimal>()
+                / Decimal::from(period as u32);
+            if self.bars[i].close.value() > sma {
+                above += 1;
+            }
+        }
+        Some(above as f64 / n as f64)
+    }
+
+    /// Returns the last `n` true-range values as a `Vec<Decimal>`.
+    ///
+    /// True range for bar `i` = `max(high, prev_close) − min(low, prev_close)`.
+    /// The first bar in the series has no previous close, so it contributes `high − low`.
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn true_range_series(&self, n: usize) -> Option<Vec<Decimal>> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let trs: Vec<Decimal> = self.bars[start..]
+            .iter()
+            .enumerate()
+            .map(|(i, bar)| {
+                let abs_i = start + i;
+                if abs_i == 0 {
+                    bar.high.value() - bar.low.value()
+                } else {
+                    let prev_close = self.bars[abs_i - 1].close.value();
+                    let high = bar.high.value().max(prev_close);
+                    let low = bar.low.value().min(prev_close);
+                    high - low
+                }
+            })
+            .collect();
+        Some(trs)
+    }
+
+    /// Returns `(last_close − first_open) / first_open × 100` as a percentage.
+    ///
+    /// Measures the net intraday move across the entire series.
+    /// Returns `None` if the series has fewer than 1 bar or `first_open` is zero.
+    pub fn intraday_return_pct(&self) -> Option<Decimal> {
+        if self.bars.is_empty() {
+            return None;
+        }
+        let first_open = self.bars.first()?.open.value();
+        if first_open.is_zero() {
+            return None;
+        }
+        let last_close = self.bars.last()?.close.value();
+        Some((last_close - first_open) / first_open * Decimal::ONE_HUNDRED)
+    }
+
+    /// Count of bars in the last `n` where `close < open` (bearish bars).
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn bearish_bar_count(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        Some(self.bars[start..].iter().filter(|b| b.close < b.open).count())
+    }
+
+    /// Average body size (|close − open|) over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn avg_body_size(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| (b.close.value() - b.open.value()).abs())
+            .sum();
+        Some(sum / Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]
@@ -4775,5 +4947,55 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![b1, b2]).unwrap();
         let gaps = series.gap_direction_series(2);
         assert_eq!(gaps, vec![1i8]);
+    }
+
+    #[test]
+    fn test_bullish_candle_pct_all_bullish() {
+        // open < close for all bars → 100 %
+        let bars = vec![
+            make_bar("95", "105", "94", "100"),
+            make_bar("99", "110", "98", "108"),
+            make_bar("107", "115", "106", "112"),
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.bullish_candle_pct(3).unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_bullish_candle_pct_none_for_zero_n() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.bullish_candle_pct(0).is_none());
+    }
+
+    #[test]
+    fn test_price_above_ma_pct_all_above() {
+        // Rising prices: every close will be above the 2-bar SMA of the prior window.
+        let bars = vec![
+            bar("100"), bar("102"), bar("104"), bar("106"), bar("108"),
+        ];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        // n=3, period=2 → need at least 4 bars
+        let pct = series.price_above_ma_pct(3, 2).unwrap();
+        assert!(pct > 0.0);
+    }
+
+    #[test]
+    fn test_price_above_ma_pct_insufficient_bars() {
+        let series = OhlcvSeries::from_bars(vec![bar("100"), bar("101")]).unwrap();
+        assert!(series.price_above_ma_pct(2, 3).is_none());
+    }
+
+    #[test]
+    fn test_avg_body_size_flat() {
+        // open == close → body = 0
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        assert_eq!(series.avg_body_size(3).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_avg_body_size_none_for_zero_n() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.avg_body_size(0).is_none());
     }
 }

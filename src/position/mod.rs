@@ -245,6 +245,22 @@ impl Position {
             .ok_or(FinError::ArithmeticOverflow)
     }
 
+    /// Returns unrealized P&L as a percentage of cost basis at `current_price`.
+    ///
+    /// `pct = unrealized_pnl / (|quantity| × avg_cost) × 100`.
+    /// Returns `None` if the position is flat or `avg_cost` is zero.
+    pub fn unrealized_pnl_pct(&self, current_price: Price) -> Option<Decimal> {
+        if self.is_flat() || self.avg_cost.is_zero() {
+            return None;
+        }
+        let cost_basis = self.quantity.abs() * self.avg_cost;
+        if cost_basis.is_zero() {
+            return None;
+        }
+        let upnl = self.unrealized_pnl(current_price);
+        upnl.checked_div(cost_basis).map(|r| r * Decimal::from(100u32))
+    }
+
     /// Returns the market value of this position at `current_price`.
     pub fn market_value(&self, current_price: Price) -> Decimal {
         self.quantity * current_price.value()
@@ -294,17 +310,6 @@ impl Position {
         self.avg_cost * self.quantity.abs()
     }
 
-    /// Returns unrealized P&L as a percentage of cost basis.
-    ///
-    /// Returns `None` when the position is flat (avg_cost is zero).
-    pub fn unrealized_pnl_pct(&self, current_price: Price) -> Option<Decimal> {
-        if self.avg_cost == Decimal::ZERO {
-            return None;
-        }
-        let pnl = self.unrealized_pnl(current_price);
-        let cost_basis = (self.avg_cost * self.quantity.abs()).abs();
-        Some(pnl / cost_basis * Decimal::ONE_HUNDRED)
-    }
 
     /// Returns `true` if unrealized PnL at `current_price` is strictly positive.
     pub fn is_profitable(&self, current_price: Price) -> bool {
@@ -1039,6 +1044,38 @@ impl PositionLedger {
         if pos.is_flat() { return None; }
         Some(pos.avg_cost)
     }
+
+    /// Returns a list of symbols that currently have a non-flat (open) position.
+    pub fn active_symbols(&self) -> Vec<&Symbol> {
+        self.positions
+            .iter()
+            .filter(|(_, pos)| !pos.is_flat())
+            .map(|(sym, _)| sym)
+            .collect()
+    }
+
+    /// Returns the total number of symbols tracked by this ledger (including flat positions).
+    pub fn symbol_count(&self) -> usize {
+        self.positions.len()
+    }
+
+    /// Returns the realized P&L for every symbol that has a non-zero realized P&L,
+    /// sorted descending by value.
+    ///
+    /// Symbols with zero realized P&L are excluded.
+    pub fn realized_pnl_by_symbol(&self) -> Vec<(Symbol, Decimal)> {
+        let mut pairs: Vec<(Symbol, Decimal)> = self
+            .positions
+            .iter()
+            .filter_map(|(sym, pos)| {
+                let r = pos.realized_pnl;
+                if r != Decimal::ZERO { Some((sym.clone(), r)) } else { None }
+            })
+            .collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs
+    }
+
 }
 
 #[cfg(test)]

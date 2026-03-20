@@ -800,6 +800,14 @@ impl NanoTimestamp {
         NanoTimestamp(self.0.div_euclid(HOUR_NANOS) * HOUR_NANOS)
     }
 
+    /// Floors this timestamp to midnight UTC (start of the day).
+    ///
+    /// Truncates hours, minutes, seconds, and nanoseconds: returns `00:00:00.000000000`.
+    pub fn floor_to_day(&self) -> NanoTimestamp {
+        const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
+        NanoTimestamp(self.0.div_euclid(DAY_NANOS) * DAY_NANOS)
+    }
+
     /// Truncates nanoseconds and seconds: returns the timestamp at `HH:MM:00.000000000`.
     pub fn floor_to_minute(&self) -> NanoTimestamp {
         const MINUTE_NANOS: i64 = 60 * 1_000_000_000;
@@ -833,6 +841,23 @@ impl NanoTimestamp {
     /// Converts this timestamp to Unix milliseconds (truncating sub-millisecond precision).
     pub fn to_unix_ms(self) -> i64 {
         self.0 / 1_000_000
+    }
+
+    /// Returns the day of the week as `u8` where Monday = 0 and Sunday = 6.
+    ///
+    /// Computed from the Unix epoch (1970-01-01 was a Thursday = 3).
+    pub fn day_of_week(self) -> u8 {
+        const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
+        let days = self.0.div_euclid(DAY_NANOS);
+        // Unix epoch (day 0) was Thursday = 3
+        ((days + 3).rem_euclid(7)) as u8
+    }
+
+    /// Shifts the timestamp backward by `minutes` minutes.
+    ///
+    /// Equivalent to `add_minutes(-minutes)`.
+    pub fn sub_minutes(&self, minutes: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 - minutes * 60_000_000_000)
     }
 }
 
