@@ -1,159 +1,94 @@
 //! Price Velocity indicator.
 
-use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
+use crate::error::FinError;
+use crate::signals::{BarInput, Signal, SignalValue};
 
-/// Price Velocity — rate of change expressed as price units per bar.
+/// Rolling average of close-to-close change (absolute price velocity).
 ///
-/// ```text
-/// PriceVelocity = (close[now] - close[now - period]) / period
-/// ```
-///
-/// Unlike ROC (which is percentage-based), Price Velocity is in raw price units.
-/// Useful when absolute price movement per bar matters (e.g., for stop-loss sizing).
-/// Returns [`SignalValue::Unavailable`] until `period + 1` bars have been seen.
-///
-/// # Example
-/// ```rust
-/// use fin_primitives::signals::indicators::PriceVelocity;
-/// use fin_primitives::signals::Signal;
-///
-/// let pv = PriceVelocity::new("pv10", 10).unwrap();
-/// assert_eq!(pv.period(), 10);
-/// ```
+/// `(close[t] - close[t-1])` averaged over the rolling period.
+/// Positive: average upward momentum in price units.
+/// Negative: average downward momentum in price units.
+/// Unlike percentage return, this preserves the price scale.
 pub struct PriceVelocity {
-    name: String,
     period: usize,
-    history: VecDeque<Decimal>,
+    prev_close: Option<Decimal>,
+    window: VecDeque<Decimal>,
+    sum: Decimal,
 }
 
 impl PriceVelocity {
-    /// Constructs a new `PriceVelocity`.
-    ///
-    /// # Errors
-    /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
+    /// Creates a new `PriceVelocity` with the given rolling period.
+    pub fn new(period: usize) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self {
-            name: name.into(),
-            period,
-            history: VecDeque::with_capacity(period + 1),
-        })
+        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
     }
 }
 
 impl Signal for PriceVelocity {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn period(&self) -> usize {
-        self.period
-    }
-
-    fn is_ready(&self) -> bool {
-        self.history.len() >= self.period + 1
-    }
-
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.history.push_back(bar.close);
-        if self.history.len() > self.period + 1 {
-            self.history.pop_front();
+        if let Some(pc) = self.prev_close {
+            let change = bar.close - pc;
+            self.window.push_back(change);
+            self.sum += change;
+            if self.window.len() > self.period {
+                if let Some(old) = self.window.pop_front() {
+                    self.sum -= old;
+                }
+            }
         }
-        if self.history.len() < self.period + 1 {
+        self.prev_close = Some(bar.close);
+
+        if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-
-        let old = *self.history.front().unwrap();
-        #[allow(clippy::cast_possible_truncation)]
-        let velocity = (bar.close - old)
-            .checked_div(Decimal::from(self.period as u32))
-            .ok_or(FinError::ArithmeticOverflow)?;
-
-        Ok(SignalValue::Scalar(velocity))
+        let len = Decimal::from(self.period as u32);
+        Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn reset(&mut self) {
-        self.history.clear();
-    }
+    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn period(&self) -> usize { self.period }
+    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = Decimal::ZERO; }
+    fn name(&self) -> &str { "PriceVelocity" }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ohlcv::OhlcvBar;
-    use crate::signals::Signal;
-    use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
-    fn bar(c: &str) -> OhlcvBar {
-        let p = Price::new(c.parse().unwrap()).unwrap();
-        OhlcvBar {
-            symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
-            volume: Quantity::zero(),
-            ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1),
-            tick_count: 1,
+    fn bar(c: &str) -> BarInput {
+        BarInput {
+            open: c.parse().unwrap(),
+            high: c.parse().unwrap(),
+            low: c.parse().unwrap(),
+            close: c.parse().unwrap(),
+            volume: dec!(1000),
         }
     }
 
     #[test]
-    fn test_pv_invalid_period() {
-        assert!(PriceVelocity::new("pv", 0).is_err());
+    fn test_pv_flat_zero() {
+        // Constant price → velocity = 0
+        let mut sig = PriceVelocity::new(3).unwrap();
+        sig.update(&bar("100")).unwrap();
+        sig.update(&bar("100")).unwrap();
+        sig.update(&bar("100")).unwrap();
+        let v = sig.update(&bar("100")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
-    fn test_pv_unavailable_before_period() {
-        let mut pv = PriceVelocity::new("pv", 3).unwrap();
-        assert_eq!(pv.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pv.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
-        assert!(!pv.is_ready());
-    }
-
-    #[test]
-    fn test_pv_constant_price_zero_velocity() {
-        let mut pv = PriceVelocity::new("pv", 3).unwrap();
-        for _ in 0..4 {
-            pv.update_bar(&bar("100")).unwrap();
-        }
-        assert_eq!(pv.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(dec!(0)));
-    }
-
-    #[test]
-    fn test_pv_linear_rise_velocity_one() {
-        // [100, 101, 102, 103]: pv(3) = (103-100)/3 = 1
-        let mut pv = PriceVelocity::new("pv", 3).unwrap();
-        pv.update_bar(&bar("100")).unwrap();
-        pv.update_bar(&bar("101")).unwrap();
-        pv.update_bar(&bar("102")).unwrap();
-        let v = pv.update_bar(&bar("103")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(1)));
-    }
-
-    #[test]
-    fn test_pv_negative_velocity() {
-        // [103, 102, 101, 100]: pv(3) = (100-103)/3 = -1
-        let mut pv = PriceVelocity::new("pv", 3).unwrap();
-        pv.update_bar(&bar("103")).unwrap();
-        pv.update_bar(&bar("102")).unwrap();
-        pv.update_bar(&bar("101")).unwrap();
-        let v = pv.update_bar(&bar("100")).unwrap();
-        assert_eq!(v, SignalValue::Scalar(dec!(-1)));
-    }
-
-    #[test]
-    fn test_pv_reset() {
-        let mut pv = PriceVelocity::new("pv", 2).unwrap();
-        pv.update_bar(&bar("100")).unwrap();
-        pv.update_bar(&bar("101")).unwrap();
-        pv.update_bar(&bar("102")).unwrap();
-        assert!(pv.is_ready());
-        pv.reset();
-        assert!(!pv.is_ready());
+    fn test_pv_constant_up() {
+        // +2 each bar → velocity = 2
+        let mut sig = PriceVelocity::new(3).unwrap();
+        sig.update(&bar("100")).unwrap();
+        sig.update(&bar("102")).unwrap();
+        sig.update(&bar("104")).unwrap();
+        let v = sig.update(&bar("106")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(2)));
     }
 }

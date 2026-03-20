@@ -878,7 +878,7 @@ impl OhlcvSeries {
         self.bars
             .iter()
             .rev()
-            .take_while(|b| b.close.value() >= b.open.value())
+            .take_while(|b| b.is_bullish())
             .count()
     }
 
@@ -889,7 +889,7 @@ impl OhlcvSeries {
         self.bars
             .iter()
             .rev()
-            .take_while(|b| b.close.value() < b.open.value())
+            .take_while(|b| b.is_bearish())
             .count()
     }
 
@@ -1862,7 +1862,7 @@ impl OhlcvSeries {
         self.bars
             .iter()
             .rev()
-            .take_while(|b| b.close.value() > b.open.value())
+            .take_while(|b| b.is_bullish())
             .count()
     }
 
@@ -3387,7 +3387,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let count = self.bars[start..]
             .iter()
-            .filter(|b| b.close.value() > b.open.value())
+            .filter(|b| b.is_bullish())
             .count();
         Some(count as f64 / n as f64 * 100.0)
     }
@@ -4228,8 +4228,8 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let ups = self.bars[start..].iter().filter(|b| b.close.value() > b.open.value()).count();
-        let downs = self.bars[start..].iter().filter(|b| b.close.value() < b.open.value()).count();
+        let ups = self.bars[start..].iter().filter(|b| b.is_bullish()).count();
+        let downs = self.bars[start..].iter().filter(|b| b.is_bearish()).count();
         if downs == 0 {
             return None;
         }
@@ -4248,7 +4248,7 @@ impl OhlcvSeries {
         let count = self.bars[window_start..]
             .iter()
             .rev()
-            .take_while(|b| b.close.value() > b.open.value())
+            .take_while(|b| b.is_bullish())
             .count();
         Some(count)
     }
@@ -4744,10 +4744,10 @@ impl OhlcvSeries {
         let mut down_count = 0u32;
         for b in &self.bars[start..] {
             let v = b.volume.value();
-            if b.close.value() > b.open.value() {
+            if b.is_bullish() {
                 up_sum += v;
                 up_count += 1;
-            } else if b.close.value() < b.open.value() {
+            } else if b.is_bearish() {
                 down_sum += v;
                 down_count += 1;
             }
@@ -5688,9 +5688,9 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let bull = self.bars[start..].iter()
-            .filter(|b| b.close.value() > b.open.value()).count() as i64;
+            .filter(|b| b.is_bullish()).count() as i64;
         let bear = self.bars[start..].iter()
-            .filter(|b| b.close.value() < b.open.value()).count() as i64;
+            .filter(|b| b.is_bearish()).count() as i64;
         Some(bull - bear)
     }
 
@@ -5770,7 +5770,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let up_vols: Vec<Decimal> = self.bars[start..].iter()
-            .filter(|b| b.close.value() > b.open.value())
+            .filter(|b| b.is_bullish())
             .map(|b| b.volume.value())
             .collect();
         if up_vols.is_empty() { return None; }
@@ -5782,7 +5782,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let down_vols: Vec<Decimal> = self.bars[start..].iter()
-            .filter(|b| b.close.value() < b.open.value())
+            .filter(|b| b.is_bearish())
             .map(|b| b.volume.value())
             .collect();
         if down_vols.is_empty() { return None; }
@@ -5794,7 +5794,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let bull = self.bars[start..].iter()
-            .filter(|b| b.close.value() > b.open.value())
+            .filter(|b| b.is_bullish())
             .count() as u32;
         Some(Decimal::from(bull) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
@@ -6007,7 +6007,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            if b.close.value() >= b.open.value() { continue; }
+            if b.is_bullish() { continue; }
             let range = b.range();
             if range.is_zero() { continue; }
             sum += (b.open.value() - b.close.value()) / range;
@@ -7161,7 +7161,7 @@ impl OhlcvSeries {
     pub fn bull_bar_fraction(&self, n: usize) -> Option<Decimal> {
         if n == 0 || self.bars.len() < n { return None; }
         let slice = &self.bars[self.bars.len() - n..];
-        let count = slice.iter().filter(|b| b.close.value() > b.open.value()).count();
+        let count = slice.iter().filter(|b| b.is_bullish()).count();
         #[allow(clippy::cast_possible_truncation)]
         Decimal::from(count as u32).checked_div(Decimal::from(n as u32))
     }
