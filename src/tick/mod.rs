@@ -190,6 +190,16 @@ impl TickReplayer {
         self.ticks.len().saturating_sub(self.index)
     }
 
+    /// Returns a reference to the next tick without advancing the position.
+    pub fn peek(&self) -> Option<&Tick> {
+        self.ticks.get(self.index)
+    }
+
+    /// Returns a shared reference to all ticks in sorted order.
+    pub fn ticks(&self) -> &[Tick] {
+        &self.ticks
+    }
+
     /// Resets the replayer to the beginning of the tick sequence.
     pub fn reset(&mut self) {
         self.index = 0;
@@ -405,5 +415,40 @@ mod tests {
         assert_eq!(prices[0], dec!(1));
         assert_eq!(prices[1], dec!(2));
         assert_eq!(prices[2], dec!(3));
+    }
+
+    #[test]
+    fn test_tick_replayer_peek_does_not_advance() {
+        let ticks = vec![
+            make_tick("A", "1", "1", Side::Bid, 1),
+            make_tick("A", "2", "1", Side::Bid, 2),
+        ];
+        let mut replayer = TickReplayer::new(ticks);
+        let p1 = replayer.peek().map(|t| t.timestamp.nanos());
+        let p2 = replayer.peek().map(|t| t.timestamp.nanos());
+        assert_eq!(p1, p2, "peek must not advance the position");
+        assert_eq!(replayer.remaining(), 2);
+        let _ = replayer.next_tick();
+        assert_eq!(replayer.remaining(), 1);
+    }
+
+    #[test]
+    fn test_tick_replayer_peek_none_when_exhausted() {
+        let mut replayer = TickReplayer::new(vec![]);
+        assert!(replayer.peek().is_none());
+    }
+
+    #[test]
+    fn test_tick_replayer_ticks_slice() {
+        let ticks = vec![
+            make_tick("A", "1", "1", Side::Bid, 2),
+            make_tick("A", "2", "1", Side::Bid, 1),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        // ticks() returns sorted slice
+        let slice = replayer.ticks();
+        assert_eq!(slice.len(), 2);
+        assert_eq!(slice[0].timestamp.nanos(), 1);
+        assert_eq!(slice[1].timestamp.nanos(), 2);
     }
 }

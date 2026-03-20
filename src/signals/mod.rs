@@ -59,6 +59,18 @@ pub enum SignalValue {
     Unavailable,
 }
 
+impl SignalValue {
+    /// Returns the inner `Decimal` if this is `Scalar`, or `None` if `Unavailable`.
+    ///
+    /// Eliminates `match` boilerplate at call sites.
+    pub fn as_decimal(&self) -> Option<Decimal> {
+        match self {
+            SignalValue::Scalar(d) => Some(*d),
+            SignalValue::Unavailable => None,
+        }
+    }
+}
+
 /// A stateful indicator that updates on each new bar input.
 ///
 /// # Implementors

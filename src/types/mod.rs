@@ -294,6 +294,11 @@ impl NanoTimestamp {
         self.0 - other.0
     }
 
+    /// Returns a new `NanoTimestamp` offset by `nanos` (positive = forward in time).
+    pub fn add_nanos(&self, nanos: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 + nanos)
+    }
+
     /// Constructs a `NanoTimestamp` from a [`DateTime<Utc>`].
     ///
     /// Falls back to `0` if the datetime is outside the representable nanosecond range.

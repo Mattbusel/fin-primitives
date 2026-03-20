@@ -14,6 +14,7 @@
 use rust_decimal::Decimal;
 
 /// Tracks peak equity and computes current drawdown percentage.
+#[derive(Debug, Clone)]
 pub struct DrawdownTracker {
     peak_equity: Decimal,
     current_equity: Decimal,
@@ -60,10 +61,18 @@ impl DrawdownTracker {
     pub fn is_below_threshold(&self, max_dd_pct: Decimal) -> bool {
         self.current_drawdown_pct() <= max_dd_pct
     }
+
+    /// Resets the peak to the current equity value.
+    ///
+    /// Useful for daily or session-boundary resets where you want drawdown measured
+    /// from the start of the new session rather than the all-time high.
+    pub fn reset_peak(&mut self) {
+        self.peak_equity = self.current_equity;
+    }
 }
 
 /// A triggered risk rule violation.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RiskBreach {
     /// The name of the rule that triggered.
     pub rule: String,
