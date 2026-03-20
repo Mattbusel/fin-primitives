@@ -1240,8 +1240,7 @@ impl PositionLedger {
             .filter(|p| !p.is_flat())
             .filter(|p| {
                 prices.get(p.symbol.as_str())
-                    .map(|&price| p.unrealized_pnl(price) > Decimal::ZERO)
-                    .unwrap_or(false)
+                    .map_or(false, |&price| p.unrealized_pnl(price) > Decimal::ZERO)
             })
             .map(|p| &p.symbol)
             .collect()
@@ -1256,8 +1255,7 @@ impl PositionLedger {
             .filter(|p| !p.is_flat())
             .filter(|p| {
                 prices.get(p.symbol.as_str())
-                    .map(|&price| p.unrealized_pnl(price) < Decimal::ZERO)
-                    .unwrap_or(false)
+                    .map_or(false, |&price| p.unrealized_pnl(price) < Decimal::ZERO)
             })
             .map(|p| &p.symbol)
             .collect()

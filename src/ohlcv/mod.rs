@@ -459,8 +459,7 @@ impl OhlcvBar {
     /// `gap_pct` cannot be computed (zero previous close).
     pub fn has_gap(&self, prev: &OhlcvBar, pct_threshold: Decimal) -> bool {
         self.gap_pct(prev)
-            .map(|g| g.abs() >= pct_threshold)
-            .unwrap_or(false)
+            .map_or(false, |g| g.abs() >= pct_threshold)
     }
 
     /// Creates a single-tick OHLCV bar from a `Tick`.

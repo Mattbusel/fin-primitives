@@ -72,12 +72,12 @@ impl MarketRegimeFilter {
 
     /// Returns `true` when the last ER exceeds the trend threshold.
     pub fn is_trending(&self) -> bool {
-        self.last_er.map(|er| er > self.trend_threshold).unwrap_or(false)
+        self.last_er.map_or(false, |er| er > self.trend_threshold)
     }
 
     /// Returns `true` when the last ER is below the range threshold.
     pub fn is_ranging(&self) -> bool {
-        self.last_er.map(|er| er < self.range_threshold).unwrap_or(false)
+        self.last_er.map_or(false, |er| er < self.range_threshold)
     }
 }
 
