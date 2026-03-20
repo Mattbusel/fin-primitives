@@ -92,6 +92,12 @@ impl OrderBook {
                 got: delta.sequence,
             });
         }
+        // Save the pre-mutation value for potential rollback of a Remove action.
+        let prev_val = match delta.side {
+            Side::Bid => self.bids.get(&delta.price.value()).copied(),
+            Side::Ask => self.asks.get(&delta.price.value()).copied(),
+        };
+
         let book_side = match delta.side {
             Side::Bid => &mut self.bids,
             Side::Ask => &mut self.asks,
@@ -127,14 +133,18 @@ impl OrderBook {
                         self.asks.remove(&delta.price.value());
                     }
                 },
+                // Restore the level to its prior quantity (not delta.quantity, which is
+                // zero by convention for Remove deltas and would corrupt the book).
                 DeltaAction::Remove => match delta.side {
                     Side::Bid => {
-                        self.bids
-                            .insert(delta.price.value(), delta.quantity.value());
+                        if let Some(qty) = prev_val {
+                            self.bids.insert(delta.price.value(), qty);
+                        }
                     }
                     Side::Ask => {
-                        self.asks
-                            .insert(delta.price.value(), delta.quantity.value());
+                        if let Some(qty) = prev_val {
+                            self.asks.insert(delta.price.value(), qty);
+                        }
                     }
                 },
             }
@@ -226,13 +236,18 @@ impl OrderBook {
         if target <= Decimal::ZERO {
             return Ok(Decimal::ZERO);
         }
+        match side {
+            Side::Bid => Self::vwap_fill(self.bids.iter().rev(), target),
+            Side::Ask => Self::vwap_fill(self.asks.iter(), target),
+        }
+    }
+
+    fn vwap_fill<'a>(
+        levels: impl Iterator<Item = (&'a Decimal, &'a Decimal)>,
+        target: Decimal,
+    ) -> Result<Decimal, FinError> {
         let mut remaining = target;
         let mut total_cost = Decimal::ZERO;
-
-        let levels: Box<dyn Iterator<Item = (&Decimal, &Decimal)>> = match side {
-            Side::Bid => Box::new(self.bids.iter().rev()),
-            Side::Ask => Box::new(self.asks.iter()),
-        };
 
         for (price, avail_qty) in levels {
             let fill = remaining.min(*avail_qty);

@@ -38,7 +38,7 @@ fn remove_delta(side: Side, p: &str, seq: u64) -> BookDelta {
 }
 
 fn mk_tick(sym_s: &str, p: &str, q: &str, side: Side, ts: i64) -> Tick {
-    Tick::new(sym(sym_s), price(p), qty(q), side, NanoTimestamp(ts))
+    Tick::new(sym(sym_s), price(p), qty(q), side, NanoTimestamp::new(ts))
 }
 
 // ── OrderBook: basic operations ──────────────────────────────────────────
@@ -312,9 +312,9 @@ fn tick_replayer_returns_ticks_in_timestamp_order() {
     ];
     let mut replayer = TickReplayer::new(ticks);
     // Collect timestamps without holding references across calls
-    let ts1 = replayer.next_tick().map(|t| t.timestamp.0);
-    let ts2 = replayer.next_tick().map(|t| t.timestamp.0);
-    let ts3 = replayer.next_tick().map(|t| t.timestamp.0);
+    let ts1 = replayer.next_tick().map(|t| t.timestamp.nanos());
+    let ts2 = replayer.next_tick().map(|t| t.timestamp.nanos());
+    let ts3 = replayer.next_tick().map(|t| t.timestamp.nanos());
     let done = replayer.next_tick().is_none();
     assert_eq!(ts1, Some(100));
     assert_eq!(ts2, Some(200));

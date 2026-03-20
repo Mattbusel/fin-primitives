@@ -30,8 +30,8 @@ fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
         low: lp,
         close: cp,
         volume: Quantity::zero(),
-        ts_open: NanoTimestamp(0),
-        ts_close: NanoTimestamp(1),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     }
 }
@@ -42,14 +42,14 @@ fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
 fn test_nano_timestamp_now_is_positive() {
     let ts = NanoTimestamp::now();
     assert!(
-        ts.0 > 0,
+        ts.nanos() > 0,
         "NanoTimestamp::now() should return a positive value"
     );
 }
 
 #[test]
 fn test_nano_timestamp_to_datetime_epoch_zero() {
-    let ts = NanoTimestamp(0);
+    let ts = NanoTimestamp::new(0);
     let dt = ts.to_datetime();
     assert_eq!(dt.timestamp(), 0);
     assert_eq!(dt.timestamp_subsec_nanos(), 0);
@@ -57,11 +57,11 @@ fn test_nano_timestamp_to_datetime_epoch_zero() {
 
 #[test]
 fn test_nano_timestamp_ordering_is_correct() {
-    let a = NanoTimestamp(100);
-    let b = NanoTimestamp(200);
+    let a = NanoTimestamp::new(100);
+    let b = NanoTimestamp::new(200);
     assert!(a < b);
     assert!(b > a);
-    assert_eq!(a, NanoTimestamp(100));
+    assert_eq!(a, NanoTimestamp::new(100));
 }
 
 // ── Symbol ───────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ fn test_tick_filter_default_matches_all() {
         Price::new(dec!(1)).unwrap(),
         Quantity::zero(),
         Side::Bid,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     assert!(f.matches(&t), "default TickFilter must match any tick");
 }
@@ -108,14 +108,14 @@ fn test_tick_filter_min_quantity_boundary() {
         Price::new(dec!(1)).unwrap(),
         Quantity::new(dec!(5)).unwrap(),
         Side::Bid,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     let below_min = Tick::new(
         Symbol::new("X").unwrap(),
         Price::new(dec!(1)).unwrap(),
         Quantity::new(dec!(4.99)).unwrap(),
         Side::Bid,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     assert!(f.matches(&exactly_min), "exactly min_qty must match");
     assert!(!f.matches(&below_min), "below min_qty must not match");
@@ -173,9 +173,9 @@ fn test_timeframe_days_to_nanos() {
 fn test_timeframe_days_bucket_start() {
     let tf = Timeframe::Days(1);
     let nanos_per_day = 86_400_000_000_000_i64;
-    let ts = NanoTimestamp(nanos_per_day + 3_600_000_000_000_i64); // 1h into day 2
+    let ts = NanoTimestamp::new(nanos_per_day + 3_600_000_000_000_i64); // 1h into day 2
     let bucket = tf.bucket_start(ts).unwrap();
-    assert_eq!(bucket.0, nanos_per_day);
+    assert_eq!(bucket.nanos(), nanos_per_day);
 }
 
 // ── DrawdownTracker edge case ─────────────────────────────────────────────────
@@ -223,7 +223,7 @@ fn test_tick_notional_fractional_price_and_qty() {
         Price::new(dec!(65000.50)).unwrap(),
         Quantity::new(dec!(0.001)).unwrap(),
         Side::Ask,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     // 65000.50 * 0.001 = 65.0005
     assert_eq!(t.notional(), dec!(65.0005));

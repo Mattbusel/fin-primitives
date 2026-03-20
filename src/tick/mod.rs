@@ -7,6 +7,7 @@
 //! ## Guarantees
 //! - `Tick::notional()` is always `price * quantity` without rounding
 //! - `TickReplayer` always produces ticks in ascending timestamp order
+//! - `TickReplayer` implements `Iterator<Item = Tick>` (yields cloned ticks)
 //! - `TickFilter::matches` is pure (no side effects)
 //!
 //! ## NOT Responsible For
@@ -33,13 +34,6 @@ pub struct Tick {
 
 impl Tick {
     /// Constructs a new `Tick`.
-    ///
-    /// # Arguments
-    /// * `symbol` - validated ticker symbol
-    /// * `price` - validated positive price
-    /// * `quantity` - validated non-negative quantity
-    /// * `side` - bid or ask
-    /// * `timestamp` - nanosecond UTC timestamp
     pub fn new(
         symbol: Symbol,
         price: Price,
@@ -57,21 +51,20 @@ impl Tick {
     }
 
     /// Returns the notional value of this tick: `price * quantity`.
-    ///
-    /// # Returns
-    /// A `Decimal` representing the total traded value.
     pub fn notional(&self) -> Decimal {
         self.price.value() * self.quantity.value()
     }
 }
 
-/// Filters ticks by optional symbol, side, and minimum quantity predicates.
+/// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.
 ///
 /// All predicates are `ANDed` together. Unset predicates always pass.
 pub struct TickFilter {
     symbol: Option<Symbol>,
     side: Option<Side>,
     min_qty: Option<Quantity>,
+    min_price: Option<Price>,
+    max_price: Option<Price>,
 }
 
 impl TickFilter {
@@ -81,6 +74,8 @@ impl TickFilter {
             symbol: None,
             side: None,
             min_qty: None,
+            min_price: None,
+            max_price: None,
         }
     }
 
@@ -105,10 +100,21 @@ impl TickFilter {
         self
     }
 
+    /// Restrict matches to ticks with price >= `p`.
+    #[must_use]
+    pub fn min_price(mut self, p: Price) -> Self {
+        self.min_price = Some(p);
+        self
+    }
+
+    /// Restrict matches to ticks with price <= `p`.
+    #[must_use]
+    pub fn max_price(mut self, p: Price) -> Self {
+        self.max_price = Some(p);
+        self
+    }
+
     /// Returns `true` if the tick satisfies all configured predicates.
-    ///
-    /// # Arguments
-    /// * `tick` - the tick to evaluate
     pub fn matches(&self, tick: &Tick) -> bool {
         if let Some(ref sym) = self.symbol {
             if tick.symbol != *sym {
@@ -122,6 +128,16 @@ impl TickFilter {
         }
         if let Some(ref min_qty) = self.min_qty {
             if tick.quantity < *min_qty {
+                return false;
+            }
+        }
+        if let Some(ref min_p) = self.min_price {
+            if tick.price < *min_p {
+                return false;
+            }
+        }
+        if let Some(ref max_p) = self.max_price {
+            if tick.price > *max_p {
                 return false;
             }
         }
@@ -166,6 +182,16 @@ impl TickReplayer {
     }
 }
 
+impl Iterator for TickReplayer {
+    type Item = Tick;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let tick = self.ticks.get(self.index)?.clone();
+        self.index += 1;
+        Some(tick)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,7 +203,7 @@ mod tests {
             Price::new(dec_from_str(price)).unwrap(),
             Quantity::new(dec_from_str(qty)).unwrap(),
             side,
-            NanoTimestamp(ts),
+            NanoTimestamp::new(ts),
         )
     }
 
@@ -234,6 +260,36 @@ mod tests {
     }
 
     #[test]
+    fn test_tick_filter_by_min_price() {
+        let min_p = Price::new(dec!(100)).unwrap();
+        let f = TickFilter::new().min_price(min_p);
+        let high = make_tick("AAPL", "150", "1", Side::Bid, 0);
+        let low = make_tick("AAPL", "50", "1", Side::Bid, 0);
+        assert!(f.matches(&high));
+        assert!(!f.matches(&low));
+    }
+
+    #[test]
+    fn test_tick_filter_by_max_price() {
+        let max_p = Price::new(dec!(100)).unwrap();
+        let f = TickFilter::new().max_price(max_p);
+        let low = make_tick("AAPL", "50", "1", Side::Bid, 0);
+        let high = make_tick("AAPL", "150", "1", Side::Bid, 0);
+        assert!(f.matches(&low));
+        assert!(!f.matches(&high));
+    }
+
+    #[test]
+    fn test_tick_filter_price_range() {
+        let min_p = Price::new(dec!(90)).unwrap();
+        let max_p = Price::new(dec!(110)).unwrap();
+        let f = TickFilter::new().min_price(min_p).max_price(max_p);
+        assert!(f.matches(&make_tick("X", "100", "1", Side::Bid, 0)));
+        assert!(!f.matches(&make_tick("X", "80", "1", Side::Bid, 0)));
+        assert!(!f.matches(&make_tick("X", "120", "1", Side::Bid, 0)));
+    }
+
+    #[test]
     fn test_tick_filter_combined_predicates() {
         let sym = Symbol::new("AAPL").unwrap();
         let min_qty = Quantity::new(dec!(5)).unwrap();
@@ -260,11 +316,11 @@ mod tests {
         ];
         let mut replayer = TickReplayer::new(ticks);
         let t1 = replayer.next_tick().unwrap();
-        assert_eq!(t1.timestamp.0, 100);
+        assert_eq!(t1.timestamp.nanos(), 100);
         let t2 = replayer.next_tick().unwrap();
-        assert_eq!(t2.timestamp.0, 200);
+        assert_eq!(t2.timestamp.nanos(), 200);
         let t3 = replayer.next_tick().unwrap();
-        assert_eq!(t3.timestamp.0, 300);
+        assert_eq!(t3.timestamp.nanos(), 300);
     }
 
     #[test]
@@ -300,5 +356,20 @@ mod tests {
         assert_eq!(replayer.remaining(), 3);
         let _ = replayer.next_tick();
         assert_eq!(replayer.remaining(), 2);
+    }
+
+    #[test]
+    fn test_tick_replayer_iterator() {
+        let ticks = vec![
+            make_tick("A", "1", "1", Side::Bid, 1),
+            make_tick("A", "2", "1", Side::Bid, 2),
+            make_tick("A", "3", "1", Side::Bid, 3),
+        ];
+        let mut replayer = TickReplayer::new(ticks);
+        let prices: Vec<_> = (&mut replayer).map(|t| t.price.value()).collect();
+        assert_eq!(prices.len(), 3);
+        assert_eq!(prices[0], dec!(1));
+        assert_eq!(prices[1], dec!(2));
+        assert_eq!(prices[2], dec!(3));
     }
 }

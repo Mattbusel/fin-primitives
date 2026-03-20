@@ -51,6 +51,11 @@ impl DrawdownTracker {
         self.peak_equity
     }
 
+    /// Returns the current equity value.
+    pub fn current_equity(&self) -> Decimal {
+        self.current_equity
+    }
+
     /// Returns `true` if the current drawdown percentage does not exceed `max_dd_pct`.
     pub fn is_below_threshold(&self, max_dd_pct: Decimal) -> bool {
         self.current_drawdown_pct() <= max_dd_pct
@@ -68,8 +73,8 @@ pub struct RiskBreach {
 
 /// A risk rule that can be checked against current equity and drawdown.
 pub trait RiskRule: Send {
-    /// Returns the rule's unique name.
-    fn name(&self) -> &'static str;
+    /// Returns the rule's name.
+    fn name(&self) -> &str;
 
     /// Returns `Some(RiskBreach)` if the rule is violated, or `None` if compliant.
     ///
@@ -86,7 +91,7 @@ pub struct MaxDrawdownRule {
 }
 
 impl RiskRule for MaxDrawdownRule {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "max_drawdown"
     }
 
@@ -109,7 +114,7 @@ pub struct MinEquityRule {
 }
 
 impl RiskRule for MinEquityRule {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "min_equity"
     }
 
@@ -156,6 +161,21 @@ impl RiskMonitor {
             .filter_map(|r| r.check(equity, dd))
             .collect()
     }
+
+    /// Returns the current drawdown percentage without triggering an update.
+    pub fn drawdown_pct(&self) -> Decimal {
+        self.tracker.current_drawdown_pct()
+    }
+
+    /// Returns the current equity value without triggering an update.
+    pub fn current_equity(&self) -> Decimal {
+        self.tracker.current_equity()
+    }
+
+    /// Returns the peak equity seen so far.
+    pub fn peak_equity(&self) -> Decimal {
+        self.tracker.peak()
+    }
 }
 
 #[cfg(test)]
@@ -184,6 +204,13 @@ mod tests {
     }
 
     #[test]
+    fn test_drawdown_tracker_current_equity() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(9500));
+        assert_eq!(t.current_equity(), dec!(9500));
+    }
+
+    #[test]
     fn test_drawdown_tracker_is_below_threshold_true() {
         let mut t = DrawdownTracker::new(dec!(10000));
         t.update(dec!(9500));
@@ -200,7 +227,6 @@ mod tests {
     #[test]
     fn test_drawdown_tracker_never_negative() {
         let mut t = DrawdownTracker::new(dec!(10000));
-        // Equity rises above peak: drawdown should still be 0.
         t.update(dec!(11000));
         assert_eq!(t.current_drawdown_pct(), dec!(0));
     }
@@ -273,7 +299,6 @@ mod tests {
                 threshold_pct: dec!(5),
             })
             .add_rule(MinEquityRule { floor: dec!(5000) });
-        // Only MaxDrawdown breaches.
         let breaches = monitor.update(dec!(9000));
         assert_eq!(breaches.len(), 1);
         assert_eq!(breaches[0].rule, "max_drawdown");
@@ -281,24 +306,15 @@ mod tests {
 
     #[test]
     fn test_drawdown_recovery() {
-        // Equity drops then recovers above the previous peak.
         let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
             threshold_pct: dec!(10),
         });
-
-        // Drop to 8000: 20% drawdown, breaches the 10% limit.
         let breaches = monitor.update(dec!(8000));
         assert_eq!(breaches.len(), 1);
-
-        // Recover back to the original peak: drawdown resets to 0%.
         let breaches = monitor.update(dec!(10000));
         assert!(breaches.is_empty(), "no breach after recovery to peak");
-
-        // Rise above the previous peak: new peak established, drawdown still 0%.
         let breaches = monitor.update(dec!(12000));
         assert!(breaches.is_empty(), "no breach after rising above old peak");
-
-        // Slight dip from new peak: (12000-11500)/12000 ≈ 4.17%, within 10%.
         let breaches = monitor.update(dec!(11500));
         assert!(
             breaches.is_empty(),
@@ -306,7 +322,6 @@ mod tests {
         );
     }
 
-    /// max_drawdown of a flat equity series is 0.
     #[test]
     fn test_drawdown_flat_series_is_zero() {
         let mut t = DrawdownTracker::new(dec!(10000));
@@ -316,7 +331,6 @@ mod tests {
         assert_eq!(t.current_drawdown_pct(), dec!(0));
     }
 
-    /// max_drawdown of a monotonically declining series equals full loss.
     #[test]
     fn test_drawdown_monotonic_decline_full_loss() {
         let mut t = DrawdownTracker::new(dec!(10000));
@@ -324,44 +338,57 @@ mod tests {
         t.update(dec!(2500));
         t.update(dec!(1000));
         t.update(dec!(0));
-        // drawdown = (10000 - 0) / 10000 * 100 = 100
         assert_eq!(t.current_drawdown_pct(), dec!(100));
     }
 
     #[test]
     fn test_risk_monitor_multiple_rules_all_must_pass() {
-        // Both rules must be satisfied independently; a state that satisfies
-        // one but not the other still produces a breach.
         let mut monitor = RiskMonitor::new(dec!(10000))
             .add_rule(MaxDrawdownRule {
                 threshold_pct: dec!(5),
             })
             .add_rule(MinEquityRule { floor: dec!(9500) });
-
-        // 6% drawdown from 10000 → equity 9400. Both rules breach.
         let breaches = monitor.update(dec!(9400));
         assert_eq!(breaches.len(), 2, "both rules should trigger");
-
-        // Reset: equity back to 10000.
         let breaches = monitor.update(dec!(10000));
         assert!(breaches.is_empty(), "all rules pass at peak");
-
-        // 4% drawdown → equity 9600. Within drawdown limit (5%) but below
-        // equity floor (9500 < 9600 is fine; 9600 > 9500 so no floor breach).
-        // Actually 9600 > 9500 so neither breaches.
         let breaches = monitor.update(dec!(9600));
         assert!(
             breaches.is_empty(),
             "9600 is above the 9500 floor and within 5% drawdown"
         );
-
-        // Equity exactly at the floor but drawdown > 5%.
-        // From new peak 10000: (10000-9400)/10000 = 6% → dd rule fires.
         let breaches = monitor.update(dec!(9400));
         assert_eq!(
             breaches.len(),
             2,
             "both rules fire when equity drops to 9400 again"
         );
+    }
+
+    #[test]
+    fn test_risk_monitor_drawdown_pct_accessor() {
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(20),
+        });
+        monitor.update(dec!(8000));
+        assert_eq!(monitor.drawdown_pct(), dec!(20));
+    }
+
+    #[test]
+    fn test_risk_monitor_current_equity_accessor() {
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(20),
+        });
+        monitor.update(dec!(9500));
+        assert_eq!(monitor.current_equity(), dec!(9500));
+    }
+
+    #[test]
+    fn test_risk_rule_name_returns_str() {
+        let rule: &dyn RiskRule = &MaxDrawdownRule {
+            threshold_pct: dec!(10),
+        };
+        let name: &str = rule.name();
+        assert_eq!(name, "max_drawdown");
     }
 }

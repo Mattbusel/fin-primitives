@@ -18,8 +18,8 @@ fn bar(close: Decimal) -> OhlcvBar {
         low: p,
         close: p,
         volume: Quantity::zero(),
-        ts_open: NanoTimestamp(0),
-        ts_close: NanoTimestamp(1),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     }
 }
@@ -39,11 +39,11 @@ proptest! {
 
     #[test]
     fn test_rsi_always_in_0_to_100(closes in prop::collection::vec(1u32..=500, 16..=30)) {
-        let mut rsi = Rsi::new("rsi14", 14);
+        let mut rsi = Rsi::new("rsi14", 14).unwrap();
         let mut last_val: Option<Decimal> = None;
         for c in &closes {
             let b = bar(Decimal::from(*c));
-            if let Ok(SignalValue::Scalar(v)) = rsi.update(&b) {
+            if let Ok(SignalValue::Scalar(v)) = rsi.update_bar(&b) {
                 last_val = Some(v);
             }
         }
@@ -57,13 +57,13 @@ proptest! {
     fn test_sma_value_bounded_by_input_range(
         closes in prop::collection::vec(1u32..=1000, 5..=10),
     ) {
-        let mut sma = Sma::new("sma5", 5);
+        let mut sma = Sma::new("sma5", 5).unwrap();
         let min_val = Decimal::from(*closes.iter().min().unwrap());
         let max_val = Decimal::from(*closes.iter().max().unwrap());
         let mut last_val: Option<Decimal> = None;
         for c in &closes {
             let b = bar(Decimal::from(*c));
-            if let Ok(SignalValue::Scalar(v)) = sma.update(&b) {
+            if let Ok(SignalValue::Scalar(v)) = sma.update_bar(&b) {
                 last_val = Some(v);
             }
         }
@@ -87,8 +87,8 @@ proptest! {
             low: Price::new(low).unwrap(),
             close: Price::new(high).unwrap(),
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         };
         prop_assert!(bar.validate().is_ok());
@@ -134,8 +134,8 @@ proptest! {
             low: Price::new(low).unwrap(),
             close: Price::new(close).unwrap(),
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         };
         prop_assert!(bar.validate().is_ok());
@@ -158,7 +158,7 @@ proptest! {
                 side: Side::Bid,
                 quantity: Quantity::new(Decimal::from(quantities[i])).unwrap(),
                 price: Price::new(Decimal::from(prices[i])).unwrap(),
-                timestamp: NanoTimestamp(0),
+                timestamp: NanoTimestamp::new(0),
                 commission: Decimal::ZERO,
             };
             pos.apply_fill(&fill).unwrap();

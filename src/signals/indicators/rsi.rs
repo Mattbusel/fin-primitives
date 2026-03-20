@@ -6,8 +6,7 @@
 //! - RSI <= 30: potentially oversold
 
 use crate::error::FinError;
-use crate::ohlcv::OhlcvBar;
-use crate::signals::{Signal, SignalValue};
+use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 
 /// Relative Strength Index using Wilder's smoothing method.
@@ -24,7 +23,7 @@ use rust_decimal::Decimal;
 /// ```rust
 /// use fin_primitives::signals::indicators::Rsi;
 /// use fin_primitives::signals::Signal;
-/// let rsi = Rsi::new("rsi14", 14);
+/// let rsi = Rsi::new("rsi14", 14).unwrap();
 /// assert_eq!(rsi.period(), 14);
 /// assert!(!rsi.is_ready());
 /// ```
@@ -44,8 +43,14 @@ pub struct Rsi {
 
 impl Rsi {
     /// Constructs a new `Rsi` with the given name and period.
-    pub fn new(name: impl Into<String>, period: usize) -> Self {
-        Self {
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
+    pub fn new(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
+        if period == 0 {
+            return Err(crate::error::FinError::InvalidPeriod(period));
+        }
+        Ok(Self {
             name: name.into(),
             period,
             prev_close: None,
@@ -54,7 +59,7 @@ impl Rsi {
             count: 0,
             seed_gain: Decimal::ZERO,
             seed_loss: Decimal::ZERO,
-        }
+        })
     }
 
     /// Computes RSI from average gain and average loss.
@@ -86,8 +91,8 @@ impl Signal for Rsi {
         &self.name
     }
 
-    fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
-        let close = bar.close.value();
+    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
+        let close = bar.close;
 
         let Some(prev) = self.prev_close else {
             // First bar: just record close, no change yet.
@@ -183,6 +188,7 @@ impl Signal for Rsi {
 mod tests {
     use super::*;
     use crate::ohlcv::OhlcvBar;
+    use crate::signals::Signal;
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
@@ -195,76 +201,71 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         }
     }
 
     #[test]
     fn test_rsi_unavailable_before_period_plus_one() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        // First 3 bars: unavailable (1 sets prev, then 2 changes < period=3).
-        let v1 = rsi.update(&bar("100")).unwrap();
-        let v2 = rsi.update(&bar("102")).unwrap();
-        let v3 = rsi.update(&bar("104")).unwrap();
-        assert!(matches!(v1, SignalValue::Unavailable));
-        assert!(matches!(v2, SignalValue::Unavailable));
-        assert!(matches!(v3, SignalValue::Unavailable));
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
+        let v1 = rsi.update_bar(&bar("100")).unwrap();
+        let v2 = rsi.update_bar(&bar("102")).unwrap();
+        let v3 = rsi.update_bar(&bar("104")).unwrap();
+        assert_eq!(v1, SignalValue::Unavailable);
+        assert_eq!(v2, SignalValue::Unavailable);
+        assert_eq!(v3, SignalValue::Unavailable);
         assert!(!rsi.is_ready());
     }
 
     #[test]
     fn test_rsi_ready_after_period_plus_one_bars() {
-        let mut rsi = Rsi::new("rsi3", 3);
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
         for p in &["100", "102", "104", "106"] {
-            rsi.update(&bar(p)).unwrap();
+            rsi.update_bar(&bar(p)).unwrap();
         }
         assert!(rsi.is_ready());
     }
 
     #[test]
     fn test_rsi_scalar_value_on_period_plus_one_bar() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        let _ = rsi.update(&bar("100")).unwrap();
-        let _ = rsi.update(&bar("102")).unwrap();
-        let _ = rsi.update(&bar("104")).unwrap();
-        let v = rsi.update(&bar("106")).unwrap();
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
+        let _ = rsi.update_bar(&bar("100")).unwrap();
+        let _ = rsi.update_bar(&bar("102")).unwrap();
+        let _ = rsi.update_bar(&bar("104")).unwrap();
+        let v = rsi.update_bar(&bar("106")).unwrap();
         assert!(matches!(v, SignalValue::Scalar(_)));
     }
 
     #[test]
     fn test_rsi_all_gains_equals_100() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        // Strictly rising prices → avg_loss = 0 → RSI = 100.
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
         for p in &["100", "101", "102", "103", "104"] {
-            let _ = rsi.update(&bar(p)).unwrap();
+            let _ = rsi.update_bar(&bar(p)).unwrap();
         }
-        if let SignalValue::Scalar(v) = rsi.update(&bar("105")).unwrap() {
-            assert_eq!(v, dec!(100), "all-gain RSI must be 100");
-        }
+        let v = rsi.update_bar(&bar("105")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(100)));
     }
 
     #[test]
     fn test_rsi_all_losses_equals_zero() {
-        let mut rsi = Rsi::new("rsi3", 3);
-        // Strictly falling prices → avg_gain = 0 → RSI = 0.
+        let mut rsi = Rsi::new("rsi3", 3).unwrap();
         for p in &["100", "99", "98", "97", "96"] {
-            let _ = rsi.update(&bar(p)).unwrap();
+            let _ = rsi.update_bar(&bar(p)).unwrap();
         }
-        if let SignalValue::Scalar(v) = rsi.update(&bar("95")).unwrap() {
-            assert_eq!(v, dec!(0), "all-loss RSI must be 0");
-        }
+        let v = rsi.update_bar(&bar("95")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
     fn test_rsi_in_bounds() {
-        let mut rsi = Rsi::new("rsi5", 5);
+        let mut rsi = Rsi::new("rsi5", 5).unwrap();
         let closes = [
             "100", "102", "101", "103", "102", "104", "103", "105", "104", "106",
         ];
         for &c in &closes {
-            if let SignalValue::Scalar(v) = rsi.update(&bar(c)).unwrap() {
+            if let SignalValue::Scalar(v) = rsi.update_bar(&bar(c)).unwrap() {
                 assert!(v >= dec!(0), "RSI < 0: {v}");
                 assert!(v <= dec!(100), "RSI > 100: {v}");
             }
@@ -273,76 +274,59 @@ mod tests {
 
     #[test]
     fn test_rsi_period_returns_configured_value() {
-        let rsi = Rsi::new("rsi14", 14);
+        let rsi = Rsi::new("rsi14", 14).unwrap();
         assert_eq!(rsi.period(), 14);
     }
 
     #[test]
     fn test_rsi_name_returns_configured_value() {
-        let rsi = Rsi::new("my_rsi", 14);
+        let rsi = Rsi::new("my_rsi", 14).unwrap();
         assert_eq!(rsi.name(), "my_rsi");
     }
 
-    /// RSI with strictly alternating equal up/down moves should converge toward 50
-    /// over many bars. After enough Wilder smoothing iterations the difference from 50
-    /// shrinks; we verify the value stays in a reasonable range and is in [0, 100].
     #[test]
     fn test_rsi_equal_up_down_moves_stays_in_range() {
-        let mut rsi = Rsi::new("rsi4", 4);
-        // Alternating +10/-10: balanced gains and losses.
+        let mut rsi = Rsi::new("rsi4", 4).unwrap();
         let prices = [
             "100", "110", "100", "110", "100", "110", "100", "110", "100", "110", "100", "110",
             "100", "110", "100", "110",
         ];
         let mut last_val: Option<Decimal> = None;
         for p in &prices {
-            if let SignalValue::Scalar(v) = rsi.update(&bar(p)).unwrap() {
+            if let SignalValue::Scalar(v) = rsi.update_bar(&bar(p)).unwrap() {
                 last_val = Some(v);
             }
         }
         let val = last_val.expect("RSI must produce a value");
-        assert!(val >= dec!(0), "RSI must be >= 0, got {val}");
-        assert!(val <= dec!(100), "RSI must be <= 100, got {val}");
+        assert!(val >= dec!(0));
+        assert!(val <= dec!(100));
     }
 
-    /// RSI produced by an all-up price series must be >= 70.
-    ///
-    /// With no losses in the seed window, `avg_loss == 0` which makes RSI = 100,
-    /// satisfying the overbought threshold (>= 70).
     #[test]
     fn test_rsi_overbought_at_70() {
-        let mut rsi = Rsi::new("rsi14", 14);
-        // Feed 15 strictly increasing bars (period + 1 extra to leave seed phase).
+        let mut rsi = Rsi::new("rsi14", 14).unwrap();
         for i in 0u32..=14 {
-            rsi.update(&bar(&(100 + i).to_string())).unwrap();
+            rsi.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
-        assert!(rsi.is_ready(), "RSI must be ready after period+1 bars");
-        // One more upward bar to trigger the smoothing phase.
-        let v = rsi.update(&bar("116")).unwrap();
+        assert!(rsi.is_ready());
+        let v = rsi.update_bar(&bar("116")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(
-                val >= dec!(70),
-                "all-up RSI should be >= 70 (overbought), got {val}"
-            );
+            assert!(val >= dec!(70));
         } else {
             panic!("expected Scalar after period+1 bars, got Unavailable");
         }
     }
 
-    /// RSI with fewer bars than period+1 returns Unavailable.
     #[test]
     fn test_rsi_fewer_bars_than_period_returns_unavailable() {
-        let mut rsi = Rsi::new("rsi14", 14);
+        let mut rsi = Rsi::new("rsi14", 14).unwrap();
         let mut any_scalar = false;
         for i in 0..10u32 {
-            if let SignalValue::Scalar(_) = rsi.update(&bar(&(100 + i).to_string())).unwrap() {
+            if let SignalValue::Scalar(_) = rsi.update_bar(&bar(&(100 + i).to_string())).unwrap() {
                 any_scalar = true;
             }
         }
-        assert!(
-            !any_scalar,
-            "RSI must return Unavailable for fewer than period+1 bars"
-        );
+        assert!(!any_scalar);
         assert!(!rsi.is_ready());
     }
 }

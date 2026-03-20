@@ -15,11 +15,9 @@ fn test_tick_to_ohlcv_produces_bars() {
             Price::new(*p).unwrap(),
             Quantity::new(dec!(1)).unwrap(),
             Side::Bid,
-            NanoTimestamp(i as i64 * 5_000_000_000),
+            NanoTimestamp::new(i as i64 * 5_000_000_000),
         );
-        if let Some(bar) = agg.push_tick(&tick).unwrap() {
-            bars.push(bar);
-        }
+        bars.extend(agg.push_tick(&tick).unwrap());
     }
     if let Some(bar) = agg.flush() {
         bars.push(bar);
@@ -47,7 +45,7 @@ fn test_tick_to_ohlcv_high_low_correct() {
             Price::new(p).unwrap(),
             Quantity::new(dec!(1)).unwrap(),
             Side::Ask,
-            NanoTimestamp(ts),
+            NanoTimestamp::new(ts),
         ))
         .unwrap();
     }
@@ -58,10 +56,10 @@ fn test_tick_to_ohlcv_high_low_correct() {
             Price::new(dec!(205)).unwrap(),
             Quantity::new(dec!(1)).unwrap(),
             Side::Ask,
-            NanoTimestamp(nanos_per_min),
+            NanoTimestamp::new(nanos_per_min),
         ))
         .unwrap();
-    let bar = result.unwrap();
+    let bar = result.into_iter().next().unwrap();
     assert_eq!(bar.open.value(), dec!(200));
     assert_eq!(bar.high.value(), dec!(210));
     assert_eq!(bar.low.value(), dec!(195));

@@ -7,8 +7,10 @@
 //! ## Guarantees
 //! - `OhlcvBar::validate()` enforces: `high >= open`, `high >= close`, `low <= open`,
 //!   `low <= close`, `high >= low`
-//! - `OhlcvAggregator` produces a completed bar when a tick crosses a timeframe boundary
+//! - `OhlcvAggregator::push_tick` returns all completed bars including gap-fill bars
+//!   when ticks skip multiple timeframe buckets
 //! - `OhlcvSeries::push` maintains insertion order
+//! - `OhlcvSeries` implements `IntoIterator` for `&OhlcvSeries`
 //!
 //! ## NOT Responsible For
 //! - Persistence
@@ -20,7 +22,7 @@ use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
 use rust_decimal::Decimal;
 
 /// A completed OHLCV bar for a single symbol and timeframe bucket.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OhlcvBar {
     /// The instrument.
     pub symbol: Symbol,
@@ -102,6 +104,8 @@ pub enum Timeframe {
     Hours(u32),
     /// Aggregation by N days.
     Days(u32),
+    /// Aggregation by N weeks (7-day periods).
+    Weeks(u32),
 }
 
 impl Timeframe {
@@ -113,8 +117,9 @@ impl Timeframe {
         let secs: u64 = match self {
             Timeframe::Seconds(n) => u64::from(*n),
             Timeframe::Minutes(n) => u64::from(*n) * 60,
-            Timeframe::Hours(n) => u64::from(*n) * 3600,
-            Timeframe::Days(n) => u64::from(*n) * 86400,
+            Timeframe::Hours(n) => u64::from(*n) * 3_600,
+            Timeframe::Days(n) => u64::from(*n) * 86_400,
+            Timeframe::Weeks(n) => u64::from(*n) * 7 * 86_400,
         };
         if secs == 0 {
             return Err(FinError::InvalidTimeframe);
@@ -129,17 +134,24 @@ impl Timeframe {
     /// Returns [`FinError::InvalidTimeframe`] if the timeframe duration is zero.
     pub fn bucket_start(&self, ts: NanoTimestamp) -> Result<NanoTimestamp, FinError> {
         let nanos = self.to_nanos()?;
-        let bucket = (ts.0 / nanos) * nanos;
-        Ok(NanoTimestamp(bucket))
+        let bucket = (ts.nanos() / nanos) * nanos;
+        Ok(NanoTimestamp::new(bucket))
     }
 }
 
 /// Aggregates ticks into OHLCV bars according to a fixed timeframe.
+///
+/// `push_tick` returns a `Vec<OhlcvBar>` — normally empty (tick absorbed into current
+/// bar) or a single element (bar completed). When a tick arrives several buckets ahead
+/// of the current one, gap-fill bars are emitted for the empty intervening buckets,
+/// using the last bar's close for OHLC and zero volume.
 pub struct OhlcvAggregator {
     symbol: Symbol,
     timeframe: Timeframe,
     current_bar: Option<OhlcvBar>,
     current_bucket_start: Option<NanoTimestamp>,
+    /// Close price of the most recently completed bar, used for gap-filling.
+    last_close: Option<Price>,
 }
 
 impl OhlcvAggregator {
@@ -148,47 +160,72 @@ impl OhlcvAggregator {
     /// # Errors
     /// Returns [`FinError::InvalidTimeframe`] if the timeframe is zero-duration.
     pub fn new(symbol: Symbol, timeframe: Timeframe) -> Result<Self, FinError> {
-        // Validate timeframe eagerly.
         timeframe.to_nanos()?;
         Ok(Self {
             symbol,
             timeframe,
             current_bar: None,
             current_bucket_start: None,
+            last_close: None,
         })
     }
 
-    /// Processes a single tick, returning a completed bar when the timeframe boundary is crossed.
+    /// Processes a single tick, returning all completed bars.
     ///
     /// # Returns
-    /// - `Ok(Some(bar))`: a bar was completed (the tick belongs to the next bucket)
-    /// - `Ok(None)`: the tick was incorporated into the current bar
+    /// - `Ok(vec![])`: tick was absorbed into the current bar (same bucket)
+    /// - `Ok(vec![bar])`: one bar completed (tick starts the next bucket)
+    /// - `Ok(vec![bar, gap1, gap2, ..., gap_n])`: the completed bar followed by
+    ///   gap-fill bars for any empty intervening buckets
+    ///
+    /// Ticks for a different symbol are silently ignored and return `Ok(vec![])`.
     ///
     /// # Errors
     /// Returns [`FinError::InvalidTimeframe`] if `timeframe.bucket_start` fails.
-    pub fn push_tick(&mut self, tick: &Tick) -> Result<Option<OhlcvBar>, FinError> {
+    pub fn push_tick(&mut self, tick: &Tick) -> Result<Vec<OhlcvBar>, FinError> {
         if tick.symbol != self.symbol {
-            return Ok(None);
+            return Ok(vec![]);
         }
         let bucket = self.timeframe.bucket_start(tick.timestamp)?;
         match self.current_bucket_start {
             None => {
-                // First tick ever.
                 self.current_bucket_start = Some(bucket);
                 self.current_bar = Some(self.new_bar(tick));
-                Ok(None)
+                Ok(vec![])
             }
             Some(current_bucket) if bucket == current_bucket => {
-                // Same bucket: update existing bar.
                 self.update_bar(tick);
-                Ok(None)
+                Ok(vec![])
             }
             Some(_) => {
-                // New bucket: complete the current bar and start a new one.
-                let completed = self.current_bar.take();
+                let completed = self.current_bar.take().expect("current bar must be Some here");
+                self.last_close = Some(completed.close);
+
+                // Emit gap-fill bars for any buckets between the completed bar and the new one.
+                let mut out = vec![completed];
+                let nanos = self.timeframe.to_nanos()?;
+                let prev_bucket = self.current_bucket_start.expect("set above");
+                let mut gap_bucket = NanoTimestamp::new(prev_bucket.nanos() + nanos);
+                while gap_bucket < bucket {
+                    if let Some(close) = self.last_close {
+                        out.push(OhlcvBar {
+                            symbol: self.symbol.clone(),
+                            open: close,
+                            high: close,
+                            low: close,
+                            close,
+                            volume: Quantity::zero(),
+                            ts_open: gap_bucket,
+                            ts_close: gap_bucket,
+                            tick_count: 0,
+                        });
+                    }
+                    gap_bucket = NanoTimestamp::new(gap_bucket.nanos() + nanos);
+                }
+
                 self.current_bucket_start = Some(bucket);
                 self.current_bar = Some(self.new_bar(tick));
-                Ok(completed)
+                Ok(out)
             }
         }
     }
@@ -196,7 +233,11 @@ impl OhlcvAggregator {
     /// Flushes the current partial bar, returning it if one exists.
     pub fn flush(&mut self) -> Option<OhlcvBar> {
         self.current_bucket_start = None;
-        self.current_bar.take()
+        let bar = self.current_bar.take();
+        if let Some(ref b) = bar {
+            self.last_close = Some(b.close);
+        }
+        bar
     }
 
     /// Returns a reference to the current (incomplete) bar, if any.
@@ -286,6 +327,11 @@ impl OhlcvSeries {
         }
     }
 
+    /// Returns an iterator over the bars in insertion order.
+    pub fn iter(&self) -> std::slice::Iter<'_, OhlcvBar> {
+        self.bars.iter()
+    }
+
     /// Returns a `Vec` of close prices in series order.
     pub fn closes(&self) -> Vec<Decimal> {
         self.bars.iter().map(|b| b.close.value()).collect()
@@ -300,6 +346,15 @@ impl OhlcvSeries {
 impl Default for OhlcvSeries {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<'a> IntoIterator for &'a OhlcvSeries {
+    type Item = &'a OhlcvBar;
+    type IntoIter = std::slice::Iter<'a, OhlcvBar>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.bars.iter()
     }
 }
 
@@ -325,8 +380,8 @@ mod tests {
             low: make_price(l),
             close: make_price(c),
             volume: make_qty("100"),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         }
     }
@@ -337,7 +392,7 @@ mod tests {
             make_price(price),
             make_qty(qty),
             Side::Ask,
-            NanoTimestamp(ts),
+            NanoTimestamp::new(ts),
         )
     }
 
@@ -370,7 +425,6 @@ mod tests {
     #[test]
     fn test_ohlcv_bar_typical_price() {
         let bar = make_bar("100", "120", "80", "110");
-        // (120 + 80 + 110) / 3 = 310 / 3
         let expected = dec!(310) / Decimal::from(3u32);
         assert_eq!(bar.typical_price(), expected);
     }
@@ -391,6 +445,15 @@ mod tests {
     fn test_ohlcv_bar_is_bullish_false() {
         let bar = make_bar("105", "110", "95", "100");
         assert!(!bar.is_bullish());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_partial_eq() {
+        let a = make_bar("100", "110", "90", "105");
+        let b = make_bar("100", "110", "90", "105");
+        assert_eq!(a, b);
+        let c = make_bar("100", "110", "90", "106");
+        assert_ne!(a, c);
     }
 
     // --- Timeframe ---
@@ -414,12 +477,18 @@ mod tests {
     }
 
     #[test]
+    fn test_timeframe_weeks_to_nanos() {
+        let tf = Timeframe::Weeks(1);
+        assert_eq!(tf.to_nanos().unwrap(), 7 * 86_400 * 1_000_000_000_i64);
+    }
+
+    #[test]
     fn test_timeframe_bucket_start() {
         let tf = Timeframe::Seconds(60);
         let nanos_per_min = 60_000_000_000_i64;
-        let ts = NanoTimestamp(nanos_per_min + 500_000_000);
+        let ts = NanoTimestamp::new(nanos_per_min + 500_000_000);
         let bucket = tf.bucket_start(ts).unwrap();
-        assert_eq!(bucket.0, nanos_per_min);
+        assert_eq!(bucket.nanos(), nanos_per_min);
     }
 
     // --- OhlcvAggregator ---
@@ -437,22 +506,45 @@ mod tests {
         let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(60)).unwrap();
         let nanos_per_min = 60_000_000_000_i64;
 
-        // First minute
         let t1 = make_tick("X", "100", "1", 0);
         let t2 = make_tick("X", "105", "2", nanos_per_min / 2);
-        // Second minute: triggers completion of first bar
         let t3 = make_tick("X", "110", "1", nanos_per_min + 1);
 
         let r1 = agg.push_tick(&t1).unwrap();
-        assert!(r1.is_none());
+        assert!(r1.is_empty());
         let r2 = agg.push_tick(&t2).unwrap();
-        assert!(r2.is_none());
+        assert!(r2.is_empty());
         let r3 = agg.push_tick(&t3).unwrap();
-        let bar = r3.unwrap();
+        assert_eq!(r3.len(), 1);
+        let bar = &r3[0];
         assert_eq!(bar.open.value(), dec!(100));
         assert_eq!(bar.high.value(), dec!(105));
         assert_eq!(bar.close.value(), dec!(105));
         assert_eq!(bar.tick_count, 2);
+    }
+
+    #[test]
+    fn test_ohlcv_aggregator_gap_fills_empty_buckets() {
+        let sym = Symbol::new("X").unwrap();
+        let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(60)).unwrap();
+        let nanos_per_min = 60_000_000_000_i64;
+
+        // First bar in minute 0.
+        agg.push_tick(&make_tick("X", "100", "1", 0)).unwrap();
+        // Tick jumps 3 minutes ahead: should emit bar for min 0 + gap bars for min 1, min 2.
+        let out = agg
+            .push_tick(&make_tick("X", "200", "1", 3 * nanos_per_min + 1))
+            .unwrap();
+        // 1 completed bar + 2 gap bars
+        assert_eq!(out.len(), 3, "expected 1 completed + 2 gap bars, got {}", out.len());
+        // Completed bar has real data.
+        assert_eq!(out[0].tick_count, 1);
+        // Gap bars have zero volume and tick_count.
+        assert_eq!(out[1].tick_count, 0);
+        assert_eq!(out[1].volume.value(), dec!(0));
+        assert_eq!(out[2].tick_count, 0);
+        // Gap bars use the last close.
+        assert_eq!(out[1].close, out[0].close);
     }
 
     #[test]
@@ -472,7 +564,7 @@ mod tests {
         let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(60)).unwrap();
         let t = make_tick("Y", "100", "1", 0);
         let result = agg.push_tick(&t).unwrap();
-        assert!(result.is_none());
+        assert!(result.is_empty());
         assert!(agg.current_bar().is_none());
     }
 
@@ -529,5 +621,22 @@ mod tests {
     fn test_ohlcv_series_is_empty() {
         let series = OhlcvSeries::new();
         assert!(series.is_empty());
+    }
+
+    #[test]
+    fn test_ohlcv_series_into_iterator() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        let count = (&series).into_iter().count();
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_iter() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        let bar = series.iter().next().unwrap();
+        assert_eq!(bar.open.value(), dec!(100));
     }
 }

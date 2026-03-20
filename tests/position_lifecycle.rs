@@ -13,7 +13,7 @@ fn test_position_open_close_pnl() {
             side: Side::Bid,
             quantity: Quantity::new(dec!(100)).unwrap(),
             price: Price::new(dec!(200)).unwrap(),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -24,7 +24,7 @@ fn test_position_open_close_pnl() {
             side: Side::Ask,
             quantity: Quantity::new(dec!(100)).unwrap(),
             price: Price::new(dec!(220)).unwrap(),
-            timestamp: NanoTimestamp(1),
+            timestamp: NanoTimestamp::new(1),
             commission: dec!(0),
         })
         .unwrap();
@@ -45,7 +45,7 @@ fn test_avg_cost_two_buys_different_prices() {
         side: Side::Bid,
         quantity: Quantity::new(dec!(10)).unwrap(),
         price: Price::new(dec!(100)).unwrap(),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -54,7 +54,7 @@ fn test_avg_cost_two_buys_different_prices() {
         side: Side::Bid,
         quantity: Quantity::new(dec!(5)).unwrap(),
         price: Price::new(dec!(130)).unwrap(),
-        timestamp: NanoTimestamp(1),
+        timestamp: NanoTimestamp::new(1),
         commission: dec!(0),
     })
     .unwrap();
@@ -72,7 +72,7 @@ fn test_avg_cost_three_buys_equal_size() {
             side: Side::Bid,
             quantity: Quantity::new(dec!(1)).unwrap(),
             price: Price::new(p).unwrap(),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -92,7 +92,7 @@ fn test_short_position_unrealized_pnl_below_entry() {
         side: Side::Ask,
         quantity: Quantity::new(dec!(5)).unwrap(),
         price: Price::new(dec!(100)).unwrap(),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -111,7 +111,7 @@ fn test_short_position_unrealized_pnl_above_entry_is_negative() {
         side: Side::Ask,
         quantity: Quantity::new(dec!(5)).unwrap(),
         price: Price::new(dec!(100)).unwrap(),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -135,7 +135,7 @@ fn test_flat_to_long_to_flat_to_short() {
         side: Side::Bid,
         quantity: Quantity::new(dec!(10)).unwrap(),
         price: Price::new(dec!(100)).unwrap(),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -149,7 +149,7 @@ fn test_flat_to_long_to_flat_to_short() {
             side: Side::Ask,
             quantity: Quantity::new(dec!(10)).unwrap(),
             price: Price::new(dec!(110)).unwrap(),
-            timestamp: NanoTimestamp(1),
+            timestamp: NanoTimestamp::new(1),
             commission: dec!(0),
         })
         .unwrap();
@@ -163,7 +163,7 @@ fn test_flat_to_long_to_flat_to_short() {
         side: Side::Ask,
         quantity: Quantity::new(dec!(5)).unwrap(),
         price: Price::new(dec!(120)).unwrap(),
-        timestamp: NanoTimestamp(2),
+        timestamp: NanoTimestamp::new(2),
         commission: dec!(0),
     })
     .unwrap();
@@ -182,7 +182,7 @@ fn test_long_to_short_in_one_fill() {
         side: Side::Bid,
         quantity: Quantity::new(dec!(5)).unwrap(),
         price: Price::new(dec!(100)).unwrap(),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -193,7 +193,7 @@ fn test_long_to_short_in_one_fill() {
         side: Side::Ask,
         quantity: Quantity::new(dec!(15)).unwrap(),
         price: Price::new(dec!(110)).unwrap(),
-        timestamp: NanoTimestamp(1),
+        timestamp: NanoTimestamp::new(1),
         commission: dec!(0),
     })
     .unwrap();
@@ -220,7 +220,7 @@ fn test_position_equity_with_open_position() {
             side: Side::Bid,
             quantity: Quantity::new(dec!(10)).unwrap(),
             price: Price::new(dec!(500)).unwrap(),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();

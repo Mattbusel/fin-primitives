@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "1.1.1"
+version = "2.0.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Financial market primitives: validated price/quantity types, lock-free order book, OHLCV aggregation, technical indicators (SMA/EMA/RSI), position ledger, and risk monitoring."
@@ -14,12 +14,8 @@ categories = ["finance", "data-structures", "algorithms"]
 include = ["src/**/*", "benches/**/*", "tests/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [dependencies]
-# tokio: async runtime, core dependency
-tokio = { version = "1.40", features = ["full"] }
 # serde: serialization framework
-serde = { version = "1", features = ["derive"] }
-# serde_json: JSON support
-serde_json = "1"
+serde = { version = "1", features = ["derive", "rc"] }
 # chrono: datetime handling with serde support
 chrono = { version = "0.4", features = ["serde"] }
 # rust_decimal: exact decimal arithmetic for financial values; never use f64 for prices

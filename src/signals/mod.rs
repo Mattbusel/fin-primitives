@@ -1,12 +1,13 @@
 //! # Module: signals
 //!
 //! ## Responsibility
-//! Provides the `Signal` trait, `SignalValue` enum, and a `SignalPipeline` that
-//! applies multiple signals to each OHLCV bar in sequence.
+//! Provides the `Signal` trait, `SignalValue` enum, `BarInput` thin input type, and a
+//! `SignalPipeline` that applies multiple signals to each OHLCV bar in sequence.
 //!
 //! ## Guarantees
 //! - `SignalValue::Unavailable` is returned until a signal has accumulated `period` bars
-//! - `SignalPipeline::update` always returns `Ok(SignalMap)` even when individual signals are not ready
+//! - `SignalPipeline::update` always returns a `SignalMap`; per-signal errors are collected
+//!   rather than aborting the whole pipeline
 //!
 //! ## NOT Responsible For
 //! - Persistence
@@ -19,8 +20,38 @@ use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
 use rust_decimal::Decimal;
 
+/// Thin input type for signal computation, decoupled from `OhlcvBar`.
+///
+/// Carrying all four price fields and volume allows future indicators (e.g. MACD on
+/// high-low, OBV on volume) without forcing a dependency on `OhlcvBar`.
+#[derive(Debug, Clone, Copy)]
+pub struct BarInput {
+    /// Closing price (used by most indicators).
+    pub close: Decimal,
+    /// High price of the bar.
+    pub high: Decimal,
+    /// Low price of the bar.
+    pub low: Decimal,
+    /// Opening price of the bar.
+    pub open: Decimal,
+    /// Total traded volume during the bar.
+    pub volume: Decimal,
+}
+
+impl From<&OhlcvBar> for BarInput {
+    fn from(bar: &OhlcvBar) -> Self {
+        Self {
+            close: bar.close.value(),
+            high: bar.high.value(),
+            low: bar.low.value(),
+            open: bar.open.value(),
+            volume: bar.volume.value(),
+        }
+    }
+}
+
 /// The output value of a signal computation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SignalValue {
     /// A computed scalar value.
     Scalar(Decimal),
@@ -28,7 +59,7 @@ pub enum SignalValue {
     Unavailable,
 }
 
-/// A stateful indicator that updates on each new OHLCV bar.
+/// A stateful indicator that updates on each new bar input.
 ///
 /// # Implementors
 /// - [`indicators::Sma`]: simple moving average
@@ -38,7 +69,10 @@ pub trait Signal: Send {
     /// Returns the name of this signal (unique within a pipeline).
     fn name(&self) -> &str;
 
-    /// Updates the signal with a new bar and returns the current value.
+    /// Updates the signal with a [`BarInput`] and returns the current value.
+    ///
+    /// Accepting `BarInput` rather than `&OhlcvBar` lets signals be used on any
+    /// price stream, not just OHLCV data.
     ///
     /// # Returns
     /// - `Ok(SignalValue::Scalar(v))` if enough bars have been accumulated
@@ -46,7 +80,12 @@ pub trait Signal: Send {
     ///
     /// # Errors
     /// Returns [`FinError`] on arithmetic failure.
-    fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError>;
+    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError>;
+
+    /// Convenience wrapper: converts `bar` to [`BarInput`] and calls [`Self::update`].
+    fn update_bar(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
+        self.update(&BarInput::from(bar))
+    }
 
     /// Returns `true` if the signal has accumulated enough bars to produce a value.
     fn is_ready(&self) -> bool;

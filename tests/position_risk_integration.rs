@@ -25,7 +25,7 @@ fn fill(symbol: &str, side: Side, q: Decimal, p: Decimal, comm: Decimal) -> Fill
         side,
         quantity: qty(q),
         price: price(p),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: comm,
     }
 }
@@ -227,7 +227,7 @@ fn ledger_equity_drives_risk_monitor() {
             side: Side::Bid,
             quantity: qty(dec!(10)),
             price: price(dec!(100)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -268,7 +268,7 @@ fn ledger_multiple_positions_total_unrealized() {
             side: Side::Bid,
             quantity: qty(dec!(10)),
             price: price(dec!(100)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -278,7 +278,7 @@ fn ledger_multiple_positions_total_unrealized() {
             side: Side::Bid,
             quantity: qty(dec!(5)),
             price: price(dec!(200)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -301,7 +301,7 @@ fn ledger_sell_without_position_creates_short() {
             side: Side::Ask,
             quantity: qty(dec!(10)),
             price: price(dec!(50)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -319,7 +319,7 @@ fn ledger_insufficient_funds_returns_error() {
         side: Side::Bid,
         quantity: qty(dec!(100)),
         price: price(dec!(100)),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     });
     assert!(result.is_err());
@@ -335,7 +335,7 @@ fn ledger_realized_pnl_total_accumulates_across_symbols() {
             side: Side::Bid,
             quantity: qty(dec!(10)),
             price: price(dec!(100)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -345,7 +345,7 @@ fn ledger_realized_pnl_total_accumulates_across_symbols() {
             side: Side::Ask,
             quantity: qty(dec!(10)),
             price: price(dec!(110)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -356,7 +356,7 @@ fn ledger_realized_pnl_total_accumulates_across_symbols() {
             side: Side::Bid,
             quantity: qty(dec!(5)),
             price: price(dec!(200)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -366,7 +366,7 @@ fn ledger_realized_pnl_total_accumulates_across_symbols() {
             side: Side::Ask,
             quantity: qty(dec!(5)),
             price: price(dec!(210)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();

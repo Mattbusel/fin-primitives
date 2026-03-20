@@ -12,7 +12,7 @@ fn bench_tick_filter(c: &mut Criterion) {
         Price::new(dec!(100)).unwrap(),
         Quantity::new(dec!(1)).unwrap(),
         Side::Bid,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     let filter = TickFilter::new().symbol(sym);
     c.bench_function("tick_filter_match", |b| b.iter(|| filter.matches(&tick)));
@@ -53,7 +53,7 @@ fn bench_ohlcv_push_tick(c: &mut Criterion) {
         Price::new(dec!(100)).unwrap(),
         Quantity::new(dec!(1)).unwrap(),
         Side::Bid,
-        NanoTimestamp(0),
+        NanoTimestamp::new(0),
     );
     c.bench_function("ohlcv_push_tick", |b| {
         b.iter_with_setup(

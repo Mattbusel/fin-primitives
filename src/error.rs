@@ -65,10 +65,6 @@ pub enum FinError {
     #[error("Timeframe duration must be positive")]
     InvalidTimeframe,
 
-    /// CSV or text parse failure.
-    #[error("CSV parse error: {0}")]
-    CsvParse(String),
-
     /// A Decimal arithmetic operation overflowed.
     #[error("Arithmetic overflow in financial calculation")]
     ArithmeticOverflow,
@@ -81,4 +77,8 @@ pub enum FinError {
         /// Best ask price at the time the spread inversion was detected.
         best_ask: Decimal,
     },
+
+    /// Indicator or aggregator period was zero; must be at least 1.
+    #[error("Period must be at least 1, got {0}")]
+    InvalidPeriod(usize),
 }

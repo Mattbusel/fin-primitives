@@ -18,7 +18,7 @@ fn qty(s: &str) -> Quantity {
 }
 
 fn tick(sym_s: &str, p: &str, q: &str, ts: i64) -> Tick {
-    Tick::new(sym(sym_s), price(p), qty(q), Side::Ask, NanoTimestamp(ts))
+    Tick::new(sym(sym_s), price(p), qty(q), Side::Ask, NanoTimestamp::new(ts))
 }
 
 fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
@@ -29,8 +29,8 @@ fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {
         low: price(l),
         close: price(c),
         volume: qty("100"),
-        ts_open: NanoTimestamp(0),
-        ts_close: NanoTimestamp(1),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     }
 }
@@ -77,15 +77,15 @@ fn timeframe_bucket_start_aligns_correctly() {
     let tf = Timeframe::Minutes(1);
     let nanos_per_min = 60_000_000_000_i64;
     // Timestamp exactly at minute 2
-    let ts = NanoTimestamp(2 * nanos_per_min + 7_000_000);
-    assert_eq!(tf.bucket_start(ts).unwrap().0, 2 * nanos_per_min);
+    let ts = NanoTimestamp::new(2 * nanos_per_min + 7_000_000);
+    assert_eq!(tf.bucket_start(ts).unwrap().nanos(), 2 * nanos_per_min);
 }
 
 #[test]
 fn timeframe_bucket_start_zero_ts() {
     let tf = Timeframe::Seconds(30);
-    let ts = NanoTimestamp(0);
-    assert_eq!(tf.bucket_start(ts).unwrap().0, 0);
+    let ts = NanoTimestamp::new(0);
+    assert_eq!(tf.bucket_start(ts).unwrap().nanos(), 0);
 }
 
 // ── OhlcvBar invariants ───────────────────────────────────────────────────
@@ -139,13 +139,13 @@ fn aggregator_three_consecutive_bars() {
 
     // Bar 0: ticks at 0s and 30s
     let r1 = agg.push_tick(&tick("ETH", "1000", "1", 0)).unwrap();
-    assert!(r1.is_none());
+    assert!(r1.is_empty());
     let r2 = agg.push_tick(&tick("ETH", "1010", "2", nps / 2)).unwrap();
-    assert!(r2.is_none());
+    assert!(r2.is_empty());
 
     // Bar 1 starts: triggers completion of bar 0
     let r3 = agg.push_tick(&tick("ETH", "1005", "1", nps + 1)).unwrap();
-    let bar0 = r3.unwrap();
+    let bar0 = r3.into_iter().next().unwrap();
     assert_eq!(bar0.tick_count, 2);
     assert_eq!(bar0.open.value(), dec!(1000));
     assert_eq!(bar0.high.value(), dec!(1010));
@@ -159,7 +159,7 @@ fn aggregator_three_consecutive_bars() {
     let r5 = agg
         .push_tick(&tick("ETH", "1000", "1", 2 * nps + 1))
         .unwrap();
-    let bar1 = r5.unwrap();
+    let bar1 = r5.into_iter().next().unwrap();
     assert_eq!(bar1.tick_count, 2);
     assert_eq!(bar1.high.value(), dec!(1020));
 
@@ -196,7 +196,7 @@ fn aggregator_wrong_symbol_ignored() {
     let mut agg = OhlcvAggregator::new(sym("AAPL"), Timeframe::Seconds(60)).unwrap();
     agg.push_tick(&tick("AAPL", "100", "1", 0)).unwrap();
     let r = agg.push_tick(&tick("MSFT", "200", "1", 1)).unwrap();
-    assert!(r.is_none());
+    assert!(r.is_empty());
     assert_eq!(agg.current_bar().unwrap().tick_count, 1);
 }
 
@@ -216,7 +216,7 @@ fn aggregator_single_tick_per_bar() {
     let mut agg = OhlcvAggregator::new(sym("X"), Timeframe::Seconds(60)).unwrap();
     agg.push_tick(&tick("X", "100", "1", 0)).unwrap();
     let r = agg.push_tick(&tick("X", "200", "1", nps + 1)).unwrap();
-    let bar = r.unwrap();
+    let bar = r.into_iter().next().unwrap();
     // OHLCV all equal to single tick price
     assert_eq!(bar.open, bar.high);
     assert_eq!(bar.open, bar.low);
@@ -316,7 +316,7 @@ fn aggregator_feeds_series_correctly() {
     ];
 
     for (s, p, q, ts) in &ticks {
-        if let Some(bar) = agg.push_tick(&tick(s, p, q, *ts)).unwrap() {
+        for bar in agg.push_tick(&tick(s, p, q, *ts)).unwrap() {
             series.push(bar).unwrap();
         }
     }
@@ -343,7 +343,7 @@ fn aggregator_5min_bar_test() {
 
     // Trigger completion
     let r = agg.push_tick(&tick("NVDA", "810", "1", nps + 1)).unwrap();
-    let bar = r.unwrap();
+    let bar = r.into_iter().next().unwrap();
     assert_eq!(bar.tick_count, 10);
 }
 

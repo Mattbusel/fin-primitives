@@ -1,4 +1,4 @@
-//! Signal pipeline: applies multiple signals to each OHLCV bar and returns a named map of results.
+//! Signal pipeline: applies multiple signals to each OHLCV bar and collects results.
 
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
@@ -8,12 +8,32 @@ use std::collections::HashMap;
 /// A named map of signal output values produced by a single [`SignalPipeline::update`] call.
 ///
 /// Keys are the signal names as returned by [`crate::signals::Signal::name`].
-pub struct SignalMap(HashMap<String, SignalValue>);
+/// Per-signal errors are stored alongside successful values so that one failing
+/// indicator does not abort the entire pipeline.
+pub struct SignalMap {
+    values: HashMap<String, SignalValue>,
+    errors: HashMap<String, FinError>,
+}
 
 impl SignalMap {
     /// Returns the signal value for `name`, or `None` if the name is not in this map.
     pub fn get(&self, name: &str) -> Option<&SignalValue> {
-        self.0.get(name)
+        self.values.get(name)
+    }
+
+    /// Returns the per-signal error for `name`, if that signal errored this cycle.
+    pub fn error(&self, name: &str) -> Option<&FinError> {
+        self.errors.get(name)
+    }
+
+    /// Returns `true` if any signal produced an error this update cycle.
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    /// Returns an iterator over the names of signals that errored this cycle.
+    pub fn error_names(&self) -> impl Iterator<Item = &str> {
+        self.errors.keys().map(String::as_str)
     }
 }
 
@@ -40,16 +60,25 @@ impl SignalPipeline {
 
     /// Updates all signals with `bar` and returns a [`SignalMap`] of all results.
     ///
-    /// # Errors
-    /// Returns [`FinError`] if any signal's arithmetic fails.
-    pub fn update(&mut self, bar: &OhlcvBar) -> Result<SignalMap, FinError> {
-        let mut map = HashMap::with_capacity(self.signals.len());
+    /// Each signal is evaluated independently. Per-signal arithmetic errors are
+    /// stored in the returned `SignalMap` (accessible via `map.error(name)`) rather
+    /// than aborting the pipeline. Erroring signals appear as `Unavailable` in the map.
+    pub fn update(&mut self, bar: &OhlcvBar) -> SignalMap {
+        let mut values = HashMap::with_capacity(self.signals.len());
+        let mut errors = HashMap::new();
         for signal in &mut self.signals {
             let name = signal.name().to_owned();
-            let value = signal.update(bar)?;
-            map.insert(name, value);
+            match signal.update_bar(bar) {
+                Ok(value) => {
+                    values.insert(name, value);
+                }
+                Err(e) => {
+                    values.insert(name.clone(), SignalValue::Unavailable);
+                    errors.insert(name, e);
+                }
+            }
         }
-        Ok(SignalMap(map))
+        SignalMap { values, errors }
     }
 
     /// Returns the number of signals that are currently ready.
@@ -80,8 +109,8 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         }
     }
@@ -89,35 +118,47 @@ mod tests {
     #[test]
     fn test_signal_pipeline_update_all() {
         let mut pipeline = SignalPipeline::new()
-            .add(Sma::new("sma3", 3))
-            .add(Ema::new("ema3", 3))
-            .add(Rsi::new("rsi3", 3));
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema3", 3).unwrap())
+            .add(Rsi::new("rsi3", 3).unwrap());
 
         let prices = ["100", "102", "104", "106"];
         let mut last_map = None;
         for p in &prices {
-            last_map = Some(pipeline.update(&bar(p)).unwrap());
+            last_map = Some(pipeline.update(&bar(p)));
         }
         let map = last_map.unwrap();
-        // After 4 bars all should be ready (period=3 + 1 extra for RSI)
         assert!(map.get("sma3").is_some());
         assert!(map.get("ema3").is_some());
         assert!(map.get("rsi3").is_some());
+        assert!(!map.has_errors());
         assert_eq!(pipeline.ready_count(), 3);
     }
 
     #[test]
     fn test_signal_pipeline_ready_count_zero_initially() {
         let pipeline = SignalPipeline::new()
-            .add(Sma::new("sma5", 5))
-            .add(Ema::new("ema5", 5));
+            .add(Sma::new("sma5", 5).unwrap())
+            .add(Ema::new("ema5", 5).unwrap());
         assert_eq!(pipeline.ready_count(), 0);
     }
 
     #[test]
     fn test_signal_pipeline_empty_map_for_empty_pipeline() {
         let mut pipeline = SignalPipeline::new();
-        let map = pipeline.update(&bar("100")).unwrap();
+        let map = pipeline.update(&bar("100"));
         assert!(map.get("any").is_none());
+        assert!(!map.has_errors());
+    }
+
+    #[test]
+    fn test_signal_pipeline_no_errors_on_normal_input() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Rsi::new("rsi3", 3).unwrap());
+        for p in &["100", "101", "102", "103"] {
+            let map = pipeline.update(&bar(p));
+            assert!(!map.has_errors());
+        }
     }
 }

@@ -37,7 +37,7 @@ fn fill(symbol: &str, side: Side, qty: Decimal, price: Decimal, comm: Decimal) -
         side,
         quantity: q(qty),
         price: p(price),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: comm,
     }
 }
@@ -72,8 +72,8 @@ fn bar(close: Decimal) -> fin_primitives::ohlcv::OhlcvBar {
         low: pr,
         close: pr,
         volume: q(dec!(0)),
-        ts_open: NanoTimestamp(0),
-        ts_close: NanoTimestamp(1),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     }
 }
@@ -118,7 +118,7 @@ fn zero_quantity_fill_ledger_cash_unchanged() {
             side: Side::Bid,
             quantity: q(dec!(0)),
             price: p(dec!(50_000)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -269,7 +269,7 @@ fn symbol_tab_character_returns_invalid_symbol_error() {
 /// produces a Scalar.
 #[test]
 fn rsi_period_14_unavailable_for_first_14_bars() {
-    let mut rsi = Rsi::new("rsi14", 14);
+    let mut rsi = Rsi::new("rsi14", 14).unwrap();
     let prices = [
         dec!(44),
         dec!(44),
@@ -287,7 +287,7 @@ fn rsi_period_14_unavailable_for_first_14_bars() {
         dec!(44),
     ];
     for price in &prices {
-        let val = rsi.update(&bar(*price)).unwrap();
+        let val = rsi.update_bar(&bar(*price)).unwrap();
         assert!(
             matches!(val, SignalValue::Unavailable),
             "expected Unavailable for < period bars, got {:?}",
@@ -303,11 +303,11 @@ fn rsi_period_14_unavailable_for_first_14_bars() {
 /// After period + 1 bars the RSI must return a Scalar.
 #[test]
 fn rsi_period_14_produces_scalar_after_period_plus_one_bars() {
-    let mut rsi = Rsi::new("rsi14", 14);
+    let mut rsi = Rsi::new("rsi14", 14).unwrap();
     let prices: Vec<Decimal> = (0..15).map(|i| dec!(100) + Decimal::from(i)).collect();
     let mut last = SignalValue::Unavailable;
     for p in &prices {
-        last = rsi.update(&bar(*p)).unwrap();
+        last = rsi.update_bar(&bar(*p)).unwrap();
     }
     assert!(
         matches!(last, SignalValue::Scalar(_)),
@@ -319,14 +319,14 @@ fn rsi_period_14_produces_scalar_after_period_plus_one_bars() {
 /// RSI with period 3 needs 4 bars (3 changes for seed, 1 more to confirm ready).
 #[test]
 fn rsi_period_3_unavailable_for_first_3_bars() {
-    let mut rsi = Rsi::new("rsi3", 3);
-    let _ = rsi.update(&bar(dec!(100))).unwrap();
-    let v1 = rsi.update(&bar(dec!(101))).unwrap();
-    let v2 = rsi.update(&bar(dec!(102))).unwrap();
+    let mut rsi = Rsi::new("rsi3", 3).unwrap();
+    let _ = rsi.update_bar(&bar(dec!(100))).unwrap();
+    let v1 = rsi.update_bar(&bar(dec!(101))).unwrap();
+    let v2 = rsi.update_bar(&bar(dec!(102))).unwrap();
     assert!(matches!(v1, SignalValue::Unavailable));
     assert!(matches!(v2, SignalValue::Unavailable));
     assert!(!rsi.is_ready());
-    let v3 = rsi.update(&bar(dec!(103))).unwrap();
+    let v3 = rsi.update_bar(&bar(dec!(103))).unwrap();
     assert!(matches!(v3, SignalValue::Scalar(_)));
     assert!(rsi.is_ready());
 }
@@ -334,12 +334,12 @@ fn rsi_period_3_unavailable_for_first_3_bars() {
 /// All-loss scenario: RSI should be 0 (or very close) when all bars are down.
 #[test]
 fn rsi_all_losses_approaches_zero() {
-    let mut rsi = Rsi::new("rsi3", 3);
+    let mut rsi = Rsi::new("rsi3", 3).unwrap();
     // 5 bars, each lower than the last → all losses, no gains.
     let prices = [dec!(100), dec!(90), dec!(80), dec!(70), dec!(60)];
     let mut last_val: Option<Decimal> = None;
     for price in &prices {
-        if let SignalValue::Scalar(v) = rsi.update(&bar(*price)).unwrap() {
+        if let SignalValue::Scalar(v) = rsi.update_bar(&bar(*price)).unwrap() {
             last_val = Some(v);
         }
     }
@@ -371,7 +371,7 @@ fn pnl_accounting_identity_buy_then_sell_net_cash_change() {
             side: Side::Bid,
             quantity: q(dec!(10)),
             price: p(dec!(100)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(1),
         })
         .unwrap();
@@ -383,7 +383,7 @@ fn pnl_accounting_identity_buy_then_sell_net_cash_change() {
             side: Side::Ask,
             quantity: q(dec!(10)),
             price: p(dec!(110)),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(1),
         })
         .unwrap();
@@ -429,7 +429,7 @@ fn pnl_accounting_identity_multiple_buys_avg_cost_invariant() {
             side: Side::Bid,
             quantity: q(*qty_val),
             price: p(*price_val),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: dec!(0),
         })
         .unwrap();
@@ -469,7 +469,7 @@ fn pnl_accounting_identity_realized_pnl_sums_correctly() {
         side: Side::Bid,
         quantity: q(dec!(20)),
         price: p(dec!(50)),
-        timestamp: NanoTimestamp(0),
+        timestamp: NanoTimestamp::new(0),
         commission: dec!(0),
     })
     .unwrap();
@@ -489,7 +489,7 @@ fn pnl_accounting_identity_realized_pnl_sums_correctly() {
                 side: Side::Ask,
                 quantity: q(*qty_val),
                 price: p(*price_val),
-                timestamp: NanoTimestamp(0),
+                timestamp: NanoTimestamp::new(0),
                 commission: dec!(0),
             })
             .unwrap();

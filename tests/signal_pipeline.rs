@@ -14,8 +14,8 @@ fn bar(close: &str) -> OhlcvBar {
         low: p,
         close: p,
         volume: Quantity::zero(),
-        ts_open: NanoTimestamp(0),
-        ts_close: NanoTimestamp(1),
+        ts_open: NanoTimestamp::new(0),
+        ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     }
 }
@@ -24,16 +24,16 @@ fn bar(close: &str) -> OhlcvBar {
 fn test_signal_pipeline_all_ready_after_period() {
     let period = 5;
     let mut pipeline = SignalPipeline::new()
-        .add(Sma::new("sma", period))
-        .add(Ema::new("ema", period))
-        .add(Rsi::new("rsi", period));
+        .add(Sma::new("sma", period).unwrap())
+        .add(Ema::new("ema", period).unwrap())
+        .add(Rsi::new("rsi", period).unwrap());
 
     let prices = [
         "100", "102", "101", "103", "105", "107", "104", "106", "108", "110",
     ];
     let mut last_map = None;
     for p in &prices {
-        last_map = Some(pipeline.update(&bar(p)).unwrap());
+        last_map = Some(pipeline.update(&bar(p)));
     }
 
     // After enough bars, all three should have scalar values.
@@ -49,11 +49,11 @@ fn test_signal_pipeline_all_ready_after_period() {
 
 #[test]
 fn test_signal_pipeline_not_ready_before_period() {
-    let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5));
+    let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
 
     // Feed only 4 bars.
     for p in &["100", "102", "104", "106"] {
-        pipeline.update(&bar(p)).unwrap();
+        pipeline.update(&bar(p));
     }
     assert_eq!(pipeline.ready_count(), 0);
 }

@@ -1,8 +1,7 @@
 //! Exponential Moving Average (EMA) indicator.
 
 use crate::error::FinError;
-use crate::ohlcv::OhlcvBar;
-use crate::signals::{Signal, SignalValue};
+use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 
 /// Exponential Moving Average over `period` bars.
@@ -24,18 +23,24 @@ pub struct Ema {
 
 impl Ema {
     /// Constructs a new `Ema` with the given name and period.
-    pub fn new(name: impl Into<String>, period: usize) -> Self {
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
+    pub fn new(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
+        if period == 0 {
+            return Err(crate::error::FinError::InvalidPeriod(period));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let denom = Decimal::from((period + 1) as u32);
         let multiplier = Decimal::TWO.checked_div(denom).unwrap_or(Decimal::ONE);
-        Self {
+        Ok(Self {
             name: name.into(),
             period,
             current: None,
             count: 0,
             multiplier,
             seed_sum: Decimal::ZERO,
-        }
+        })
     }
 }
 
@@ -44,8 +49,8 @@ impl Signal for Ema {
         &self.name
     }
 
-    fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
-        let close = bar.close.value();
+    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
+        let close = bar.close;
         self.count += 1;
 
         if self.count <= self.period {
@@ -93,6 +98,8 @@ impl Signal for Ema {
 mod tests {
     use super::*;
     use crate::ohlcv::OhlcvBar;
+    use crate::signals::indicators::Sma;
+    use crate::signals::Signal;
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
     use rust_decimal_macros::dec;
 
@@ -105,32 +112,28 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         }
     }
 
     #[test]
     fn test_ema_not_ready_before_period() {
-        let mut ema = Ema::new("ema3", 3);
-        let v = ema.update(&bar("10")).unwrap();
-        assert!(matches!(v, SignalValue::Unavailable));
+        let mut ema = Ema::new("ema3", 3).unwrap();
+        let v = ema.update_bar(&bar("10")).unwrap();
+        assert_eq!(v, SignalValue::Unavailable);
         assert!(!ema.is_ready());
     }
 
     #[test]
     fn test_ema_first_value_equals_sma_seed() {
         // period=3: SMA of first 3 bars = (10+20+30)/3 = 20
-        let mut ema = Ema::new("ema3", 3);
-        ema.update(&bar("10")).unwrap();
-        ema.update(&bar("20")).unwrap();
-        let v = ema.update(&bar("30")).unwrap();
-        if let SignalValue::Scalar(val) = v {
-            assert_eq!(val, dec!(20));
-        } else {
-            panic!("expected Scalar");
-        }
+        let mut ema = Ema::new("ema3", 3).unwrap();
+        ema.update_bar(&bar("10")).unwrap();
+        ema.update_bar(&bar("20")).unwrap();
+        let v = ema.update_bar(&bar("30")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(20)));
     }
 
     #[test]
@@ -138,71 +141,47 @@ mod tests {
         // period=3, k = 2/4 = 0.5
         // seed = (10+20+30)/3 = 20
         // 4th bar close=40: EMA = 40*0.5 + 20*0.5 = 30
-        let mut ema = Ema::new("ema3", 3);
-        ema.update(&bar("10")).unwrap();
-        ema.update(&bar("20")).unwrap();
-        ema.update(&bar("30")).unwrap();
-        let v = ema.update(&bar("40")).unwrap();
-        if let SignalValue::Scalar(val) = v {
-            assert_eq!(val, dec!(30));
-        } else {
-            panic!("expected Scalar");
-        }
+        let mut ema = Ema::new("ema3", 3).unwrap();
+        ema.update_bar(&bar("10")).unwrap();
+        ema.update_bar(&bar("20")).unwrap();
+        ema.update_bar(&bar("30")).unwrap();
+        let v = ema.update_bar(&bar("40")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(30)));
     }
 
     #[test]
     fn test_ema_is_ready_after_period() {
-        let mut ema = Ema::new("ema3", 3);
-        ema.update(&bar("10")).unwrap();
-        ema.update(&bar("20")).unwrap();
+        let mut ema = Ema::new("ema3", 3).unwrap();
+        ema.update_bar(&bar("10")).unwrap();
+        ema.update_bar(&bar("20")).unwrap();
         assert!(!ema.is_ready());
-        ema.update(&bar("30")).unwrap();
+        ema.update_bar(&bar("30")).unwrap();
         assert!(ema.is_ready());
     }
 
-    /// EMA with period 0: the denominator for k becomes 0+1=1, so k=2/1=2, but
-    /// the seed loop never fires (0 iterations), meaning `count == period == 0`
-    /// on the very first bar and the EMA seed phase completes immediately with
-    /// seed_sum / 0, which triggers ArithmeticOverflow. We verify this is handled
-    /// gracefully by checking the result is not a panic.
     #[test]
-    fn test_ema_period_0_seed_division_returns_overflow() {
-        let mut ema = Ema::new("ema0", 0);
-        // period=0 means `count <= 0` is true from count=1, so we go straight to
-        // the EMA phase with prev=0 (current is None). The first bar never enters
-        // the seed phase because `count (1) <= period (0)` is false immediately.
-        // The result depends on implementation; we only assert no panic.
-        let result = ema.update(&bar("100"));
-        // Either an Ok(Scalar) or an Err: just must not panic.
-        let _ = result;
+    fn test_ema_period_0_returns_invalid_period_error() {
+        let result = Ema::new("ema0", 0);
+        assert!(result.is_err());
     }
 
-    /// EMA with a single value: period=1, SMA seed = that value.
     #[test]
     fn test_ema_single_value_period_1() {
-        let mut ema = Ema::new("ema1", 1);
-        let v = ema.update(&bar("42")).unwrap();
-        assert!(
-            matches!(v, SignalValue::Scalar(d) if d == dec!(42)),
-            "EMA(1) of a single bar must equal that bar's close"
-        );
+        let mut ema = Ema::new("ema1", 1).unwrap();
+        let v = ema.update_bar(&bar("42")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(42)));
         assert!(ema.is_ready());
     }
 
-    /// EMA convergence property: feeding a constant price after warm-up should
-    /// drive the EMA to that price. After many bars at the same value, the
-    /// difference between EMA and the constant must be negligible.
     #[test]
     fn test_ema_convergence_to_constant_series() {
-        let mut ema = Ema::new("ema5", 5);
-        // Warm up with varying prices.
+        let mut ema = Ema::new("ema5", 5).unwrap();
         for p in &["10", "20", "30", "40", "50"] {
-            ema.update(&bar(p)).unwrap();
+            ema.update_bar(&bar(p)).unwrap();
         }
-        // Feed 30 bars at 100: EMA must converge close to 100.
         let mut last = dec!(0);
         for _ in 0..30 {
-            if let SignalValue::Scalar(v) = ema.update(&bar("100")).unwrap() {
+            if let SignalValue::Scalar(v) = ema.update_bar(&bar("100")).unwrap() {
                 last = v;
             }
         }
@@ -213,56 +192,38 @@ mod tests {
         );
     }
 
-    /// EMA responds faster to a sudden price spike than SMA of the same period.
-    ///
-    /// After both indicators are seeded at 100, a spike to 200 should pull the
-    /// EMA higher than the SMA because EMA applies an exponential weight to the
-    /// most recent bar.
     #[test]
     fn test_ema_faster_than_sma() {
-        use crate::signals::indicators::Sma;
-
         let period = 5;
-        let mut ema = Ema::new("ema5", period);
-        let mut sma = Sma::new("sma5", period);
+        let mut ema = Ema::new("ema5", period).unwrap();
+        let mut sma = Sma::new("sma5", period).unwrap();
 
-        // Seed both with stable prices at 100.
         for _ in 0..period {
-            ema.update(&bar("100")).unwrap();
-            sma.update(&bar("100")).unwrap();
+            ema.update_bar(&bar("100")).unwrap();
+            sma.update_bar(&bar("100")).unwrap();
         }
 
-        // Feed a large spike to 200.
-        let ema_val = match ema.update(&bar("200")).unwrap() {
+        let ema_val = match ema.update_bar(&bar("200")).unwrap() {
             SignalValue::Scalar(v) => v,
             _ => panic!("EMA should be ready after period bars"),
         };
-        let sma_val = match sma.update(&bar("200")).unwrap() {
+        let sma_val = match sma.update_bar(&bar("200")).unwrap() {
             SignalValue::Scalar(v) => v,
             _ => panic!("SMA should be ready after period bars"),
         };
 
-        // EMA gives more weight to the newest value so it should be higher than SMA.
         assert!(
             ema_val > sma_val,
             "EMA ({ema_val}) should exceed SMA ({sma_val}) immediately after a spike"
         );
     }
 
-    /// EMA handles negative close prices without panicking (prices in the bar
-    /// struct use `Price` which is positive, but the EMA arithmetic itself must
-    /// be stable). We construct a bar with a valid close and verify no arithmetic
-    /// panic occurs even when prices are very small.
     #[test]
     fn test_ema_small_positive_values_no_panic() {
-        let mut ema = Ema::new("ema3", 3);
-        // Use very small positive decimals (Price validation ensures > 0).
+        let mut ema = Ema::new("ema3", 3).unwrap();
         for p in &["0.001", "0.002", "0.003", "0.004"] {
-            let result = ema.update(&bar(p));
-            assert!(
-                result.is_ok(),
-                "EMA must not error on small positive values"
-            );
+            let result = ema.update_bar(&bar(p));
+            assert!(result.is_ok());
         }
     }
 }

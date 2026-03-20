@@ -127,7 +127,7 @@ impl Position {
 
 /// A multi-symbol ledger tracking positions and a cash balance.
 pub struct PositionLedger {
-    positions: HashMap<String, Position>,
+    positions: HashMap<Symbol, Position>,
     cash: Decimal,
 }
 
@@ -159,7 +159,7 @@ impl PositionLedger {
         self.cash += cost;
         let pos = self
             .positions
-            .entry(fill.symbol.as_str().to_owned())
+            .entry(fill.symbol.clone())
             .or_insert_with(|| Position::new(fill.symbol.clone()));
         pos.apply_fill(&fill)?;
         Ok(())
@@ -167,7 +167,7 @@ impl PositionLedger {
 
     /// Returns the position for `symbol`, or `None` if no position exists.
     pub fn position(&self, symbol: &Symbol) -> Option<&Position> {
-        self.positions.get(symbol.as_str())
+        self.positions.get(symbol)
     }
 
     /// Returns the current cash balance.
@@ -194,8 +194,8 @@ impl PositionLedger {
                 continue;
             }
             let price = prices
-                .get(sym)
-                .ok_or_else(|| FinError::PositionNotFound(sym.clone()))?;
+                .get(sym.as_str())
+                .ok_or_else(|| FinError::PositionNotFound(sym.as_str().to_owned()))?;
             total += pos.unrealized_pnl(*price);
         }
         Ok(total)
@@ -225,7 +225,7 @@ mod tests {
             side,
             quantity: Quantity::new(qty.parse().unwrap()).unwrap(),
             price: Price::new(p.parse().unwrap()).unwrap(),
-            timestamp: NanoTimestamp(0),
+            timestamp: NanoTimestamp::new(0),
             commission: commission.parse().unwrap(),
         }
     }
