@@ -1674,6 +1674,22 @@ impl PositionLedger {
     pub fn has_open_positions(&self) -> bool {
         self.positions.values().any(|p| !p.is_flat())
     }
+
+    /// Symbols with a strictly positive (long) quantity.
+    pub fn long_symbols(&self) -> Vec<&Symbol> {
+        self.positions.iter()
+            .filter(|(_, p)| p.quantity > Decimal::ZERO)
+            .map(|(sym, _)| sym)
+            .collect()
+    }
+
+    /// Symbols with a strictly negative (short) quantity.
+    pub fn short_symbols(&self) -> Vec<&Symbol> {
+        self.positions.iter()
+            .filter(|(_, p)| p.quantity < Decimal::ZERO)
+            .map(|(sym, _)| sym)
+            .collect()
+    }
 }
 
 #[cfg(test)]

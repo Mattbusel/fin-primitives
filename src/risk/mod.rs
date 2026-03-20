@@ -680,6 +680,23 @@ impl DrawdownTracker {
         self.current_drawdown_pct() / self.worst_drawdown_pct
     }
 
+    /// Current equity as a multiple of initial equity (e.g., `1.5` = 50% gain).
+    pub fn equity_multiple(&self) -> Decimal {
+        if self.initial_equity.is_zero() { return Decimal::ONE; }
+        self.current_equity / self.initial_equity
+    }
+
+    /// Average per-update equity gain across all positive updates.
+    ///
+    /// Uses `win_rate` and `update_count` to estimate the number of positive updates.
+    /// Returns `None` if there have been no positive updates recorded.
+    pub fn avg_gain_pct(&self) -> Option<f64> {
+        let wr: f64 = self.win_rate()?.to_string().parse().ok()?;
+        let gain_count = (wr / 100.0 * self.update_count as f64).round() as usize;
+        if gain_count == 0 { return None; }
+        Some(self.total_gain_sum / gain_count as f64)
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.

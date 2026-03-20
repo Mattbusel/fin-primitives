@@ -1045,6 +1045,18 @@ impl NanoTimestamp {
         let b = chrono::Utc.timestamp_nanos(other.0);
         a.year() == b.year() && a.month() == b.month() && a.day() == b.day() && a.hour() == b.hour()
     }
+
+    /// Shifts the timestamp forward by `weeks` weeks (negative shifts backward).
+    pub fn add_weeks(&self, weeks: i64) -> NanoTimestamp {
+        const NANOS_PER_WEEK: i64 = 7 * 24 * 3_600 * 1_000_000_000;
+        NanoTimestamp(self.0 + weeks * NANOS_PER_WEEK)
+    }
+
+    /// Shifts the timestamp backward by `hours` hours.
+    pub fn sub_hours(&self, hours: i64) -> NanoTimestamp {
+        const NANOS_PER_HOUR: i64 = 3_600 * 1_000_000_000;
+        NanoTimestamp(self.0 - hours * NANOS_PER_HOUR)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
