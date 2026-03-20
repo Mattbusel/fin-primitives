@@ -1,12 +1,16 @@
-//! Bar Efficiency indicator -- rolling body-to-range ratio.
+//! Bar Efficiency indicator.
 
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 
-/// Rolling average of |close - open| / (high - low) * 100.
-/// Measures candle directionality: 0 = pure doji, 100 = full-body candle.
+/// Rolling average of bar efficiency: `|close - open| / (high - low)`.
+///
+/// Measures how directionally efficient each bar is relative to its range.
+/// 1.0: perfectly efficient — close at high (bull) or low (bear) relative to open.
+/// 0.0: no net movement — doji-like bars with wide range.
+/// Returns Unavailable for bars where high == low.
 pub struct BarEfficiency {
     period: usize,
     window: VecDeque<Decimal>,
@@ -17,7 +21,7 @@ impl BarEfficiency {
     /// Creates a new `BarEfficiency` with the given rolling period.
     pub fn new(period: usize) -> Result<Self, FinError> {
         if period == 0 {
-            return Err(FinError::InvalidPeriod(0));
+            return Err(FinError::InvalidPeriod(period));
         }
         Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
     }
@@ -25,13 +29,13 @@ impl BarEfficiency {
 
 impl Signal for BarEfficiency {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let range = bar.range();
-        let body = bar.body_size();
-        let eff = if range.is_zero() {
-            Decimal::ZERO
-        } else {
-            body / range * Decimal::ONE_HUNDRED
-        };
+        let range = bar.high - bar.low;
+        if range.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        let body = (bar.close - bar.open).abs();
+        let eff = body / range;
+
         self.window.push_back(eff);
         self.sum += eff;
         if self.window.len() > self.period {
@@ -42,8 +46,7 @@ impl Signal for BarEfficiency {
         if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let len = Decimal::from(self.period as u32);
-        Ok(SignalValue::Scalar(self.sum / len))
+        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
     }
 
     fn is_ready(&self) -> bool { self.window.len() >= self.period }
@@ -68,25 +71,20 @@ mod tests {
     }
 
     #[test]
-    fn test_bar_efficiency_full_body() {
-        let mut sig = BarEfficiency::new(3).unwrap();
-        // Full-body up candles: body = range, efficiency = 100
-        assert_eq!(sig.update(&bar("100", "110", "100", "110")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sig.update(&bar("100", "110", "100", "110")).unwrap(), SignalValue::Unavailable);
-        let v = sig.update(&bar("100", "110", "100", "110")).unwrap();
-        if let SignalValue::Scalar(x) = v {
-            assert_eq!(x, dec!(100));
-        }
+    fn test_be_full_efficiency() {
+        // close at high, open at low → body=range → efficiency=1
+        let mut sig = BarEfficiency::new(2).unwrap();
+        sig.update(&bar("90", "110", "90", "110")).unwrap(); // eff=20/20=1
+        let v = sig.update(&bar("90", "110", "90", "110")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 
     #[test]
-    fn test_bar_efficiency_doji() {
+    fn test_be_doji_zero() {
+        // open=close → body=0 → efficiency=0
         let mut sig = BarEfficiency::new(2).unwrap();
-        // Doji: open == close
-        sig.update(&bar("100", "110", "90", "100")).unwrap();
+        sig.update(&bar("100", "110", "90", "100")).unwrap(); // eff=0
         let v = sig.update(&bar("100", "110", "90", "100")).unwrap();
-        if let SignalValue::Scalar(x) = v {
-            assert_eq!(x, dec!(0));
-        }
+        assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 }

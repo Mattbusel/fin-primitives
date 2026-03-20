@@ -1085,3 +1085,17 @@ pub mod open_low_range;
 pub use open_low_range::OpenLowRange;
 pub mod high_open_range;
 pub use high_open_range::HighOpenRange;
+
+pub mod volume_price_efficiency;
+pub use volume_price_efficiency::VolumePriceEfficiency;
+pub mod volume_spike_ratio;
+pub use volume_spike_ratio::VolumeSpikeRatio;
+pub mod momentum_consistency;
+pub use momentum_consistency::MomentumConsistency;
+pub mod rolling_vwap;
+pub use rolling_vwap::RollingVwap;
+pub mod median_body_size;
+pub use median_body_size::MedianBodySize;
+pub mod wick_asymmetry_streak;
+pub use wick_asymmetry_streak::WickAsymmetryStreak;
+
