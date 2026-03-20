@@ -180,6 +180,7 @@ pub mod volume_trend;
 pub mod range_ratio;
 pub mod close_location_value;
 pub mod true_range_ema;
+pub mod price_gap;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -358,3 +359,4 @@ pub use volume_trend::VolumeTrend;
 pub use range_ratio::RangeRatio;
 pub use close_location_value::CloseLocationValue;
 pub use true_range_ema::TrueRangeEma;
+pub use price_gap::PriceGap;
