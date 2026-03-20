@@ -620,6 +620,36 @@ impl SignalValue {
             _ => SignalValue::Unavailable,
         }
     }
+
+    /// Returns the arctangent of the value in radians. Returns `Unavailable` if unavailable.
+    pub fn atan(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                match Decimal::try_from(f.atan()) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+        }
+    }
+
+    /// Returns the hyperbolic tangent of the value. Returns `Unavailable` if unavailable.
+    ///
+    /// `tanh` maps any real value to `(-1, 1)` — useful for normalising unbounded signals.
+    pub fn tanh(self) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => {
+                let f: f64 = v.to_string().parse().unwrap_or(f64::NAN);
+                match Decimal::try_from(f.tanh()) {
+                    Ok(d) => SignalValue::Scalar(d),
+                    Err(_) => SignalValue::Unavailable,
+                }
+            }
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

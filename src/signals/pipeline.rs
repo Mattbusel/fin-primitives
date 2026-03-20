@@ -238,6 +238,24 @@ impl SignalMap {
         pairs.truncate(n);
         pairs
     }
+
+    /// Returns the weighted average of scalar values using the provided weight map.
+    ///
+    /// Only signals present in both the map and `weights` contribute. Signals with
+    /// non-positive or zero weight are skipped. Returns `None` if total weight is zero.
+    pub fn weighted_average(&self, weights: &std::collections::HashMap<&str, Decimal>) -> Option<Decimal> {
+        let mut numerator = Decimal::ZERO;
+        let mut denominator = Decimal::ZERO;
+        for (name, value) in self.scalars() {
+            if let Some(&w) = weights.get(name) {
+                if w > Decimal::ZERO {
+                    numerator += value * w;
+                    denominator += w;
+                }
+            }
+        }
+        if denominator.is_zero() { None } else { Some(numerator / denominator) }
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

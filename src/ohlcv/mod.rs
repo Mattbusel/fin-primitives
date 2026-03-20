@@ -4953,6 +4953,102 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(up) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
+
+    /// Opening gap percentage: `(open - prev_close) / prev_close * 100` for the most recent bar.
+    ///
+    /// Returns `None` if fewer than 2 bars exist or `prev_close` is zero.
+    pub fn price_gap_pct(&self) -> Option<Decimal> {
+        let n = self.bars.len();
+        if n < 2 { return None; }
+        let prev_close = self.bars[n - 2].close.value();
+        if prev_close.is_zero() { return None; }
+        Some((self.bars[n - 1].open.value() - prev_close) / prev_close * Decimal::ONE_HUNDRED)
+    }
+
+    /// Longest consecutive run of up-closes (close > prev close) across the entire series.
+    ///
+    /// Returns `0` if the series has fewer than 2 bars.
+    pub fn longest_winning_streak(&self) -> usize {
+        if self.bars.len() < 2 { return 0; }
+        let mut max_streak = 0usize;
+        let mut streak = 0usize;
+        for i in 1..self.bars.len() {
+            if self.bars[i].close > self.bars[i - 1].close {
+                streak += 1;
+                if streak > max_streak { max_streak = streak; }
+            } else {
+                streak = 0;
+            }
+        }
+        max_streak
+    }
+
+    /// Average absolute opening gap percentage over the last `n` bars.
+    ///
+    /// Each gap is `|open - prev_close| / prev_close * 100`.
+    /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn avg_gap_pct(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for i in start..self.bars.len() {
+            let prev_close = self.bars[i - 1].close.value();
+            if prev_close.is_zero() { continue; }
+            sum += (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::ONE_HUNDRED;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Average intrabar momentum over the last `n` bars.
+    ///
+    /// Momentum per bar = `(close − open) / (high − low)`.  Bars with zero range are skipped.
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero range.
+    pub fn intrabar_momentum(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let range = bar.high.value() - bar.low.value();
+            if range.is_zero() { continue; }
+            sum += (bar.close.value() - bar.open.value()) / range;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
+
+    /// Average volume per bar over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn volume_per_bar(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.volume.value()).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Percentage of the last `n` bars where close is within `threshold_pct`% of the bar high.
+    ///
+    /// A close is "near the high" when `(high − close) / high * 100 <= threshold_pct`.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn pct_bars_near_high(&self, n: usize, threshold_pct: Decimal) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut near = 0u32;
+        for bar in &self.bars[start..] {
+            let high = bar.high.value();
+            if high.is_zero() { continue; }
+            let dist_pct = (high - bar.close.value()) / high * Decimal::ONE_HUNDRED;
+            if dist_pct <= threshold_pct {
+                near += 1;
+            }
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(near) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
 }
 
 #[cfg(test)]

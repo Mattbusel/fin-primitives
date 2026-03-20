@@ -944,6 +944,29 @@ impl NanoTimestamp {
         let diff_nanos = (self.0 - other.0).unsigned_abs();
         diff_nanos / 86_400_000_000_000
     }
+
+    /// Returns a `NanoTimestamp` at 23:59:59.999_999_999 UTC on the same calendar day.
+    pub fn end_of_day(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone, Timelike};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let eod = chrono::Utc
+            .with_ymd_and_hms(dt.year(), dt.month(), dt.day(), 23, 59, 59)
+            .single()
+            .map(|d| d.with_nanosecond(999_999_999).unwrap_or(d))
+            .unwrap_or(dt);
+        NanoTimestamp(eod.timestamp_nanos_opt().unwrap_or(self.0))
+    }
+
+    /// Returns a `NanoTimestamp` at 00:00:00.000_000_000 UTC on the first day of the same month.
+    pub fn start_of_month(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let som = chrono::Utc
+            .with_ymd_and_hms(dt.year(), dt.month(), 1, 0, 0, 0)
+            .single()
+            .unwrap_or(dt);
+        NanoTimestamp(som.timestamp_nanos_opt().unwrap_or(self.0))
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

@@ -1394,6 +1394,24 @@ impl PositionLedger {
         }).sum())
     }
 
+    /// Ratio of total long unrealized P&L to absolute total short unrealized P&L.
+    ///
+    /// Values > 1 mean longs are outperforming; values < 1 mean shorts are leading.
+    /// Returns `None` if short PnL is zero or no short prices are available.
+    pub fn long_short_pnl_ratio(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let long_pnl: Decimal = self.positions.values()
+            .filter(|p| p.is_long())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .sum();
+        let short_pnl: Decimal = self.positions.values()
+            .filter(|p| p.is_short())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .sum();
+        let short_abs = short_pnl.abs();
+        if short_abs.is_zero() { return None; }
+        Some(long_pnl / short_abs)
+    }
+
     /// Unrealized P&L for each open position, keyed by symbol string.
     ///
     /// Positions absent from `prices` are omitted from the result.
@@ -1463,6 +1481,30 @@ impl PositionLedger {
             })
             .filter(|&pnl| pnl > Decimal::ZERO)
             .max()
+    }
+
+    /// Returns the 1-based rank (1 = best) of `symbol`'s realized P&L among all symbols
+    /// that have non-zero realized P&L.
+    ///
+    /// Returns `None` if `symbol` has no realized P&L or if it is not found.
+    pub fn realized_pnl_rank(&self, symbol: &Symbol) -> Option<usize> {
+        let target = self.positions.get(symbol).map(|p| p.realized_pnl)?;
+        if target == Decimal::ZERO { return None; }
+        let mut sorted: Vec<Decimal> = self.positions.values()
+            .map(|p| p.realized_pnl)
+            .filter(|&r| r != Decimal::ZERO)
+            .collect();
+        sorted.sort_by(|a, b| b.cmp(a));
+        sorted.iter().position(|&r| r == target).map(|i| i + 1)
+    }
+
+    /// Returns a `Vec` of references to all open (non-flat) positions, sorted by symbol.
+    pub fn open_positions_vec(&self) -> Vec<&Position> {
+        let mut open: Vec<&Position> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .collect();
+        open.sort_by(|a, b| a.symbol.as_str().cmp(b.symbol.as_str()));
+        open
     }
 }
 

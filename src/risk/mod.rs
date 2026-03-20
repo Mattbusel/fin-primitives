@@ -62,6 +62,12 @@ pub struct DrawdownTracker {
     /// Sum of the absolute values of all negative per-update equity changes.
     #[serde(default)]
     total_loss_sum: f64,
+    /// Number of completed recoveries (drawdown resolved by hitting a new peak).
+    #[serde(default)]
+    completed_recoveries: usize,
+    /// Sum of `updates_since_peak` values at the moment each recovery completed.
+    #[serde(default)]
+    total_recovery_updates: usize,
 }
 
 impl DrawdownTracker {
@@ -86,6 +92,8 @@ impl DrawdownTracker {
             max_gain_streak: 0,
             total_gain_sum: 0.0,
             total_loss_sum: 0.0,
+            completed_recoveries: 0,
+            total_recovery_updates: 0,
         }
     }
 
@@ -125,6 +133,10 @@ impl DrawdownTracker {
             self.gain_streak = 0;
         }
         if equity > self.peak_equity {
+            if self.updates_since_peak > 0 {
+                self.total_recovery_updates += self.updates_since_peak;
+                self.completed_recoveries += 1;
+            }
             self.peak_equity = equity;
             self.updates_since_peak = 0;
             self.peak_count += 1;
@@ -247,6 +259,8 @@ impl DrawdownTracker {
         self.max_gain_streak = 0;
         self.total_gain_sum = 0.0;
         self.total_loss_sum = 0.0;
+        self.completed_recoveries = 0;
+        self.total_recovery_updates = 0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -512,6 +526,21 @@ impl DrawdownTracker {
         Some(wr * avg_gain - loss_rate * avg_loss)
     }
 
+    /// Average number of updates required to recover from a drawdown to a new peak.
+    ///
+    /// Returns `None` if no drawdown has ever been fully recovered.
+    pub fn recovery_speed(&self) -> Option<f64> {
+        if self.completed_recoveries == 0 { return None; }
+        Some(self.total_recovery_updates as f64 / self.completed_recoveries as f64)
+    }
+
+    /// Number of times a new equity peak has been set.
+    ///
+    /// This equals the number of `update()` calls where equity exceeded the prior peak.
+    pub fn peak_hit_count(&self) -> usize {
+        self.peak_count
+    }
+
     /// Sortino ratio from a slice of period returns.
     ///
     /// `sortino = (mean_return - target) / downside_deviation`
@@ -634,6 +663,17 @@ impl DrawdownTracker {
         let pi = self.pain_index();
         if pi.is_zero() { return None; }
         Some(annualized_return_pct / pi)
+    }
+
+    /// Fraction of all updates where equity was at or above the peak (above water).
+    ///
+    /// Complement of [`time_underwater_pct`](Self::time_underwater_pct).
+    /// Returns `Decimal::ONE` when no updates have been processed.
+    pub fn time_above_watermark_pct(&self) -> Decimal {
+        if self.update_count == 0 {
+            return Decimal::ONE;
+        }
+        Decimal::ONE - self.time_underwater_pct()
     }
 }
 
