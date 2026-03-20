@@ -144,6 +144,62 @@ proptest! {
         prop_assert!(bar.high.value() >= bar.low.value());
     }
 
+    /// ATR is always non-negative for any bar sequence with positive prices.
+    #[test]
+    fn test_atr_always_non_negative(
+        prices in prop::collection::vec(1u32..=10_000, 3..=20),
+    ) {
+        let mut atr = Atr::new("atr2", 2).unwrap();
+        for p in &prices {
+            let d = Decimal::from(*p);
+            let pr = Price::new(d).unwrap();
+            let b = OhlcvBar {
+                symbol: Symbol::new("X").unwrap(),
+                open: pr,
+                high: pr,
+                low: pr,
+                close: pr,
+                volume: Quantity::zero(),
+                ts_open: NanoTimestamp::new(0),
+                ts_close: NanoTimestamp::new(1),
+                tick_count: 1,
+            };
+            if let Ok(SignalValue::Scalar(v)) = atr.update_bar(&b) {
+                prop_assert!(v >= Decimal::ZERO, "ATR must be non-negative, got {v}");
+            }
+        }
+    }
+
+    /// MACD histogram is 0 when fed a constant price series (once warmed up).
+    #[test]
+    fn test_macd_constant_prices_histogram_zero(
+        price in 1u32..=100_000,
+    ) {
+        let mut macd = Macd::new("macd", 3, 5, 2).unwrap();
+        let d = Decimal::from(price);
+        let pr = Price::new(d).unwrap();
+        let b = OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: pr,
+            high: pr,
+            low: pr,
+            close: pr,
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
+            tick_count: 1,
+        };
+        // Feed enough bars for warmup: slow(5) + signal(2) - 1 = 6
+        let mut last = SignalValue::Unavailable;
+        for _ in 0..6 {
+            last = macd.update_bar(&b).unwrap();
+        }
+        // Constant prices: fast_ema == slow_ema → macd_line = 0 → histogram = 0
+        if let SignalValue::Scalar(h) = last {
+            prop_assert_eq!(h, Decimal::ZERO, "constant price MACD histogram must be 0");
+        }
+    }
+
     /// Position quantity is always non-negative after a sequence of buy fills.
     #[test]
     fn test_position_size_non_negative_with_only_buys(
