@@ -1135,6 +1135,50 @@ impl PositionLedger {
             })
             .min_by(|a, b| a.cmp(b))
     }
+
+    /// Returns the position with the largest positive unrealized P&L at the given prices.
+    ///
+    /// Returns `None` if there are no open positions or no position has a positive unrealized PnL.
+    pub fn largest_winner<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Position> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                let price = prices.get(p.symbol.as_str()).copied()?;
+                let upnl = p.unrealized_pnl(price);
+                if upnl > Decimal::ZERO { Some((p, upnl)) } else { None }
+            })
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .map(|(p, _)| p)
+    }
+
+    /// Returns the position with the largest negative unrealized P&L at the given prices.
+    ///
+    /// Returns `None` if there are no open positions or no position has a negative unrealized PnL.
+    pub fn largest_loser<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Position> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                let price = prices.get(p.symbol.as_str()).copied()?;
+                let upnl = p.unrealized_pnl(price);
+                if upnl < Decimal::ZERO { Some((p, upnl)) } else { None }
+            })
+            .min_by(|a, b| a.1.cmp(&b.1))
+            .map(|(p, _)| p)
+    }
+
+    /// Returns the gross market exposure: sum of absolute market values across all open positions.
+    pub fn gross_market_exposure(&self, prices: &HashMap<String, Price>) -> Decimal {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                let price = prices.get(p.symbol.as_str()).copied()?;
+                Some(p.market_value(price).abs())
+            })
+            .sum()
+    }
 }
 
 #[cfg(test)]

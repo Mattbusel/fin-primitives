@@ -104,6 +104,10 @@ pub mod historical_volatility;
 pub mod vix_fix;
 pub mod chaikin_volatility;
 pub mod normalized_price;
+pub mod price_velocity;
+pub mod candle_body_size;
+pub mod laguerre;
+pub mod linreg_channel;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -206,3 +210,7 @@ pub use historical_volatility::HistoricalVolatility;
 pub use vix_fix::VixFix;
 pub use chaikin_volatility::ChaikinVolatility;
 pub use normalized_price::NormalizedPrice;
+pub use price_velocity::PriceVelocity;
+pub use candle_body_size::CandleBodySize;
+pub use laguerre::LaguerreRsi;
+pub use linreg_channel::LinRegChannel;

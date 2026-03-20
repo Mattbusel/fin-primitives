@@ -3446,6 +3446,37 @@ impl OhlcvSeries {
         last_vol.checked_div(avg)
     }
 
+    /// Momentum quality: fraction of up-closes among `n` bars where volume was above average.
+    ///
+    /// High-volume up days are "quality" momentum; this method returns the ratio of
+    /// high-volume up closes to total high-volume bars.  Returns `None` if `n == 0`,
+    /// fewer than `n` bars exist, or no bar in the window has above-average volume.
+    pub fn momentum_quality(&self, n: usize) -> Option<f64> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let avg_vol: Decimal = {
+            let s: Decimal = slice.iter().map(|b| b.volume.value()).sum();
+            s.checked_div(Decimal::from(n as u32))?
+        };
+        let mut high_vol_bars = 0usize;
+        let mut high_vol_up = 0usize;
+        for b in slice {
+            if b.volume.value() > avg_vol {
+                high_vol_bars += 1;
+                if b.close > b.open {
+                    high_vol_up += 1;
+                }
+            }
+        }
+        if high_vol_bars == 0 {
+            return None;
+        }
+        Some(high_vol_up as f64 / high_vol_bars as f64)
+    }
+
     /// Fraction of the last `n` bars that are bullish (close > open), as a value in `[0.0, 1.0]`.
     ///
     /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
@@ -3689,6 +3720,66 @@ impl OhlcvSeries {
         Some(sum / Decimal::from(n as u32))
     }
 
+    /// Median `(high + low) / 2` midpoint value over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn median_price(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut mids: Vec<Decimal> = self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() + b.low.value()) / Decimal::TWO)
+            .collect();
+        mids.sort();
+        let mid = n / 2;
+        if n % 2 == 0 {
+            Some((mids[mid - 1] + mids[mid]) / Decimal::TWO)
+        } else {
+            Some(mids[mid])
+        }
+    }
+
+    /// Mean upper-shadow ratio `(high − max(open,close)) / (high − low)` over the last `n` bars.
+    ///
+    /// Bars where `high == low` (doji) contribute 0. Returns `None` if `n == 0`
+    /// or the series has fewer than `n` bars.
+    pub fn upper_shadow_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| {
+                let range = b.high.value() - b.low.value();
+                if range.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    (b.high.value() - b.open.value().max(b.close.value())) / range
+                }
+            })
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Fraction of bars in the last `n + 1` where `open[i] > close[i-1]` (gap up).
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n + 1` bars.
+    pub fn percent_gap_up_bars(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let count = (start..self.bars.len())
+            .filter(|&i| self.bars[i].open > self.bars[i - 1].close)
+            .count();
+        #[allow(clippy::cast_possible_truncation)]
+        Decimal::from(count as u32).checked_div(Decimal::from(n as u32))
+    }
+
     /// Length of the longest run of consecutive higher closes within the last `n` bars.
     ///
     /// A "higher close" means `close[i] > close[i-1]`.  The run is computed across
@@ -3903,6 +3994,81 @@ impl OhlcvSeries {
         if high_indices.len() < 2 { return None; }
         let gaps: Vec<usize> = high_indices.windows(2).map(|w| w[1] - w[0]).collect();
         Some(gaps.iter().sum::<usize>() as f64 / gaps.len() as f64)
+    }
+
+    /// Number of consecutive bars (from the most recent bar backward) where close exceeded
+    /// the prior `n`-bar rolling high.
+    ///
+    /// A bar at index `i` counts if `close[i] > max(close[i-n..i])`.
+    /// The first `n` bars of the series are skipped (no prior window).
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n + 1` bars.
+    pub fn breakout_bars(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
+        let mut streak = 0usize;
+        for i in (n..self.bars.len()).rev() {
+            let prior_max = self.bars[(i - n)..i]
+                .iter()
+                .map(|b| b.close.value())
+                .max()
+                .unwrap_or(Decimal::ZERO);
+            if self.bars[i].close.value() > prior_max {
+                streak += 1;
+            } else {
+                break;
+            }
+        }
+        Some(streak)
+    }
+
+    /// Count of doji candles in the last `n` bars.
+    ///
+    /// A bar is a doji when `|close - open| / (high - low) < threshold`.
+    /// Use `threshold = 0.1` for the classic 10% body rule.
+    ///
+    /// Returns `None` if `n == 0` or the series has fewer than `n` bars.
+    pub fn doji_count(&self, n: usize, threshold: f64) -> Option<usize> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        use rust_decimal::prelude::ToPrimitive;
+        let count = self.bars[start..]
+            .iter()
+            .filter(|b| {
+                let range = (b.high.value() - b.low.value()).to_f64().unwrap_or(0.0);
+                if range == 0.0 {
+                    return true; // zero-range bar is a perfect doji
+                }
+                let body = (b.close.value() - b.open.value())
+                    .abs()
+                    .to_f64()
+                    .unwrap_or(0.0);
+                body / range < threshold
+            })
+            .count();
+        Some(count)
+    }
+
+    /// Coefficient of variation of closes over the last `n` bars: `std_dev / mean`.
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars exist, or mean is zero.
+    pub fn close_dispersion(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let vals: Vec<f64> = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value().to_f64().unwrap_or(0.0))
+            .collect();
+        let mean = vals.iter().sum::<f64>() / n as f64;
+        if mean == 0.0 { return None; }
+        let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
+        Some(variance.sqrt() / mean)
     }
 }
 

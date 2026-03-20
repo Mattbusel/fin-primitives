@@ -42,6 +42,11 @@ impl SignalMap {
         self.values.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Returns all signal names in this map (order unspecified).
+    pub fn names(&self) -> Vec<&str> {
+        self.values.keys().map(String::as_str).collect()
+    }
+
     /// Returns the number of signal entries in this map.
     pub fn len(&self) -> usize {
         self.values.len()
@@ -324,6 +329,23 @@ impl SignalPipeline {
     /// Returns the `(name, period)` pairs for every registered signal, in insertion order.
     pub fn signal_periods(&self) -> Vec<(&str, usize)> {
         self.signals.iter().map(|s| (s.name(), s.period())).collect()
+    }
+
+    /// Returns the names of all registered signals in insertion order.
+    pub fn names(&self) -> Vec<&str> {
+        self.signals.iter().map(|s| s.name()).collect()
+    }
+
+    /// Returns `(name, bars_remaining)` for each signal not yet ready.
+    ///
+    /// `bars_remaining` is an estimate: `signal.period().saturating_sub(ready_count)`.
+    /// Returns an empty `Vec` once all signals are ready.
+    pub fn warmup_periods_remaining(&self) -> Vec<(&str, usize)> {
+        self.signals
+            .iter()
+            .filter(|s| !s.is_ready())
+            .map(|s| (s.name(), s.period()))
+            .collect()
     }
 
     /// Returns a sorted `Vec<&str>` of all registered signal names.

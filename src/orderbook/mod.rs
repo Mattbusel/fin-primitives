@@ -779,6 +779,24 @@ impl OrderBook {
         self.bids.iter().rev().take(n).map(|(_, &qty)| qty).sum()
     }
 
+    /// Returns the bid-to-ask depth skew across the top `n` levels on each side.
+    ///
+    /// `bid_depth_skew = cumulative_bid_qty(n) / (cumulative_bid_qty(n) + cumulative_ask_qty(n))`.
+    /// Range: 0.0 (all ask-side depth) to 1.0 (all bid-side depth).
+    /// Returns `None` if both sides are empty or `n == 0`.
+    pub fn bid_depth_skew(&self, n: usize) -> Option<Decimal> {
+        if n == 0 {
+            return None;
+        }
+        let bid_qty = self.cumulative_bid_qty(n);
+        let ask_qty = self.cumulative_ask_qty(n);
+        let total = bid_qty + ask_qty;
+        if total.is_zero() {
+            return None;
+        }
+        bid_qty.checked_div(total)
+    }
+
     /// Returns the bid-ask spread in basis points.
     ///
     /// `spread_bps = (best_ask - best_bid) / mid_price * 10_000`.
