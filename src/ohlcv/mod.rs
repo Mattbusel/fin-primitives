@@ -1716,6 +1716,42 @@ impl OhlcvSeries {
         }
         Some(ann_return / dd_f64)
     }
+
+    /// Returns `(highest_high, lowest_low)` over the last `n` bars, or `None` if empty.
+    ///
+    /// If `n` exceeds the series length, all bars are considered. Provides a convenient
+    /// way to get both extremes in one call without scanning the series twice.
+    pub fn session_high_low(&self, n: usize) -> Option<(Decimal, Decimal)> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let h = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
+        let l = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        Some((h, l))
+    }
+
+    /// Returns bar-to-bar percentage changes: `(close[i] - close[i-1]) / close[i-1] * 100`.
+    ///
+    /// The result has `len() - 1` entries. Returns an empty vec when the series
+    /// has fewer than 2 bars or when a previous close is zero.
+    pub fn percentage_change_series(&self) -> Vec<Option<Decimal>> {
+        if self.bars.len() < 2 {
+            return vec![];
+        }
+        self.bars
+            .windows(2)
+            .map(|w| {
+                let prev_c = w[0].close.value();
+                if prev_c.is_zero() {
+                    None
+                } else {
+                    Some((w[1].close.value() - prev_c) / prev_c * Decimal::ONE_HUNDRED)
+                }
+            })
+            .collect()
+    }
 }
 
 impl Default for OhlcvSeries {

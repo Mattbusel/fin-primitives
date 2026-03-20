@@ -28,7 +28,8 @@ use std::collections::VecDeque;
 /// use rust_decimal_macros::dec;
 ///
 /// let mut cmf = Cmf::new("cmf3", 3).unwrap();
-/// cmf.update(&BarInput::new(dec!(100), dec!(110), dec!(90), dec!(105), dec!(1000))).unwrap();
+/// // BarInput::new(close, high, low, open, volume)
+/// cmf.update(&BarInput::new(dec!(105), dec!(110), dec!(90), dec!(100), dec!(1000))).unwrap();
 /// ```
 pub struct Cmf {
     name: String,
@@ -109,11 +110,12 @@ mod tests {
     use rust_decimal_macros::dec;
 
     fn bar(open: &str, high: &str, low: &str, close: &str, vol: &str) -> BarInput {
+        // BarInput::new signature: (close, high, low, open, volume)
         BarInput::new(
-            open.parse().unwrap(),
+            close.parse().unwrap(),
             high.parse().unwrap(),
             low.parse().unwrap(),
-            close.parse().unwrap(),
+            open.parse().unwrap(),
             vol.parse().unwrap(),
         )
     }
