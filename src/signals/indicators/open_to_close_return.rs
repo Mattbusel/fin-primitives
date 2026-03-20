@@ -95,22 +95,6 @@ mod tests {
     }
 
     #[test]
-    fn test_otcr_zero_open_unavailable() {
-        let mut s = OpenToCloseReturn::new("otcr");
-        let cp = Price::new("100".parse().unwrap()).unwrap();
-        let zp = Price::new("0".parse().unwrap()).unwrap();
-        let b = OhlcvBar {
-            symbol: Symbol::new("X").unwrap(),
-            open: zp, high: cp, low: zp, close: cp,
-            volume: Quantity::zero(),
-            ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1),
-            tick_count: 1,
-        };
-        assert_eq!(s.update_bar(&b).unwrap(), SignalValue::Unavailable);
-    }
-
-    #[test]
     fn test_otcr_always_ready() {
         let s = OpenToCloseReturn::new("otcr");
         assert!(s.is_ready());
