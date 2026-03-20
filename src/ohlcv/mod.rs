@@ -6858,6 +6858,107 @@ impl OhlcvSeries {
         let n_d = Decimal::from(n as u32);
         Some(Decimal::from(above) / n_d * Decimal::ONE_HUNDRED)
     }
+
+    /// Average volume imbalance over the last `n` bars.
+    ///
+    /// Volume imbalance per bar is estimated from the Close Location Value (CLV):
+    /// `CLV = ((close - low) - (high - close)) / (high - low)`
+    ///
+    /// Multiplied by volume, this approximates the net buying/selling pressure:
+    /// `imbalance = CLV × volume`.
+    ///
+    /// Returns the average across bars in the window. Returns `None` if `n == 0`
+    /// or fewer than `n` bars exist. Bars with zero range or volume are skipped.
+    pub fn avg_volume_imbalance(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let h = bar.high.value();
+            let l = bar.low.value();
+            let c = bar.close.value();
+            let range = h - l;
+            if range.is_zero() { continue; }
+            let clv = ((c - l) - (h - c)) / range;
+            sum += clv * bar.volume.value();
+            count += 1;
+        }
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
+
+    /// Average Close Location Value (CLV) over the last `n` bars.
+    ///
+    /// `CLV = ((close - low) - (high - close)) / (high - low)`
+    ///
+    /// CLV ranges from -1 (close at low) to +1 (close at high). A positive
+    /// average indicates persistent buying pressure; negative indicates selling.
+    ///
+    /// Bars with zero range are skipped. Returns `None` if `n == 0` or fewer
+    /// than `n` bars exist.
+    pub fn avg_clv(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for bar in &self.bars[start..] {
+            let h = bar.high.value();
+            let l = bar.low.value();
+            let c = bar.close.value();
+            let range = h - l;
+            if range.is_zero() { continue; }
+            sum += ((c - l) - (h - c)) / range;
+            count += 1;
+        }
+        if count == 0 { return None; }
+        sum.checked_div(Decimal::from(count))
+    }
+
+    /// Count of bars in the last `n` where close is below the rolling `n`-bar
+    /// closing high up to that point (i.e. the bar is "underwater").
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn bars_in_drawdown(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start..];
+        let mut peak = Decimal::MIN;
+        let mut count = 0usize;
+        for bar in slice {
+            let c = bar.close.value();
+            if c > peak { peak = c; } else { count += 1; }
+        }
+        Some(count)
+    }
+
+    /// Percentage of bars in the last `n` whose close exceeded the prior
+    /// `lookback`-bar closing high (i.e. confirmed resistance breakouts).
+    ///
+    /// Returns `None` if `n == 0`, `lookback == 0`, or fewer than `n + lookback` bars exist.
+    pub fn resistance_breakout_pct(&self, n: usize, lookback: usize) -> Option<Decimal> {
+        if n == 0 || lookback == 0 { return None; }
+        let count = self.breakout_count(n, lookback)?;
+        #[allow(clippy::cast_possible_truncation)]
+        Some(Decimal::from(count as u32) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Average absolute open gap over the last `n` bars (in price points).
+    ///
+    /// The open gap for bar `i` is `|open[i] - close[i-1]|`. The first bar in
+    /// the window uses the bar before the window for the prior close. Returns
+    /// `None` if `n == 0` or fewer than `n + 1` bars exist.
+    pub fn avg_abs_open_gap(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 { return None; }
+        let start = self.bars.len() - n;
+        let slice = &self.bars[start - 1..]; // include prior bar for first gap
+        let mut sum = Decimal::ZERO;
+        for w in slice.windows(2) {
+            let gap = (w[1].open.value() - w[0].close.value()).abs();
+            sum += gap;
+        }
+        sum.checked_div(Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]
