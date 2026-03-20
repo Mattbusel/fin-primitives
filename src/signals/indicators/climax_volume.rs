@@ -65,7 +65,7 @@ impl Signal for ClimaxVolume {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let vol = bar.volume.value();
+        let vol = bar.volume;
         let body = (bar.close - bar.open).abs();
 
         self.volumes.push_back(vol);
@@ -164,8 +164,9 @@ mod tests {
         cv.update_bar(&bar("100", "101", "100")).unwrap();
         cv.update_bar(&bar("100", "101", "100")).unwrap();
         cv.update_bar(&bar("100", "101", "100")).unwrap();
-        // avg_vol=100, vol_mult=2 => need vol >= 200; body avg ~= 1, range_mult=1 => body >= 1
-        if let SignalValue::Scalar(v) = cv.update_bar(&bar("100", "110", "300")).unwrap() {
+        // Spike bar is in its own window: avg=(100+100+500)/3=233, need vol>=2*233=467; 500>=467 ✓
+        // body avg=(1+1+10)/3=4, range_mult=1 => need body>=4; body=10 ✓
+        if let SignalValue::Scalar(v) = cv.update_bar(&bar("100", "110", "500")).unwrap() {
             assert_eq!(v, dec!(1), "bullish climax should be +1: {v}");
         } else { panic!("expected Scalar"); }
     }

@@ -4415,6 +4415,44 @@ impl OhlcvSeries {
             / Decimal::from(n as u32);
         Some(avg)
     }
+
+    /// Average ratio of candle body to high-low range over the last `n` bars.
+    ///
+    /// `body_to_range[i] = |close[i] - open[i]| / (high[i] - low[i])`
+    ///
+    /// Bars where `high == low` are skipped. Returns `None` if `n == 0`,
+    /// fewer than `n` bars exist, or all bars are flat.
+    pub fn avg_body_to_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            let body = (b.close.value() - b.open.value()).abs();
+            sum += body
+                .checked_div(range)
+                .unwrap_or(Decimal::ZERO);
+            count += 1;
+        }
+        if count == 0 { return None; }
+        Some(sum / Decimal::from(count))
+    }
+
+    /// Rolling mean of the tick count field over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_tick_count(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: u64 = self.bars[start..].iter().map(|b| b.tick_count).sum();
+        Some(Decimal::from(sum) / Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]

@@ -117,6 +117,8 @@ pub mod gann_hilo;
 pub mod frama;
 pub mod vroc;
 pub mod ema_cross;
+pub mod climax_volume;
+pub mod rsi_divergence;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -232,3 +234,5 @@ pub use gann_hilo::GannHiLo;
 pub use frama::Frama;
 pub use vroc::Vroc;
 pub use ema_cross::EmaCross;
+pub use climax_volume::ClimaxVolume;
+pub use rsi_divergence::RsiDivergence;
