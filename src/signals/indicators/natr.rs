@@ -67,12 +67,7 @@ impl Signal for Natr {
                 self.prev_close = Some(bar.close);
                 return Ok(SignalValue::Unavailable);
             }
-            Some(prev) => {
-                let hl = bar.range();
-                let hc = (bar.high - prev).abs();
-                let lc = (bar.low - prev).abs();
-                hl.max(hc).max(lc)
-            }
+            Some(prev) => bar.true_range(Some(prev))
         };
 
         self.prev_close = Some(bar.close);
