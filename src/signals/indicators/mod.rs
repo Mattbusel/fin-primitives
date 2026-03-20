@@ -6,6 +6,7 @@
 pub mod adx;
 pub mod apo;
 pub mod atr;
+pub mod cmf;
 pub mod obv;
 pub mod ppo;
 pub mod bollinger;
@@ -34,6 +35,7 @@ pub mod wma;
 pub use adx::Adx;
 pub use apo::Apo;
 pub use atr::Atr;
+pub use cmf::Cmf;
 pub use obv::Obv;
 pub use ppo::Ppo;
 pub use bollinger::BollingerB;
