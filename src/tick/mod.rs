@@ -376,6 +376,18 @@ impl TickReplayer {
             .cloned()
             .collect()
     }
+
+    /// Groups all ticks in this replayer by symbol.
+    ///
+    /// Returns a `HashMap` mapping each symbol to a `Vec<Tick>` in timestamp order.
+    /// Ticks are cloned.
+    pub fn collect_by_symbol(&self) -> std::collections::HashMap<Symbol, Vec<Tick>> {
+        let mut map: std::collections::HashMap<Symbol, Vec<Tick>> = std::collections::HashMap::new();
+        for tick in &self.ticks {
+            map.entry(tick.symbol.clone()).or_default().push(tick.clone());
+        }
+        map
+    }
 }
 
 impl Iterator for TickReplayer {

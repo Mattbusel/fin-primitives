@@ -273,6 +273,20 @@ impl OhlcvBar {
         self.ts_close.nanos() - self.ts_open.nanos()
     }
 
+    /// Returns the percentage gap between `prev.close` and `self.open`.
+    ///
+    /// `gap_pct = (self.open - prev.close) / prev.close * 100`
+    ///
+    /// Returns `None` if `prev.close` is zero. Positive values indicate an upward gap;
+    /// negative values a downward gap.
+    pub fn gap_pct(&self, prev: &OhlcvBar) -> Option<Decimal> {
+        let prev_close = prev.close.value();
+        if prev_close.is_zero() {
+            return None;
+        }
+        Some((self.open.value() - prev_close) / prev_close * Decimal::ONE_HUNDRED)
+    }
+
     /// Creates a single-tick OHLCV bar from a `Tick`.
     ///
     /// All price fields are set to the tick's price, volume to the tick's quantity,
@@ -840,6 +854,39 @@ impl OhlcvSeries {
         self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::min)
     }
 
+    /// Returns the mean (average) close price of the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, all bars are used.
+    pub fn mean_close(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.is_empty() {
+            return None;
+        }
+        let sum: Decimal = slice.iter().map(|b| b.close.value()).sum();
+        Some(sum / Decimal::from(slice.len() as u64))
+    }
+
+    /// Returns the population standard deviation of close prices over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than 2 bars are in the window.
+    /// If `n > self.len()`, all bars are used.
+    pub fn std_dev(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        let slice = &self.bars[start..];
+        if slice.len() < 2 {
+            return None;
+        }
+        let n_dec = Decimal::from(slice.len() as u64);
+        let mean: Decimal = slice.iter().map(|b| b.close.value()).sum::<Decimal>() / n_dec;
+        let variance: Decimal = slice
+            .iter()
+            .map(|b| { let d = b.close.value() - mean; d * d })
+            .sum::<Decimal>()
+            / n_dec;
+        decimal_sqrt(variance).ok()
+    }
+
     /// Computes Pearson correlation between this series' close prices and `other`'s.
     ///
     /// Uses only the overlapping suffix: `min(self.len(), other.len())` bars from the end.
@@ -986,6 +1033,32 @@ impl OhlcvSeries {
             result.push(merged);
         }
         Ok(result)
+    }
+
+    /// Returns the maximum peak-to-trough drawdown on close prices.
+    ///
+    /// Iterates through close prices, tracking the running peak and computing
+    /// the largest percentage decline from any peak to any subsequent trough.
+    ///
+    /// Returns `None` when the series is empty. Returns `0` when no decline occurs.
+    pub fn max_drawdown(&self) -> Option<Decimal> {
+        let closes: Vec<Decimal> = self.bars.iter().map(|b| b.close.value()).collect();
+        if closes.is_empty() {
+            return None;
+        }
+        let mut peak = closes[0];
+        let mut max_dd = Decimal::ZERO;
+        for &c in &closes[1..] {
+            if c > peak {
+                peak = c;
+            } else if !peak.is_zero() {
+                let dd = (peak - c) / peak;
+                if dd > max_dd {
+                    max_dd = dd;
+                }
+            }
+        }
+        Some(max_dd)
     }
 }
 
@@ -1671,5 +1744,68 @@ mod tests {
         series.push(make_bar("110", "120", "100", "115")).unwrap();
         // make_bar sets volume = 100 per bar
         assert_eq!(series.sum_volume(), dec!(300));
+    }
+
+    #[test]
+    fn test_ohlcv_series_mean_close_empty_returns_none() {
+        assert!(OhlcvSeries::new().mean_close(5).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_mean_close_equal_prices() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert_eq!(series.mean_close(3).unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_series_mean_close_windowed() {
+        // 3 bars with closes 100, 110, 120 → mean of last 2 = (110+120)/2 = 115
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        series.push(make_bar("110", "110", "110", "110")).unwrap();
+        series.push(make_bar("120", "120", "120", "120")).unwrap();
+        assert_eq!(series.mean_close(2).unwrap(), dec!(115));
+    }
+
+    #[test]
+    fn test_ohlcv_series_std_dev_less_than_two_bars_returns_none() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert!(series.std_dev(5).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_std_dev_constant_prices_is_zero() {
+        let mut series = OhlcvSeries::new();
+        for _ in 0..4 {
+            series.push(make_bar("100", "100", "100", "100")).unwrap();
+        }
+        assert_eq!(series.std_dev(4).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_gap_pct_upward_gap() {
+        let prev = make_bar("100", "110", "90", "100");
+        let curr = make_bar("110", "120", "105", "115");
+        // gap_pct = (110 - 100) / 100 * 100 = 10
+        assert_eq!(curr.gap_pct(&prev).unwrap(), dec!(10));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_gap_pct_downward_gap() {
+        let prev = make_bar("100", "110", "90", "100");
+        let curr = make_bar("90", "95", "85", "92");
+        // gap_pct = (90 - 100) / 100 * 100 = -10
+        assert_eq!(curr.gap_pct(&prev).unwrap(), dec!(-10));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_gap_pct_no_gap() {
+        let prev = make_bar("100", "110", "90", "100");
+        let curr = make_bar("100", "110", "90", "105");
+        assert_eq!(curr.gap_pct(&prev).unwrap(), dec!(0));
     }
 }
