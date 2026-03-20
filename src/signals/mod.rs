@@ -887,6 +887,22 @@ impl SignalValue {
             SignalValue::Unavailable => false,
         }
     }
+
+    /// Caps the scalar at `max_val`. Returns `Unavailable` if `self` is `Unavailable`.
+    pub fn cap_at(self, max_val: Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(v) => SignalValue::Scalar(v.min(max_val)),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Floors the scalar at `min_val`. Returns `Unavailable` if `self` is `Unavailable`.
+    pub fn floor_at(self, min_val: Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(v) => SignalValue::Scalar(v.max(min_val)),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

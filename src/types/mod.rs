@@ -16,7 +16,7 @@
 //! - Tick size enforcement (exchange-specific)
 
 use crate::error::FinError;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Timelike, Utc};
 use rust_decimal::Decimal;
 use std::sync::Arc;
 
@@ -1119,6 +1119,43 @@ impl NanoTimestamp {
             .single()
             .unwrap_or(dt);
         NanoTimestamp(start.timestamp_nanos_opt().unwrap_or(self.0))
+    }
+
+    /// Returns the last nanosecond of the UTC year containing this timestamp.
+    pub fn end_of_year(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let start_next = chrono::Utc
+            .with_ymd_and_hms(dt.year() + 1, 1, 1, 0, 0, 0)
+            .single()
+            .unwrap_or(dt);
+        let nanos = start_next.timestamp_nanos_opt().unwrap_or(self.0) - 1;
+        NanoTimestamp(nanos)
+    }
+
+    /// Adds `months` calendar months, clamping to the last day of the resulting month.
+    pub fn add_months(&self, months: i32) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let total_months = dt.month() as i32 + months;
+        let year = dt.year() + (total_months - 1).div_euclid(12);
+        let month = ((total_months - 1).rem_euclid(12) + 1) as u32;
+        let day = dt.day().min(days_in_month(year, month));
+        let new_dt = chrono::Utc
+            .with_ymd_and_hms(year, month, day, dt.hour(), dt.minute(), dt.second())
+            .single()
+            .unwrap_or(dt);
+        NanoTimestamp(new_dt.timestamp_nanos_opt().unwrap_or(self.0))
+    }
+}
+
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) => 29,
+        2 => 28,
+        _ => 30,
     }
 }
 

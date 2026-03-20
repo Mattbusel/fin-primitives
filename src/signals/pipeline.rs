@@ -500,6 +500,20 @@ impl SignalMap {
         if min.is_zero() { return None; }
         Some((max - min) / min.abs() * Decimal::ONE_HUNDRED)
     }
+
+    /// Weighted sum: `Σ value_i * weight_i` for signals found in `weights`.
+    ///
+    /// Returns `Decimal::ZERO` if no matching scalar signals are found.
+    pub fn weighted_sum(&self, weights: &std::collections::HashMap<&str, Decimal>) -> Decimal {
+        self.scalars()
+            .filter_map(|(name, v)| weights.get(name).map(|&w| v * w))
+            .fold(Decimal::ZERO, |acc, x| acc + x)
+    }
+
+    /// Multiply all scalar values by `factor`, returning a new `HashMap`.
+    pub fn scale_all(&self, factor: Decimal) -> HashMap<String, Decimal> {
+        self.scalars().map(|(name, v)| (name.to_string(), v * factor)).collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

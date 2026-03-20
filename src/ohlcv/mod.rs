@@ -6170,6 +6170,84 @@ impl OhlcvSeries {
         }
         Some(self.bars.len() - 1 - last_low_idx)
     }
+
+    /// Average `volume / (high - low)` over last `n` bars — liquidity density metric.
+    ///
+    /// Higher values mean more volume traded per unit of price range.
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or all ranges are zero.
+    pub fn volume_per_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        let mut count = 0u32;
+        for b in &self.bars[start..] {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { continue; }
+            sum += b.volume.value() / range;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Ratio of fast vol (std dev of closes over `fast` bars) to slow vol (over `slow` bars).
+    ///
+    /// Values > 1 mean recent volatility is elevated vs the longer window.
+    /// Returns `None` if `fast < 2`, `slow < 2`, `fast >= slow`, fewer than `slow` bars,
+    /// or slow vol is zero.
+    pub fn price_volatility_ratio(&self, fast: usize, slow: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if fast < 2 || slow < 2 || fast >= slow || self.bars.len() < slow { return None; }
+        let n = self.bars.len();
+        let std_dev = |bars: &[crate::ohlcv::OhlcvBar]| -> Option<f64> {
+            let m = bars.len() as f64;
+            let vals: Vec<f64> = bars.iter().filter_map(|b| b.close.value().to_f64()).collect();
+            if vals.len() < 2 { return None; }
+            let mean = vals.iter().sum::<f64>() / m;
+            let var = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (m - 1.0);
+            Some(var.sqrt())
+        };
+        let fast_vol = std_dev(&self.bars[n - fast..])?;
+        let slow_vol = std_dev(&self.bars[n - slow..])?;
+        if slow_vol == 0.0 { return None; }
+        Some(fast_vol / slow_vol)
+    }
+
+    /// Reference to the most recent bar, or `None` if the series is empty.
+    pub fn last_bar(&self) -> Option<&OhlcvBar> {
+        self.bars.last()
+    }
+
+    /// Absolute distance from the latest close to the `n`-bar high.
+    ///
+    /// Returns `None` if fewer than `n` bars exist.
+    pub fn close_distance_from_high(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
+        Some((max_high - self.bars.last()?.close.value()).abs())
+    }
+
+    /// Current close as a percentage above the `n`-bar low.
+    ///
+    /// Returns `None` if fewer than `n` bars or the low is zero.
+    pub fn pct_from_low(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
+        if min_low.is_zero() { return None; }
+        Some((self.bars.last()?.close.value() - min_low) / min_low * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns `true` if the latest close exceeds the highest close of the prior `n` bars.
+    pub fn is_breakout_up(&self, n: usize) -> bool {
+        if n == 0 || self.bars.len() <= n { return false; }
+        let len = self.bars.len();
+        let prior_high = self.bars[len - 1 - n..len - 1].iter().map(|b| b.close.value()).max();
+        match (prior_high, self.bars.last()) {
+            (Some(ph), Some(last)) => last.close.value() > ph,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]

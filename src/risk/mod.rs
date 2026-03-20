@@ -787,6 +787,27 @@ impl DrawdownTracker {
         Some(avg_gain / avg_loss)
     }
 
+    /// Estimated number of updates to recover from the current drawdown.
+    ///
+    /// Based on average gain size and current distance from peak.
+    /// Returns `None` if not in drawdown, no gain history, or average gain is zero.
+    pub fn time_to_recover_est(&self) -> Option<usize> {
+        if !self.in_drawdown() { return None; }
+        let avg_gain = self.avg_gain_pct()?;
+        if avg_gain <= 0.0 { return None; }
+        let distance: f64 = self.current_drawdown_pct().to_string().parse().ok()?;
+        Some((distance / avg_gain).ceil() as usize)
+    }
+
+    /// Current distance of equity below the peak in absolute terms.
+    pub fn current_drawdown_absolute(&self) -> Decimal {
+        if self.current_equity >= self.peak_equity {
+            Decimal::ZERO
+        } else {
+            self.peak_equity - self.current_equity
+        }
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
@@ -1454,6 +1475,15 @@ impl DrawdownTracker {
         if self.updates_since_peak == 0 { return None; }
         let dd = self.current_drawdown_pct().to_f64()?;
         Some(dd / self.updates_since_peak as f64)
+    }
+
+    /// Fraction of streak length dominated by gains: `max_gain_streak / (max_gain_streak + max_drawdown_streak)`.
+    ///
+    /// Returns `None` if neither streak has been recorded.
+    pub fn streak_win_rate(&self) -> Option<f64> {
+        let total = self.max_gain_streak + self.max_drawdown_streak;
+        if total == 0 { return None; }
+        Some(self.max_gain_streak as f64 / total as f64)
     }
 }
 

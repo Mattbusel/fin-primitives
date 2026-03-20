@@ -1802,6 +1802,32 @@ impl PositionLedger {
             .map(|(sym, p)| (sym, p.realized_pnl))
             .min_by(|(_, a), (_, b)| a.cmp(b))
     }
+
+    /// Average holding duration in bars for all open positions.
+    ///
+    /// Uses `current_bar - p.open_bar` for each open position.
+    /// Returns `None` if there are no open positions.
+    pub fn avg_holding_bars(&self, current_bar: usize) -> Option<f64> {
+        let open: Vec<usize> = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .map(|p| current_bar.saturating_sub(p.open_bar))
+            .collect();
+        if open.is_empty() { return None; }
+        Some(open.iter().sum::<usize>() as f64 / open.len() as f64)
+    }
+
+    /// Symbols of open positions that currently have a negative unrealized P&L.
+    pub fn symbols_with_unrealized_loss(&self, prices: &HashMap<String, Price>) -> Vec<&Symbol> {
+        self.positions.iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                prices.get(p.symbol.as_str())
+                    .map(|&pr| (sym, p.unrealized_pnl(pr)))
+            })
+            .filter(|(_, pnl)| *pnl < Decimal::ZERO)
+            .map(|(sym, _)| sym)
+            .collect()
+    }
 }
 
 #[cfg(test)]
