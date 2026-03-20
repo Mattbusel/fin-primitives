@@ -644,4 +644,54 @@ mod tests {
         let breaches = monitor.check(dec!(9000)); // 10% drawdown < 15%
         assert!(breaches.is_empty());
     }
+
+    #[test]
+    fn test_drawdown_tracker_in_drawdown_false_at_peak() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        assert!(!tracker.in_drawdown());
+    }
+
+    #[test]
+    fn test_drawdown_tracker_in_drawdown_true_below_peak() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000));
+        assert!(tracker.in_drawdown());
+    }
+
+    #[test]
+    fn test_drawdown_tracker_in_drawdown_false_at_new_peak() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(11000));
+        assert!(!tracker.in_drawdown());
+    }
+
+    #[test]
+    fn test_drawdown_tracker_drawdown_count_increases() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9500));
+        tracker.update(dec!(9000));
+        assert_eq!(tracker.drawdown_count(), 2);
+    }
+
+    #[test]
+    fn test_drawdown_tracker_drawdown_count_resets_on_peak() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000));
+        tracker.update(dec!(11000)); // new peak
+        assert_eq!(tracker.drawdown_count(), 0);
+    }
+
+    #[test]
+    fn test_risk_monitor_has_breaches_true() {
+        let monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        assert!(monitor.has_breaches(dec!(9000))); // 10% > 5%
+    }
+
+    #[test]
+    fn test_risk_monitor_has_breaches_false() {
+        let monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        assert!(!monitor.has_breaches(dec!(9000))); // 10% < 15%
+    }
 }

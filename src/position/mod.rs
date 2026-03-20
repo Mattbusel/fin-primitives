@@ -72,6 +72,14 @@ impl Fill {
             commission,
         }
     }
+
+    /// Returns the gross notional value of this fill: `price × quantity`.
+    ///
+    /// Does not subtract commission. Useful for computing total capital deployed
+    /// per fill and aggregate turnover statistics.
+    pub fn notional(&self) -> Decimal {
+        self.price.value() * self.quantity.value()
+    }
 }
 
 /// Direction of an open position.
@@ -931,5 +939,39 @@ mod tests {
     fn test_position_ledger_symbols_sorted_empty() {
         let ledger = PositionLedger::new(dec!(10000));
         assert!(ledger.symbols_sorted().is_empty());
+    }
+
+    #[test]
+    fn test_position_avg_entry_price_long() {
+        let sym = Symbol::new("AAPL").unwrap();
+        let mut pos = Position::new(sym);
+        let fill = Fill::new(
+            Symbol::new("AAPL").unwrap(),
+            Price::new(dec!(150)).unwrap(),
+            Quantity::new(dec!(10)).unwrap(),
+            Side::Bid,
+            NanoTimestamp::new(0),
+        ).unwrap();
+        pos.apply_fill(&fill).unwrap();
+        assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(150));
+    }
+
+    #[test]
+    fn test_position_avg_entry_price_flat_returns_none() {
+        let sym = Symbol::new("AAPL").unwrap();
+        let pos = Position::new(sym);
+        assert!(pos.avg_entry_price().is_none());
+    }
+
+    #[test]
+    fn test_position_avg_entry_price_after_partial_close() {
+        let sym = Symbol::new("X").unwrap();
+        let mut pos = Position::new(sym.clone());
+        pos.apply_fill(&Fill::new(sym.clone(), Price::new(dec!(100)).unwrap(),
+            Quantity::new(dec!(10)).unwrap(), Side::Bid, NanoTimestamp::new(0)).unwrap()).unwrap();
+        pos.apply_fill(&Fill::new(sym.clone(), Price::new(dec!(100)).unwrap(),
+            Quantity::new(dec!(5)).unwrap(), Side::Ask, NanoTimestamp::new(1)).unwrap()).unwrap();
+        // Still long 5 at avg_cost = 100
+        assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(100));
     }
 }

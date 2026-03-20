@@ -473,6 +473,61 @@ impl OrderBook {
             (None, None) => None,
         }
     }
+
+    /// Returns the bid-to-ask volume ratio: `total_bid_volume / total_ask_volume`.
+    ///
+    /// Values > 1 indicate more buy-side depth; values < 1 indicate more sell-side depth.
+    /// Returns `None` if either side is empty (to avoid division by zero).
+    pub fn bid_ask_ratio(&self) -> Option<Decimal> {
+        let bid = self.total_bid_volume();
+        let ask = self.total_ask_volume();
+        if ask.is_zero() || bid.is_zero() {
+            return None;
+        }
+        Some(bid / ask)
+    }
+
+    /// Estimates the average fill price for a market order of `qty` on `side`.
+    ///
+    /// Walks the book levels in price-time priority and returns the volume-weighted
+    /// average price. Returns `None` if `qty` is zero or the book cannot fill `qty`
+    /// in full (insufficient depth).
+    pub fn price_impact(&self, side: crate::types::Side, qty: crate::types::Quantity) -> Option<Decimal> {
+        use crate::types::Side;
+        if qty.is_zero() {
+            return None;
+        }
+        let levels: Vec<_> = match side {
+            Side::Bid => {
+                // Buying: walk asks from lowest to highest price
+                let mut asks: Vec<_> = self.asks.iter().collect();
+                asks.sort_by(|a, b| a.0.cmp(b.0));
+                asks.into_iter().map(|(p, q)| (*p, *q)).collect()
+            }
+            Side::Ask => {
+                // Selling: walk bids from highest to lowest price
+                let mut bids: Vec<_> = self.bids.iter().collect();
+                bids.sort_by(|a, b| b.0.cmp(a.0));
+                bids.into_iter().map(|(p, q)| (*p, *q)).collect()
+            }
+        };
+        let target = qty.value();
+        let mut remaining = target;
+        let mut notional = Decimal::ZERO;
+        for (price, level_qty) in levels {
+            let fill = level_qty.min(remaining);
+            notional += price * fill;
+            remaining -= fill;
+            if remaining <= Decimal::ZERO {
+                break;
+            }
+        }
+        if remaining > Decimal::ZERO {
+            None // insufficient depth
+        } else {
+            Some(notional / target)
+        }
+    }
 }
 
 #[cfg(test)]

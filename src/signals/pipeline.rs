@@ -75,6 +75,23 @@ impl SignalMap {
     pub fn get_scalar(&self, name: &str) -> Option<Decimal> {
         self.values.get(name)?.as_decimal()
     }
+
+    /// Returns the `(name, value)` pair with the smallest scalar value, or `None` if no scalars.
+    pub fn min_scalar(&self) -> Option<(&str, Decimal)> {
+        self.scalars()
+            .reduce(|acc, item| if item.1 < acc.1 { item } else { acc })
+    }
+
+    /// Returns the `(name, value)` pair with the largest scalar value, or `None` if no scalars.
+    pub fn max_scalar(&self) -> Option<(&str, Decimal)> {
+        self.scalars()
+            .reduce(|acc, item| if item.1 > acc.1 { item } else { acc })
+    }
+
+    /// Returns the sum of all ready scalar values in this map.
+    pub fn sum_scalars(&self) -> Decimal {
+        self.scalars().map(|(_, v)| v).sum()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
