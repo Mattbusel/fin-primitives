@@ -125,7 +125,6 @@ mod tests {
     use crate::ohlcv::OhlcvBar;
     use crate::signals::Signal;
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
-    use rust_decimal_macros::dec;
 
     fn bar(c: &str) -> OhlcvBar {
         let p = Price::new(c.parse().unwrap()).unwrap();
