@@ -262,6 +262,28 @@ impl OhlcvBar {
         Some(self.body_size() / r)
     }
 
+    /// Returns the True Range for this bar.
+    ///
+    /// True Range is the maximum of:
+    /// - `high - low`
+    /// - `|high - prev_close|` (if `prev` is `Some`)
+    /// - `|low  - prev_close|` (if `prev` is `Some`)
+    ///
+    /// When `prev` is `None`, True Range falls back to `high - low`.
+    /// This is the building block for ATR and volatility calculations.
+    pub fn true_range(&self, prev: Option<&OhlcvBar>) -> Decimal {
+        let hl = self.high.value() - self.low.value();
+        match prev {
+            None => hl,
+            Some(p) => {
+                let pc = p.close.value();
+                let hc = (self.high.value() - pc).abs();
+                let lc = (self.low.value() - pc).abs();
+                hl.max(hc).max(lc)
+            }
+        }
+    }
+
     /// Returns the upper shadow length: `high - max(open, close)`.
     pub fn upper_shadow(&self) -> Decimal {
         let body_top = self.open.value().max(self.close.value());
@@ -693,6 +715,28 @@ impl OhlcvSeries {
     /// Returns an iterator over the bars in insertion order.
     pub fn iter(&self) -> std::slice::Iter<'_, OhlcvBar> {
         self.bars.iter()
+    }
+
+    /// Returns the count of consecutive bullish bars at the tail of the series.
+    ///
+    /// A bar is bullish when `close >= open`. Returns 0 for an empty series.
+    pub fn consecutive_ups(&self) -> usize {
+        self.bars
+            .iter()
+            .rev()
+            .take_while(|b| b.close.value() >= b.open.value())
+            .count()
+    }
+
+    /// Returns the count of consecutive bearish bars at the tail of the series.
+    ///
+    /// A bar is bearish when `close < open`. Returns 0 for an empty series.
+    pub fn consecutive_downs(&self) -> usize {
+        self.bars
+            .iter()
+            .rev()
+            .take_while(|b| b.close.value() < b.open.value())
+            .count()
     }
 
     /// Returns a `Vec` of open prices in series order.
@@ -1151,6 +1195,25 @@ impl OhlcvSeries {
         Some((mean - risk_free_rate) / std_dev * bars_per_year.sqrt())
     }
 
+    /// Returns the percentage price change from `n` bars ago to the latest close.
+    ///
+    /// `(last_close - close[len-1-n]) / close[len-1-n] * 100`
+    ///
+    /// Returns `None` when the series has fewer than `n + 1` bars or the reference
+    /// close is zero.
+    pub fn price_change_pct(&self, n: usize) -> Option<Decimal> {
+        let len = self.bars.len();
+        if len < n + 1 {
+            return None;
+        }
+        let ref_close = self.bars[len - 1 - n].close.value();
+        if ref_close.is_zero() {
+            return None;
+        }
+        let last_close = self.bars[len - 1].close.value();
+        Some((last_close - ref_close) / ref_close * Decimal::ONE_HUNDRED)
+    }
+
     /// Returns the count of bullish bars in the last `n` bars.
     ///
     /// A bar is bullish when `close >= open`. If `n` exceeds the series length,
@@ -1167,6 +1230,106 @@ impl OhlcvSeries {
     pub fn count_bearish(&self, n: usize) -> usize {
         let start = self.bars.len().saturating_sub(n);
         self.bars[start..].iter().filter(|b| b.is_bearish()).count()
+    }
+
+    /// Returns the count of inside bars in the entire series.
+    ///
+    /// An inside bar has a lower high and higher low than the previous bar,
+    /// indicating consolidation. The first bar is never counted (no prior bar).
+    pub fn count_inside_bars(&self) -> usize {
+        self.bars
+            .windows(2)
+            .filter(|w| w[1].is_inside_bar(&w[0]))
+            .count()
+    }
+
+    /// Returns the count of outside bars in the entire series.
+    ///
+    /// An outside bar completely contains the prior bar's range.
+    /// The first bar is never counted (no prior bar).
+    pub fn count_outside_bars(&self) -> usize {
+        self.bars
+            .windows(2)
+            .filter(|w| w[1].is_outside_bar(&w[0]))
+            .count()
+    }
+
+    /// Returns the indices of pivot highs — bars whose high is strictly greater than
+    /// the `n` bars on each side.
+    ///
+    /// A pivot high at index `i` satisfies:
+    /// `bars[i].high > bars[i-j].high` and `bars[i].high > bars[i+j].high` for all `j` in `1..=n`.
+    ///
+    /// Bars within `n` of either end of the series are excluded.
+    pub fn pivot_highs(&self, n: usize) -> Vec<usize> {
+        if n == 0 || self.bars.len() < 2 * n + 1 {
+            return vec![];
+        }
+        let mut pivots = Vec::new();
+        for i in n..self.bars.len() - n {
+            let h = self.bars[i].high.value();
+            let is_pivot = (1..=n).all(|j| {
+                h > self.bars[i - j].high.value() && h > self.bars[i + j].high.value()
+            });
+            if is_pivot {
+                pivots.push(i);
+            }
+        }
+        pivots
+    }
+
+    /// Returns the indices of pivot lows — bars whose low is strictly less than
+    /// the `n` bars on each side.
+    ///
+    /// A pivot low at index `i` satisfies:
+    /// `bars[i].low < bars[i-j].low` and `bars[i].low < bars[i+j].low` for all `j` in `1..=n`.
+    ///
+    /// Bars within `n` of either end of the series are excluded.
+    pub fn pivot_lows(&self, n: usize) -> Vec<usize> {
+        if n == 0 || self.bars.len() < 2 * n + 1 {
+            return vec![];
+        }
+        let mut pivots = Vec::new();
+        for i in n..self.bars.len() - n {
+            let l = self.bars[i].low.value();
+            let is_pivot = (1..=n).all(|j| {
+                l < self.bars[i - j].low.value() && l < self.bars[i + j].low.value()
+            });
+            if is_pivot {
+                pivots.push(i);
+            }
+        }
+        pivots
+    }
+
+    /// Returns the count of bars (in the last `n`) where `close > SMA(close, period)`.
+    ///
+    /// If `n` exceeds the series length, all eligible bars are considered.
+    /// Returns `0` if there are fewer than `period` bars (SMA cannot be computed).
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn above_sma(&self, period: usize, n: usize) -> usize {
+        if self.bars.len() < period || period == 0 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n);
+        let window_start = start.saturating_sub(period - 1);
+        let mut count = 0usize;
+        for i in start..self.bars.len() {
+            if i + 1 < period {
+                continue;
+            }
+            let sma_start = i + 1 - period;
+            let sma: Decimal = self.bars[sma_start..=i]
+                .iter()
+                .map(|b| b.close.value())
+                .sum::<Decimal>()
+                / Decimal::from(period as u32);
+            if self.bars[i].close.value() > sma {
+                count += 1;
+            }
+        }
+        let _ = window_start; // used indirectly via sma_start logic
+        count
     }
 }
 

@@ -187,6 +187,28 @@ impl Price {
     pub fn abs_diff(self, other: Price) -> Decimal {
         (self.0 - other.0).abs()
     }
+
+    /// Rounds this price to the nearest multiple of `tick_size`.
+    ///
+    /// Returns `None` if `tick_size <= 0` or if the rounded value is not a valid
+    /// `Price` (i.e. the result is zero or negative).
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::types::Price;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let p = Price::new(dec!(10.3)).unwrap();
+    /// let snapped = p.snap_to_tick(dec!(0.5)).unwrap();
+    /// assert_eq!(snapped.value(), dec!(10.5));
+    /// ```
+    pub fn snap_to_tick(self, tick_size: Decimal) -> Option<Price> {
+        if tick_size <= Decimal::ZERO {
+            return None;
+        }
+        let rounded = (self.0 / tick_size).round() * tick_size;
+        Price::new(rounded).ok()
+    }
 }
 
 impl Price {
@@ -314,6 +336,15 @@ impl Quantity {
         } else {
             Some(Quantity(result))
         }
+    }
+
+    /// Returns the absolute value of this quantity's underlying decimal.
+    ///
+    /// `Quantity` values are normally non-negative, but this is useful when
+    /// working with raw `Decimal` fields (e.g. from `sub` operations that yield
+    /// negative `Decimal`s wrapped in `Quantity(d)` via internal code paths).
+    pub fn abs(self) -> Quantity {
+        Quantity(self.0.abs())
     }
 }
 

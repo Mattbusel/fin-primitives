@@ -80,6 +80,38 @@ impl Tick {
         self.side == Side::Ask
     }
 
+    /// Returns `true` if this tick's price is strictly higher than `prev`.
+    pub fn is_uptick(&self, prev: &Tick) -> bool {
+        self.price.value() > prev.price.value()
+    }
+
+    /// Returns `true` if this tick's price is strictly lower than `prev`.
+    pub fn is_downtick(&self, prev: &Tick) -> bool {
+        self.price.value() < prev.price.value()
+    }
+
+    /// Returns the total bid-side (buy aggressor) volume from a slice of ticks.
+    ///
+    /// Useful for computing buy pressure and delta (buy volume − sell volume).
+    pub fn buy_volume(ticks: &[Tick]) -> Decimal {
+        ticks
+            .iter()
+            .filter(|t| t.side == Side::Bid)
+            .map(|t| t.quantity.value())
+            .sum()
+    }
+
+    /// Returns the total ask-side (sell aggressor) volume from a slice of ticks.
+    ///
+    /// Useful for computing sell pressure and delta (buy volume − sell volume).
+    pub fn sell_volume(ticks: &[Tick]) -> Decimal {
+        ticks
+            .iter()
+            .filter(|t| t.side == Side::Ask)
+            .map(|t| t.quantity.value())
+            .sum()
+    }
+
     /// Computes the VWAP (volume-weighted average price) over a slice of ticks.
     ///
     /// `VWAP = Σ(price * quantity) / Σ(quantity)`

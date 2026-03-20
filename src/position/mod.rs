@@ -301,6 +301,11 @@ impl PositionLedger {
         self.positions.get(symbol)
     }
 
+    /// Returns `true` if the ledger is tracking `symbol` (even if flat).
+    pub fn has_position(&self, symbol: &Symbol) -> bool {
+        self.positions.contains_key(symbol)
+    }
+
     /// Returns an iterator over all tracked positions (including flat ones).
     pub fn positions(&self) -> impl Iterator<Item = &Position> {
         self.positions.values()
@@ -975,5 +980,27 @@ mod tests {
             NanoTimestamp::new(1))).unwrap();
         // Still long 5 at avg_cost = 100
         assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(100));
+    }
+
+    #[test]
+    fn test_position_ledger_has_position_true_after_fill() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        assert!(ledger.has_position(&sym("AAPL")));
+    }
+
+    #[test]
+    fn test_position_ledger_has_position_false_for_unknown() {
+        let ledger = PositionLedger::new(dec!(10000));
+        assert!(!ledger.has_position(&sym("AAPL")));
+    }
+
+    #[test]
+    fn test_position_ledger_has_position_true_even_when_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0")).unwrap();
+        // position is flat but still tracked
+        assert!(ledger.has_position(&sym("AAPL")));
     }
 }

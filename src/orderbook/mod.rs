@@ -198,6 +198,15 @@ impl OrderBook {
         Some(ask - bid)
     }
 
+    /// Returns the resting quantity at a specific price level, or `None` if the level is absent.
+    pub fn depth_at(&self, side: Side, price: Price) -> Option<Decimal> {
+        let key = price.value();
+        match side {
+            Side::Bid => self.bids.get(&key).copied(),
+            Side::Ask => self.asks.get(&key).copied(),
+        }
+    }
+
     /// Returns the top `n` bid levels in descending price order.
     pub fn top_bids(&self, n: usize) -> Vec<PriceLevel> {
         self.bids
@@ -350,6 +359,22 @@ impl OrderBook {
     /// Returns the total resting quantity on the ask side.
     pub fn total_ask_volume(&self) -> Decimal {
         self.asks.values().copied().sum()
+    }
+
+    /// Returns the resting quantity at the best bid, or `None` if the bid side is empty.
+    pub fn best_bid_qty(&self) -> Option<Quantity> {
+        self.bids
+            .values()
+            .next_back()
+            .and_then(|q| Quantity::new(*q).ok())
+    }
+
+    /// Returns the resting quantity at the best ask, or `None` if the ask side is empty.
+    pub fn best_ask_qty(&self) -> Option<Quantity> {
+        self.asks
+            .values()
+            .next()
+            .and_then(|q| Quantity::new(*q).ok())
     }
 
     /// Returns `true` if `price` is present in the given `side` of the book.
@@ -1114,5 +1139,22 @@ mod tests {
         book.apply_delta(set_delta(Side::Ask, "101", "10", 1)).unwrap();
         let qty = Quantity::zero();
         assert!(book.price_impact(Side::Bid, qty).is_none());
+    }
+
+    #[test]
+    fn test_orderbook_depth_at_existing_bid_level() {
+        let mut book = make_book();
+        // make_book sets seq=0; add a bid at 99 qty=5 with seq=1
+        book.apply_delta(set_delta(Side::Bid, "99", "5", 1)).unwrap();
+        let price = Price::new(dec!(99)).unwrap();
+        assert_eq!(book.depth_at(Side::Bid, price), Some(dec!(5)));
+    }
+
+    #[test]
+    fn test_orderbook_depth_at_absent_level_returns_none() {
+        let book = make_book();
+        let price = Price::new(dec!(50)).unwrap();
+        assert!(book.depth_at(Side::Bid, price).is_none());
+        assert!(book.depth_at(Side::Ask, price).is_none());
     }
 }

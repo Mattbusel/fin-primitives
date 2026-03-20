@@ -184,6 +184,17 @@ impl SignalValue {
         }
     }
 
+    /// Negates the scalar value: returns `Scalar(-x)` if `Scalar(x)`, else `Unavailable`.
+    ///
+    /// Useful for inverting oscillator signals (e.g. turning a sell signal into a buy signal
+    /// by negating the output) without requiring an explicit `map(|x| -x)`.
+    pub fn negate(self) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(-d),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
     /// Clamps the scalar value to `[lo, hi]`, returning `Unavailable` if `Unavailable`.
     ///
     /// If `Scalar(v)`, returns `Scalar(v.clamp(lo, hi))`. Useful for bounding oscillators
