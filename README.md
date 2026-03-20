@@ -15,6 +15,79 @@ strategy rather than infrastructure.
 
 ---
 
+## Recent Additions (2026-03-20)
+
+A large batch of improvements was shipped across multiple commits today. The changes
+span every module in the library.
+
+**New indicators (today's additions, on top of the existing set):**
+
+- `Vhf` (Vertical Horizontal Filter)
+- `ChaikinOsc` (Chaikin Oscillator)
+- `Bop` (Balance of Power)
+- `Atrp` (ATR Percent)
+- `Kst` (Know Sure Thing oscillator)
+- `Pfe` (Polarized Fractal Efficiency)
+- `Rsx` (Relative Strength Xtra)
+- `McGinley` (McGinley Dynamic)
+- `StochRsi` (Stochastic RSI)
+- `Swma` (Sine-Weighted Moving Average)
+- `DonchianWidth`
+- `Rmi` (Relative Momentum Index)
+- `SuperTrend`
+- `Pivots` (pivot point levels)
+- `ForceIndex`
+- `Cog` (Center of Gravity oscillator)
+- `Envelope`
+- `Natr` (Normalized ATR)
+- `PsychologicalLine`
+- `LinRegSlope` (OLS linear regression slope)
+- `KaufmanEr` (Kaufman Efficiency Ratio)
+- `ZScore`
+
+**New OhlcvSeries analytics:**
+
+`realized_volatility`, `skewness`, `kurtosis`, `rolling_sharpe`, `hurst_exponent`,
+`ulcer_index`, `cvar`, `autocorrelation`, `bar_count_since_high`, `close_range_position`,
+`close_to_open_ratio`, `bar_range_pct`, `close_vs_prior_range_count`, `gain_loss_ratio`,
+`bars_above_sma`, `max_drawdown_duration`, `close_above_open_pct`, `avg_wick_ratio`,
+`wick_body_ratio`, `volume_price_correlation`, `returns_series`, `max_consecutive_up`,
+`max_consecutive_down`, `typical_price_sma`, `intraday_range_pct`, `close_above_prior_high`,
+`range_expansion_ratio`, `efficiency_ratio`, `body_pct_series`, `candle_color_changes`,
+`typical_price_series`, `open_gap_series`, `rolling_close_std`, `gap_direction_series`,
+`volume_trend`, `volume_weighted_close`, `bullish_candle_pct`, `price_above_ma_pct`
+
+**New OrderBook methods:**
+
+`top_n_bid_levels`, `top_n_ask_levels`, `price_at_volume`
+
+**New position / ledger methods:**
+
+`max_favorable_excursion`, `unrealized_pnl_pct`, `active_symbols`, `symbol_count`,
+`realized_pnl_by_symbol`, `avg_cost_basis`, `long_exposure`, `short_exposure`,
+`net_delta`, `all_flat`, `flat_count`, `tail_risk_pct`
+
+**New NanoTimestamp helpers:**
+
+`floor_to_day`, `floor_to_hour`, `floor_to_minute`, `elapsed_seconds`,
+`to_datetime_string`, `is_between`
+
+**New SignalValue combinators:**
+
+`to_option`, `max`, `min`, `as_f64`, `round`, `mul_signal`
+
+**Bug fixes:**
+
+- Removed duplicate `open_position_count` and `total_notional` methods that caused
+  compiler errors.
+- Fixed `realized_pnl_by_symbol` to read the `realized_pnl` field directly instead
+  of calling a non-existent method.
+- Fixed `McGinley::is_ready` to return `false` on the seeding bar and `true` only
+  after the first computed value.
+- Fixed Decimal `powi` calls that used an incorrect type for the exponent.
+
+---
+
 ## What Is Included
 
 | Module | What it provides | Key guarantee |
