@@ -745,6 +745,21 @@ impl SignalValue {
             SignalValue::Scalar(v) => SignalValue::Scalar(v * factor),
         }
     }
+
+    /// Returns `true` if this is `Scalar(0)`.
+    pub fn is_zero(&self) -> bool {
+        matches!(self, SignalValue::Scalar(v) if v.is_zero())
+    }
+
+    /// Absolute difference between two `SignalValue`s.
+    ///
+    /// Returns `Unavailable` if either operand is `Unavailable`.
+    pub fn delta(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar((a - b).abs()),
+            _ => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

@@ -346,6 +346,52 @@ impl SignalMap {
         }
         if denominator.is_zero() { None } else { Some(numerator / denominator) }
     }
+
+    /// Returns the bottom `n` scalar signals by value, sorted ascending.
+    pub fn bottom_n(&self, n: usize) -> Vec<(&str, Decimal)> {
+        let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
+        items.sort_by(|a, b| a.1.cmp(&b.1));
+        items.truncate(n);
+        items
+    }
+
+    /// Sum of all scalar values strictly below `threshold`.
+    pub fn sum_below(&self, threshold: Decimal) -> Decimal {
+        self.scalars()
+            .filter(|(_, v)| *v < threshold)
+            .map(|(_, v)| v)
+            .fold(Decimal::ZERO, |acc, v| acc + v)
+    }
+
+    /// Signal names sorted by scalar value descending.
+    pub fn names_sorted_desc(&self) -> Vec<&str> {
+        let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
+        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.into_iter().map(|(n, _)| n).collect()
+    }
+
+    /// Z-score of each scalar relative to the set's mean and sample std dev.
+    ///
+    /// Returns an empty map if there are fewer than 2 scalar values or std dev is zero.
+    pub fn z_scores(&self) -> HashMap<String, f64> {
+        let pairs: Vec<(&str, Decimal)> = self.scalars().collect();
+        if pairs.len() < 2 {
+            return HashMap::new();
+        }
+        let floats: Vec<f64> = pairs.iter()
+            .map(|(_, v)| v.to_string().parse::<f64>().unwrap_or(0.0))
+            .collect();
+        let n = floats.len() as f64;
+        let mean = floats.iter().sum::<f64>() / n;
+        let variance = floats.iter().map(|&x| { let d = x - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 {
+            return pairs.into_iter().map(|(name, _)| (name.to_string(), 0.0)).collect();
+        }
+        pairs.into_iter().zip(floats)
+            .map(|((name, _), x)| (name.to_string(), (x - mean) / std_dev))
+            .collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

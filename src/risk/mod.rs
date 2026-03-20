@@ -1271,6 +1271,13 @@ impl DrawdownTracker {
         Some(annualized_return / vol)
     }
 
+    /// Longest single underwater streak in number of consecutive updates below peak.
+    ///
+    /// Returns `0` if there have been no updates below peak.
+    pub fn max_consecutive_underwater(&self) -> usize {
+        self.max_drawdown_streak
+    }
+
     /// Average duration of underwater periods: `drawdown_update_count / drawdown_count`.
     ///
     /// Returns `None` if there have been no drawdown periods.

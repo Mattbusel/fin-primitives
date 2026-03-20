@@ -5608,6 +5608,28 @@ impl OhlcvSeries {
         self.bars[start..].iter().map(|b| b.close.value()).min()
     }
 
+    /// Chaikin oscillator: fast EMA of (close-change * volume) minus slow EMA.
+    ///
+    /// Measures divergence between fast and slow accumulation/distribution momentum.
+    /// Returns `None` if `fast == 0`, `slow == 0`, `fast >= slow`, or not enough bars.
+    pub fn chaikin_oscillator(&self, fast: usize, slow: usize) -> Option<Decimal> {
+        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() <= slow { return None; }
+        let n = self.bars.len();
+        // fast EMA: use simple approximation via alpha = 2/(fast+1)
+        // We compute EMA of (close * volume) over last `slow` bars
+        let alpha_fast = Decimal::TWO / Decimal::from(fast + 1);
+        let alpha_slow = Decimal::TWO / Decimal::from(slow + 1);
+        let start = n - slow;
+        let mut ema_fast = self.bars[start].close.value() * self.bars[start].volume.value();
+        let mut ema_slow = ema_fast;
+        for bar in &self.bars[start + 1..] {
+            let adv = bar.close.value() * bar.volume.value();
+            ema_fast = alpha_fast * adv + (Decimal::ONE - alpha_fast) * ema_fast;
+            ema_slow = alpha_slow * adv + (Decimal::ONE - alpha_slow) * ema_slow;
+        }
+        Some(ema_fast - ema_slow)
+    }
+
     /// Net bullish/bearish bias over the last `n` bars.
     ///
     /// Returns `(bullish_count as i64) - (bearish_count as i64)` where
@@ -5621,6 +5643,52 @@ impl OhlcvSeries {
         let bear = self.bars[start..].iter()
             .filter(|b| b.close.value() < b.open.value()).count() as i64;
         Some(bull - bear)
+    }
+
+    /// Percentage of bars over the last `n` that are doji (body ≤ 10% of range).
+    pub fn pct_doji(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let doji_count = self.bars[start..].iter().filter(|b| {
+            let range = b.high.value() - b.low.value();
+            if range.is_zero() { return true; }
+            let body = (b.close.value() - b.open.value()).abs();
+            body / range <= Decimal::new(1, 1)
+        }).count() as u32;
+        Some(Decimal::from(doji_count) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
+    }
+
+    /// Linear regression slope direction of closes over `n` bars.
+    /// Returns `+1` if upward, `-1` if downward, `0` if flat.
+    pub fn recent_close_trend(&self, n: usize) -> Option<i64> {
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let closes: Vec<f64> = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value().to_string().parse::<f64>().unwrap_or(0.0))
+            .collect();
+        let m = closes.len() as f64;
+        let x_mean = (m - 1.0) / 2.0;
+        let y_mean: f64 = closes.iter().sum::<f64>() / m;
+        let mut num = 0.0f64;
+        let mut den = 0.0f64;
+        for (i, &y) in closes.iter().enumerate() {
+            let dx = i as f64 - x_mean;
+            num += dx * (y - y_mean);
+            den += dx * dx;
+        }
+        if den == 0.0 { return Some(0); }
+        let slope = num / den;
+        if slope > 1e-10 { Some(1) } else if slope < -1e-10 { Some(-1) } else { Some(0) }
+    }
+
+    /// Max high minus min low over the last `n` bars.
+    pub fn high_low_range(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
+        let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
+        Some(max_high - min_low)
     }
 }
 
