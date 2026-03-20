@@ -1129,3 +1129,15 @@ pub use high_volume_bar_ratio::HighVolumeBarRatio;
 
 pub mod body_position;
 pub use body_position::BodyPosition;
+
+pub mod directional_efficiency;
+pub use directional_efficiency::DirectionalEfficiency;
+
+pub mod open_drive;
+pub use open_drive::OpenDrive;
+
+pub mod close_distance_from_open;
+pub use close_distance_from_open::CloseDistanceFromOpen;
+
+pub mod range_efficiency;
+pub use range_efficiency::RangeEfficiency;
