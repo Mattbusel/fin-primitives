@@ -175,6 +175,11 @@ impl Price {
     pub fn pct_change_to(self, other: Price) -> Decimal {
         (other.0 - self.0) / self.0 * Decimal::ONE_HUNDRED
     }
+
+    /// Returns the midpoint between `self` and `other`: `(self + other) / 2`.
+    pub fn mid(self, other: Price) -> Price {
+        Price((self.0 + other.0) / Decimal::TWO)
+    }
 }
 
 impl Price {
@@ -464,6 +469,19 @@ impl NanoTimestamp {
                 .single()
                 .unwrap_or(DateTime::<Utc>::MIN_UTC)
         })
+    }
+
+    /// Snaps this timestamp down to the nearest multiple of `period_nanos`.
+    ///
+    /// For example, rounding `ts=1_500_000_000` down to `period_nanos=1_000_000_000`
+    /// yields `1_000_000_000`. Useful for bar-boundary calculations.
+    ///
+    /// Returns `self` unchanged when `period_nanos == 0`.
+    pub fn round_down_to(&self, period_nanos: i64) -> NanoTimestamp {
+        if period_nanos == 0 {
+            return *self;
+        }
+        NanoTimestamp(self.0 - self.0.rem_euclid(period_nanos))
     }
 }
 

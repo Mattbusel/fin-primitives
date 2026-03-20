@@ -711,6 +711,31 @@ impl OhlcvSeries {
         self.bars[start..].iter().map(|b| b.low.value()).reduce(Decimal::min)
     }
 
+    /// Returns the volume-weighted average price (VWAP) across all bars, or `None` if empty
+    /// or if total volume is zero.
+    ///
+    /// `VWAP = Σ(typical_price × volume) / Σ(volume)`
+    pub fn vwap(&self) -> Option<Decimal> {
+        if self.bars.is_empty() {
+            return None;
+        }
+        let total_vol: Decimal = self.bars.iter().map(|b| b.volume.value()).sum();
+        if total_vol == Decimal::ZERO {
+            return None;
+        }
+        let weighted_sum: Decimal = self
+            .bars
+            .iter()
+            .map(|b| b.typical_price() * b.volume.value())
+            .sum();
+        Some(weighted_sum / total_vol)
+    }
+
+    /// Returns the total traded volume across all bars in the series.
+    pub fn sum_volume(&self) -> Decimal {
+        self.bars.iter().map(|b| b.volume.value()).sum()
+    }
+
     /// Returns a sub-slice `bars[from..to]`, or `None` if the range is out of bounds.
     pub fn slice(&self, from: usize, to: usize) -> Option<&[OhlcvBar]> {
         if from > to || to > self.bars.len() {
@@ -799,23 +824,6 @@ impl OhlcvSeries {
             .collect()
     }
 
-    /// Returns the volume-weighted average price (VWAP) across all bars in the series.
-    ///
-    /// Computed as `Σ(typical_price * volume) / Σ(volume)`.
-    /// Returns `None` when the series is empty or total volume is zero.
-    pub fn vwap(&self) -> Option<Decimal> {
-        let total_volume: Decimal = self.bars.iter().map(|b| b.volume.value()).sum();
-        if total_volume.is_zero() {
-            return None;
-        }
-        let weighted: Decimal = self
-            .bars
-            .iter()
-            .map(|b| b.typical_price() * b.volume.value())
-            .sum();
-        Some(weighted / total_volume)
-    }
-
     /// Returns the highest close price among the last `n` bars, or `None` if empty.
     ///
     /// If `n > self.len()`, considers all bars.
@@ -858,6 +866,54 @@ impl OhlcvSeries {
         let std_x = decimal_sqrt(var_x).ok()?;
         let std_y = decimal_sqrt(var_y).ok()?;
         Some(cov / (std_x * std_y))
+    }
+
+    /// Returns rolling SMA of close prices with the given `period`.
+    ///
+    /// The output `Vec` has the same length as the series. Positions where fewer than
+    /// `period` bars have been seen contain `None`; the rest contain `Some(sma)`.
+    pub fn rolling_sma(&self, period: usize) -> Vec<Option<Decimal>> {
+        if period == 0 {
+            return self.bars.iter().map(|_| None).collect();
+        }
+        let closes: Vec<Decimal> = self.bars.iter().map(|b| b.close.value()).collect();
+        closes
+            .windows(period)
+            .enumerate()
+            .fold(vec![None; closes.len()], |mut acc, (i, window)| {
+                let sum: Decimal = window.iter().copied().sum();
+                acc[i + period - 1] = Some(sum / Decimal::from(period as u64));
+                acc
+            })
+    }
+
+    /// Returns rolling z-score of close prices using a window of `period` bars.
+    ///
+    /// `z = (close - SMA) / stddev`. Positions with insufficient data or zero stddev
+    /// yield `None`.
+    pub fn zscore(&self, period: usize) -> Vec<Option<Decimal>> {
+        if period < 2 {
+            return self.bars.iter().map(|_| None).collect();
+        }
+        let closes: Vec<Decimal> = self.bars.iter().map(|b| b.close.value()).collect();
+        let n = closes.len();
+        let mut result = vec![None; n];
+        let period_dec = Decimal::from(period as u64);
+        for i in (period - 1)..n {
+            let window = &closes[(i + 1 - period)..=i];
+            let mean: Decimal = window.iter().copied().sum::<Decimal>() / period_dec;
+            let variance: Decimal = window
+                .iter()
+                .map(|x| (*x - mean) * (*x - mean))
+                .sum::<Decimal>()
+                / period_dec;
+            if let Ok(std_dev) = decimal_sqrt(variance) {
+                if !std_dev.is_zero() {
+                    result[i] = Some((closes[i] - mean) / std_dev);
+                }
+            }
+        }
+        result
     }
 
     /// Returns log returns: `ln(close[i] / close[i-1])` for each consecutive bar pair.
@@ -1450,5 +1506,90 @@ mod tests {
         series.push(make_bar("105", "115", "95", "110")).unwrap();
         series.retain(|_| true);
         assert_eq!(series.len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_bearish() {
+        let bar = make_bar("110", "115", "95", "100");
+        assert!(bar.is_bearish());
+        assert!(!bar.is_bullish());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_hammer() {
+        // body = 5 (100→105), lower shadow = 15 (80→100), upper shadow = 5 (105→110) → NOT hammer (upper > body)
+        let not_hammer = make_bar("100", "110", "80", "105");
+        assert!(!not_hammer.is_hammer());
+        // body = 5, lower shadow = 20 (75→95), upper shadow = 0 → IS hammer
+        let hammer = make_bar("95", "100", "75", "100");
+        assert!(hammer.is_hammer());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_shooting_star() {
+        // body = 5, upper shadow = 20, lower shadow = 0 → IS shooting star
+        let star = make_bar("100", "125", "100", "105");
+        assert!(star.is_shooting_star());
+        // body = 5, upper shadow = 5, lower shadow = 20 → NOT shooting star
+        let not_star = make_bar("100", "110", "80", "105");
+        assert!(!not_star.is_shooting_star());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_bar_return_positive() {
+        let bar = make_bar("100", "110", "90", "110");
+        assert_eq!(bar.bar_return().unwrap(), dec!(10));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_bar_return_negative() {
+        let bar = make_bar("100", "105", "85", "90");
+        assert_eq!(bar.bar_return().unwrap(), dec!(-10));
+    }
+
+    #[test]
+    fn test_ohlcv_series_highest_high() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "150", "90", "105")).unwrap();
+        series.push(make_bar("105", "130", "95", "110")).unwrap();
+        series.push(make_bar("110", "120", "100", "115")).unwrap();
+        assert_eq!(series.highest_high(2).unwrap(), dec!(130));
+        assert_eq!(series.highest_high(10).unwrap(), dec!(150));
+    }
+
+    #[test]
+    fn test_ohlcv_series_lowest_low() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "70", "105")).unwrap();
+        series.push(make_bar("105", "115", "85", "110")).unwrap();
+        series.push(make_bar("110", "120", "90", "115")).unwrap();
+        assert_eq!(series.lowest_low(2).unwrap(), dec!(85));
+        assert_eq!(series.lowest_low(10).unwrap(), dec!(70));
+    }
+
+    #[test]
+    fn test_ohlcv_series_extend_from_series() {
+        let mut a = OhlcvSeries::new();
+        a.push(make_bar("100", "110", "90", "105")).unwrap();
+        let mut b = OhlcvSeries::new();
+        b.push(make_bar("105", "115", "95", "110")).unwrap();
+        b.push(make_bar("110", "120", "100", "115")).unwrap();
+        a.extend_from_series(&b).unwrap();
+        assert_eq!(a.len(), 3);
+    }
+
+    #[test]
+    fn test_ohlcv_aggregator_bar_count() {
+        let sym = Symbol::new("AAPL").unwrap();
+        let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(1)).unwrap();
+        assert_eq!(agg.bar_count(), 0);
+        agg.push_tick(&make_tick("AAPL", "100", "1", 0)).unwrap();
+        agg.push_tick(&make_tick("AAPL", "101", "1", 2_000_000_000))
+            .unwrap();
+        assert_eq!(agg.bar_count(), 1);
+        agg.flush();
+        assert_eq!(agg.bar_count(), 2);
+        agg.reset();
+        assert_eq!(agg.bar_count(), 0);
     }
 }

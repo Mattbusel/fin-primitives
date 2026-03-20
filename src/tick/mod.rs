@@ -79,6 +79,20 @@ impl Tick {
     pub fn is_sell(&self) -> bool {
         self.side == Side::Ask
     }
+
+    /// Computes the VWAP (volume-weighted average price) over a slice of ticks.
+    ///
+    /// `VWAP = Σ(price * quantity) / Σ(quantity)`
+    ///
+    /// Returns `None` when `ticks` is empty or total quantity is zero.
+    pub fn vwap_from_slice(ticks: &[Tick]) -> Option<Decimal> {
+        let total_qty: Decimal = ticks.iter().map(|t| t.quantity.value()).sum();
+        if total_qty.is_zero() {
+            return None;
+        }
+        let weighted: Decimal = ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum();
+        Some(weighted / total_qty)
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.

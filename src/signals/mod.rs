@@ -152,6 +152,29 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Applies `f` to the inner value if `Scalar`, where `f` returns a `SignalValue`.
+    ///
+    /// If `Unavailable`, returns `Unavailable` without calling `f`. This mirrors
+    /// `Option::and_then` and enables chaining operations that may themselves produce
+    /// `Unavailable` (e.g., clamping, conditional transforms).
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(50));
+    /// // Only return a value if it's above 30.
+    /// let r = v.and_then(|x| if x > dec!(30) { SignalValue::Scalar(x) } else { SignalValue::Unavailable });
+    /// assert_eq!(r, SignalValue::Scalar(dec!(50)));
+    /// ```
+    pub fn and_then(self, f: impl FnOnce(Decimal) -> SignalValue) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => f(d),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

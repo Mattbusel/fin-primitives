@@ -348,6 +348,21 @@ impl PositionLedger {
         self.positions.values().filter(|p| !p.is_flat()).count()
     }
 
+    /// Returns the net signed quantity exposure across all positions.
+    ///
+    /// Long positions contribute positive values; short positions contribute negative values.
+    /// A result near zero indicates a roughly delta-neutral portfolio.
+    pub fn net_exposure(&self) -> Decimal {
+        self.positions.values().map(|p| p.quantity).sum()
+    }
+
+    /// Returns the gross (absolute) quantity exposure across all positions.
+    ///
+    /// Sums `|quantity|` for every position regardless of direction.
+    pub fn gross_exposure(&self) -> Decimal {
+        self.positions.values().map(|p| p.quantity.abs()).sum()
+    }
+
     /// Returns the total market value of all open positions given a price map.
     ///
     /// # Errors
@@ -398,6 +413,11 @@ impl PositionLedger {
             total += pos.unrealized_pnl(*price);
         }
         Ok(total)
+    }
+
+    /// Returns the realized P&L for `symbol`, or `None` if the symbol is not tracked.
+    pub fn realized_pnl(&self, symbol: &Symbol) -> Option<Decimal> {
+        self.positions.get(symbol).map(|p| p.realized_pnl)
     }
 
     /// Returns total equity: `cash + sum(unrealized P&L of open positions)`.

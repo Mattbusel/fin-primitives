@@ -418,6 +418,35 @@ impl OrderBook {
         }
         Some((*bid_p * *ask_q + *ask_p * *bid_q) / total_q)
     }
+
+    /// Returns the smallest price increment between adjacent levels on either side.
+    ///
+    /// Useful for estimating the instrument's native tick size from live book data.
+    /// Returns `None` when both sides have fewer than 2 levels.
+    pub fn tick_size(&self) -> Option<Decimal> {
+        let bid_tick = self
+            .bids
+            .keys()
+            .collect::<Vec<_>>()
+            .windows(2)
+            .map(|w| (*w[1] - *w[0]).abs())
+            .filter(|d| !d.is_zero())
+            .reduce(Decimal::min);
+        let ask_tick = self
+            .asks
+            .keys()
+            .collect::<Vec<_>>()
+            .windows(2)
+            .map(|w| (*w[1] - *w[0]).abs())
+            .filter(|d| !d.is_zero())
+            .reduce(Decimal::min);
+        match (bid_tick, ask_tick) {
+            (Some(b), Some(a)) => Some(b.min(a)),
+            (Some(b), None) => Some(b),
+            (None, Some(a)) => Some(a),
+            (None, None) => None,
+        }
+    }
 }
 
 #[cfg(test)]
