@@ -183,6 +183,13 @@ impl Price {
 }
 
 impl Price {
+    /// Returns the absolute difference between `self` and `other`: `|self - other|`.
+    pub fn abs_diff(self, other: Price) -> Decimal {
+        (self.0 - other.0).abs()
+    }
+}
+
+impl Price {
     /// Multiplies this price by `qty`, returning `None` if the result overflows.
     ///
     /// Prefer this over the `*` operator when overflow is a concern (e.g., large
@@ -297,6 +304,16 @@ impl Quantity {
     /// Adds `other` to this quantity, returning `None` if the result overflows.
     pub fn checked_add(self, other: Quantity) -> Option<Quantity> {
         self.0.checked_add(other.0).map(Quantity)
+    }
+
+    /// Subtracts `other` from `self`, returning `None` if the result would be negative or overflow.
+    pub fn checked_sub(self, other: Quantity) -> Option<Quantity> {
+        let result = self.0.checked_sub(other.0)?;
+        if result < Decimal::ZERO {
+            None
+        } else {
+            Some(Quantity(result))
+        }
     }
 }
 
@@ -469,6 +486,16 @@ impl NanoTimestamp {
                 .single()
                 .unwrap_or(DateTime::<Utc>::MIN_UTC)
         })
+    }
+
+    /// Returns the earlier of `self` and `other`.
+    pub fn min(self, other: NanoTimestamp) -> NanoTimestamp {
+        if self.0 <= other.0 { self } else { other }
+    }
+
+    /// Returns the later of `self` and `other`.
+    pub fn max(self, other: NanoTimestamp) -> NanoTimestamp {
+        if self.0 >= other.0 { self } else { other }
     }
 
     /// Snaps this timestamp down to the nearest multiple of `period_nanos`.
@@ -979,5 +1006,63 @@ mod tests {
     fn test_price_mid_method_same_price() {
         let p = Price::new(dec!(100)).unwrap();
         assert_eq!(p.mid(p).value(), dec!(100));
+    }
+
+    #[test]
+    fn test_price_abs_diff_positive() {
+        let a = Price::new(dec!(105)).unwrap();
+        let b = Price::new(dec!(100)).unwrap();
+        assert_eq!(a.abs_diff(b), dec!(5));
+        assert_eq!(b.abs_diff(a), dec!(5));
+    }
+
+    #[test]
+    fn test_price_abs_diff_same() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert_eq!(p.abs_diff(p), dec!(0));
+    }
+
+    #[test]
+    fn test_quantity_checked_sub_valid() {
+        let a = Quantity::new(dec!(10)).unwrap();
+        let b = Quantity::new(dec!(3)).unwrap();
+        assert_eq!(a.checked_sub(b).unwrap().value(), dec!(7));
+    }
+
+    #[test]
+    fn test_quantity_checked_sub_exact_zero() {
+        let a = Quantity::new(dec!(5)).unwrap();
+        let b = Quantity::new(dec!(5)).unwrap();
+        assert_eq!(a.checked_sub(b).unwrap().value(), dec!(0));
+    }
+
+    #[test]
+    fn test_quantity_checked_sub_negative_returns_none() {
+        let a = Quantity::new(dec!(3)).unwrap();
+        let b = Quantity::new(dec!(5)).unwrap();
+        assert!(a.checked_sub(b).is_none());
+    }
+
+    #[test]
+    fn test_nano_timestamp_min_returns_earlier() {
+        let t1 = NanoTimestamp::new(100);
+        let t2 = NanoTimestamp::new(200);
+        assert_eq!(t1.min(t2), t1);
+        assert_eq!(t2.min(t1), t1);
+    }
+
+    #[test]
+    fn test_nano_timestamp_max_returns_later() {
+        let t1 = NanoTimestamp::new(100);
+        let t2 = NanoTimestamp::new(200);
+        assert_eq!(t1.max(t2), t2);
+        assert_eq!(t2.max(t1), t2);
+    }
+
+    #[test]
+    fn test_nano_timestamp_min_max_same() {
+        let t = NanoTimestamp::new(500);
+        assert_eq!(t.min(t), t);
+        assert_eq!(t.max(t), t);
     }
 }

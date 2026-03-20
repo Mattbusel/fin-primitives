@@ -114,6 +114,19 @@ impl DrawdownTracker {
         }
         Some(net_profit_pct / self.worst_drawdown_pct)
     }
+
+    /// Returns `true` if the current equity is strictly below the peak (i.e. in drawdown).
+    pub fn in_drawdown(&self) -> bool {
+        self.current_equity < self.peak_equity
+    }
+
+    /// Returns the number of consecutive updates where equity was below the peak.
+    ///
+    /// Equivalent to [`DrawdownTracker::drawdown_duration`]. Provided as a semantic
+    /// alias for call sites that prefer "count" over "duration".
+    pub fn drawdown_count(&self) -> usize {
+        self.updates_since_peak
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {
@@ -288,6 +301,14 @@ impl RiskMonitor {
             .iter()
             .filter_map(|r| r.check(equity, dd))
             .collect()
+    }
+
+    /// Returns `true` if any rule would breach at the given `equity` level.
+    ///
+    /// Equivalent to `!self.check(equity).is_empty()` but short-circuits on the
+    /// first breach and avoids allocating a `Vec`.
+    pub fn has_breaches(&self, equity: Decimal) -> bool {
+        !self.check(equity).is_empty()
     }
 }
 

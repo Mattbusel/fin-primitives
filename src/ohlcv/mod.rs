@@ -162,6 +162,14 @@ impl OhlcvBar {
         self.high.value() < prev.high.value() && self.low.value() > prev.low.value()
     }
 
+    /// Returns `true` if this bar's range completely contains the previous bar's range.
+    ///
+    /// An outside bar has `high > prev.high && low < prev.low`. Signals potential
+    /// volatility expansion or reversal — the opposite of an inside bar.
+    pub fn is_outside_bar(&self, prev: &OhlcvBar) -> bool {
+        self.high.value() > prev.high.value() && self.low.value() < prev.low.value()
+    }
+
     /// Returns `true` if this bar engulfs the previous bar (bullish or bearish engulfing).
     ///
     /// A bullish engulfing bar: `prev` is bearish and `self` is a bullish bar whose
@@ -593,6 +601,17 @@ impl OhlcvSeries {
         Self { bars: Vec::new() }
     }
 
+    /// Constructs an `OhlcvSeries` from a `Vec<OhlcvBar>`, validating each bar.
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] on the first bar that fails validation.
+    pub fn from_bars(bars: Vec<OhlcvBar>) -> Result<Self, FinError> {
+        for bar in &bars {
+            bar.validate()?;
+        }
+        Ok(Self { bars })
+    }
+
     /// Creates an empty `OhlcvSeries` with a pre-allocated capacity.
     ///
     /// Avoids reallocations when the approximate number of bars is known in advance.
@@ -647,6 +666,18 @@ impl OhlcvSeries {
     /// Returns the most recent bar, or `None` if empty.
     pub fn last(&self) -> Option<&OhlcvBar> {
         self.bars.last()
+    }
+
+    /// Returns the bar `n` positions from the end (0 = most recent), or `None` if out of bounds.
+    ///
+    /// `n_bars_ago(0)` is equivalent to `last()`. Useful in signal logic where
+    /// you need to compare the current bar against bars 1, 2, or 3 periods back.
+    pub fn n_bars_ago(&self, n: usize) -> Option<&OhlcvBar> {
+        let len = self.bars.len();
+        if n >= len {
+            return None;
+        }
+        self.bars.get(len - 1 - n)
     }
 
     /// Returns the last `n` bars as a slice (fewer if series has fewer than `n`).
@@ -1059,6 +1090,48 @@ impl OhlcvSeries {
             }
         }
         Some(max_dd)
+    }
+
+    /// Computes the annualized Sharpe ratio from log returns.
+    ///
+    /// `Sharpe = (mean_log_return - risk_free_rate_per_bar) / stddev_log_return * sqrt(bars_per_year)`
+    ///
+    /// `bars_per_year` defaults to 252 (US equity trading days). Pass `0.0` for `risk_free_rate`
+    /// when working with intraday or crypto series where a risk-free benchmark is not applicable.
+    ///
+    /// Returns `None` when fewer than 2 bars exist or if log-return standard deviation is zero.
+    pub fn sharpe_ratio(&self, risk_free_rate: f64, bars_per_year: f64) -> Option<f64> {
+        let lr = self.log_returns();
+        if lr.len() < 2 {
+            return None;
+        }
+        let n = lr.len() as f64;
+        let mean = lr.iter().sum::<f64>() / n;
+        let variance = lr.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / n;
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 {
+            return None;
+        }
+        let bars_per_year = if bars_per_year <= 0.0 { 252.0 } else { bars_per_year };
+        Some((mean - risk_free_rate) / std_dev * bars_per_year.sqrt())
+    }
+
+    /// Returns the count of bullish bars in the last `n` bars.
+    ///
+    /// A bar is bullish when `close >= open`. If `n` exceeds the series length,
+    /// all bars are counted.
+    pub fn count_bullish(&self, n: usize) -> usize {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().filter(|b| b.is_bullish()).count()
+    }
+
+    /// Returns the count of bearish bars in the last `n` bars.
+    ///
+    /// A bar is bearish when `close < open`. If `n` exceeds the series length,
+    /// all bars are counted.
+    pub fn count_bearish(&self, n: usize) -> usize {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().filter(|b| b.is_bearish()).count()
     }
 }
 
@@ -1807,5 +1880,45 @@ mod tests {
         let prev = make_bar("100", "110", "90", "100");
         let curr = make_bar("100", "110", "90", "105");
         assert_eq!(curr.gap_pct(&prev).unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_ohlcv_series_n_bars_ago_returns_correct_bar() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.push(make_bar("110", "120", "100", "115")).unwrap();
+        assert_eq!(series.n_bars_ago(0).unwrap().close.value(), dec!(115));
+        assert_eq!(series.n_bars_ago(1).unwrap().close.value(), dec!(110));
+        assert_eq!(series.n_bars_ago(2).unwrap().close.value(), dec!(105));
+    }
+
+    #[test]
+    fn test_ohlcv_series_n_bars_ago_out_of_bounds() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        assert!(series.n_bars_ago(1).is_none());
+        assert!(OhlcvSeries::new().n_bars_ago(0).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_outside_bar_true() {
+        let prev = make_bar("100", "110", "90", "105");
+        let outside = make_bar("100", "120", "80", "110");
+        assert!(outside.is_outside_bar(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_outside_bar_false_for_inside() {
+        let prev = make_bar("100", "120", "80", "110");
+        let inside = make_bar("100", "110", "90", "105");
+        assert!(!inside.is_outside_bar(&prev));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_outside_bar_false_partial() {
+        let prev = make_bar("100", "110", "90", "105");
+        let partial = make_bar("100", "115", "92", "110");
+        assert!(!partial.is_outside_bar(&prev));
     }
 }

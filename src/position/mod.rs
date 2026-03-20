@@ -237,6 +237,14 @@ impl Position {
     pub fn is_profitable(&self, current_price: Price) -> bool {
         self.unrealized_pnl(current_price) > Decimal::ZERO
     }
+
+    /// Returns the average entry price as a `Price`, or `None` if the position is flat.
+    ///
+    /// This is `avg_cost` expressed as a validated `Price`. Returns `None` when
+    /// `avg_cost == 0` (no open position).
+    pub fn avg_entry_price(&self) -> Option<Price> {
+        Price::new(self.avg_cost).ok()
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
@@ -313,6 +321,15 @@ impl PositionLedger {
     /// Returns an iterator over the symbols being tracked by this ledger.
     pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
         self.positions.keys()
+    }
+
+    /// Returns a sorted `Vec` of all tracked symbols in lexicographic order.
+    ///
+    /// Useful when deterministic output ordering is required (e.g. reports, snapshots).
+    pub fn symbols_sorted(&self) -> Vec<&Symbol> {
+        let mut syms: Vec<&Symbol> = self.positions.keys().collect();
+        syms.sort();
+        syms
     }
 
     /// Returns the total number of symbols tracked by this ledger (open and flat).
@@ -897,5 +914,22 @@ mod tests {
         let mut ledger = PositionLedger::new(dec!(10000));
         ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
         assert_eq!(ledger.realized_pnl(&sym("AAPL")), Some(dec!(0)));
+    }
+
+    #[test]
+    fn test_position_ledger_symbols_sorted_order() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("MSFT", Side::Bid, "1", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "1", "100", "0")).unwrap();
+        let sorted = ledger.symbols_sorted();
+        let names: Vec<&str> = sorted.iter().map(|s| s.as_str()).collect();
+        assert_eq!(names, vec!["AAPL", "GOOG", "MSFT"]);
+    }
+
+    #[test]
+    fn test_position_ledger_symbols_sorted_empty() {
+        let ledger = PositionLedger::new(dec!(10000));
+        assert!(ledger.symbols_sorted().is_empty());
     }
 }

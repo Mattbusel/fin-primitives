@@ -54,6 +54,14 @@ impl BarInput {
     pub fn typical_price(&self) -> Decimal {
         (self.high + self.low + self.close) / Decimal::from(3u32)
     }
+
+    /// Returns the weighted close price: `(high + low + close + close) / 4`.
+    ///
+    /// Weights the close twice, giving it extra significance compared to the typical price.
+    /// Used by some indicators (e.g. CCI variants) and charting systems as a price reference.
+    pub fn weighted_close(&self) -> Decimal {
+        (self.high + self.low + self.close + self.close) / Decimal::from(4u32)
+    }
 }
 
 impl From<&OhlcvBar> for BarInput {
@@ -175,6 +183,26 @@ impl SignalValue {
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
+
+    /// Clamps the scalar value to `[lo, hi]`, returning `Unavailable` if `Unavailable`.
+    ///
+    /// If `Scalar(v)`, returns `Scalar(v.clamp(lo, hi))`. Useful for bounding oscillators
+    /// such as RSI to valid ranges after arithmetic transforms.
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(105));
+    /// assert_eq!(v.clamp(dec!(0), dec!(100)), SignalValue::Scalar(dec!(100)));
+    /// ```
+    pub fn clamp(self, lo: Decimal, hi: Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(d.clamp(lo, hi)),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
@@ -242,6 +270,29 @@ mod tests {
     fn test_signal_value_zip_with_one_unavailable() {
         let a = SignalValue::Scalar(dec!(10));
         assert_eq!(a.zip_with(SignalValue::Unavailable, |x, y| x + y), SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_clamp_above_hi() {
+        let v = SignalValue::Scalar(dec!(105));
+        assert_eq!(v.clamp(dec!(0), dec!(100)), SignalValue::Scalar(dec!(100)));
+    }
+
+    #[test]
+    fn test_signal_value_clamp_below_lo() {
+        let v = SignalValue::Scalar(dec!(-5));
+        assert_eq!(v.clamp(dec!(0), dec!(100)), SignalValue::Scalar(dec!(0)));
+    }
+
+    #[test]
+    fn test_signal_value_clamp_within_range() {
+        let v = SignalValue::Scalar(dec!(50));
+        assert_eq!(v.clamp(dec!(0), dec!(100)), SignalValue::Scalar(dec!(50)));
+    }
+
+    #[test]
+    fn test_signal_value_clamp_unavailable_passthrough() {
+        assert_eq!(SignalValue::Unavailable.clamp(dec!(0), dec!(100)), SignalValue::Unavailable);
     }
 }
 
