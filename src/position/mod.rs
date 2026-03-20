@@ -1099,4 +1099,33 @@ mod tests {
         // position is flat but still tracked
         assert!(ledger.has_position(&sym("AAPL")));
     }
+
+    #[test]
+    fn test_position_ledger_open_symbols_returns_non_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "1")).unwrap();
+        let symbols: Vec<_> = ledger.open_symbols().collect();
+        assert_eq!(symbols.len(), 2);
+    }
+
+    #[test]
+    fn test_position_ledger_open_symbols_excludes_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1")).unwrap(); // flat
+        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "2")).unwrap();
+        let symbols: Vec<_> = ledger.open_symbols().collect();
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].as_str(), "MSFT");
+    }
+
+    #[test]
+    fn test_position_ledger_open_symbols_empty_when_all_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1")).unwrap();
+        let symbols: Vec<_> = ledger.open_symbols().collect();
+        assert!(symbols.is_empty());
+    }
 }

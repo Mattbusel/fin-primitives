@@ -740,4 +740,20 @@ mod tests {
         monitor.update(dec!(11000));
         assert!(!monitor.is_in_drawdown());
     }
+
+    #[test]
+    fn test_calmar_ratio_with_drawdown() {
+        let mut tracker = DrawdownTracker::new(dec!(10000));
+        tracker.update(dec!(9000)); // 10% drawdown
+        // annualized_return = 20%, worst_dd = 10% → calmar = 2
+        let ratio = tracker.calmar_ratio(dec!(20)).unwrap();
+        assert_eq!(ratio, dec!(2));
+    }
+
+    #[test]
+    fn test_calmar_ratio_none_when_no_drawdown() {
+        let tracker = DrawdownTracker::new(dec!(10000));
+        // worst_drawdown_pct is 0 → None
+        assert!(tracker.calmar_ratio(dec!(20)).is_none());
+    }
 }

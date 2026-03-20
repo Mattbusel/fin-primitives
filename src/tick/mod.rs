@@ -880,4 +880,58 @@ mod tests {
         let matched: Vec<_> = ticks.iter().filter(|t| filter.matches(t)).collect();
         assert_eq!(matched.len(), 2);
     }
+
+    #[test]
+    fn test_tick_replayer_first_returns_earliest() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 5),
+            make_tick("AAPL", "101", "1", Side::Ask, 1),
+            make_tick("AAPL", "102", "1", Side::Bid, 10),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let first = replayer.first().unwrap();
+        assert_eq!(first.timestamp, NanoTimestamp::new(1));
+    }
+
+    #[test]
+    fn test_tick_replayer_last_returns_latest() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 5),
+            make_tick("AAPL", "101", "1", Side::Ask, 1),
+            make_tick("AAPL", "102", "1", Side::Bid, 10),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let last = replayer.last().unwrap();
+        assert_eq!(last.timestamp, NanoTimestamp::new(10));
+    }
+
+    #[test]
+    fn test_tick_replayer_first_none_when_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert!(replayer.first().is_none());
+    }
+
+    #[test]
+    fn test_tick_replayer_last_none_when_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert!(replayer.last().is_none());
+    }
+
+    #[test]
+    fn test_tick_filter_has_notional_filter_false_when_unset() {
+        let f = TickFilter::new();
+        assert!(!f.has_notional_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_notional_filter_true_with_min() {
+        let f = TickFilter::new().min_notional(dec_from_str("100"));
+        assert!(f.has_notional_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_notional_filter_true_with_max() {
+        let f = TickFilter::new().max_notional(dec_from_str("1000"));
+        assert!(f.has_notional_filter());
+    }
 }

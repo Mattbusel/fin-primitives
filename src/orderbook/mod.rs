@@ -1206,4 +1206,32 @@ mod tests {
         assert!(book.depth_at(Side::Bid, price).is_none());
         assert!(book.depth_at(Side::Ask, price).is_none());
     }
+
+    #[test]
+    fn test_orderbook_remove_all_bids_clears_bid_side() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "5", 2)).unwrap();
+        book.remove_all(Side::Bid);
+        assert!(book.best_bid().is_none());
+    }
+
+    #[test]
+    fn test_orderbook_remove_all_bids_leaves_asks_intact() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        book.remove_all(Side::Bid);
+        assert!(book.best_bid().is_none());
+        assert!(book.best_ask().is_some());
+    }
+
+    #[test]
+    fn test_orderbook_remove_all_asks_clears_ask_side() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "3", 2)).unwrap();
+        book.remove_all(Side::Ask);
+        assert!(book.best_ask().is_none());
+    }
 }
