@@ -103,6 +103,25 @@ impl Tick {
         }).sum()
     }
 
+    /// Returns the running cumulative delta across a tick slice.
+    ///
+    /// Each entry in the returned `Vec` is the running total of
+    /// `buy_volume - sell_volume` up to and including that tick.
+    /// An empty slice returns an empty `Vec`.
+    pub fn cumulative_delta(ticks: &[Tick]) -> Vec<Decimal> {
+        let mut running = Decimal::ZERO;
+        ticks
+            .iter()
+            .map(|t| {
+                match t.side {
+                    Side::Bid => running += t.quantity.value(),
+                    Side::Ask => running -= t.quantity.value(),
+                }
+                running
+            })
+            .collect()
+    }
+
     /// Returns the simple (unweighted) average price from a slice of ticks.
     ///
     /// Returns `None` if the slice is empty. For volume-weighted price, use [`Tick::vwap_from_slice`].
@@ -1055,5 +1074,41 @@ mod tests {
     fn test_tick_filter_has_notional_filter_true_with_max() {
         let f = TickFilter::new().max_notional(dec_from_str("1000"));
         assert!(f.has_notional_filter());
+    }
+
+    #[test]
+    fn test_tick_replayer_total_notional() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "10", Side::Bid, 1),  // 100*10 = 1000
+            make_tick("AAPL", "200", "5", Side::Ask, 2),   // 200*5  = 1000
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.total_notional(), dec_from_str("2000"));
+    }
+
+    #[test]
+    fn test_tick_replayer_total_notional_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.total_notional(), dec_from_str("0"));
+    }
+
+    #[test]
+    fn test_tick_replayer_buy_volume() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "10", Side::Bid, 1),
+            make_tick("AAPL", "100", "5", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.buy_volume(), dec_from_str("10"));
+    }
+
+    #[test]
+    fn test_tick_replayer_sell_volume() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "10", Side::Bid, 1),
+            make_tick("AAPL", "100", "7", Side::Ask, 2),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.sell_volume(), dec_from_str("7"));
     }
 }

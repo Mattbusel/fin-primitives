@@ -482,4 +482,11 @@ mod tests {
         let maps = pipeline.update_series(&series);
         assert_eq!(maps.last().unwrap().get_scalar("sma3"), Some(dec!(100)));
     }
+
+    #[test]
+    fn test_signal_map_names_with_errors_empty_when_no_errors() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.names_with_errors().is_empty());
+    }
 }

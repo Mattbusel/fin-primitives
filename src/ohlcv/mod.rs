@@ -1911,6 +1911,75 @@ impl OhlcvSeries {
         }
         Some(cov / (sx * sy))
     }
+
+    /// CAPM beta: `cov(self, market) / var(market)` over the last `n` log-return bars.
+    ///
+    /// Returns `None` when either series has fewer than `n + 1` bars, `n < 2`, or
+    /// the market variance is zero.
+    pub fn beta(&self, market: &OhlcvSeries, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n + 1 || market.bars.len() < n + 1 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let asset_lr: Vec<f64> = self.bars[self.bars.len() - n - 1..]
+            .windows(2)
+            .filter_map(|w| {
+                let prev = w[0].close.value();
+                if prev.is_zero() { return None; }
+                (w[1].close.value() / prev).to_f64().map(|r| r.ln())
+            })
+            .collect();
+        let mkt_lr: Vec<f64> = market.bars[market.bars.len() - n - 1..]
+            .windows(2)
+            .filter_map(|w| {
+                let prev = w[0].close.value();
+                if prev.is_zero() { return None; }
+                (w[1].close.value() / prev).to_f64().map(|r| r.ln())
+            })
+            .collect();
+        let len = asset_lr.len().min(mkt_lr.len());
+        if len < 2 {
+            return None;
+        }
+        let n_f = len as f64;
+        let ma = asset_lr[..len].iter().sum::<f64>() / n_f;
+        let mm = mkt_lr[..len].iter().sum::<f64>() / n_f;
+        let cov = asset_lr[..len].iter().zip(mkt_lr[..len].iter())
+            .map(|(a, m)| (a - ma) * (m - mm))
+            .sum::<f64>() / n_f;
+        let var_m = mkt_lr[..len].iter().map(|m| (m - mm).powi(2)).sum::<f64>() / n_f;
+        if var_m == 0.0 { return None; }
+        Some(cov / var_m)
+    }
+
+    /// Information ratio: `(mean_excess_return) / tracking_error` over the last `n` bars.
+    ///
+    /// Excess return is `asset_log_return - benchmark_log_return` per bar.
+    /// Returns `None` when there is insufficient data or tracking error is zero.
+    pub fn information_ratio(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
+        if n < 2 || self.bars.len() < n + 1 || benchmark.bars.len() < n + 1 {
+            return None;
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let excess: Vec<f64> = self.bars[self.bars.len() - n - 1..]
+            .windows(2)
+            .zip(benchmark.bars[benchmark.bars.len() - n - 1..].windows(2))
+            .filter_map(|(aw, bw)| {
+                let ap = aw[0].close.value();
+                let bp = bw[0].close.value();
+                if ap.is_zero() || bp.is_zero() { return None; }
+                let ar = (aw[1].close.value() / ap).to_f64()?.ln();
+                let br = (bw[1].close.value() / bp).to_f64()?.ln();
+                Some(ar - br)
+            })
+            .collect();
+        if excess.len() < 2 { return None; }
+        let n_f = excess.len() as f64;
+        let mean = excess.iter().sum::<f64>() / n_f;
+        let te = (excess.iter().map(|e| (e - mean).powi(2)).sum::<f64>() / n_f).sqrt();
+        if te == 0.0 { return None; }
+        Some(mean / te)
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -2651,6 +2720,44 @@ mod tests {
     }
 
     #[test]
+    fn test_ohlcv_series_price_range_none_when_insufficient() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        assert!(series.price_range(0).is_none());
+        assert!(series.price_range(2).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_price_range_correct() {
+        // bar1: high=110 low=90; bar2: high=120 low=80 → range = 120-80 = 40
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        series.push(make_bar("100", "120", "80", "100")).unwrap();
+        assert_eq!(series.price_range(2).unwrap(), dec!(40));
+    }
+
+    #[test]
+    fn test_ohlcv_series_close_location_value_none_when_insufficient() {
+        assert!(OhlcvSeries::new().close_location_value(1).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_close_location_value_close_at_high() {
+        // close == high → CLV = ((h-l)-(0))/(h-l) = 1
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "110")).unwrap();
+        assert_eq!(series.close_location_value(1).unwrap(), dec!(1));
+    }
+
+    #[test]
+    fn test_ohlcv_series_close_location_value_close_at_midpoint() {
+        // close = 100 = midpoint of [90,110] → CLV = 0
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "100")).unwrap();
+        assert_eq!(series.close_location_value(1).unwrap(), dec!(0));
+    }
+
+    #[test]
     fn test_ohlcv_series_mean_close_empty_returns_none() {
         assert!(OhlcvSeries::new().mean_close(5).is_none());
     }
@@ -2995,7 +3102,7 @@ mod tests {
         let mut series = OhlcvSeries::new();
         series.push(make_bar("100", "110", "90", "100")).unwrap();
         series.push(make_bar("100", "105", "75", "80")).unwrap();  // 20% drawdown from 100
-        series.push(make_bar("80", "85", "75", "90")).unwrap();
+        series.push(make_bar("80", "85", "75", "84")).unwrap();
         let dd = series.max_drawdown_pct(10).unwrap();
         assert!((dd - 20.0).abs() < 1e-6, "expected ~20, got {dd}");
     }

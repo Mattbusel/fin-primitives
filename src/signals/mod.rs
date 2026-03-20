@@ -205,6 +205,17 @@ impl SignalValue {
         }
     }
 
+    /// Scales the scalar by `factor`: `Scalar(x) * factor = Scalar(x * factor)`.
+    ///
+    /// Returns `Unavailable` if the signal is `Unavailable`. Useful for weighting
+    /// or inverting signals (e.g. `signal.mul(Decimal::NEGATIVE_ONE)`).
+    pub fn mul(self, factor: Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(d * factor),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
     /// Adds two signals: `Scalar(a) + Scalar(b) = Scalar(a + b)`.
     ///
     /// Returns `Unavailable` if either operand is `Unavailable`.

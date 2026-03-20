@@ -457,6 +457,14 @@ impl PositionLedger {
     /// Returns a reference to the open position with the largest absolute quantity.
     ///
     /// Returns `None` when there are no open (non-flat) positions.
+    /// Returns the number of positions with non-zero quantity.
+    pub fn open_count(&self) -> usize {
+        self.positions.values().filter(|p| !p.is_flat()).count()
+    }
+
+    /// Returns a reference to the open position with the largest absolute quantity.
+    ///
+    /// Returns `None` if there are no open (non-flat) positions.
     pub fn largest_position(&self) -> Option<&Position> {
         self.positions
             .values()
@@ -738,6 +746,23 @@ mod tests {
             .unwrap();
         let prices: HashMap<String, Price> = HashMap::new();
         assert!(ledger.net_liquidation_value(&prices).is_err());
+    }
+
+    #[test]
+    fn test_position_ledger_open_count_zero_when_empty() {
+        assert_eq!(PositionLedger::new(dec!(10000)).open_count(), 0);
+    }
+
+    #[test]
+    fn test_position_ledger_open_count_tracks_positions() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        assert_eq!(ledger.open_count(), 1);
+        ledger.apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0")).unwrap();
+        assert_eq!(ledger.open_count(), 2);
+        // close AAPL fully
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "105", "0")).unwrap();
+        assert_eq!(ledger.open_count(), 1);
     }
 
     #[test]

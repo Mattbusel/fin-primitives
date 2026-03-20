@@ -258,6 +258,7 @@ impl RiskRule for MinEquityRule {
 pub struct RiskMonitor {
     rules: Vec<Box<dyn RiskRule>>,
     tracker: DrawdownTracker,
+    breach_count: usize,
 }
 
 impl RiskMonitor {
@@ -266,6 +267,7 @@ impl RiskMonitor {
         Self {
             rules: Vec::new(),
             tracker: DrawdownTracker::new(initial_equity),
+            breach_count: 0,
         }
     }
 
@@ -280,10 +282,12 @@ impl RiskMonitor {
     pub fn update(&mut self, equity: Decimal) -> Vec<RiskBreach> {
         self.tracker.update(equity);
         let dd = self.tracker.current_drawdown_pct();
-        self.rules
+        let breaches: Vec<RiskBreach> = self.rules
             .iter()
             .filter_map(|r| r.check(equity, dd))
-            .collect()
+            .collect();
+        self.breach_count += breaches.len();
+        breaches
     }
 
     /// Returns the current drawdown percentage without triggering an update.
@@ -304,6 +308,7 @@ impl RiskMonitor {
     /// Resets the internal drawdown tracker to `initial_equity`.
     pub fn reset(&mut self, initial_equity: Decimal) {
         self.tracker.reset(initial_equity);
+        self.breach_count = 0;
     }
 
     /// Returns the number of rules registered with this monitor.
@@ -326,6 +331,18 @@ impl RiskMonitor {
 
     /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
     pub fn worst_drawdown_pct(&self) -> Decimal {
+        self.tracker.worst_drawdown_pct()
+    }
+
+    /// Returns the total number of rule breaches triggered since construction or last reset.
+    pub fn breach_count(&self) -> usize {
+        self.breach_count
+    }
+
+    /// Returns the maximum drawdown percentage seen since construction or last reset.
+    ///
+    /// Alias for [`worst_drawdown_pct`](Self::worst_drawdown_pct).
+    pub fn max_drawdown_pct(&self) -> Decimal {
         self.tracker.worst_drawdown_pct()
     }
 
@@ -483,6 +500,36 @@ mod tests {
             .add_rule(MinEquityRule { floor: dec!(9000) });
         let breaches = monitor.update(dec!(8000));
         assert_eq!(breaches.len(), 2);
+    }
+
+    #[test]
+    fn test_risk_monitor_breach_count_accumulates() {
+        let mut monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        assert_eq!(monitor.breach_count(), 0);
+        monitor.update(dec!(9000)); // 10% drawdown → breach
+        assert_eq!(monitor.breach_count(), 1);
+        monitor.update(dec!(8500)); // still breaching → +1
+        assert_eq!(monitor.breach_count(), 2);
+    }
+
+    #[test]
+    fn test_risk_monitor_breach_count_resets() {
+        let mut monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        monitor.update(dec!(9000));
+        assert_eq!(monitor.breach_count(), 1);
+        monitor.reset(dec!(10000));
+        assert_eq!(monitor.breach_count(), 0);
+    }
+
+    #[test]
+    fn test_risk_monitor_max_drawdown_pct() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        monitor.update(dec!(9000)); // 10% dd
+        monitor.update(dec!(9500)); // partial recovery
+        // worst seen is still 10%
+        assert_eq!(monitor.max_drawdown_pct(), dec!(10));
     }
 
     #[test]
