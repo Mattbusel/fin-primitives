@@ -70,7 +70,7 @@ impl Signal for PriceVelocityRatio {
     fn is_ready(&self) -> bool { self.bars_seen > self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tr = Self::true_range(bar, self.prev_close);
+        let tr = bar.true_range(self.prev_close);
         self.bars_seen += 1;
 
         let atr = if self.atr.is_none() {

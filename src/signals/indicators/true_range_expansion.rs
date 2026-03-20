@@ -50,15 +50,6 @@ impl TrueRangeExpansion {
             bars_seen: 0,
         })
     }
-
-    fn true_range(bar: &BarInput, prev_close: Option<Decimal>) -> Decimal {
-        let hl = bar.range();
-        if let Some(pc) = prev_close {
-            hl.max((bar.high - pc).abs()).max((bar.low - pc).abs())
-        } else {
-            hl
-        }
-    }
 }
 
 impl Signal for TrueRangeExpansion {
@@ -67,7 +58,7 @@ impl Signal for TrueRangeExpansion {
     fn is_ready(&self) -> bool { self.bars_seen > self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tr = Self::true_range(bar, self.prev_close);
+        let tr = bar.true_range(self.prev_close);
         self.bars_seen += 1;
 
         // Capture prior TRs (before current bar)

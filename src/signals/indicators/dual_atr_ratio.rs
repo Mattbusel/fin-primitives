@@ -64,15 +64,6 @@ impl DualATRRatio {
         })
     }
 
-    fn true_range(bar: &BarInput, prev_close: Option<Decimal>) -> Decimal {
-        let hl = bar.range();
-        if let Some(pc) = prev_close {
-            hl.max((bar.high - pc).abs()).max((bar.low - pc).abs())
-        } else {
-            hl
-        }
-    }
-
     fn update_atr(
         atr: &mut Option<Decimal>,
         init: &mut VecDeque<Decimal>,
@@ -107,7 +98,7 @@ impl Signal for DualATRRatio {
     fn is_ready(&self) -> bool { self.bars_seen > self.slow_period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let tr = Self::true_range(bar, self.prev_close);
+        let tr = bar.true_range(self.prev_close);
         self.bars_seen += 1;
 
         Self::update_atr(&mut self.fast_atr, &mut self.fast_init, tr, self.fast_period)?;

@@ -7373,7 +7373,6 @@ impl OhlcvSeries {
     /// Average upper shadow fraction — mean of  over  bars.
     /// Returns  if  or fewer than  bars are available.
     pub fn avg_upper_shadow_fraction(&self, n: usize) -> Option<Decimal> {
-        use rust_decimal::prelude::Zero;
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
@@ -7390,7 +7389,6 @@ impl OhlcvSeries {
     /// Average lower shadow fraction — mean of  over  bars.
     /// Returns  if  or fewer than  bars are available.
     pub fn avg_lower_shadow_fraction(&self, n: usize) -> Option<Decimal> {
-        use rust_decimal::prelude::Zero;
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
@@ -7423,7 +7421,6 @@ impl OhlcvSeries {
     /// Average close position in range — mean of  over  bars.
     /// Bars with zero range use 0.5. Returns  if fewer than  bars available.
     pub fn avg_close_position(&self, n: usize) -> Option<Decimal> {
-        use rust_decimal::prelude::Zero;
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let half = Decimal::new(5, 1);
@@ -7438,7 +7435,6 @@ impl OhlcvSeries {
     /// Shadow imbalance average — mean of  over  bars.
     /// Bars with zero range contribute 0. Returns  if fewer than  bars available.
     pub fn avg_shadow_imbalance(&self, n: usize) -> Option<Decimal> {
-        use rust_decimal::prelude::Zero;
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
@@ -7458,7 +7454,6 @@ impl OhlcvSeries {
     /// Average normalized range — mean of  over  bars.
     /// Bars with zero close are excluded. Returns  if none qualify.
     pub fn avg_normalized_range(&self, n: usize) -> Option<Decimal> {
-        use rust_decimal::prelude::Zero;
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
