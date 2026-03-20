@@ -944,14 +944,14 @@ mod tests {
     #[test]
     fn test_position_avg_entry_price_long() {
         let sym = Symbol::new("AAPL").unwrap();
-        let mut pos = Position::new(sym);
+        let mut pos = Position::new(sym.clone());
         let fill = Fill::new(
-            Symbol::new("AAPL").unwrap(),
-            Price::new(dec!(150)).unwrap(),
-            Quantity::new(dec!(10)).unwrap(),
+            sym,
             Side::Bid,
+            Quantity::new(dec!(10)).unwrap(),
+            Price::new(dec!(150)).unwrap(),
             NanoTimestamp::new(0),
-        ).unwrap();
+        );
         pos.apply_fill(&fill).unwrap();
         assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(150));
     }
@@ -967,10 +967,12 @@ mod tests {
     fn test_position_avg_entry_price_after_partial_close() {
         let sym = Symbol::new("X").unwrap();
         let mut pos = Position::new(sym.clone());
-        pos.apply_fill(&Fill::new(sym.clone(), Price::new(dec!(100)).unwrap(),
-            Quantity::new(dec!(10)).unwrap(), Side::Bid, NanoTimestamp::new(0)).unwrap()).unwrap();
-        pos.apply_fill(&Fill::new(sym.clone(), Price::new(dec!(100)).unwrap(),
-            Quantity::new(dec!(5)).unwrap(), Side::Ask, NanoTimestamp::new(1)).unwrap()).unwrap();
+        pos.apply_fill(&Fill::new(sym.clone(), Side::Bid,
+            Quantity::new(dec!(10)).unwrap(), Price::new(dec!(100)).unwrap(),
+            NanoTimestamp::new(0))).unwrap();
+        pos.apply_fill(&Fill::new(sym.clone(), Side::Ask,
+            Quantity::new(dec!(5)).unwrap(), Price::new(dec!(100)).unwrap(),
+            NanoTimestamp::new(1))).unwrap();
         // Still long 5 at avg_cost = 100
         assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(100));
     }

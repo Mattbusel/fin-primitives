@@ -1998,4 +1998,53 @@ mod tests {
         series.push(make_bar("100", "110", "90", "105")).unwrap();
         assert_eq!(series.count_bullish(100), 1);
     }
+
+    #[test]
+    fn test_ohlcv_series_median_close_empty() {
+        assert!(OhlcvSeries::new().median_close(5).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_median_close_odd_count() {
+        // closes: 100, 110, 120 → sorted: [100, 110, 120] → median = 110
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        series.push(make_bar("110", "110", "110", "110")).unwrap();
+        series.push(make_bar("120", "120", "120", "120")).unwrap();
+        assert_eq!(series.median_close(3).unwrap(), dec!(110));
+    }
+
+    #[test]
+    fn test_ohlcv_series_median_close_even_count() {
+        // closes: 100, 110 → median = (100+110)/2 = 105
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        series.push(make_bar("110", "110", "110", "110")).unwrap();
+        assert_eq!(series.median_close(2).unwrap(), dec!(105));
+    }
+
+    #[test]
+    fn test_ohlcv_series_percentile_rank_empty() {
+        assert!(OhlcvSeries::new().percentile_rank(dec!(100), 5).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_percentile_rank_above_all() {
+        // all closes = 100, value = 101 → all below → percentile = 100
+        let mut series = OhlcvSeries::new();
+        for _ in 0..4 {
+            series.push(make_bar("100", "100", "100", "100")).unwrap();
+        }
+        assert_eq!(series.percentile_rank(dec!(101), 4).unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_series_percentile_rank_below_all() {
+        // all closes = 100, value = 99 → none below → percentile = 0
+        let mut series = OhlcvSeries::new();
+        for _ in 0..4 {
+            series.push(make_bar("100", "100", "100", "100")).unwrap();
+        }
+        assert_eq!(series.percentile_rank(dec!(99), 4).unwrap(), dec!(0));
+    }
 }

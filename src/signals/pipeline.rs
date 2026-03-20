@@ -360,4 +360,46 @@ mod tests {
         let map = pipeline.update(&bar("100"));
         assert!(map.get_scalar("nonexistent").is_none());
     }
+
+    #[test]
+    fn test_signal_map_min_max_scalar() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma2", 2).unwrap())
+            .add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("102"));
+        let map = pipeline.update(&bar("106"));
+        // sma2 = (102+106)/2 = 104; sma3 = (100+102+106)/3 = 102.666...
+        let (min_name, min_val) = map.min_scalar().unwrap();
+        let (max_name, max_val) = map.max_scalar().unwrap();
+        assert!(min_val < max_val);
+        assert_ne!(min_name, max_name);
+    }
+
+    #[test]
+    fn test_signal_map_min_max_scalar_empty() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.min_scalar().is_none());
+        assert!(map.max_scalar().is_none());
+    }
+
+    #[test]
+    fn test_signal_map_sum_scalars() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma2", 2).unwrap())
+            .add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("100"));
+        let map = pipeline.update(&bar("100"));
+        // Both SMAs = 100
+        assert_eq!(map.sum_scalars(), dec!(200));
+    }
+
+    #[test]
+    fn test_signal_map_sum_scalars_before_warmup() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert_eq!(map.sum_scalars(), dec!(0));
+    }
 }

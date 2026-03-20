@@ -24,6 +24,8 @@ pub struct Ema {
 impl Ema {
     /// Constructs a new `Ema` with the given name and period.
     ///
+    /// Uses the standard smoothing factor `α = 2 / (period + 1)`.
+    ///
     /// # Errors
     /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
@@ -33,6 +35,31 @@ impl Ema {
         #[allow(clippy::cast_possible_truncation)]
         let denom = Decimal::from((period + 1) as u32);
         let multiplier = Decimal::TWO.checked_div(denom).unwrap_or(Decimal::ONE);
+        Ok(Self {
+            name: name.into(),
+            period,
+            current: None,
+            count: 0,
+            multiplier,
+            seed_sum: Decimal::ZERO,
+        })
+    }
+
+    /// Constructs an `Ema` using **Wilder smoothing**: `α = 1 / period`.
+    ///
+    /// Wilder's smoothing is used in RSI, ATR, and ADX calculations.
+    /// It converges more slowly than the standard `2/(n+1)` form,
+    /// giving more weight to historical values.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
+    pub fn wilder(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
+        if period == 0 {
+            return Err(crate::error::FinError::InvalidPeriod(period));
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let denom = Decimal::from(period as u32);
+        let multiplier = Decimal::ONE.checked_div(denom).unwrap_or(Decimal::ONE);
         Ok(Self {
             name: name.into(),
             period,

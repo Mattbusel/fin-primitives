@@ -274,6 +274,11 @@ impl RiskMonitor {
         self.tracker.reset_peak();
     }
 
+    /// Returns `true` if equity is currently below the recorded peak (i.e. in drawdown).
+    pub fn is_in_drawdown(&self) -> bool {
+        self.tracker.current_drawdown_pct() > Decimal::ZERO
+    }
+
     /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
     pub fn worst_drawdown_pct(&self) -> Decimal {
         self.tracker.worst_drawdown_pct()
@@ -693,5 +698,26 @@ mod tests {
         let monitor = RiskMonitor::new(dec!(10000))
             .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
         assert!(!monitor.has_breaches(dec!(9000))); // 10% < 15%
+    }
+
+    #[test]
+    fn test_risk_monitor_is_in_drawdown_true() {
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        monitor.update(dec!(9000));
+        assert!(monitor.is_in_drawdown());
+    }
+
+    #[test]
+    fn test_risk_monitor_is_in_drawdown_false_at_peak() {
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        monitor.update(dec!(10000));
+        assert!(!monitor.is_in_drawdown());
+    }
+
+    #[test]
+    fn test_risk_monitor_is_in_drawdown_false_above_peak() {
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        monitor.update(dec!(11000));
+        assert!(!monitor.is_in_drawdown());
     }
 }
