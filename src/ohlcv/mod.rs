@@ -4143,6 +4143,85 @@ impl OhlcvSeries {
         let first_mom = self.bars[first_idx + 1].close.value() - self.bars[first_idx].close.value();
         Some(last_mom - first_mom)
     }
+
+    /// Ratio of up-close bars to down-close bars over the last `n` bars.
+    ///
+    /// A bar is "up" if `close > open` and "down" if `close < open`. Doji bars are ignored.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or there are no down bars.
+    pub fn up_down_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let ups = self.bars[start..].iter().filter(|b| b.close.value() > b.open.value()).count();
+        let downs = self.bars[start..].iter().filter(|b| b.close.value() < b.open.value()).count();
+        if downs == 0 {
+            return None;
+        }
+        Some(Decimal::from(ups as u32) / Decimal::from(downs as u32))
+    }
+
+    /// Count of consecutive up-close bars at the end of the series, capped at `n`.
+    ///
+    /// Returns `0` if the series is empty or the last bar is not up, `n` if all `n`
+    /// trailing bars are up. Returns `None` if `n == 0` or fewer than 1 bar exists.
+    pub fn consecutive_up_bars(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.is_empty() {
+            return None;
+        }
+        let window_start = self.bars.len().saturating_sub(n);
+        let count = self.bars[window_start..]
+            .iter()
+            .rev()
+            .take_while(|b| b.close.value() > b.open.value())
+            .count();
+        Some(count)
+    }
+
+    /// Z-score of the last close price vs the `n`-bar rolling mean and standard deviation.
+    ///
+    /// `z = (close - mean) / std_dev`
+    ///
+    /// Returns `None` if `n < 2`, fewer than `n` bars, or standard deviation is zero (flat prices).
+    pub fn normalized_close(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let vals: Vec<f64> = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value().to_f64().unwrap_or(0.0))
+            .collect();
+        let mean = vals.iter().sum::<f64>() / n as f64;
+        let std = (vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64).sqrt();
+        if std == 0.0 { return None; }
+        let last = *vals.last()?;
+        Some((last - mean) / std)
+    }
+
+    /// Counts the number of gap-up and gap-down opens in the last `n` bars as a pair.
+    ///
+    /// A gap-up is `open[i] > close[i-1]`; a gap-down is `open[i] < close[i-1]`.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    /// Returns `(gap_ups, gap_downs)`.
+    pub fn gap_counts(&self, n: usize) -> Option<(usize, usize)> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut ups = 0usize;
+        let mut downs = 0usize;
+        for i in (start + 1)..self.bars.len() {
+            let prior_close = self.bars[i - 1].close.value();
+            let cur_open = self.bars[i].open.value();
+            if cur_open > prior_close { ups += 1; }
+            else if cur_open < prior_close { downs += 1; }
+        }
+        Some((ups, downs))
+    }
 }
 
 #[cfg(test)]

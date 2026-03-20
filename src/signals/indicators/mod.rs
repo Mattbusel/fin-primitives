@@ -113,6 +113,7 @@ pub mod alligator;
 pub mod disparity;
 pub mod price_acceleration;
 pub mod high_low_spread;
+pub mod gann_hilo;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -221,3 +222,7 @@ pub use laguerre::LaguerreRsi;
 pub use linreg_channel::LinRegChannel;
 pub use trend_angle::TrendAngle;
 pub use alligator::Alligator;
+pub use disparity::DisparityIndex;
+pub use price_acceleration::PriceAcceleration;
+pub use high_low_spread::HighLowSpread;
+pub use gann_hilo::GannHiLo;
