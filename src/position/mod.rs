@@ -1760,6 +1760,48 @@ impl PositionLedger {
     pub fn net_quantity(&self) -> Decimal {
         self.positions.values().map(|p| p.quantity).sum()
     }
+
+    /// Maximum notional exposure (`|qty * price|`) of any single long position.
+    ///
+    /// Returns `None` if no long positions have a price in `prices`.
+    pub fn max_long_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        self.positions.values()
+            .filter(|p| p.quantity > Decimal::ZERO)
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str()).map(|&pr| (p.quantity * pr.value()).abs())
+            })
+            .max_by(|a, b| a.cmp(b))
+    }
+
+    /// Maximum notional exposure (`|qty * price|`) of any single short position.
+    ///
+    /// Returns `None` if no short positions have a price in `prices`.
+    pub fn max_short_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        self.positions.values()
+            .filter(|p| p.quantity < Decimal::ZERO)
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str()).map(|&pr| (p.quantity * pr.value()).abs())
+            })
+            .max_by(|a, b| a.cmp(b))
+    }
+
+    /// Symbol with the highest realized P&L.
+    ///
+    /// Returns `None` if no positions have been tracked.
+    pub fn max_realized_pnl(&self) -> Option<(&Symbol, Decimal)> {
+        self.positions.iter()
+            .map(|(sym, p)| (sym, p.realized_pnl))
+            .max_by(|(_, a), (_, b)| a.cmp(b))
+    }
+
+    /// Symbol with the lowest (most negative) realized P&L.
+    ///
+    /// Returns `None` if no positions have been tracked.
+    pub fn min_realized_pnl(&self) -> Option<(&Symbol, Decimal)> {
+        self.positions.iter()
+            .map(|(sym, p)| (sym, p.realized_pnl))
+            .min_by(|(_, a), (_, b)| a.cmp(b))
+    }
 }
 
 #[cfg(test)]

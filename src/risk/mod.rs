@@ -769,6 +769,24 @@ impl DrawdownTracker {
         Some(max_gain / dd)
     }
 
+    /// Total number of completed drawdown recovery events.
+    pub fn recovery_count(&self) -> usize {
+        self.completed_recoveries
+    }
+
+    /// Ratio of average gain to average loss per update.
+    ///
+    /// Returns `None` if either average is unavailable or average loss is zero.
+    pub fn avg_gain_loss_ratio(&self) -> Option<f64> {
+        let avg_gain = self.avg_gain_pct()?;
+        let lr = self.loss_rate()?;
+        let loss_count = (lr * self.update_count as f64).round() as usize;
+        if loss_count == 0 { return None; }
+        let avg_loss = self.total_loss_sum / loss_count as f64;
+        if avg_loss == 0.0 { return None; }
+        Some(avg_gain / avg_loss)
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
@@ -1427,6 +1445,15 @@ impl DrawdownTracker {
         let dd_count = self.drawdown_count();
         if dd_count == 0 { return None; }
         Some(self.completed_recoveries as f64 / dd_count as f64)
+    }
+
+    /// Rate of change of drawdown per update: `current_drawdown_pct / updates_since_peak`.
+    ///
+    /// Returns `None` if at peak (no drawdown) or no updates have been counted.
+    pub fn drawdown_velocity(&self) -> Option<f64> {
+        if self.updates_since_peak == 0 { return None; }
+        let dd = self.current_drawdown_pct().to_f64()?;
+        Some(dd / self.updates_since_peak as f64)
     }
 }
 

@@ -1104,6 +1104,22 @@ impl NanoTimestamp {
         let diff = (self.0 - other.0).unsigned_abs();
         diff as f64 / (86_400.0 * 1_000_000_000.0)
     }
+
+    /// Shifts the timestamp backward by `nanos` nanoseconds.
+    pub fn sub_nanos(&self, nanos: i64) -> NanoTimestamp {
+        NanoTimestamp(self.0 - nanos)
+    }
+
+    /// Truncates to the first nanosecond of the UTC year (January 1, 00:00:00.000000000).
+    pub fn start_of_year(self) -> NanoTimestamp {
+        use chrono::{Datelike, TimeZone};
+        let dt = chrono::Utc.timestamp_nanos(self.0);
+        let start = chrono::Utc
+            .with_ymd_and_hms(dt.year(), 1, 1, 0, 0, 0)
+            .single()
+            .unwrap_or(dt);
+        NanoTimestamp(start.timestamp_nanos_opt().unwrap_or(self.0))
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.

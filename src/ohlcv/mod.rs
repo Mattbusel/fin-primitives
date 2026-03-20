@@ -6081,6 +6081,95 @@ impl OhlcvSeries {
         }
         Some(self.bars.len() - 1 - last_high_idx)
     }
+
+    /// Drawdown from the n-bar peak: `(current_close - n_bar_high) / n_bar_high * 100`.
+    ///
+    /// Negative values indicate drawdown; zero means at the n-bar high.
+    /// Returns `None` if `n == 0`, fewer than `n` bars, or n-bar high is zero.
+    pub fn drawdown_from_peak(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let peak = self.bars[start..].iter().map(|b| b.high.value()).max()?;
+        if peak.is_zero() { return None; }
+        let current = self.bars.last()?.close.value();
+        Some((current - peak) / peak * Decimal::ONE_HUNDRED)
+    }
+
+    /// Percentage price oscillator: `(fast_sma - slow_sma) / slow_sma * 100`.
+    ///
+    /// Returns `None` if `fast == 0`, `slow == 0`, `fast >= slow`, fewer than `slow` bars,
+    /// or the slow SMA is zero.
+    pub fn price_oscillator(&self, fast: usize, slow: usize) -> Option<Decimal> {
+        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() < slow { return None; }
+        let n = self.bars.len();
+        let fast_start = n - fast;
+        let slow_start = n - slow;
+        let fast_sma = self.bars[fast_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(fast);
+        let slow_sma = self.bars[slow_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(slow);
+        if slow_sma.is_zero() { return None; }
+        Some((fast_sma - slow_sma) / slow_sma * Decimal::ONE_HUNDRED)
+    }
+
+    /// Count of bars in the last `n` where the close was below the prior bar's low.
+    ///
+    /// Returns `None` if fewer than `n + 1` bars exist.
+    pub fn close_below_prev_low(&self, n: usize) -> Option<usize> {
+        if n == 0 || self.bars.len() <= n { return None; }
+        let start = self.bars.len() - n;
+        let count = self.bars[start..].iter().enumerate()
+            .filter(|(i, b)| b.close.value() < self.bars[start - 1 + i].low.value())
+            .count();
+        Some(count)
+    }
+
+    /// Count of bars in the last `n` where the close is above the `period`-bar simple moving average.
+    ///
+    /// Returns `None` if `n == 0`, `period == 0`, or fewer than `max(n, period)` bars.
+    pub fn bars_above_ma(&self, n: usize, period: usize) -> Option<usize> {
+        if n == 0 || period == 0 || self.bars.len() < n.max(period) { return None; }
+        let sma_start = self.bars.len() - period;
+        let sma = self.bars[sma_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+            / Decimal::from(period);
+        let bar_start = self.bars.len() - n;
+        let count = self.bars[bar_start..].iter()
+            .filter(|b| b.close.value() > sma)
+            .count();
+        Some(count)
+    }
+
+    /// Ratio of latest `n`-bar range to prior `n`-bar range (price contraction < 1, expansion > 1).
+    ///
+    /// Returns `None` if fewer than `2 * n` bars or prior range is zero.
+    pub fn price_contraction(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < 2 * n { return None; }
+        let len = self.bars.len();
+        let recent_high = self.bars[len - n..].iter().map(|b| b.high.value()).max()?;
+        let recent_low = self.bars[len - n..].iter().map(|b| b.low.value()).min()?;
+        let prior_high = self.bars[len - 2 * n..len - n].iter().map(|b| b.high.value()).max()?;
+        let prior_low = self.bars[len - 2 * n..len - n].iter().map(|b| b.low.value()).min()?;
+        let recent_range = recent_high - recent_low;
+        let prior_range = prior_high - prior_low;
+        if prior_range.is_zero() { return None; }
+        Some(recent_range / prior_range)
+    }
+
+    /// Number of bars since the last new all-time low close.
+    ///
+    /// Returns `None` if there are no bars.
+    pub fn bars_since_new_low(&self) -> Option<usize> {
+        if self.bars.is_empty() { return None; }
+        let mut last_low_idx = 0;
+        let mut trough = self.bars[0].close.value();
+        for (i, b) in self.bars.iter().enumerate() {
+            if b.close.value() <= trough {
+                trough = b.close.value();
+                last_low_idx = i;
+            }
+        }
+        Some(self.bars.len() - 1 - last_low_idx)
+    }
 }
 
 #[cfg(test)]

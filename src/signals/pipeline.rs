@@ -480,6 +480,26 @@ impl SignalMap {
     pub fn remove_unavailable(&self) -> HashMap<String, Decimal> {
         self.scalars().map(|(name, v)| (name.to_string(), v)).collect()
     }
+
+    /// Ratio of two named scalar signals: `a / b`.
+    ///
+    /// Returns `None` if either signal is unavailable, not found, or `b` is zero.
+    pub fn signal_ratio(&self, a: &str, b: &str) -> Option<Decimal> {
+        let va = self.get_scalar(a)?;
+        let vb = self.get_scalar(b)?;
+        if vb.is_zero() { return None; }
+        Some(va / vb)
+    }
+
+    /// Spread of scalar values as a percentage of the minimum: `(max - min) / min * 100`.
+    ///
+    /// Returns `None` if fewer than 2 scalars or min is zero.
+    pub fn spread_pct(&self) -> Option<Decimal> {
+        let (_, min) = self.min_scalar()?;
+        let (_, max) = self.max_scalar()?;
+        if min.is_zero() { return None; }
+        Some((max - min) / min.abs() * Decimal::ONE_HUNDRED)
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

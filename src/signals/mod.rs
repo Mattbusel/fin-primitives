@@ -866,6 +866,27 @@ impl SignalValue {
             _ => false,
         }
     }
+
+    /// Express this scalar as a percentage of `base`: `self / base * 100`.
+    ///
+    /// Returns `Unavailable` if `self` is `Unavailable` or `base` is zero.
+    pub fn as_percent(self, base: Decimal) -> SignalValue {
+        if base.is_zero() { return SignalValue::Unavailable; }
+        match self {
+            SignalValue::Scalar(v) => SignalValue::Scalar(v / base * Decimal::ONE_HUNDRED),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns `true` if this scalar is in `[lo, hi]` (inclusive).
+    ///
+    /// Returns `false` if `Unavailable`.
+    pub fn within_range(&self, lo: Decimal, hi: Decimal) -> bool {
+        match self {
+            SignalValue::Scalar(v) => v >= &lo && v <= &hi,
+            SignalValue::Unavailable => false,
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {
