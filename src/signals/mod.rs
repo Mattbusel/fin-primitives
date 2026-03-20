@@ -87,6 +87,36 @@ impl SignalValue {
             SignalValue::Unavailable => default,
         }
     }
+
+    /// Apply `f` to the inner value if `Scalar`, returning a new `SignalValue`.
+    ///
+    /// If `Unavailable`, returns `Unavailable` without calling `f`. This mirrors
+    /// `Option::map` and enables functional chaining without explicit `match`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let v = SignalValue::Scalar(dec!(100));
+    /// let scaled = v.map(|x| x * dec!(2));
+    /// assert_eq!(scaled, SignalValue::Scalar(dec!(200)));
+    /// ```
+    pub fn map(self, f: impl FnOnce(Decimal) -> Decimal) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(f(d)),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+}
+
+impl std::fmt::Display for SignalValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SignalValue::Scalar(d) => write!(f, "{d}"),
+            SignalValue::Unavailable => write!(f, "Unavailable"),
+        }
+    }
 }
 
 /// A stateful indicator that updates on each new bar input.

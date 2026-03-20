@@ -221,6 +221,14 @@ impl RiskMonitor {
     pub fn reset_peak(&mut self) {
         self.tracker.reset_peak();
     }
+
+    /// Returns a shared reference to the internal [`DrawdownTracker`].
+    ///
+    /// Useful when callers need direct access to tracker state (e.g., worst drawdown)
+    /// without going through the monitor's forwarding accessors.
+    pub fn drawdown_tracker(&self) -> &DrawdownTracker {
+        &self.tracker
+    }
 }
 
 #[cfg(test)]

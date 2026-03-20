@@ -100,6 +100,18 @@ impl TryFrom<&str> for Symbol {
     }
 }
 
+impl From<Symbol> for String {
+    fn from(s: Symbol) -> Self {
+        s.as_str().to_owned()
+    }
+}
+
+impl From<Symbol> for Arc<str> {
+    fn from(s: Symbol) -> Self {
+        s.0.clone()
+    }
+}
+
 /// A strictly positive price value backed by [`Decimal`].
 ///
 /// # Example
@@ -318,6 +330,19 @@ impl NanoTimestamp {
         self.0 - other.0
     }
 
+    /// Returns `Some(nanos)` if `self >= other` (non-negative elapsed time), otherwise `None`.
+    ///
+    /// Use this when you want to measure forward elapsed time and treat a negative
+    /// difference as "not yet elapsed" rather than a negative value.
+    pub fn elapsed_nanos_since(&self, other: NanoTimestamp) -> Option<i64> {
+        let diff = self.0 - other.0;
+        if diff >= 0 {
+            Some(diff)
+        } else {
+            None
+        }
+    }
+
     /// Returns a new `NanoTimestamp` offset by `nanos` (positive = forward in time).
     pub fn add_nanos(&self, nanos: i64) -> NanoTimestamp {
         NanoTimestamp(self.0 + nanos)
@@ -341,6 +366,16 @@ impl NanoTimestamp {
     /// Returns `true` if `self` is strictly later than `other`.
     pub fn is_after(&self, other: NanoTimestamp) -> bool {
         self.0 > other.0
+    }
+
+    /// Constructs a `NanoTimestamp` from milliseconds since the Unix epoch.
+    pub fn from_millis(ms: i64) -> Self {
+        Self(ms * 1_000_000)
+    }
+
+    /// Returns milliseconds since the Unix epoch (truncates sub-millisecond precision).
+    pub fn to_millis(&self) -> i64 {
+        self.0 / 1_000_000
     }
 
     /// Constructs a `NanoTimestamp` from a [`DateTime<Utc>`].

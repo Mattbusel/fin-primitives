@@ -45,6 +45,41 @@ pub struct OhlcvBar {
 }
 
 impl OhlcvBar {
+    /// Constructs and validates an `OhlcvBar` from individual components.
+    ///
+    /// Equivalent to building the struct literal then calling `validate()`,
+    /// but more convenient for test and user code that does not want to
+    /// spell out all nine named fields.
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] if the OHLCV invariants are violated.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        symbol: Symbol,
+        open: Price,
+        high: Price,
+        low: Price,
+        close: Price,
+        volume: Quantity,
+        ts_open: NanoTimestamp,
+        ts_close: NanoTimestamp,
+        tick_count: u64,
+    ) -> Result<Self, FinError> {
+        let bar = Self {
+            symbol,
+            open,
+            high,
+            low,
+            close,
+            volume,
+            ts_open,
+            ts_close,
+            tick_count,
+        };
+        bar.validate()?;
+        Ok(bar)
+    }
+
     /// Validates OHLCV invariants.
     ///
     /// # Errors
@@ -515,6 +550,16 @@ impl OhlcvSeries {
         Some(&self.bars[from..to])
     }
 
+    /// Retains only the last `n` bars, dropping older ones.
+    ///
+    /// If `n >= self.len()`, this is a no-op.
+    pub fn truncate(&mut self, n: usize) {
+        let len = self.bars.len();
+        if n < len {
+            self.bars.drain(0..len - n);
+        }
+    }
+
     /// Converts the series into a `Vec<BarInput>` for batch signal processing.
     ///
     /// Allows feeding an entire historical series into indicators without manually
@@ -524,6 +569,21 @@ impl OhlcvSeries {
             .iter()
             .map(crate::signals::BarInput::from)
             .collect()
+    }
+
+    /// Feeds every bar in the series into `signal` and collects the results.
+    ///
+    /// Errors from individual bars are propagated immediately (fail-fast).
+    /// Use this for batch back-testing where you want to apply one signal to
+    /// an entire historical dataset in one call.
+    ///
+    /// # Errors
+    /// Returns [`FinError`] if any call to `signal.update_bar()` fails.
+    pub fn apply_signal(
+        &self,
+        signal: &mut dyn crate::signals::Signal,
+    ) -> Result<Vec<crate::signals::SignalValue>, FinError> {
+        self.bars.iter().map(|b| signal.update_bar(b)).collect()
     }
 }
 
@@ -886,5 +946,113 @@ mod tests {
         series.push(make_bar("100", "110", "90", "105")).unwrap();
         let bar = series.iter().next().unwrap();
         assert_eq!(bar.open.value(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_upper_shadow() {
+        // bullish: open=100, close=108, high=115 → upper = 115-108 = 7
+        let b = make_bar("100", "115", "90", "108");
+        assert_eq!(b.upper_shadow(), dec!(7));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_lower_shadow() {
+        // bullish: open=100, close=108, low=90 → lower = 100-90 = 10
+        let b = make_bar("100", "115", "90", "108");
+        assert_eq!(b.lower_shadow(), dec!(10));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_from_tick() {
+        let tick = make_tick("AAPL", "150", "5", 1_000);
+        let bar = OhlcvBar::from_tick(&tick);
+        assert_eq!(bar.open.value(), dec!(150));
+        assert_eq!(bar.high.value(), dec!(150));
+        assert_eq!(bar.low.value(), dec!(150));
+        assert_eq!(bar.close.value(), dec!(150));
+        assert_eq!(bar.volume.value(), dec!(5));
+        assert_eq!(bar.tick_count, 1);
+        assert_eq!(bar.ts_open.nanos(), 1_000);
+    }
+
+    #[test]
+    fn test_ohlcv_series_bars_slice() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert_eq!(series.bars().len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_max_high_min_low() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "120", "85", "110")).unwrap();
+        assert_eq!(series.max_high().unwrap(), dec!(120));
+        assert_eq!(series.min_low().unwrap(), dec!(85));
+    }
+
+    #[test]
+    fn test_ohlcv_series_max_high_empty() {
+        let series = OhlcvSeries::new();
+        assert!(series.max_high().is_none());
+        assert!(series.min_low().is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_slice() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.push(make_bar("110", "120", "100", "115")).unwrap();
+        let s = series.slice(1, 3).unwrap();
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0].open.value(), dec!(105));
+    }
+
+    #[test]
+    fn test_ohlcv_series_slice_out_of_bounds() {
+        let series = OhlcvSeries::new();
+        assert!(series.slice(0, 1).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_truncate_keeps_last_n() {
+        let mut series = OhlcvSeries::new();
+        for _ in 0..5 {
+            series.push(make_bar("100", "110", "90", "105")).unwrap();
+        }
+        series.truncate(3);
+        assert_eq!(series.len(), 3);
+    }
+
+    #[test]
+    fn test_ohlcv_series_truncate_noop_when_n_ge_len() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.truncate(5);
+        assert_eq!(series.len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_truncate_to_zero() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.truncate(0);
+        assert!(series.is_empty());
+    }
+
+    #[test]
+    fn test_ohlcv_bar_serde_roundtrip() {
+        let bar = make_bar("100", "110", "90", "105");
+        let json = serde_json::to_string(&bar).unwrap();
+        let back: OhlcvBar = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.open, bar.open);
+        assert_eq!(back.high, bar.high);
+        assert_eq!(back.low, bar.low);
+        assert_eq!(back.close, bar.close);
+        assert_eq!(back.tick_count, bar.tick_count);
     }
 }

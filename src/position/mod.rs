@@ -203,6 +203,14 @@ impl Position {
         self.quantity.abs()
     }
 
+    /// Returns the cost basis of the current position: `avg_cost * |quantity|`.
+    ///
+    /// Represents total capital deployed, excluding any realized P&L.
+    /// Returns `0` when the position is flat.
+    pub fn cost_basis(&self) -> Decimal {
+        self.avg_cost * self.quantity.abs()
+    }
+
     /// Returns unrealized P&L as a percentage of cost basis.
     ///
     /// Returns `None` when the position is flat (avg_cost is zero).
@@ -262,9 +270,14 @@ impl PositionLedger {
         self.positions.get(symbol)
     }
 
-    /// Returns an iterator over all tracked positions.
+    /// Returns an iterator over all tracked positions (including flat ones).
     pub fn positions(&self) -> impl Iterator<Item = &Position> {
         self.positions.values()
+    }
+
+    /// Returns an iterator over positions with non-zero quantity.
+    pub fn open_positions(&self) -> impl Iterator<Item = &Position> {
+        self.positions.values().filter(|p| !p.is_flat())
     }
 
     /// Returns an iterator over the symbols being tracked by this ledger.
@@ -272,14 +285,14 @@ impl PositionLedger {
         self.positions.keys()
     }
 
+    /// Returns the total number of symbols tracked by this ledger (open and flat).
+    pub fn position_count(&self) -> usize {
+        self.positions.len()
+    }
+
     /// Returns the number of non-flat (open) positions.
     pub fn open_position_count(&self) -> usize {
         self.positions.values().filter(|p| !p.is_flat()).count()
-    }
-
-    /// Returns an iterator over non-flat (open) positions only.
-    pub fn open_positions(&self) -> impl Iterator<Item = &Position> {
-        self.positions.values().filter(|p| !p.is_flat())
     }
 
     /// Returns the total market value of all open positions given a price map.
@@ -584,5 +597,29 @@ mod tests {
         prices.insert("AAPL".to_owned(), Price::new(dec!(105)).unwrap());
         let upnl = ledger.unrealized_pnl_total(&prices).unwrap();
         assert_eq!(upnl, dec!(50));
+    }
+
+    #[test]
+    fn test_position_ledger_position_count_includes_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        // open AAPL long then close it
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
+        // open MSFT long (stays open)
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0"))
+            .unwrap();
+        assert_eq!(ledger.position_count(), 2, "both symbols tracked");
+        assert_eq!(ledger.open_position_count(), 1, "only MSFT open");
+    }
+
+    #[test]
+    fn test_position_ledger_position_count_zero_on_empty() {
+        let ledger = PositionLedger::new(dec!(10000));
+        assert_eq!(ledger.position_count(), 0);
     }
 }

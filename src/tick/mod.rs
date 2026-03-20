@@ -142,6 +142,41 @@ impl TickFilter {
         self
     }
 
+    /// Returns `true` if a symbol predicate has been set on this filter.
+    pub fn has_symbol_filter(&self) -> bool {
+        self.symbol.is_some()
+    }
+
+    /// Returns `true` if a side predicate has been set on this filter.
+    pub fn has_side_filter(&self) -> bool {
+        self.side.is_some()
+    }
+
+    /// Returns `true` if a minimum quantity predicate has been set on this filter.
+    pub fn has_min_qty_filter(&self) -> bool {
+        self.min_qty.is_some()
+    }
+
+    /// Returns `true` if a price range predicate has been set on this filter.
+    pub fn has_price_filter(&self) -> bool {
+        self.min_price.is_some() || self.max_price.is_some()
+    }
+
+    /// Returns `true` if no predicates are configured — the filter matches any tick.
+    ///
+    /// Callers can skip filter evaluation entirely when no constraints have been set,
+    /// avoiding unnecessary field comparisons on every tick.
+    pub fn is_empty(&self) -> bool {
+        self.symbol.is_none()
+            && self.side.is_none()
+            && self.min_qty.is_none()
+            && self.max_qty.is_none()
+            && self.min_price.is_none()
+            && self.max_price.is_none()
+            && self.min_notional.is_none()
+            && self.max_notional.is_none()
+    }
+
     /// Returns `true` if the tick satisfies all configured predicates.
     pub fn matches(&self, tick: &Tick) -> bool {
         if let Some(ref sym) = self.symbol {
@@ -185,6 +220,14 @@ impl TickFilter {
             }
         }
         true
+    }
+
+    /// Returns the number of ticks in `ticks` that satisfy all predicates.
+    ///
+    /// Equivalent to `ticks.iter().filter(|t| self.matches(t)).count()` but
+    /// avoids allocating a filtered collection.
+    pub fn count_matches(&self, ticks: &[Tick]) -> usize {
+        ticks.iter().filter(|t| self.matches(t)).count()
     }
 }
 
@@ -493,5 +536,59 @@ mod tests {
         assert_eq!(slice.len(), 2);
         assert_eq!(slice[0].timestamp.nanos(), 1);
         assert_eq!(slice[1].timestamp.nanos(), 2);
+    }
+
+    #[test]
+    fn test_tick_filter_has_symbol_filter_false_when_unset() {
+        let f = TickFilter::new();
+        assert!(!f.has_symbol_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_symbol_filter_true_when_set() {
+        let f = TickFilter::new().symbol(Symbol::new("AAPL").unwrap());
+        assert!(f.has_symbol_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_side_filter_false_when_unset() {
+        let f = TickFilter::new();
+        assert!(!f.has_side_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_side_filter_true_when_set() {
+        let f = TickFilter::new().side(Side::Bid);
+        assert!(f.has_side_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_min_qty_filter() {
+        let f = TickFilter::new().min_quantity(Quantity::new(dec!(1)).unwrap());
+        assert!(f.has_min_qty_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_price_filter_min() {
+        let f = TickFilter::new().min_price(Price::new(dec!(10)).unwrap());
+        assert!(f.has_price_filter());
+    }
+
+    #[test]
+    fn test_tick_filter_has_price_filter_max() {
+        let f = TickFilter::new().max_price(Price::new(dec!(100)).unwrap());
+        assert!(f.has_price_filter());
+    }
+
+    #[test]
+    fn test_tick_serde_roundtrip() {
+        let tick = make_tick("AAPL", "150.50", "25", Side::Bid, 1_000_000_000);
+        let json = serde_json::to_string(&tick).unwrap();
+        let back: Tick = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.symbol, tick.symbol);
+        assert_eq!(back.price, tick.price);
+        assert_eq!(back.quantity, tick.quantity);
+        assert_eq!(back.side, tick.side);
+        assert_eq!(back.timestamp, tick.timestamp);
     }
 }
