@@ -57,11 +57,48 @@ strategy rather than infrastructure.
 
 ### Technical Indicators
 
+The library ships 90+ streaming indicators. All implement the `Signal` trait and return
+`SignalValue::Unavailable` until warm-up is satisfied.
+
+**Trend / Moving Averages**
+
+`Sma`, `Ema`, `Dema`, `Tema`, `Wma`, `Hullma`, `Alma`, `Smma`, `Zlema`, `T3`,
+`Trima`, `Kama`, `Lsma`, `Vidya`, `Swma`, `McGinley`, `LinRegSlope`
+
+**Momentum / Oscillators**
+
+`Rsi`, `Macd`, `Cci`, `Roc`, `Momentum`, `Apo`, `Ppo`, `Cmo`, `Tsi`, `Rvi`,
+`StochasticK`, `StochasticD`, `StochRsi`, `WilliamsR`, `UltimateOscillator`,
+`Coppock`, `Kst`, `Trix`, `Dpo`
+
+**Volatility**
+
+`Atr`, `Natr`, `BollingerB`, `BollingerWidth`, `KeltnerChannel`, `DonchianMidpoint`,
+`DonchianWidth`, `Vhf`, `ChoppinessIndex`, `Pfe`, `Rsx`
+
+**Volume**
+
+`Cmf`, `Obv`, `Mfi`, `Vwap`, `Vwma`, `Pvo`, `Emv`, `Kvo`, `Vpt`, `Nvi`,
+`ChaikinOsc`, `ForceIndex`
+
+**Trend Direction / Multi-component**
+
+`Adx`, `Dmi`, `Aroon`, `Ichimoku`, `ParabolicSar`, `SuperTrend`, `ElderRay`,
+`ChandelierExit`, `Stc`, `Vortex`, `WilliamsAD`
+
+**Statistical / Adaptive**
+
+`StdDev`, `PercentRank`, `Fisher`, `MassIndex`, `PsychologicalLine`, `KaufmanEr`,
+`ZScore`, `Bop`, `Atrp`, `Pgo`, `Rmi`, `Cog`, `Pfe`, `Envelope`, `PriceChannel`,
+`Pivots`
+
+**Core formulas for the three most-used indicators:**
+
 | Indicator | Formula | Warm-up bars | Notes |
 |-----------|---------|-------------|-------|
-| **SMA(n)** | `Σ close[i] / n` over last n bars | n | Rolling `VecDeque` capped at `n`. Exactly equal to the arithmetic mean. |
-| **EMA(n)** | `close × k + prev_EMA × (1 − k)`, `k = 2 / (n + 1)` | n | First n bars produce an SMA seed; subsequent bars apply the multiplier. Matches standard EMA convention (TradingView, Bloomberg). |
-| **RSI(n)** | `100 − 100 / (1 + RS)`, `RS = avg_gain / avg_loss` using Wilder smoothing: `avg = (prev_avg × (n−1) + new) / n` | n + 1 | One extra bar is required to compute the first price change. All-gain → 100; all-loss → 0; always clamped to [0, 100]. Matches Wilder (1978), TradingView, and Bloomberg. |
+| **SMA(n)** | `sum(close, n) / n` | n | Rolling window; exact arithmetic. |
+| **EMA(n)** | `close * k + prev * (1 - k)`, `k = 2 / (n + 1)` | n | SMA seed for first n bars, then exponential multiplier. |
+| **RSI(n)** | `100 - 100 / (1 + avg_gain / avg_loss)` with Wilder smoothing | n + 1 | All-gain = 100; all-loss = 0; clamped to [0, 100]. |
 
 ### OHLCV Invariants
 
