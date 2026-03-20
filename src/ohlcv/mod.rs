@@ -4070,6 +4070,41 @@ impl OhlcvSeries {
         let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
         Some(variance.sqrt() / mean)
     }
+
+    /// Volume of the most recent bar as a percentage of the average volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or average volume is zero.
+    pub fn relative_volume(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let avg_vol: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.volume.value())
+            .sum::<Decimal>()
+            / Decimal::from(n as u32);
+        if avg_vol.is_zero() { return None; }
+        let last_vol = self.bars.last()?.volume.value();
+        Some(last_vol / avg_vol * Decimal::from(100u32))
+    }
+
+    /// Average midpoint of the open-close range over the last `n` bars.
+    ///
+    /// `midpoint[i] = (open[i] + close[i]) / 2`
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_oc_midpoint(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| (b.open.value() + b.close.value()) / Decimal::TWO)
+            .sum();
+        Some(sum / Decimal::from(n as u32))
+    }
 }
 
 #[cfg(test)]

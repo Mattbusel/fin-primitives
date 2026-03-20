@@ -108,6 +108,7 @@ pub mod price_velocity;
 pub mod candle_body_size;
 pub mod laguerre;
 pub mod linreg_channel;
+pub mod trend_angle;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -214,3 +215,4 @@ pub use price_velocity::PriceVelocity;
 pub use candle_body_size::CandleBodySize;
 pub use laguerre::LaguerreRsi;
 pub use linreg_channel::LinRegChannel;
+pub use trend_angle::TrendAngle;

@@ -1179,6 +1179,23 @@ impl PositionLedger {
             })
             .sum()
     }
+
+    /// Returns the largest single-position market value as a percentage of total gross exposure.
+    ///
+    /// Returns `None` if there are no open positions or total exposure is zero.
+    pub fn largest_position_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let total = self.gross_market_exposure(prices);
+        if total.is_zero() { return None; }
+        let max_mv = self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                let price = prices.get(p.symbol.as_str()).copied()?;
+                Some(p.market_value(price).abs())
+            })
+            .max_by(|a, b| a.cmp(b))?;
+        Some(max_mv / total * Decimal::from(100u32))
+    }
 }
 
 #[cfg(test)]
