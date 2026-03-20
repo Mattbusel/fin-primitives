@@ -52,7 +52,6 @@ impl Autocorrelation1 {
         let n = returns.len();
         if n < 2 { return None; }
         // x = returns[0..n-1], y = returns[1..n]
-        let n_f = Decimal::from(n as u32);
         let n1_f = Decimal::from((n - 1) as u32);
         let sum_x: Decimal = returns[..n-1].iter().copied().sum();
         let sum_y: Decimal = returns[1..].iter().copied().sum();
