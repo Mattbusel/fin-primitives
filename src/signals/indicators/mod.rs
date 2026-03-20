@@ -727,3 +727,16 @@ pub use momentum_quality::MomentumQuality;
 pub use rolling_max_dd::RollingMaxDd;
 pub use high_low_crossover::HighLowCrossover;
 pub use body_direction_ratio::BodyDirectionRatio;
+
+pub mod body_momentum;
+pub mod close_midpoint_strength;
+pub mod volume_deviation;
+pub use body_momentum::BodyMomentum;
+pub use close_midpoint_strength::CloseMidpointStrength;
+pub use volume_deviation::VolumeDeviation;
+pub mod price_reversal_strength;
+pub mod gap_fill_detector;
+pub mod return_persistence;
+pub use price_reversal_strength::PriceReversalStrength;
+pub use gap_fill_detector::GapFillDetector;
+pub use return_persistence::ReturnPersistence;
