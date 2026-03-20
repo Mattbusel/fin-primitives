@@ -8,7 +8,7 @@
 
 A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
 systems in Rust. `fin-primitives` provides the building blocks: validated types,
-order book, OHLCV aggregation, **540+ streaming technical indicators**, position ledger,
+order book, OHLCV aggregation, **550+ streaming technical indicators**, position ledger,
 and composable risk monitoring — so that upstream crates and applications can focus on
 strategy rather than infrastructure.
 
@@ -22,7 +22,7 @@ strategy rather than infrastructure.
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
 | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, **540+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **550+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 
@@ -49,7 +49,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-fin-primitives = "2.2"
+fin-primitives = "2.3"
 rust_decimal_macros = "1"
 ```
 
@@ -151,7 +151,7 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ---
 
-## Technical Indicators (540+)
+## Technical Indicators (550+)
 
 All indicators implement the `Signal` trait and return `SignalValue::Unavailable`
 until warm-up is satisfied. No silent NaN or panic.
@@ -246,18 +246,20 @@ until warm-up is satisfied. No silent NaN or panic.
 `PriceGapFrequency`, `OpenToHighRatio`, `RangeMomentum`, `RangePersistence`,
 `RangeReturnRatio`, `RangeCompressionRatio`, `RangeContractionCount`,
 `RangeExpansionIndex`, `RangeMidpointPosition`, `RangePctOfClose`,
-`RangeTrendSlope`, `RangeZScore`, `CloseMidpointDiff`, `CloseMidpointStrength`,
+`RangeTrendSlope`, `RangeZScore`, `RangeEfficiency`, `RangeBreakoutCount`,
+`RangeReturnRatio`, `CloseMidpointDiff`, `CloseMidpointStrength`,
 `CloseAboveMidpoint`, `CloseVsOpenRange`, `CloseVsPriorHigh`, `CloseVsVwap`,
 `ClosePositionInRange`, `CloseRetracePct`, `CloseReturnAcceleration`,
 `CloseReturnZ`, `CloseToHighRatio`, `CloseToMidRange`, `CloseToRangeTop`,
 `CloseRelativeToEma`, `CloseRelativeToRange`, `ClosePctFromHigh`, `ClosePctFromLow`,
 `CloseAboveEma`, `CloseAboveOpen`, `CloseAbovePrevClose`, `CloseAbovePrevClosePct`,
 `CloseAbovePrevHigh`, `CloseAbovePriorClose`, `CloseAboveSmaStreak`,
-`CloseAboveHighPrev`, `CloseBelowLowPrev`, `CloseDistanceFromEma`,
+`CloseAboveHighPrev`, `CloseBelowLowPrev`, `CloseDistanceFromEma`, `CloseDistanceFromOpen`, `CloseHighFrequency`,
 `CloseMinusOpenMa`, `CloseOpenEma`, `CloseAcceleration`, `CloseAccelerationSign`,
 `OpenAbovePrevClose`, `OpenCloseMomentum`, `OpenGapDirection`, `OpenGapPct`,
 `OpenGapSize`, `OpenHighRatio`, `OpenRangeStrength`, `OpenToCloseRatio`,
-`OpenToCloseReturn`, `OpenCloseSymmetry`, `OvernightReturn`, `IntrabarReturn`,
+`OpenToCloseReturn`, `OpenCloseSymmetry`, `OpenDrive`, `OpenMidpointDeviation`,
+`OvernightReturn`, `IntrabarReturn`,
 `HighBreakCount`, `HigherCloseStreak`, `HigherHighCount`, `HigherLowCount`,
 `HigherLowStreak`, `HighLowCrossover`, `HighLowDivergence`, `HighLowMidpoint`,
 `HighLowOscillator`, `HighOfPeriod`, `LowOfPeriod`, `LowerHighCount`,
@@ -268,6 +270,7 @@ until warm-up is satisfied. No silent NaN or panic.
 `BarCloseRank`, `BarFollowThrough`, `BarMomentumIndex`, `BarMomentumScore`,
 `BarOpenPosition`, `BarOverlapRatio`, `BarRangeConsistency`, `BarRangeExpansionPct`,
 `BarRangeStdDev`, `BarStrengthIndex`, `BarType`, `BearishBarRatio`,
+`BodyPosition`, `BodyToShadowRatio`, `HighVolumeBarRatio`,
 `CandleEfficiency`, `CandleRangeMa`, `CandleSymmetry`, `FlatBarPct`,
 `NarrowRangeBar`, `UpBarRatio`, `NetBarBias`, `ThreeBarPattern`,
 `EngulfingDetector`, `EngulfingPattern`, `HammerDetector`, `HammerPattern`,
@@ -291,7 +294,7 @@ until warm-up is satisfied. No silent NaN or panic.
 `AutoCorrelation1`, `ReturnAutoCorrelation`, `ReturnDispersion`, `ReturnIqr`,
 `ReturnPersistence`, `ReturnSignChanges`, `ReturnSignSum`, `ReturnAboveZeroPct`,
 `ReturnOverVolatility`, `ReturnPercentRank`, `CumulativeLogReturn`,
-`DailyReturnSkew`, `DirectionChanges`, `EfficiencyRatio`, `DownsideDeviation`,
+`DailyReturnSkew`, `DirectionChanges`, `DirectionalEfficiency`, `EfficiencyRatio`, `DownsideDeviation`,
 `EaseOfMovement`, `FairValueGap`, `HurstExponent`, `AverageBarRange`,
 `AverageGain`, `AverageLoss`, `AmplitudeRatio`, `Zscore`, `ZigZag`,
 `ValueAtRisk5`, `ConditionalVar5`, `PayoffRatio`, `ProfitFactor`,
@@ -299,7 +302,7 @@ until warm-up is satisfied. No silent NaN or panic.
 `CusumPriceChange`, `NewHighPct`, `NewHighStreak`, `NewLowPct`,
 `RelativeBarRange`, `RelativeClose`, `TailRatio`, `TailRatioPct`,
 `BreakoutSignal`, `MidpointOscillator`, `IntradaySpreadPct`,
-`OhlcSpread`, `RobustZScore`
+`OhlcSpread`, `RobustZScore`, `RollingShadowBalance`, `AtrPercentile`
 
 **Core formulas:**
 
