@@ -859,6 +859,25 @@ impl NanoTimestamp {
     pub fn sub_minutes(&self, minutes: i64) -> NanoTimestamp {
         NanoTimestamp(self.0 - minutes * 60_000_000_000)
     }
+
+    /// Returns `true` if this timestamp falls on a Saturday (5) or Sunday (6) in UTC.
+    pub fn is_weekend(self) -> bool {
+        let dow = self.day_of_week();
+        dow == 5 || dow == 6
+    }
+
+    /// Returns the timestamp floored to Monday 00:00:00 UTC of the containing week.
+    pub fn start_of_week(self) -> NanoTimestamp {
+        const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
+        let dow = self.day_of_week() as i64; // 0=Mon … 6=Sun
+        NanoTimestamp(self.floor_to_day().0 - dow * DAY_NANOS)
+    }
+
+    /// Shifts the timestamp forward by `days` calendar days (positive or negative).
+    pub fn add_days(&self, days: i64) -> NanoTimestamp {
+        const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
+        NanoTimestamp(self.0 + days * DAY_NANOS)
+    }
 }
 
 /// `NanoTimestamp + i64` shifts the timestamp forward by `nanos` nanoseconds.
