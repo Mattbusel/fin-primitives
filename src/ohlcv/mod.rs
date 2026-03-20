@@ -273,6 +273,18 @@ impl OhlcvBar {
         (self.close.value() - self.open.value()).abs()
     }
 
+    /// Returns `true` if the bar's body is large relative to its range.
+    ///
+    /// A bar is considered "long" when `body_size / range >= factor`.
+    /// Returns `false` when `range == 0` (flat bar).
+    pub fn is_long_candle(&self, factor: Decimal) -> bool {
+        let r = self.range();
+        if r == Decimal::ZERO {
+            return false;
+        }
+        self.body_size() / r >= factor
+    }
+
     /// Returns `true` if the bar is a doji: `body_size / range < threshold`.
     ///
     /// A doji indicates indecision. Returns `false` when `range == 0` (flat bar)
@@ -629,6 +641,14 @@ impl OhlcvAggregator {
         self.current_bar.as_ref()
     }
 
+    /// Returns the bucket-start timestamp of the current open bar, or `None` if no bar is open.
+    ///
+    /// This is the lower boundary of the current timeframe bucket, not the timestamp of the
+    /// first tick received in the bar.
+    pub fn current_bar_open_ts(&self) -> Option<NanoTimestamp> {
+        self.current_bucket_start
+    }
+
     fn new_bar(&self, tick: &Tick) -> OhlcvBar {
         OhlcvBar {
             symbol: self.symbol.clone(),
@@ -871,6 +891,16 @@ impl OhlcvSeries {
     /// Returns the total traded volume across all bars in the series.
     pub fn sum_volume(&self) -> Decimal {
         self.bars.iter().map(|b| b.volume.value()).sum()
+    }
+
+    /// Returns the average volume over the last `n` bars, or `None` if fewer than `n` bars exist.
+    pub fn avg_volume(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.volume.value()).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(n as u32))
     }
 
     /// Returns a sub-slice `bars[from..to]`, or `None` if the range is out of bounds.
@@ -1468,6 +1498,64 @@ impl OhlcvSeries {
         let rf_per_bar = risk_free_rate / bars_per_year;
         Some((mean_ret - rf_per_bar) / downside_dev * bars_per_year.sqrt())
     }
+
+    /// Returns the Average True Range for each bar as `Vec<Option<Decimal>>`.
+    ///
+    /// Uses a simple rolling average of True Range over `period` bars.
+    /// The first `period - 1` entries are `None`; the rest are `Some(atr)`.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn atr_series(&self, period: usize) -> Vec<Option<Decimal>> {
+        let n = self.bars.len();
+        let mut result = vec![None; n];
+        if period == 0 || n == 0 {
+            return result;
+        }
+        let trs: Vec<Decimal> = self
+            .bars
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                let prev = if i == 0 { None } else { Some(&self.bars[i - 1]) };
+                b.true_range(prev)
+            })
+            .collect();
+        for i in (period - 1)..n {
+            let sum: Decimal = trs[i + 1 - period..=i].iter().copied().sum();
+            result[i] = Some(sum / Decimal::from(period as u32));
+        }
+        result
+    }
+
+    /// Returns the count of bars (in the last `n`) where `close > prev_close`.
+    ///
+    /// If `n` exceeds the series length, all eligible bars are counted.
+    /// The first bar in the series is never an "up day" (no prior bar).
+    pub fn up_days(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| b.close.value() > self.bars[start + i - 1].close.value())
+            .count()
+    }
+
+    /// Returns the count of bars (in the last `n`) where `close < prev_close`.
+    ///
+    /// Mirrors [`OhlcvSeries::up_days`] for the downside.
+    pub fn down_days(&self, n: usize) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let start = self.bars.len().saturating_sub(n).max(1);
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| b.close.value() < self.bars[start + i - 1].close.value())
+            .count()
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -1609,6 +1697,27 @@ mod tests {
     fn test_ohlcv_bar_body_size_bearish() {
         let bar = make_bar("110", "120", "80", "100");
         assert_eq!(bar.body_size(), dec!(10)); // |100 - 110|
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_long_candle_flat() {
+        // range == 0 → always false
+        let bar = make_bar("100", "100", "100", "100");
+        assert!(!bar.is_long_candle(dec!(0.7)));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_long_candle_true() {
+        // open=100, close=110, high=112, low=98 → body=10, range=14 → 10/14 ≈ 0.714 >= 0.7
+        let bar = make_bar("100", "112", "98", "110");
+        assert!(bar.is_long_candle(dec!(0.7)));
+    }
+
+    #[test]
+    fn test_ohlcv_bar_is_long_candle_false() {
+        // open=100, close=101, high=110, low=90 → body=1, range=20 → 0.05 < 0.7
+        let bar = make_bar("100", "110", "90", "101");
+        assert!(!bar.is_long_candle(dec!(0.7)));
     }
 
     #[test]
@@ -2152,6 +2261,38 @@ mod tests {
         series.push(make_bar("110", "120", "100", "115")).unwrap();
         // make_bar sets volume = 100 per bar
         assert_eq!(series.sum_volume(), dec!(300));
+    }
+
+    #[test]
+    fn test_ohlcv_series_avg_volume_none_when_empty() {
+        assert!(OhlcvSeries::new().avg_volume(3).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_avg_volume_none_when_n_zero() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        assert!(series.avg_volume(0).is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_avg_volume_correct() {
+        // make_bar sets volume = 100 per bar
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.push(make_bar("110", "120", "100", "115")).unwrap();
+        // avg over 3 bars: (100+100+100)/3 = 100
+        assert_eq!(series.avg_volume(3).unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_series_avg_volume_partial_window() {
+        // n=5 but only 3 bars → None
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        assert!(series.avg_volume(5).is_none());
     }
 
     #[test]

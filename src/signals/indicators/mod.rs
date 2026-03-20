@@ -5,12 +5,15 @@
 
 pub mod apo;
 pub mod atr;
+pub mod obv;
+pub mod ppo;
 pub mod bollinger;
 pub mod cci;
 pub mod chandelier;
 pub mod dema;
 pub mod donchian;
 pub mod ema;
+pub mod keltner;
 pub mod hullma;
 pub mod macd;
 pub mod momentum;
@@ -27,12 +30,15 @@ pub mod wma;
 
 pub use apo::Apo;
 pub use atr::Atr;
+pub use obv::Obv;
+pub use ppo::Ppo;
 pub use bollinger::BollingerB;
 pub use cci::Cci;
 pub use chandelier::ChandelierExit;
 pub use dema::Dema;
 pub use donchian::DonchianMidpoint;
 pub use ema::Ema;
+pub use keltner::KeltnerChannel;
 pub use hullma::HullMa;
 pub use macd::Macd;
 pub use momentum::Momentum;

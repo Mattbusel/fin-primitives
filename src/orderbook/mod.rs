@@ -198,6 +198,18 @@ impl OrderBook {
         Some(ask - bid)
     }
 
+    /// Returns the spread as a percentage of the mid-price: `spread / mid * 100`.
+    ///
+    /// Returns `None` when either side is empty or mid-price is zero.
+    pub fn spread_pct(&self) -> Option<Decimal> {
+        let mid = self.mid_price()?;
+        if mid.is_zero() {
+            return None;
+        }
+        let spread = self.spread()?;
+        Some(spread / mid * Decimal::ONE_HUNDRED)
+    }
+
     /// Returns the resting quantity at a specific price level, or `None` if the level is absent.
     pub fn depth_at(&self, side: Side, price: Price) -> Option<Decimal> {
         let key = price.value();
@@ -310,6 +322,17 @@ impl OrderBook {
         self.bids.clear();
         self.asks.clear();
         self.sequence = 0;
+    }
+
+    /// Removes all resting levels from `side`, leaving the opposite side intact.
+    ///
+    /// Useful when a snapshot update arrives for one side only (e.g., bid-side snapshot).
+    pub fn remove_all(&mut self, side: crate::types::Side) {
+        use crate::types::Side;
+        match side {
+            Side::Bid => self.bids.clear(),
+            Side::Ask => self.asks.clear(),
+        }
     }
 
     /// Returns `true` if the book is currently in a crossed (inverted) state.

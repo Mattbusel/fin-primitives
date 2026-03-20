@@ -90,6 +90,19 @@ impl Tick {
         self.price.value() < prev.price.value()
     }
 
+    /// Returns buy volume minus sell volume for a slice of ticks.
+    ///
+    /// Positive delta indicates net buying pressure; negative indicates net selling.
+    /// Equivalent to `buy_volume - sell_volume`.
+    pub fn delta(ticks: &[Tick]) -> Decimal {
+        ticks.iter().map(|t| {
+            match t.side {
+                Side::Bid => t.quantity.value(),
+                Side::Ask => -t.quantity.value(),
+            }
+        }).sum()
+    }
+
     /// Returns the total bid-side (buy aggressor) volume from a slice of ticks.
     ///
     /// Useful for computing buy pressure and delta (buy volume − sell volume).
@@ -243,6 +256,11 @@ impl TickFilter {
     /// Returns `true` if a price range predicate has been set on this filter.
     pub fn has_price_filter(&self) -> bool {
         self.min_price.is_some() || self.max_price.is_some()
+    }
+
+    /// Returns `true` if a notional (min or max) predicate has been set on this filter.
+    pub fn has_notional_filter(&self) -> bool {
+        self.min_notional.is_some() || self.max_notional.is_some()
     }
 
     /// Returns `true` if no predicates are configured — the filter matches any tick.

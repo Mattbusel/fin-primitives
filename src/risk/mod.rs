@@ -115,9 +115,29 @@ impl DrawdownTracker {
         Some(net_profit_pct / self.worst_drawdown_pct)
     }
 
+    /// Returns the Calmar ratio: `annualized_return / worst_drawdown_pct`.
+    ///
+    /// Higher values indicate better risk-adjusted performance. Returns `None` when
+    /// `worst_drawdown_pct` is zero (no drawdown has occurred).
+    pub fn calmar_ratio(&self, annualized_return: Decimal) -> Option<Decimal> {
+        if self.worst_drawdown_pct.is_zero() {
+            return None;
+        }
+        Some(annualized_return / self.worst_drawdown_pct)
+    }
+
     /// Returns `true` if the current equity is strictly below the peak (i.e. in drawdown).
     pub fn in_drawdown(&self) -> bool {
         self.current_equity < self.peak_equity
+    }
+
+    /// Applies a sequence of equity values in order, as if each were an individual `update` call.
+    ///
+    /// Useful for batch processing historical equity curves without a manual loop.
+    pub fn update_with_returns(&mut self, equities: &[Decimal]) {
+        for &eq in equities {
+            self.update(eq);
+        }
     }
 
     /// Returns the number of consecutive updates where equity was below the peak.

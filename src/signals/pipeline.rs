@@ -196,6 +196,14 @@ impl SignalPipeline {
             signal.reset();
         }
     }
+
+    /// Updates all signals for every bar in `series`, returning one [`SignalMap`] per bar.
+    ///
+    /// The output vector has the same length as `series`. Useful for batch-processing
+    /// a historical series in one call before inspecting the final state.
+    pub fn update_series(&mut self, series: &crate::ohlcv::OhlcvSeries) -> Vec<SignalMap> {
+        series.bars().iter().map(|bar| self.update(bar)).collect()
+    }
 }
 
 impl Default for SignalPipeline {

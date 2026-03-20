@@ -336,6 +336,14 @@ impl PositionLedger {
         self.positions.keys()
     }
 
+    /// Returns an iterator over symbols that have a non-flat (open) position.
+    pub fn open_symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .map(|(s, _)| s)
+    }
+
     /// Returns a sorted `Vec` of all tracked symbols in lexicographic order.
     ///
     /// Useful when deterministic output ordering is required (e.g. reports, snapshots).
@@ -376,6 +384,16 @@ impl PositionLedger {
     /// Returns the number of non-flat (open) positions.
     pub fn open_position_count(&self) -> usize {
         self.positions.values().filter(|p| !p.is_flat()).count()
+    }
+
+    /// Returns the number of long (positive quantity) open positions.
+    pub fn long_count(&self) -> usize {
+        self.positions.values().filter(|p| p.quantity > Decimal::ZERO).count()
+    }
+
+    /// Returns the number of short (negative quantity) open positions.
+    pub fn short_count(&self) -> usize {
+        self.positions.values().filter(|p| p.quantity < Decimal::ZERO).count()
     }
 
     /// Returns the net signed quantity exposure across all positions.

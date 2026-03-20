@@ -209,6 +209,19 @@ impl Price {
         let rounded = (self.0 / tick_size).round() * tick_size;
         Price::new(rounded).ok()
     }
+
+    /// Clamps this price to the inclusive range `[lo, hi]`.
+    ///
+    /// Returns `lo` if `self < lo`, `hi` if `self > hi`, otherwise `self`.
+    pub fn clamp(self, lo: Price, hi: Price) -> Price {
+        if self.0 < lo.0 {
+            lo
+        } else if self.0 > hi.0 {
+            hi
+        } else {
+            self
+        }
+    }
 }
 
 impl Price {
@@ -460,6 +473,14 @@ impl NanoTimestamp {
     /// Positive when `self` is later than `other`, negative when earlier.
     pub fn duration_since(&self, other: NanoTimestamp) -> i64 {
         self.0 - other.0
+    }
+
+    /// Returns the signed millisecond difference `self - other`.
+    ///
+    /// Positive when `self` is later than `other`. Rounds toward zero (truncates
+    /// sub-millisecond nanoseconds).
+    pub fn diff_millis(&self, other: NanoTimestamp) -> i64 {
+        (self.0 - other.0) / 1_000_000
     }
 
     /// Returns `Some(nanos)` if `self >= other` (non-negative elapsed time), otherwise `None`.
@@ -1115,5 +1136,35 @@ mod tests {
         let t = NanoTimestamp::new(500);
         assert_eq!(t.min(t), t);
         assert_eq!(t.max(t), t);
+    }
+
+    #[test]
+    fn test_side_opposite_bid() {
+        assert_eq!(Side::Bid.opposite(), Side::Ask);
+    }
+
+    #[test]
+    fn test_side_opposite_ask() {
+        assert_eq!(Side::Ask.opposite(), Side::Bid);
+    }
+
+    #[test]
+    fn test_side_opposite_involution() {
+        assert_eq!(Side::Bid.opposite().opposite(), Side::Bid);
+    }
+
+    #[test]
+    fn test_price_checked_add_valid() {
+        let a = Price::new(dec!(100)).unwrap();
+        let b = Price::new(dec!(50)).unwrap();
+        assert_eq!(a.checked_add(b).unwrap().value(), dec!(150));
+    }
+
+    #[test]
+    fn test_price_checked_add_result_validated() {
+        // Sum of two valid prices is always positive → always Some
+        let a = Price::new(dec!(1)).unwrap();
+        let b = Price::new(dec!(2)).unwrap();
+        assert!(a.checked_add(b).is_some());
     }
 }
