@@ -52,16 +52,6 @@ impl PriceVelocityRatio {
         })
     }
 
-    fn true_range(bar: &BarInput, prev_close: Option<Decimal>) -> Decimal {
-        let hl = bar.range();
-        if let Some(pc) = prev_close {
-            let hc = (bar.high - pc).abs();
-            let lc = (bar.low - pc).abs();
-            hl.max(hc).max(lc)
-        } else {
-            hl
-        }
-    }
 }
 
 impl Signal for PriceVelocityRatio {
