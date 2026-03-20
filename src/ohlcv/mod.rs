@@ -5503,6 +5503,74 @@ impl OhlcvSeries {
         if low.is_zero() { return None; }
         Some((high - low) / low * Decimal::ONE_HUNDRED)
     }
+
+    /// Average signed `close − open` over the last `n` bars.
+    ///
+    /// Positive = net bullish body on average; negative = net bearish.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn avg_open_to_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        #[allow(clippy::cast_possible_truncation)]
+        let sum: Decimal = self.bars[start..].iter()
+            .map(|b| b.close.value() - b.open.value())
+            .sum();
+        Some(sum / Decimal::from(n as u32))
+    }
+
+    /// Change in H−L range: last-n average range minus prior-n average range.
+    ///
+    /// Positive = ranges are expanding; negative = contracting.
+    /// Returns `None` if `n == 0` or fewer than `2 * n` bars exist.
+    pub fn price_range_expansion(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < 2 * n { return None; }
+        let len = self.bars.len();
+        #[allow(clippy::cast_possible_truncation)]
+        let n_dec = Decimal::from(n as u32);
+        let recent_sum: Decimal = self.bars[len - n..].iter()
+            .map(|b| b.high.value() - b.low.value())
+            .sum();
+        let prior_sum: Decimal = self.bars[len - 2 * n..len - n].iter()
+            .map(|b| b.high.value() - b.low.value())
+            .sum();
+        Some((recent_sum - prior_sum) / n_dec)
+    }
+
+    /// Fraction of total volume contributed by up-bars (close > open) over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, or total volume is zero.
+    pub fn up_volume_fraction(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let mut up_vol = Decimal::ZERO;
+        let mut total_vol = Decimal::ZERO;
+        for bar in &self.bars[start..] {
+            let v = bar.volume.value();
+            total_vol += v;
+            if bar.close.value() > bar.open.value() {
+                up_vol += v;
+            }
+        }
+        if total_vol.is_zero() { return None; }
+        Some(up_vol / total_vol)
+    }
+
+    /// Sample standard deviation of volume over the last `n` bars.
+    ///
+    /// Returns `None` if `n < 2` or fewer than `n` bars exist.
+    pub fn std_volume(&self, n: usize) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        if n < 2 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let vols: Vec<f64> = self.bars[start..].iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        if vols.len() < 2 { return None; }
+        let nf = vols.len() as f64;
+        let mean = vols.iter().sum::<f64>() / nf;
+        let var = vols.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (nf - 1.0);
+        Some(var.sqrt())
+    }
 }
 
 #[cfg(test)]

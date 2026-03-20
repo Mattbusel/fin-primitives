@@ -142,6 +142,21 @@ impl SignalMap {
             .collect()
     }
 
+    /// Returns the sum of all scalar values strictly above `threshold`.
+    pub fn sum_above(&self, threshold: Decimal) -> Decimal {
+        self.scalars()
+            .filter(|(_, v)| *v > threshold)
+            .map(|(_, v)| v)
+            .sum()
+    }
+
+    /// Returns a sorted `Vec` of names of all signals that have a ready scalar value.
+    pub fn scalar_names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.scalars().map(|(name, _)| name).collect();
+        names.sort_unstable();
+        names
+    }
+
     /// Returns names of all signals whose scalar value is strictly below `threshold`.
     pub fn below_threshold(&self, threshold: Decimal) -> Vec<&str> {
         self.scalars()

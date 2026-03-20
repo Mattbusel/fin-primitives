@@ -806,6 +806,23 @@ impl NanoTimestamp {
         self.to_datetime().hour() as u8
     }
 
+    /// Returns the minute within the current UTC hour (0–59).
+    pub fn minute_of_hour(self) -> u8 {
+        use chrono::Timelike;
+        self.to_datetime().minute() as u8
+    }
+
+    /// Returns `true` if the UTC hour falls within `[open_hour, close_hour)`.
+    ///
+    /// Useful for checking whether a timestamp is within a trading session.
+    /// Both `open_hour` and `close_hour` must be in 0–23; if `open_hour >= close_hour` the
+    /// function returns `false`.
+    pub fn is_market_hours(self, open_hour: u8, close_hour: u8) -> bool {
+        if open_hour >= close_hour { return false; }
+        let h = self.hour_of_day();
+        h >= open_hour && h < close_hour
+    }
+
     /// Floors this timestamp to midnight UTC (start of the day).
     ///
     /// Truncates hours, minutes, seconds, and nanoseconds: returns `00:00:00.000000000`.

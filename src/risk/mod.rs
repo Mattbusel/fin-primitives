@@ -640,6 +640,19 @@ impl DrawdownTracker {
         self.flat_streak
     }
 
+    /// Total number of `update()` calls processed since construction or last `reset()`.
+    pub fn total_updates(&self) -> usize {
+        self.update_count
+    }
+
+    /// Percentage of all updates spent below peak equity (in drawdown).
+    ///
+    /// Returns `0.0` if no updates have been processed.
+    pub fn pct_time_in_drawdown(&self) -> f64 {
+        if self.update_count == 0 { return 0.0; }
+        self.drawdown_update_count as f64 / self.update_count as f64 * 100.0
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.

@@ -205,6 +205,26 @@ impl SignalValue {
         }
     }
 
+    /// Returns the smaller of `self` and `other`.  `Unavailable` loses to any `Scalar`.
+    pub fn min_with(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a.min(b)),
+            (s @ SignalValue::Scalar(_), SignalValue::Unavailable) => s,
+            (SignalValue::Unavailable, s @ SignalValue::Scalar(_)) => s,
+            (SignalValue::Unavailable, SignalValue::Unavailable) => SignalValue::Unavailable,
+        }
+    }
+
+    /// Returns the larger of `self` and `other`.  `Unavailable` loses to any `Scalar`.
+    pub fn max_with(self, other: SignalValue) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(a.max(b)),
+            (s @ SignalValue::Scalar(_), SignalValue::Unavailable) => s,
+            (SignalValue::Unavailable, s @ SignalValue::Scalar(_)) => s,
+            (SignalValue::Unavailable, SignalValue::Unavailable) => SignalValue::Unavailable,
+        }
+    }
+
     /// Returns the absolute value of the scalar: `Scalar(|x|)` or `Unavailable`.
     ///
     /// Useful when you only care about the magnitude of a signal (e.g. absolute momentum).
