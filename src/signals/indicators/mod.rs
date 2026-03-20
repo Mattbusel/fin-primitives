@@ -778,3 +778,5 @@ pub use wick_rejection_score::WickRejectionScore;
 pub use high_low_midpoint::HighLowMidpoint;
 pub mod close_above_high_prev;
 pub use close_above_high_prev::CloseAboveHighPrev;
+pub mod dual_atr_ratio;
+pub use dual_atr_ratio::DualATRRatio;
