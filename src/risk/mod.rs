@@ -653,6 +653,20 @@ impl DrawdownTracker {
         self.drawdown_update_count as f64 / self.update_count as f64 * 100.0
     }
 
+    /// Compound Annual Growth Rate (CAGR) of equity.
+    ///
+    /// `CAGR = (current / initial) ^ (periods_per_year / update_count) - 1`.
+    /// Returns `None` if `initial_equity` is zero or non-positive, or fewer than 2 updates.
+    pub fn equity_cagr(&self, periods_per_year: usize) -> Option<f64> {
+        if self.update_count < 2 || periods_per_year == 0 { return None; }
+        let init = self.initial_equity.to_f64()?;
+        if init <= 0.0 { return None; }
+        let curr = self.current_equity.to_f64()?;
+        if curr <= 0.0 { return None; }
+        let years = self.update_count as f64 / periods_per_year as f64;
+        Some((curr / init).powf(1.0 / years) - 1.0)
+    }
+
     /// Median of a slice of drawdown percentages.
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.

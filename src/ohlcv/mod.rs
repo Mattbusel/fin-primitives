@@ -5571,6 +5571,57 @@ impl OhlcvSeries {
         let var = vols.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (nf - 1.0);
         Some(var.sqrt())
     }
+
+    /// Longest consecutive run of bars with close < prev close across the entire series.
+    ///
+    /// Returns `0` if the series has fewer than 2 bars.
+    pub fn longest_losing_streak(&self) -> usize {
+        if self.bars.len() < 2 { return 0; }
+        let mut max_streak = 0usize;
+        let mut current = 0usize;
+        for i in 1..self.bars.len() {
+            if self.bars[i].close.value() < self.bars[i - 1].close.value() {
+                current += 1;
+                if current > max_streak { max_streak = current; }
+            } else {
+                current = 0;
+            }
+        }
+        max_streak
+    }
+
+    /// Maximum close price over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn recent_max_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        self.bars[start..].iter().map(|b| b.close.value()).max()
+    }
+
+    /// Minimum close price over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn recent_min_close(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        self.bars[start..].iter().map(|b| b.close.value()).min()
+    }
+
+    /// Net bullish/bearish bias over the last `n` bars.
+    ///
+    /// Returns `(bullish_count as i64) - (bearish_count as i64)` where
+    /// bullish = `close > open` and bearish = `close < open`.
+    /// Returns `None` if `n == 0` or fewer than `n` bars exist.
+    pub fn candle_body_trend(&self, n: usize) -> Option<i64> {
+        if n == 0 || self.bars.len() < n { return None; }
+        let start = self.bars.len() - n;
+        let bull = self.bars[start..].iter()
+            .filter(|b| b.close.value() > b.open.value()).count() as i64;
+        let bear = self.bars[start..].iter()
+            .filter(|b| b.close.value() < b.open.value()).count() as i64;
+        Some(bull - bear)
+    }
 }
 
 #[cfg(test)]

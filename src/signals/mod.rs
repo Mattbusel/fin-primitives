@@ -326,6 +326,14 @@ impl SignalValue {
         matches!(self, SignalValue::Scalar(d) if *d < Decimal::ZERO)
     }
 
+    /// Returns `default` if this is `Unavailable`; otherwise returns the scalar value.
+    pub fn if_unavailable(self, default: Decimal) -> Decimal {
+        match self {
+            SignalValue::Scalar(v) => v,
+            SignalValue::Unavailable => default,
+        }
+    }
+
     /// Returns `true` if the scalar value is strictly above `threshold`.
     ///
     /// `Unavailable` always returns `false`.

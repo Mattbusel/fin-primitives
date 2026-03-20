@@ -150,6 +150,16 @@ impl SignalMap {
             .sum()
     }
 
+    /// Returns the count of scalar values strictly above `threshold`.
+    pub fn count_above(&self, threshold: Decimal) -> usize {
+        self.scalars().filter(|(_, v)| *v > threshold).count()
+    }
+
+    /// Returns the count of scalar values strictly below `threshold`.
+    pub fn count_below(&self, threshold: Decimal) -> usize {
+        self.scalars().filter(|(_, v)| *v < threshold).count()
+    }
+
     /// Returns a sorted `Vec` of names of all signals that have a ready scalar value.
     pub fn scalar_names(&self) -> Vec<&str> {
         let mut names: Vec<&str> = self.scalars().map(|(name, _)| name).collect();

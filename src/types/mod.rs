@@ -866,6 +866,17 @@ impl NanoTimestamp {
         self.0 / 1_000_000
     }
 
+    /// Returns whole seconds since the Unix epoch (truncates sub-second precision).
+    pub fn to_unix_seconds(self) -> i64 {
+        self.0 / 1_000_000_000
+    }
+
+    /// Returns the second within the current UTC minute (0–59).
+    pub fn second_of_minute(self) -> u8 {
+        use chrono::Timelike;
+        self.to_datetime().second() as u8
+    }
+
     /// Returns the day of the week as `u8` where Monday = 0 and Sunday = 6.
     ///
     /// Computed from the Unix epoch (1970-01-01 was a Thursday = 3).

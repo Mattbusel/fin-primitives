@@ -1640,6 +1640,16 @@ impl PositionLedger {
         syms.sort_by(|a, b| a.as_str().cmp(b.as_str()));
         syms
     }
+
+    /// Returns the count of positions with strictly positive realized P&L.
+    pub fn count_profitable(&self) -> usize {
+        self.positions.values().filter(|p| p.realized_pnl > Decimal::ZERO).count()
+    }
+
+    /// Returns the count of positions with strictly negative realized P&L.
+    pub fn count_losing(&self) -> usize {
+        self.positions.values().filter(|p| p.realized_pnl < Decimal::ZERO).count()
+    }
 }
 
 #[cfg(test)]
