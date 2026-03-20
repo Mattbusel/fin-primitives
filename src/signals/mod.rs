@@ -62,6 +62,36 @@ impl BarInput {
     pub fn weighted_close(&self) -> Decimal {
         (self.high + self.low + self.close + self.close) / Decimal::from(4u32)
     }
+
+    /// Returns the midpoint of the bar: `(high + low) / 2`.
+    pub fn midpoint(&self) -> Decimal {
+        (self.high + self.low) / Decimal::from(2u32)
+    }
+
+    /// Returns the absolute body size: `|close - open|`.
+    pub fn body_size(&self) -> Decimal {
+        (self.close - self.open).abs()
+    }
+
+    /// Returns the upper wick length: `high - max(open, close)`.
+    pub fn upper_wick(&self) -> Decimal {
+        self.high - self.open.max(self.close)
+    }
+
+    /// Returns the lower wick length: `min(open, close) - low`.
+    pub fn lower_wick(&self) -> Decimal {
+        self.open.min(self.close) - self.low
+    }
+
+    /// Returns `true` if the bar closed higher than it opened (bullish candle).
+    pub fn is_bullish(&self) -> bool {
+        self.close > self.open
+    }
+
+    /// Returns `true` if the bar closed lower than it opened (bearish candle).
+    pub fn is_bearish(&self) -> bool {
+        self.close < self.open
+    }
 }
 
 impl From<&OhlcvBar> for BarInput {
