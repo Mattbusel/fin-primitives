@@ -147,6 +147,7 @@ pub mod price_envelope;
 pub mod connors_rsi;
 pub mod relative_volatility;
 pub mod stiffness;
+pub mod ttm_squeeze;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -292,3 +293,4 @@ pub use price_envelope::PriceEnvelope;
 pub use connors_rsi::ConnorsRsi;
 pub use relative_volatility::RelativeVolatility;
 pub use stiffness::Stiffness;
+pub use ttm_squeeze::TtmSqueeze;
