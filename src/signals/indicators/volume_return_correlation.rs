@@ -156,13 +156,23 @@ mod tests {
 
     #[test]
     fn test_vrc_positive_correlation() {
-        // Rising price with increasing volume → positive correlation
+        // Large returns paired with large volume, small returns with small volume → positive r
         let mut s = VolumeReturnCorrelation::new("vrc", 4).unwrap();
-        let bars = [("100",1000u64),("102",2000),("104",3000),("106",4000),("108",5000)];
+        // Prices: 100 → 101 (+1%, low vol) → 103 (+1.98%, medium vol)
+        //              → 100 (-2.9%, medium-low vol) → 106 (+6%, high vol)
+        //              → 107 (+0.94%, low vol)
+        // Instead: just use clearly correlated pairs
+        let bars = [
+            ("100", 500u64),  // base
+            ("101", 500),     // +1%, vol=500
+            ("103", 1000),    // +1.98%, vol=1000
+            ("107", 2000),    // +3.88%, vol=2000
+            ("115", 4000),    // +7.48%, vol=4000
+        ];
         let mut last = SignalValue::Unavailable;
         for &(c, v) in &bars { last = s.update_bar(&bar(c, v)).unwrap(); }
         if let SignalValue::Scalar(r) = last {
-            assert!(r > dec!(0), "rising price + rising vol → positive correlation: {r}");
+            assert!(r > dec!(0), "large returns with large volume → positive correlation: {r}");
         } else {
             panic!("expected Scalar");
         }

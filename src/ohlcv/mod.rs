@@ -2491,11 +2491,11 @@ impl OhlcvSeries {
         self.bars[start..]
             .iter()
             .map(|b| {
-                let range = b.high.value() - b.low.value();
+                let range = b.range();
                 if range.is_zero() {
                     None
                 } else {
-                    let body = (b.close.value() - b.open.value()).abs();
+                    let body = b.body_size();
                     Some(body / range * Decimal::ONE_HUNDRED)
                 }
             })
@@ -2567,7 +2567,7 @@ impl OhlcvSeries {
         let sum: Option<Decimal> = slice.iter().try_fold(Decimal::ZERO, |acc, b| {
             let o = b.open.value();
             if o.is_zero() { return None; }
-            Some(acc + (b.high.value() - b.low.value()) / o * Decimal::ONE_HUNDRED)
+            Some(acc + (b.range()) / o * Decimal::ONE_HUNDRED)
         });
         #[allow(clippy::cast_possible_truncation)]
         Some(sum? / Decimal::from(count as u32))
@@ -2679,7 +2679,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..].iter().map(|b| b.high.value() - b.low.value()).sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.range()).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -2938,9 +2938,9 @@ impl OhlcvSeries {
         let mut sum = 0.0f64;
         let mut count = 0usize;
         for b in &self.bars[start..] {
-            let body = (b.close.value() - b.open.value()).abs().to_f64()?;
+            let body = b.body_size().to_f64()?;
             if body == 0.0 { continue; }
-            let range = (b.high.value() - b.low.value()).to_f64()?;
+            let range = (b.range()).to_f64()?;
             let wick = (range - body).max(0.0);
             sum += wick / body;
             count += 1;
@@ -2990,7 +2990,7 @@ impl OhlcvSeries {
         for b in &self.bars[start..] {
             let c = b.close.value();
             if c.is_zero() { continue; }
-            sum += (b.high.value() - b.low.value()) / c * Decimal::ONE_HUNDRED;
+            sum += (b.range()) / c * Decimal::ONE_HUNDRED;
             count += 1;
         }
         if count == 0 { return None; }
@@ -3656,7 +3656,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..]
             .iter()
-            .map(|b| (b.close.value() - b.open.value()).abs())
+            .map(|b| b.body_size())
             .sum();
         Some(sum / Decimal::from(n as u32))
     }
@@ -3830,7 +3830,7 @@ impl OhlcvSeries {
         let sum: Decimal = self.bars[start..]
             .iter()
             .map(|b| {
-                let range = b.high.value() - b.low.value();
+                let range = b.range();
                 if range.is_zero() {
                     Decimal::ZERO
                 } else {
@@ -4010,7 +4010,7 @@ impl OhlcvSeries {
         for b in &self.bars[start..] {
             let tp = (b.high.value() + b.low.value() + b.close.value()) / three;
             if tp.is_zero() { continue; }
-            sum += (b.high.value() - b.low.value()) / tp * hundred;
+            sum += (b.range()) / tp * hundred;
             count += 1;
         }
         if count == 0 { return None; }
@@ -4115,7 +4115,7 @@ impl OhlcvSeries {
         let count = self.bars[start..]
             .iter()
             .filter(|b| {
-                let range = (b.high.value() - b.low.value()).to_f64().unwrap_or(0.0);
+                let range = (b.range()).to_f64().unwrap_or(0.0);
                 if range == 0.0 {
                     return true; // zero-range bar is a perfect doji
                 }
@@ -4350,7 +4350,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let avg_range: f64 = self.bars[start..]
             .iter()
-            .map(|b| (b.high.value() - b.low.value()).to_f64().unwrap_or(0.0))
+            .map(|b| (b.range()).to_f64().unwrap_or(0.0))
             .sum::<f64>()
             / n as f64;
         if avg_range == 0.0 {
@@ -4462,7 +4462,7 @@ impl OhlcvSeries {
             let start = self.bars.len() - n;
             let trs: Decimal = self.bars[start..].iter().enumerate().map(|(i, b)| {
                 let prev = if i == 0 { &self.bars[start - 1] } else { &self.bars[start + i - 1] };
-                let hl = b.high.value() - b.low.value();
+                let hl = b.range();
                 let hpc = (b.high.value() - prev.close.value()).abs();
                 let lpc = (b.low.value() - prev.close.value()).abs();
                 hl.max(hpc).max(lpc)
@@ -4507,9 +4507,9 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
-            let body = (b.close.value() - b.open.value()).abs();
+            let body = b.body_size();
             sum += body
                 .checked_div(range)
                 .unwrap_or(Decimal::ZERO);
@@ -4546,7 +4546,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let max_range = self.bars[start..]
             .iter()
-            .map(|b| b.high.value() - b.low.value())
+            .map(|b| b.range())
             .max()?;
         if max_range.is_zero() {
             return None;
@@ -4773,7 +4773,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { return None; }
             let upper_wick = b.high.value() - b.close.value().max(b.open.value());
             let lower_wick = b.close.value().min(b.open.value()) - b.low.value();
@@ -4909,8 +4909,8 @@ impl OhlcvSeries {
         let threshold = rust_decimal_macros::dec!(0.1);
         let mut doji_count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
-            let body = (b.close.value() - b.open.value()).abs();
+            let range = b.range();
+            let body = b.body_size();
             if range.is_zero() || body / range < threshold {
                 doji_count += 1;
             }
@@ -4930,7 +4930,7 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { return None; }
             sum += (b.close.value() - b.low.value()) / range * Decimal::from(100u32);
         }
@@ -4963,9 +4963,9 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { return None; }
-            sum += (b.close.value() - b.open.value()).abs() / range;
+            sum += b.body_size() / range;
         }
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
@@ -5580,10 +5580,10 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         let n_dec = Decimal::from(n as u32);
         let recent_sum: Decimal = self.bars[len - n..].iter()
-            .map(|b| b.high.value() - b.low.value())
+            .map(|b| b.range())
             .sum();
         let prior_sum: Decimal = self.bars[len - 2 * n..len - n].iter()
-            .map(|b| b.high.value() - b.low.value())
+            .map(|b| b.range())
             .sum();
         Some((recent_sum - prior_sum) / n_dec)
     }
@@ -5702,9 +5702,9 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let doji_count = self.bars[start..].iter().filter(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { return true; }
-            let body = (b.close.value() - b.open.value()).abs();
+            let body = b.body_size();
             body / range <= Decimal::new(1, 1)
         }).count() as u32;
         Some(Decimal::from(doji_count) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
@@ -5761,7 +5761,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let avg_range = self.bars[start..].iter()
-            .map(|b| b.high.value() - b.low.value())
+            .map(|b| b.range())
             .sum::<Decimal>() / Decimal::from(n);
         if avg_range.is_zero() { return None; }
         let last = self.bars.last()?;
@@ -5892,7 +5892,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             sum += (b.high.value() - b.close.value()) / range;
             count += 1;
@@ -5909,7 +5909,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             sum += (b.close.value() - b.low.value()) / range;
             count += 1;
@@ -5942,7 +5942,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             let body_top = b.open.value().max(b.close.value());
             let upper_wick = b.high.value() - body_top;
@@ -5963,7 +5963,7 @@ impl OhlcvSeries {
         let mut lower_sum = Decimal::ZERO;
         let mut range_sum = Decimal::ZERO;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             let body_top = b.open.value().max(b.close.value());
             let body_bot = b.open.value().min(b.close.value());
@@ -5981,7 +5981,7 @@ impl OhlcvSeries {
     pub fn avg_candle_size(&self, n: usize) -> Option<Decimal> {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
-        Some(self.bars[start..].iter().map(|b| b.high.value() - b.low.value()).sum::<Decimal>()
+        Some(self.bars[start..].iter().map(|b| b.range()).sum::<Decimal>()
             / Decimal::from(n))
     }
 
@@ -5995,7 +5995,7 @@ impl OhlcvSeries {
         let mut count = 0u32;
         for b in &self.bars[start..] {
             if b.close.value() <= b.open.value() { continue; }
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             sum += (b.close.value() - b.open.value()) / range;
             count += 1;
@@ -6011,7 +6011,7 @@ impl OhlcvSeries {
         let mut count = 0u32;
         for b in &self.bars[start..] {
             if b.close.value() >= b.open.value() { continue; }
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             sum += (b.open.value() - b.close.value()) / range;
             count += 1;
@@ -6079,7 +6079,7 @@ impl OhlcvSeries {
         for b in &self.bars[start..] {
             let close = b.close.value();
             if close.is_zero() { return None; }
-            sum += (b.high.value() - b.low.value()) / close * Decimal::ONE_HUNDRED;
+            sum += (b.range()) / close * Decimal::ONE_HUNDRED;
         }
         Some(sum / Decimal::from(n))
     }
@@ -6233,7 +6233,7 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { continue; }
             sum += b.volume.value() / range;
             count += 1;
@@ -6318,7 +6318,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let vals: Vec<f64> = self.bars[start..].iter().filter_map(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { return None; }
             let num = (b.open.value() - b.low.value()).to_f64()?;
             let den = range.to_f64()?;
@@ -7040,7 +7040,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..].iter()
-            .map(|b| (b.close.value() - b.open.value()).abs())
+            .map(|b| b.body_size())
             .sum();
         sum.checked_div(Decimal::from(n as u32))
     }
@@ -7202,7 +7202,7 @@ impl OhlcvSeries {
         let n_d = Decimal::from(n as u32);
         let avg_atr = atr / n_d;
         let avg_body: Decimal = slice[1..].iter()
-            .map(|b| (b.close.value() - b.open.value()).abs())
+            .map(|b| b.body_size())
             .sum::<Decimal>() / n_d;
         avg_body.checked_div(avg_atr)
     }
@@ -7362,9 +7362,9 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let slice = &self.bars[self.bars.len() - n..];
         let (sum, count) = slice.iter().fold((Decimal::ZERO, 0u32), |(s, c), b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { (s, c) }
-            else { (s + (b.close.value() - b.open.value()).abs() / range, c + 1) }
+            else { (s + b.body_size() / range, c + 1) }
         });
         if count == 0 { return None; }
         sum.checked_div(Decimal::from(count))
@@ -7376,7 +7376,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { Decimal::ZERO }
             else {
                 let body_hi = b.close.value().max(b.open.value());
@@ -7392,7 +7392,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { Decimal::ZERO }
             else {
                 let body_lo = b.close.value().min(b.open.value());
@@ -7425,7 +7425,7 @@ impl OhlcvSeries {
         let bars = &self.bars[self.bars.len() - n..];
         let half = Decimal::new(5, 1);
         let sum: Decimal = bars.iter().map(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { half }
             else { (b.close.value() - b.low.value()) / range }
         }).sum();
@@ -7438,7 +7438,7 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n { return None; }
         let bars = &self.bars[self.bars.len() - n..];
         let sum: Decimal = bars.iter().map(|b| {
-            let range = b.high.value() - b.low.value();
+            let range = b.range();
             if range.is_zero() { Decimal::ZERO }
             else {
                 let body_hi = b.close.value().max(b.open.value());
@@ -7458,7 +7458,7 @@ impl OhlcvSeries {
         let bars = &self.bars[self.bars.len() - n..];
         let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
             if b.close.value().is_zero() { None }
-            else { Some((b.high.value() - b.low.value()) / b.close.value()) }
+            else { Some((b.range()) / b.close.value()) }
         }).collect();
         if vals.is_empty() { return None; }
         let sum: Decimal = vals.iter().sum();
