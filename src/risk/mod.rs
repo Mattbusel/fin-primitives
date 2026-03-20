@@ -38,6 +38,18 @@ pub struct DrawdownTracker {
     /// Number of times a new equity peak has been set.
     #[serde(default)]
     peak_count: usize,
+    /// Previous equity value (for computing per-update changes).
+    #[serde(default)]
+    prev_equity: Decimal,
+    /// Welford running mean of per-update equity changes.
+    #[serde(default)]
+    equity_change_mean: f64,
+    /// Welford running M2 (sum of squared deviations) for sample variance.
+    #[serde(default)]
+    equity_change_m2: f64,
+    /// Count of equity changes recorded (= update_count after first update).
+    #[serde(default)]
+    equity_change_count: usize,
 }
 
 impl DrawdownTracker {
@@ -54,11 +66,31 @@ impl DrawdownTracker {
             max_drawdown_streak: 0,
             gain_streak: 0,
             peak_count: 0,
+            prev_equity: initial_equity,
+            equity_change_mean: 0.0,
+            equity_change_m2: 0.0,
+            equity_change_count: 0,
         }
     }
 
     /// Updates the tracker with the latest equity value, updating the peak if higher.
     pub fn update(&mut self, equity: Decimal) {
+        // Welford online variance update for equity changes
+        if self.update_count > 0 {
+            if let (Some(prev), Some(curr)) = (
+                self.prev_equity.to_f64(),
+                equity.to_f64(),
+            ) {
+                let delta = curr - prev;
+                self.equity_change_count += 1;
+                let n = self.equity_change_count as f64;
+                let old_mean = self.equity_change_mean;
+                self.equity_change_mean += (delta - old_mean) / n;
+                self.equity_change_m2 += (delta - old_mean) * (delta - self.equity_change_mean);
+            }
+        }
+        self.prev_equity = equity;
+
         self.update_count += 1;
         if equity > self.current_equity {
             self.gain_streak += 1;
