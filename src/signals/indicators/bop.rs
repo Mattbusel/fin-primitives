@@ -203,7 +203,8 @@ mod tests {
 
     #[test]
     fn test_bop_reset_clears_state() {
-        let mut bop = Bop::new("bop1", 1).unwrap();
+        let mut bop = Bop::new("bop2", 2).unwrap();
+        bop.update_bar(&ohlc("10", "20", "8", "18")).unwrap();
         bop.update_bar(&ohlc("10", "20", "8", "18")).unwrap();
         assert!(bop.is_ready());
         bop.reset();

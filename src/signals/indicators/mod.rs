@@ -80,6 +80,9 @@ pub mod rsx;
 pub mod mcginley;
 pub mod vhf;
 pub mod chaikin_osc;
+pub mod bop;
+pub mod atrp;
+pub mod kst;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -158,3 +161,6 @@ pub use rsx::Rsx;
 pub use mcginley::McGinley;
 pub use vhf::Vhf;
 pub use chaikin_osc::ChaikinOsc;
+pub use bop::Bop;
+pub use atrp::Atrp;
+pub use kst::Kst;
