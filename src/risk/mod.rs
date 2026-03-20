@@ -1680,10 +1680,10 @@ impl DrawdownTracker {
 
     /// Ratio of cumulative gains to cumulative losses: `total_gain_sum / total_loss_sum`.
     ///
-    /// Returns `None` if no losses have occurred (total_loss_sum == 0).
+    /// Alias for [`gain_to_loss_ratio`](Self::gain_to_loss_ratio).
+    #[deprecated(since = "2.1.0", note = "Use `gain_to_loss_ratio` instead")]
     pub fn gain_loss_ratio(&self) -> Option<f64> {
-        if self.total_loss_sum == 0.0 { return None; }
-        Some(self.total_gain_sum / self.total_loss_sum)
+        self.gain_to_loss_ratio()
     }
 
     /// Recovery efficiency: `completed_recoveries / drawdown_count`.
@@ -1715,11 +1715,11 @@ impl DrawdownTracker {
     }
 
     /// Sample standard deviation of per-update equity changes (Welford online algorithm).
-    /// Returns `None` if fewer than 2 updates have been recorded.
+    ///
+    /// Alias for [`equity_change_std_dev`](Self::equity_change_std_dev).
+    #[deprecated(since = "2.1.0", note = "Use `equity_change_std_dev` instead")]
     pub fn equity_change_std(&self) -> Option<f64> {
-        if self.equity_change_count < 2 { return None; }
-        let variance = self.equity_change_m2 / (self.equity_change_count as f64 - 1.0);
-        Some(variance.sqrt())
+        self.equity_change_std_dev()
     }
 
     /// Average loss per loss-update (absolute value). Returns `None` if no losses have been
