@@ -1701,4 +1701,32 @@ mod tests {
         assert!(p.round_to_tick(dec!(0)).is_none());
         assert!(p.round_to_tick(dec!(-1)).is_none());
     }
+
+    #[test]
+    fn test_nanotimestamp_day_of_week_epoch_is_thursday() {
+        // Unix epoch (1970-01-01) was Thursday = 3
+        let ts = NanoTimestamp::new(0);
+        assert_eq!(ts.day_of_week(), 3);
+    }
+
+    #[test]
+    fn test_nanotimestamp_day_of_week_next_day() {
+        // 1970-01-02 was Friday = 4
+        let ts = NanoTimestamp::new(86_400 * 1_000_000_000);
+        assert_eq!(ts.day_of_week(), 4);
+    }
+
+    #[test]
+    fn test_nanotimestamp_sub_minutes_round_trip() {
+        let ts = NanoTimestamp::new(3_600_000_000_000); // 1 hour
+        let back = ts.sub_minutes(30);
+        let forward = back.add_minutes(30);
+        assert_eq!(forward.nanos(), ts.nanos());
+    }
+
+    #[test]
+    fn test_nanotimestamp_sub_minutes_by_zero() {
+        let ts = NanoTimestamp::new(1_000_000_000);
+        assert_eq!(ts.sub_minutes(0).nanos(), ts.nanos());
+    }
 }

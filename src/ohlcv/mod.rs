@@ -4998,4 +4998,63 @@ mod tests {
         let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
         assert!(series.avg_body_size(0).is_none());
     }
+
+    #[test]
+    fn test_true_range_series_flat() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        let trs = series.true_range_series(3).unwrap();
+        assert_eq!(trs.len(), 3);
+        // All flat bars → true range = 0
+        for tr in trs {
+            assert_eq!(tr, dec!(0));
+        }
+    }
+
+    #[test]
+    fn test_true_range_series_none_when_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.true_range_series(0).is_none());
+        assert!(series.true_range_series(2).is_none());
+    }
+
+    #[test]
+    fn test_intraday_return_pct_positive() {
+        // bar() uses same price for open and close, so use custom bars
+        let make_bar = |o: &str, c: &str| {
+            let op = Price::new(o.parse::<rust_decimal::Decimal>().unwrap()).unwrap();
+            let cl = Price::new(c.parse::<rust_decimal::Decimal>().unwrap()).unwrap();
+            OhlcvBar {
+                symbol: Symbol::new("X").unwrap(),
+                open: op, high: cl, low: op, close: cl,
+                volume: Quantity::zero(),
+                ts_open: NanoTimestamp::new(0),
+                ts_close: NanoTimestamp::new(1),
+                tick_count: 1,
+            }
+        };
+        let series = OhlcvSeries::from_bars(vec![make_bar("100", "110")]).unwrap();
+        // (110 - 100) / 100 * 100 = 10%
+        assert_eq!(series.intraday_return_pct().unwrap(), dec!(10));
+    }
+
+    #[test]
+    fn test_intraday_return_pct_empty() {
+        assert!(OhlcvSeries::new().intraday_return_pct().is_none());
+    }
+
+    #[test]
+    fn test_bearish_bar_count_all_flat() {
+        let bars = vec![bar("100"), bar("100"), bar("100")];
+        let series = OhlcvSeries::from_bars(bars).unwrap();
+        // flat bars (open == close) are not bearish
+        assert_eq!(series.bearish_bar_count(3).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_bearish_bar_count_none_insufficient() {
+        let series = OhlcvSeries::from_bars(vec![bar("100")]).unwrap();
+        assert!(series.bearish_bar_count(0).is_none());
+        assert!(series.bearish_bar_count(2).is_none());
+    }
 }

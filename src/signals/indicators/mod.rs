@@ -88,6 +88,7 @@ pub mod psychological_line;
 pub mod linreg_slope;
 pub mod kaufman_er;
 pub mod zscore;
+pub mod pmo;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -174,3 +175,4 @@ pub use psychological_line::PsychologicalLine;
 pub use linreg_slope::LinRegSlope;
 pub use kaufman_er::KaufmanEr;
 pub use zscore::Zscore;
+pub use pmo::Pmo;
