@@ -54,6 +54,16 @@ impl Tick {
     pub fn notional(&self) -> Decimal {
         self.price.value() * self.quantity.value()
     }
+
+    /// Returns `true` if this tick represents an aggressive buy (bid-side aggressor).
+    pub fn is_buy_aggressor(&self) -> bool {
+        self.side == Side::Bid
+    }
+
+    /// Returns `true` if this tick represents an aggressive sell (ask-side aggressor).
+    pub fn is_sell_aggressor(&self) -> bool {
+        self.side == Side::Ask
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.

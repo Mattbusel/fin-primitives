@@ -112,6 +112,11 @@ impl OhlcvBar {
         Ok(())
     }
 
+    /// Converts this bar to a [`crate::signals::BarInput`] for signal computation.
+    pub fn to_bar_input(&self) -> crate::signals::BarInput {
+        crate::signals::BarInput::from(self)
+    }
+
     /// Returns the typical price: `(high + low + close) / 3`.
     pub fn typical_price(&self) -> Decimal {
         (self.high.value() + self.low.value() + self.close.value()) / Decimal::from(3u32)
@@ -148,9 +153,56 @@ impl OhlcvBar {
         self.tick_count == 0
     }
 
+    /// Returns `true` if this bar is an inside bar relative to `prev`.
+    ///
+    /// An inside bar is fully contained within the previous bar's range:
+    /// `self.high < prev.high && self.low > prev.low`. Commonly used in price
+    /// action analysis to identify consolidation before a potential breakout.
+    pub fn is_inside_bar(&self, prev: &OhlcvBar) -> bool {
+        self.high.value() < prev.high.value() && self.low.value() > prev.low.value()
+    }
+
     /// Returns `true` if `close >= open`.
     pub fn is_bullish(&self) -> bool {
         self.close.value() >= self.open.value()
+    }
+
+    /// Returns `true` if `close < open`.
+    pub fn is_bearish(&self) -> bool {
+        self.close.value() < self.open.value()
+    }
+
+    /// Returns `true` if the bar has a hammer candlestick shape.
+    ///
+    /// Criteria: lower shadow ≥ 2 × body size, upper shadow ≤ body size, non-zero body.
+    pub fn is_hammer(&self) -> bool {
+        let body = self.body_size();
+        if body.is_zero() {
+            return false;
+        }
+        self.lower_shadow() >= body * Decimal::TWO && self.upper_shadow() <= body
+    }
+
+    /// Returns `true` if the bar has a shooting star candlestick shape.
+    ///
+    /// Criteria: upper shadow ≥ 2 × body size, lower shadow ≤ body size, non-zero body.
+    pub fn is_shooting_star(&self) -> bool {
+        let body = self.body_size();
+        if body.is_zero() {
+            return false;
+        }
+        self.upper_shadow() >= body * Decimal::TWO && self.lower_shadow() <= body
+    }
+
+    /// Returns the open-to-close return as a percentage: `(close - open) / open * 100`.
+    ///
+    /// Returns `None` when `open` is zero.
+    pub fn bar_return(&self) -> Option<Decimal> {
+        let o = self.open.value();
+        if o.is_zero() {
+            return None;
+        }
+        Some((self.close.value() - o) / o * Decimal::ONE_HUNDRED)
     }
 
     /// Returns the midpoint price: `(high + low) / 2` (HL2).
@@ -223,6 +275,36 @@ impl OhlcvBar {
             ts_close: tick.timestamp,
             tick_count: 1,
         }
+    }
+
+    /// Merges `other` into `self`, producing a combined bar spanning both time ranges.
+    ///
+    /// - `open` comes from `self` (the earlier bar)
+    /// - `close` comes from `other` (the later bar)
+    /// - `high` / `low` are the extremes across both bars
+    /// - `volume` and `tick_count` are summed
+    /// - `ts_open` from `self`, `ts_close` from `other`
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] if the merged bar fails invariant checks (should not
+    /// occur for well-formed inputs but is checked defensively).
+    pub fn merge(&self, other: &OhlcvBar) -> Result<OhlcvBar, FinError> {
+        let high = self.high.value().max(other.high.value());
+        let low = self.low.value().min(other.low.value());
+        let volume_sum = self.volume.value() + other.volume.value();
+        let bar = OhlcvBar {
+            symbol: self.symbol.clone(),
+            open: self.open,
+            high: Price::new(high)?,
+            low: Price::new(low)?,
+            close: other.close,
+            volume: Quantity::new(volume_sum)?,
+            ts_open: self.ts_open,
+            ts_close: other.ts_close,
+            tick_count: self.tick_count + other.tick_count,
+        };
+        bar.validate()?;
+        Ok(bar)
     }
 }
 
@@ -549,6 +631,22 @@ impl OhlcvSeries {
         self.bars.iter().map(|b| b.low.value()).reduce(Decimal::min)
     }
 
+    /// Returns the highest high price among the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, considers all bars.
+    pub fn highest_high(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.high.value()).reduce(Decimal::max)
+    }
+
+    /// Returns the lowest low price among the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, considers all bars.
+    pub fn lowest_low(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.low.value()).reduce(Decimal::min)
+    }
+
     /// Returns a sub-slice `bars[from..to]`, or `None` if the range is out of bounds.
     pub fn slice(&self, from: usize, to: usize) -> Option<&[OhlcvBar]> {
         if from > to || to > self.bars.len() {
@@ -580,6 +678,17 @@ impl OhlcvSeries {
         Ok(())
     }
 
+    /// Appends all bars from `other` into this series, validating each one.
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] if any bar from `other` fails validation.
+    pub fn extend_from_series(&mut self, other: &OhlcvSeries) -> Result<(), FinError> {
+        for bar in &other.bars {
+            self.push(bar.clone())?;
+        }
+        Ok(())
+    }
+
     /// Converts the series into a `Vec<BarInput>` for batch signal processing.
     ///
     /// Allows feeding an entire historical series into indicators without manually
@@ -605,6 +714,87 @@ impl OhlcvSeries {
     ) -> Result<Vec<crate::signals::SignalValue>, FinError> {
         self.bars.iter().map(|b| signal.update_bar(b)).collect()
     }
+
+    /// Returns close-to-close percentage returns: `(close[i] - close[i-1]) / close[i-1]`.
+    ///
+    /// Returns an empty `Vec` when the series has fewer than 2 bars.
+    /// Skips any bar where `close[i-1]` is zero to avoid division by zero.
+    pub fn returns(&self) -> Vec<Decimal> {
+        if self.bars.len() < 2 {
+            return Vec::new();
+        }
+        self.bars
+            .windows(2)
+            .filter_map(|w| {
+                let prev = w[0].close.value();
+                if prev.is_zero() {
+                    return None;
+                }
+                Some((w[1].close.value() - prev) / prev)
+            })
+            .collect()
+    }
+
+    /// Returns the volume-weighted average price (VWAP) across all bars in the series.
+    ///
+    /// Computed as `Σ(typical_price * volume) / Σ(volume)`.
+    /// Returns `None` when the series is empty or total volume is zero.
+    pub fn vwap(&self) -> Option<Decimal> {
+        let total_volume: Decimal = self.bars.iter().map(|b| b.volume.value()).sum();
+        if total_volume.is_zero() {
+            return None;
+        }
+        let weighted: Decimal = self
+            .bars
+            .iter()
+            .map(|b| b.typical_price() * b.volume.value())
+            .sum();
+        Some(weighted / total_volume)
+    }
+
+    /// Returns the highest close price among the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, considers all bars.
+    pub fn highest_close(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::max)
+    }
+
+    /// Returns the lowest close price among the last `n` bars, or `None` if empty.
+    ///
+    /// If `n > self.len()`, considers all bars.
+    pub fn lowest_close(&self, n: usize) -> Option<Decimal> {
+        let start = self.bars.len().saturating_sub(n);
+        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::min)
+    }
+
+    /// Computes Pearson correlation between this series' close prices and `other`'s.
+    ///
+    /// Uses only the overlapping suffix: `min(self.len(), other.len())` bars from the end.
+    /// Returns `None` when fewer than 2 overlapping bars exist or standard deviation is zero.
+    pub fn correlation(&self, other: &OhlcvSeries) -> Option<Decimal> {
+        let n = self.bars.len().min(other.bars.len());
+        if n < 2 {
+            return None;
+        }
+        let xs: Vec<Decimal> = self.bars[self.bars.len() - n..].iter().map(|b| b.close.value()).collect();
+        let ys: Vec<Decimal> = other.bars[other.bars.len() - n..].iter().map(|b| b.close.value()).collect();
+        let n_dec = Decimal::from(n);
+        let mean_x: Decimal = xs.iter().copied().sum::<Decimal>() / n_dec;
+        let mean_y: Decimal = ys.iter().copied().sum::<Decimal>() / n_dec;
+        let cov: Decimal = xs.iter().zip(ys.iter())
+            .map(|(x, y)| (*x - mean_x) * (*y - mean_y))
+            .sum::<Decimal>() / n_dec;
+        let var_x: Decimal = xs.iter().map(|x| (*x - mean_x) * (*x - mean_x)).sum::<Decimal>() / n_dec;
+        let var_y: Decimal = ys.iter().map(|y| (*y - mean_y) * (*y - mean_y)).sum::<Decimal>() / n_dec;
+        if var_x.is_zero() || var_y.is_zero() {
+            return None;
+        }
+        // sqrt via Newton-Raphson (same approach as BollingerB)
+        let std_x = decimal_sqrt(var_x).ok()?;
+        let std_y = decimal_sqrt(var_y).ok()?;
+        Some(cov / (std_x * std_y))
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -620,6 +810,25 @@ impl<'a> IntoIterator for &'a OhlcvSeries {
     fn into_iter(self) -> Self::IntoIter {
         self.bars.iter()
     }
+}
+
+fn decimal_sqrt(n: Decimal) -> Result<Decimal, FinError> {
+    if n.is_zero() {
+        return Ok(Decimal::ZERO);
+    }
+    if n.is_sign_negative() {
+        return Err(FinError::ArithmeticOverflow);
+    }
+    let mut x = n;
+    for _ in 0..20 {
+        let next = (x + n / x) / Decimal::TWO;
+        let diff = if next > x { next - x } else { x - next };
+        x = next;
+        if diff < Decimal::new(1, 10) {
+            break;
+        }
+    }
+    Ok(x)
 }
 
 #[cfg(test)]
@@ -1114,5 +1323,16 @@ mod tests {
         let result = series.extend([valid, invalid]);
         assert!(result.is_err());
         assert_eq!(series.len(), 1, "valid bar added before error");
+    }
+
+    #[test]
+    fn test_ohlcv_bar_to_bar_input_fields_match() {
+        let bar = make_bar("100", "110", "90", "105");
+        let input = bar.to_bar_input();
+        assert_eq!(input.open, bar.open.value());
+        assert_eq!(input.high, bar.high.value());
+        assert_eq!(input.low, bar.low.value());
+        assert_eq!(input.close, bar.close.value());
+        assert_eq!(input.volume, bar.volume.value());
     }
 }

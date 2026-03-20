@@ -288,6 +288,14 @@ impl OrderBook {
         self.asks.len()
     }
 
+    /// Returns the number of price levels on the given `side`.
+    pub fn level_count(&self, side: Side) -> usize {
+        match side {
+            Side::Bid => self.bids.len(),
+            Side::Ask => self.asks.len(),
+        }
+    }
+
     /// Removes all price levels from both sides of the book, resetting sequence to 0.
     pub fn clear(&mut self) {
         self.bids.clear();
@@ -365,6 +373,33 @@ impl OrderBook {
             return None;
         }
         Some((bid_vol - ask_vol) / total)
+    }
+
+    /// Returns the depth ratio `top_n_bid_vol / top_n_ask_vol` for the best `n` levels.
+    ///
+    /// A ratio > 1 indicates more buying pressure at the top of book; < 1 more selling pressure.
+    /// Returns `None` when either side has no levels in the top-`n` or ask volume is zero.
+    pub fn depth_ratio(&self, n: usize) -> Option<Decimal> {
+        let bid_vol: Decimal = self.bids.values().rev().take(n).copied().sum();
+        let ask_vol: Decimal = self.asks.values().take(n).copied().sum();
+        if ask_vol.is_zero() {
+            return None;
+        }
+        Some(bid_vol / ask_vol)
+    }
+
+    /// Returns the weighted mid price: `(best_bid * ask_qty + best_ask * bid_qty) / (bid_qty + ask_qty)`.
+    ///
+    /// Weights the midpoint by the opposite side's quantity, so a thick ask pulls the WMP toward bid.
+    /// Returns `None` when either side is empty.
+    pub fn weighted_mid_price(&self) -> Option<Decimal> {
+        let (bid_p, bid_q) = self.bids.iter().next_back()?;
+        let (ask_p, ask_q) = self.asks.iter().next()?;
+        let total_q = bid_q + ask_q;
+        if total_q.is_zero() {
+            return None;
+        }
+        Some((*bid_p * *ask_q + *ask_p * *bid_q) / total_q)
     }
 }
 
@@ -853,5 +888,22 @@ mod tests {
         .unwrap();
         let price = Price::new(dec!(100)).unwrap();
         assert!(!book.has_price(Side::Bid, price));
+    }
+
+    #[test]
+    fn test_orderbook_level_count_bids() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "10", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "5", 2)).unwrap();
+        assert_eq!(book.level_count(Side::Bid), 2);
+        assert_eq!(book.level_count(Side::Ask), 0);
+    }
+
+    #[test]
+    fn test_orderbook_level_count_asks() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "3", 1)).unwrap();
+        assert_eq!(book.level_count(Side::Ask), 1);
+        assert_eq!(book.level_count(Side::Bid), 0);
     }
 }

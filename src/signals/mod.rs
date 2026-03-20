@@ -49,6 +49,11 @@ impl BarInput {
     pub fn from_close(close: Decimal) -> Self {
         Self { close, high: close, low: close, open: close, volume: Decimal::ZERO }
     }
+
+    /// Returns the typical price of this bar: `(high + low + close) / 3`.
+    pub fn typical_price(&self) -> Decimal {
+        (self.high + self.low + self.close) / Decimal::from(3u32)
+    }
 }
 
 impl From<&OhlcvBar> for BarInput {
@@ -101,6 +106,32 @@ impl SignalValue {
         }
     }
 
+    /// Combine two `SignalValue`s with `f`, returning `Unavailable` if either is unavailable.
+    ///
+    /// Mirrors `Option::zip` combined with `map`. Useful for computing derived values
+    /// that require two ready signals (e.g. a spread = signal_a - signal_b).
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::signals::SignalValue;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let a = SignalValue::Scalar(dec!(10));
+    /// let b = SignalValue::Scalar(dec!(3));
+    /// let diff = a.zip_with(b, |x, y| x - y);
+    /// assert_eq!(diff, SignalValue::Scalar(dec!(7)));
+    /// ```
+    pub fn zip_with(
+        self,
+        other: SignalValue,
+        f: impl FnOnce(Decimal, Decimal) -> Decimal,
+    ) -> SignalValue {
+        match (self, other) {
+            (SignalValue::Scalar(a), SignalValue::Scalar(b)) => SignalValue::Scalar(f(a, b)),
+            _ => SignalValue::Unavailable,
+        }
+    }
+
     /// Apply `f` to the inner value if `Scalar`, returning a new `SignalValue`.
     ///
     /// If `Unavailable`, returns `Unavailable` without calling `f`. This mirrors
@@ -120,6 +151,12 @@ impl SignalValue {
             SignalValue::Scalar(d) => SignalValue::Scalar(f(d)),
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
+    }
+}
+
+impl From<Decimal> for SignalValue {
+    fn from(d: Decimal) -> Self {
+        SignalValue::Scalar(d)
     }
 }
 
@@ -172,4 +209,20 @@ pub trait Signal: Send {
     /// bars will warm up the indicator again. Useful for walk-forward backtesting
     /// without creating a new indicator instance.
     fn reset(&mut self);
+
+    /// Feed a slice of historical bars to prime the indicator in one call.
+    ///
+    /// Equivalent to calling [`update`](Self::update) for each bar in sequence.
+    /// Returns the value after the final bar, or `Ok(SignalValue::Unavailable)`
+    /// if `bars` is empty.
+    ///
+    /// # Errors
+    /// Propagates the first [`FinError`] returned by [`update`](Self::update).
+    fn warm_up(&mut self, bars: &[BarInput]) -> Result<SignalValue, FinError> {
+        let mut last = SignalValue::Unavailable;
+        for bar in bars {
+            last = self.update(bar)?;
+        }
+        Ok(last)
+    }
 }

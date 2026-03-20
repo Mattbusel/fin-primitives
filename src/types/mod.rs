@@ -177,6 +177,16 @@ impl Price {
     }
 }
 
+impl Price {
+    /// Multiplies this price by `qty`, returning `None` if the result overflows.
+    ///
+    /// Prefer this over the `*` operator when overflow is a concern (e.g., large
+    /// notional values with many decimal digits).
+    pub fn checked_mul(self, qty: Quantity) -> Option<Decimal> {
+        self.0.checked_mul(qty.0)
+    }
+}
+
 impl std::fmt::Display for Price {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -266,6 +276,13 @@ impl Quantity {
         use rust_decimal::prelude::FromPrimitive;
         let d = Decimal::from_f64(f)?;
         Self::new(d).ok()
+    }
+}
+
+impl Quantity {
+    /// Adds `other` to this quantity, returning `None` if the result overflows.
+    pub fn checked_add(self, other: Quantity) -> Option<Quantity> {
+        self.0.checked_add(other.0).map(Quantity)
     }
 }
 
@@ -875,5 +892,26 @@ mod tests {
     fn test_nano_timestamp_elapsed_is_non_negative_for_past() {
         let past = NanoTimestamp::new(0); // epoch — definitely in the past
         assert!(past.elapsed() > 0);
+    }
+
+    #[test]
+    fn test_price_checked_mul_some() {
+        let p = Price::new(dec!(100)).unwrap();
+        let q = Quantity::new(dec!(5)).unwrap();
+        assert_eq!(p.checked_mul(q), Some(dec!(500)));
+    }
+
+    #[test]
+    fn test_price_checked_mul_with_zero_qty() {
+        let p = Price::new(dec!(100)).unwrap();
+        let q = Quantity::zero();
+        assert_eq!(p.checked_mul(q), Some(dec!(0)));
+    }
+
+    #[test]
+    fn test_quantity_checked_add() {
+        let a = Quantity::new(dec!(10)).unwrap();
+        let b = Quantity::new(dec!(5)).unwrap();
+        assert_eq!(a.checked_add(b).map(|q| q.value()), Some(dec!(15)));
     }
 }
