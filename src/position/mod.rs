@@ -182,6 +182,16 @@ impl Position {
         self.quantity == Decimal::ZERO
     }
 
+    /// Returns `true` if the position is long (positive quantity).
+    pub fn is_long(&self) -> bool {
+        self.quantity > Decimal::ZERO
+    }
+
+    /// Returns `true` if the position is short (negative quantity).
+    pub fn is_short(&self) -> bool {
+        self.quantity < Decimal::ZERO
+    }
+
     /// Returns the direction of the position.
     pub fn direction(&self) -> PositionDirection {
         if self.quantity > Decimal::ZERO {
@@ -621,5 +631,94 @@ mod tests {
     fn test_position_ledger_position_count_zero_on_empty() {
         let ledger = PositionLedger::new(dec!(10000));
         assert_eq!(ledger.position_count(), 0);
+    }
+
+    #[test]
+    fn test_position_unrealized_pnl_pct_long_gain() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let current = Price::new(dec!(110)).unwrap();
+        let pct = pos.unrealized_pnl_pct(current).unwrap();
+        assert_eq!(pct, dec!(10));
+    }
+
+    #[test]
+    fn test_position_unrealized_pnl_pct_flat_returns_none() {
+        let pos = Position::new(sym("AAPL"));
+        let current = Price::new(dec!(110)).unwrap();
+        assert!(pos.unrealized_pnl_pct(current).is_none());
+    }
+
+    #[test]
+    fn test_position_unrealized_pnl_pct_loss() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let current = Price::new(dec!(90)).unwrap();
+        let pct = pos.unrealized_pnl_pct(current).unwrap();
+        assert_eq!(pct, dec!(-10));
+    }
+
+    #[test]
+    fn test_position_ledger_open_positions_excludes_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0"))
+            .unwrap();
+        let open: Vec<_> = ledger.open_positions().collect();
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].symbol.as_str(), "MSFT");
+    }
+
+    #[test]
+    fn test_position_ledger_open_positions_empty_when_all_flat() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
+        let open: Vec<_> = ledger.open_positions().collect();
+        assert!(open.is_empty());
+    }
+
+    #[test]
+    fn test_position_is_long() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        assert!(pos.is_long());
+        assert!(!pos.is_short());
+        assert!(!pos.is_flat());
+    }
+
+    #[test]
+    fn test_position_is_short() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
+        assert!(pos.is_short());
+        assert!(!pos.is_long());
+        assert!(!pos.is_flat());
+    }
+
+    #[test]
+    fn test_position_is_flat_after_close() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        pos.apply_fill(&make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
+        assert!(pos.is_flat());
+        assert!(!pos.is_long());
+        assert!(!pos.is_short());
     }
 }

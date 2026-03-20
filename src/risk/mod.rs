@@ -222,6 +222,11 @@ impl RiskMonitor {
         self.tracker.reset_peak();
     }
 
+    /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
+    pub fn worst_drawdown_pct(&self) -> Decimal {
+        self.tracker.worst_drawdown_pct()
+    }
+
     /// Returns a shared reference to the internal [`DrawdownTracker`].
     ///
     /// Useful when callers need direct access to tracker state (e.g., worst drawdown)
@@ -462,5 +467,60 @@ mod tests {
         t.reset(dec!(2000));
         t.update(dec!(1800));
         assert_eq!(t.current_drawdown_pct(), dec!(10));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_worst_drawdown_pct_accumulates() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(9000)); // 10% drawdown
+        t.update(dec!(9500)); // partial recovery, worst still 10%
+        t.update(dec!(10100)); // new peak
+        t.update(dec!(9595)); // ~5% drawdown from new peak
+        assert_eq!(t.worst_drawdown_pct(), dec!(10));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_worst_resets_on_full_reset() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(8000)); // 20% drawdown
+        assert_eq!(t.worst_drawdown_pct(), dec!(20));
+        t.reset(dec!(5000));
+        assert_eq!(t.worst_drawdown_pct(), dec!(0));
+    }
+
+    #[test]
+    fn test_risk_monitor_reset_clears_drawdown_state() {
+        let mut monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        monitor.update(dec!(8000)); // 20% drawdown → breach
+        let breaches = monitor.update(dec!(8000));
+        assert!(!breaches.is_empty());
+        monitor.reset(dec!(10000));
+        let breaches_after = monitor.update(dec!(9800)); // 2% drawdown
+        assert!(breaches_after.is_empty());
+    }
+
+    #[test]
+    fn test_risk_monitor_reset_restores_peak() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        monitor.update(dec!(9000));
+        monitor.reset(dec!(5000));
+        assert_eq!(monitor.peak_equity(), dec!(5000));
+        assert_eq!(monitor.current_equity(), dec!(5000));
+    }
+
+    #[test]
+    fn test_risk_monitor_worst_drawdown_tracks_maximum() {
+        let mut monitor = RiskMonitor::new(dec!(10000));
+        monitor.update(dec!(9000)); // 10% drawdown
+        monitor.update(dec!(8000)); // 20% drawdown
+        monitor.update(dec!(9500)); // recovery — worst is still 20%
+        assert_eq!(monitor.worst_drawdown_pct(), dec!(20));
+    }
+
+    #[test]
+    fn test_risk_monitor_worst_drawdown_zero_at_start() {
+        let monitor = RiskMonitor::new(dec!(10000));
+        assert_eq!(monitor.worst_drawdown_pct(), dec!(0));
     }
 }

@@ -200,6 +200,13 @@ impl OhlcvBar {
         body_bottom - self.low.value()
     }
 
+    /// Returns the duration of this bar in nanoseconds: `ts_close - ts_open`.
+    ///
+    /// For gap-fill bars (no ticks), both timestamps are equal and this returns 0.
+    pub fn duration_nanos(&self) -> i64 {
+        self.ts_close.nanos() - self.ts_open.nanos()
+    }
+
     /// Creates a single-tick OHLCV bar from a `Tick`.
     ///
     /// All price fields are set to the tick's price, volume to the tick's quantity,
@@ -558,6 +565,19 @@ impl OhlcvSeries {
         if n < len {
             self.bars.drain(0..len - n);
         }
+    }
+
+    /// Pushes multiple bars into the series, validating each one.
+    ///
+    /// Stops and returns the first error encountered; bars added before the error remain.
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] if any bar fails OHLCV invariant checks.
+    pub fn extend(&mut self, bars: impl IntoIterator<Item = OhlcvBar>) -> Result<(), FinError> {
+        for bar in bars {
+            self.push(bar)?;
+        }
+        Ok(())
     }
 
     /// Converts the series into a `Vec<BarInput>` for batch signal processing.
@@ -1054,5 +1074,45 @@ mod tests {
         assert_eq!(back.low, bar.low);
         assert_eq!(back.close, bar.close);
         assert_eq!(back.tick_count, bar.tick_count);
+    }
+
+    #[test]
+    fn test_ohlcv_bar_duration_nanos() {
+        let mut bar = make_bar("100", "110", "90", "105");
+        bar.ts_open = NanoTimestamp::new(1_000_000_000);
+        bar.ts_close = NanoTimestamp::new(1_060_000_000_000);
+        assert_eq!(bar.duration_nanos(), 1_059_000_000_000);
+    }
+
+    #[test]
+    fn test_ohlcv_bar_duration_nanos_same_timestamps() {
+        let mut bar = make_bar("100", "110", "90", "100");
+        bar.ts_open = NanoTimestamp::new(5_000);
+        bar.ts_close = NanoTimestamp::new(5_000);
+        assert_eq!(bar.duration_nanos(), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_extend_valid() {
+        let mut series = OhlcvSeries::new();
+        let bars = vec![
+            make_bar("100", "110", "90", "105"),
+            make_bar("105", "115", "95", "110"),
+        ];
+        series.extend(bars).unwrap();
+        assert_eq!(series.len(), 2);
+    }
+
+    #[test]
+    fn test_ohlcv_series_extend_stops_on_invalid_bar() {
+        let mut series = OhlcvSeries::new();
+        let valid = make_bar("100", "110", "90", "105");
+        let mut invalid = make_bar("100", "110", "90", "105");
+        // Make bar invalid: high < low
+        invalid.high = make_price("80");
+        invalid.low = make_price("110");
+        let result = series.extend([valid, invalid]);
+        assert!(result.is_err());
+        assert_eq!(series.len(), 1, "valid bar added before error");
     }
 }

@@ -240,4 +240,27 @@ mod tests {
             assert!(!map.has_errors());
         }
     }
+
+    #[test]
+    fn test_signal_map_scalars_yields_ready_values() {
+        let mut pipeline = SignalPipeline::new()
+            .add(Sma::new("sma3", 3).unwrap())
+            .add(Ema::new("ema3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("102"));
+        let map = pipeline.update(&bar("104"));
+        let scalars: Vec<_> = map.scalars().collect();
+        assert_eq!(scalars.len(), 2);
+        let names: Vec<_> = scalars.iter().map(|(k, _)| *k).collect();
+        assert!(names.contains(&"sma3"));
+        assert!(names.contains(&"ema3"));
+    }
+
+    #[test]
+    fn test_signal_map_scalars_empty_before_warmup() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100")); // only 1 bar
+        let scalars: Vec<_> = map.scalars().collect();
+        assert!(scalars.is_empty());
+    }
 }

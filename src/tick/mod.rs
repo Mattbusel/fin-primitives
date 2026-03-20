@@ -283,7 +283,7 @@ impl TickReplayer {
     }
 
     /// Returns all ticks (from the full sorted slice) that match `filter`.
-    pub fn filter(&self, filter: &TickFilter) -> Vec<Tick> {
+    pub fn filter_ticks(&self, filter: &TickFilter) -> Vec<Tick> {
         self.ticks
             .iter()
             .filter(|t| filter.matches(t))
@@ -590,5 +590,77 @@ mod tests {
         assert_eq!(back.quantity, tick.quantity);
         assert_eq!(back.side, tick.side);
         assert_eq!(back.timestamp, tick.timestamp);
+    }
+
+    #[test]
+    fn test_tick_replayer_count() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "101", "1", Side::Ask, 2),
+            make_tick("AAPL", "102", "1", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        assert_eq!(replayer.count(), 3);
+    }
+
+    #[test]
+    fn test_tick_replayer_count_empty() {
+        let replayer = TickReplayer::new(vec![]);
+        assert_eq!(replayer.count(), 0);
+    }
+
+    #[test]
+    fn test_tick_replayer_filter_by_side() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "101", "1", Side::Ask, 2),
+            make_tick("AAPL", "102", "1", Side::Bid, 3),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let filter = TickFilter::new().side(Side::Bid);
+        let filtered = replayer.filter_ticks(&filter);
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().all(|t| t.side == Side::Bid));
+    }
+
+    #[test]
+    fn test_tick_replayer_filter_no_matches() {
+        let ticks = vec![make_tick("AAPL", "100", "1", Side::Bid, 1)];
+        let replayer = TickReplayer::new(ticks);
+        let filter = TickFilter::new().side(Side::Ask);
+        let filtered = replayer.filter_ticks(&filter);
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_tick_filter_min_notional_passes_large() {
+        let big = make_tick("AAPL", "100", "10", Side::Ask, 1); // notional = 1000
+        let filter = TickFilter::new().min_notional(dec_from_str("500"));
+        assert!(filter.matches(&big));
+    }
+
+    #[test]
+    fn test_tick_filter_min_notional_rejects_small() {
+        let small = make_tick("AAPL", "100", "1", Side::Bid, 1); // notional = 100
+        let filter = TickFilter::new().min_notional(dec_from_str("500"));
+        assert!(!filter.matches(&small));
+    }
+
+    #[test]
+    fn test_tick_filter_is_empty_when_no_predicates() {
+        let f = TickFilter::new();
+        assert!(f.is_empty());
+    }
+
+    #[test]
+    fn test_tick_filter_not_empty_after_symbol_set() {
+        let f = TickFilter::new().symbol(Symbol::new("AAPL").unwrap());
+        assert!(!f.is_empty());
+    }
+
+    #[test]
+    fn test_tick_filter_not_empty_after_side_set() {
+        let f = TickFilter::new().side(Side::Ask);
+        assert!(!f.is_empty());
     }
 }

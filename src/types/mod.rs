@@ -100,6 +100,18 @@ impl TryFrom<&str> for Symbol {
     }
 }
 
+impl PartialOrd for Symbol {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Symbol {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.as_ref().cmp(other.0.as_ref())
+    }
+}
+
 impl From<Symbol> for String {
     fn from(s: Symbol) -> Self {
         s.as_str().to_owned()
@@ -376,6 +388,16 @@ impl NanoTimestamp {
     /// Returns milliseconds since the Unix epoch (truncates sub-millisecond precision).
     pub fn to_millis(&self) -> i64 {
         self.0 / 1_000_000
+    }
+
+    /// Constructs a `NanoTimestamp` from whole seconds since the Unix epoch.
+    pub fn from_secs(secs: i64) -> Self {
+        Self(secs * 1_000_000_000)
+    }
+
+    /// Returns whole seconds since the Unix epoch (truncates sub-second precision).
+    pub fn to_secs(&self) -> i64 {
+        self.0 / 1_000_000_000
     }
 
     /// Constructs a `NanoTimestamp` from a [`DateTime<Utc>`].
@@ -778,5 +800,38 @@ mod tests {
         assert!(b.is_after(a));
         assert!(!a.is_after(b));
         assert!(!b.is_before(a));
+    }
+
+    #[test]
+    fn test_nano_timestamp_from_secs_roundtrip() {
+        let ts = NanoTimestamp::from_secs(1_700_000_000);
+        assert_eq!(ts.to_secs(), 1_700_000_000);
+    }
+
+    #[test]
+    fn test_nano_timestamp_from_secs_truncates_sub_second() {
+        let ts = NanoTimestamp::new(1_700_000_000_999_999_999);
+        assert_eq!(ts.to_secs(), 1_700_000_000);
+    }
+
+    #[test]
+    fn test_symbol_ord_lexicographic() {
+        let a = Symbol::new("AAPL").unwrap();
+        let b = Symbol::new("MSFT").unwrap();
+        let c = Symbol::new("AAPL").unwrap();
+        assert!(a < b);
+        assert!(b > a);
+        assert_eq!(a.cmp(&c), std::cmp::Ordering::Equal);
+    }
+
+    #[test]
+    fn test_symbol_ord_usable_in_btreemap() {
+        use std::collections::BTreeMap;
+        let mut m: BTreeMap<Symbol, i32> = BTreeMap::new();
+        m.insert(Symbol::new("Z").unwrap(), 3);
+        m.insert(Symbol::new("A").unwrap(), 1);
+        m.insert(Symbol::new("M").unwrap(), 2);
+        let keys: Vec<_> = m.keys().map(|s| s.as_str()).collect();
+        assert_eq!(keys, ["A", "M", "Z"]);
     }
 }

@@ -749,4 +749,58 @@ mod tests {
         // After clear, sequence resets to 0, so next delta must be seq=1
         assert!(book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).is_ok());
     }
+
+    #[test]
+    fn test_orderbook_total_bid_volume() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Bid, "99", "3", 2)).unwrap();
+        assert_eq!(book.total_bid_volume(), dec!(8));
+    }
+
+    #[test]
+    fn test_orderbook_total_ask_volume() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Ask, "101", "4", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "6", 2)).unwrap();
+        assert_eq!(book.total_ask_volume(), dec!(10));
+    }
+
+    #[test]
+    fn test_orderbook_total_bid_volume_empty() {
+        let book = make_book();
+        assert_eq!(book.total_bid_volume(), dec!(0));
+    }
+
+    #[test]
+    fn test_orderbook_imbalance_balanced() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "5", 2)).unwrap();
+        assert_eq!(book.imbalance().unwrap(), dec!(0));
+    }
+
+    #[test]
+    fn test_orderbook_imbalance_bid_heavy() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "9", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "1", 2)).unwrap();
+        // (9 - 1) / 10 = 0.8
+        assert_eq!(book.imbalance().unwrap(), dec!(0.8));
+    }
+
+    #[test]
+    fn test_orderbook_imbalance_ask_heavy() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "1", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "101", "9", 2)).unwrap();
+        // (1 - 9) / 10 = -0.8
+        assert_eq!(book.imbalance().unwrap(), dec!(-0.8));
+    }
+
+    #[test]
+    fn test_orderbook_imbalance_empty_returns_none() {
+        let book = make_book();
+        assert!(book.imbalance().is_none());
+    }
 }
