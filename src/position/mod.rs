@@ -1536,6 +1536,26 @@ impl PositionLedger {
             .max_by(|(_, a), (_, b)| a.quantity.abs().cmp(&b.quantity.abs()))
             .map(|(sym, _)| sym)
     }
+
+    /// Market exposure broken down by direction: `(long_exposure, short_exposure)`.
+    ///
+    /// Both values are positive (abs). Positions not in `prices` contribute zero.
+    pub fn exposure_by_direction(&self, prices: &HashMap<String, Price>) -> (Decimal, Decimal) {
+        let long: Decimal = self.positions.values()
+            .filter(|p| p.is_long())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr)))
+            .sum();
+        let short: Decimal = self.positions.values()
+            .filter(|p| p.is_short())
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs()))
+            .sum();
+        (long, short)
+    }
+
+    /// Returns the sum of realized P&L across all positions in this ledger.
+    pub fn total_realized_pnl(&self) -> Decimal {
+        self.positions.values().map(|p| p.realized_pnl).sum()
+    }
 }
 
 #[cfg(test)]

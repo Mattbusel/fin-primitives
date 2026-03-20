@@ -682,6 +682,16 @@ impl SignalValue {
             }
         }
     }
+
+    /// Rounds the scalar to `dp` decimal places using banker's rounding.
+    ///
+    /// Returns [`SignalValue::Unavailable`] unchanged.
+    pub fn round_to(self, dp: u32) -> SignalValue {
+        match self {
+            SignalValue::Unavailable => SignalValue::Unavailable,
+            SignalValue::Scalar(v) => SignalValue::Scalar(v.round_dp(dp)),
+        }
+    }
 }
 
 impl From<Decimal> for SignalValue {

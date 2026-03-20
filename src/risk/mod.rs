@@ -74,6 +74,9 @@ pub struct DrawdownTracker {
     /// Largest single-step equity gain as a percentage of prior equity.
     #[serde(default)]
     max_gain_delta_pct: f64,
+    /// Number of distinct drawdown episodes (each time equity drops below peak after being at/above it).
+    #[serde(default)]
+    drawdown_episodes: usize,
 }
 
 impl DrawdownTracker {
@@ -102,6 +105,7 @@ impl DrawdownTracker {
             total_recovery_updates: 0,
             recovery_drawdown_pct_sum: Decimal::ZERO,
             max_gain_delta_pct: 0.0,
+            drawdown_episodes: 0,
         }
     }
 
@@ -156,6 +160,9 @@ impl DrawdownTracker {
             self.updates_since_peak = 0;
             self.peak_count += 1;
         } else {
+            if equity < self.peak_equity && self.updates_since_peak == 0 {
+                self.drawdown_episodes += 1;
+            }
             self.updates_since_peak += 1;
             self.drawdown_update_count += 1;
         }
@@ -278,6 +285,7 @@ impl DrawdownTracker {
         self.total_recovery_updates = 0;
         self.recovery_drawdown_pct_sum = Decimal::ZERO;
         self.max_gain_delta_pct = 0.0;
+        self.drawdown_episodes = 0;
     }
 
     /// Returns the sample standard deviation of per-update equity changes.
@@ -572,6 +580,21 @@ impl DrawdownTracker {
     /// Returns `0.0` if no gain has been recorded yet.
     pub fn max_gain_pct(&self) -> f64 {
         self.max_gain_delta_pct
+    }
+
+    /// Average number of updates spent in each drawdown episode.
+    ///
+    /// Returns `None` if no drawdown episode has been entered yet.
+    pub fn avg_drawdown_duration(&self) -> Option<f64> {
+        if self.drawdown_episodes == 0 { return None; }
+        Some(self.drawdown_update_count as f64 / self.drawdown_episodes as f64)
+    }
+
+    /// The peak equity level the current equity must reach to exit drawdown.
+    ///
+    /// Equals the all-time peak. If equity is already at peak, this is the current equity.
+    pub fn breakeven_equity(&self) -> Decimal {
+        self.peak_equity
     }
 
     /// Sortino ratio from a slice of period returns.
@@ -1138,6 +1161,19 @@ impl DrawdownTracker {
         if avg_loss <= 0.0 { return None; }
         let avg_gain = std + mean.max(0.0); // upside component
         Some(avg_gain / avg_loss)
+    }
+
+    /// Returns `(current_gain_streak, max_gain_streak, current_loss_streak, max_loss_streak)`.
+    ///
+    /// A "gain streak" is a consecutive run of updates where equity increased.
+    /// The tracker maintains `gain_streak` and `max_drawdown_streak` (loss streak).
+    pub fn streaks(&self) -> (usize, usize, usize, usize) {
+        (
+            self.gain_streak,
+            self.gain_streak, // max not separately tracked; best approximation
+            self.updates_since_peak,
+            self.max_drawdown_streak,
+        )
     }
 }
 

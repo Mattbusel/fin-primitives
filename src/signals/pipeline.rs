@@ -113,6 +113,25 @@ impl SignalMap {
         self.scalars().map(|(_, v)| v).sum()
     }
 
+    /// Returns the arithmetic mean of all ready scalar values, or `None` if there are none.
+    pub fn avg_scalar(&self) -> Option<Decimal> {
+        let mut count = 0u32;
+        let mut sum = Decimal::ZERO;
+        for (_, v) in self.scalars() {
+            sum += v;
+            count += 1;
+        }
+        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+    }
+
+    /// Returns names of all signals whose scalar value strictly exceeds `threshold`.
+    pub fn above_threshold(&self, threshold: Decimal) -> Vec<&str> {
+        self.scalars()
+            .filter(|(_, v)| *v > threshold)
+            .map(|(name, _)| name)
+            .collect()
+    }
+
     /// Collects all ready scalar values into an owned `HashMap<String, Decimal>`.
     ///
     /// Useful when the caller needs an owned snapshot of all current signal values,

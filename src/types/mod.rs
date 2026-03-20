@@ -879,6 +879,12 @@ impl NanoTimestamp {
         NanoTimestamp(self.0 + days * DAY_NANOS)
     }
 
+    /// Returns the absolute number of whole minutes between `self` and `other`.
+    pub fn minutes_between(self, other: NanoTimestamp) -> u64 {
+        const MINUTE_NANOS: u64 = 60 * 1_000_000_000;
+        (self.0 - other.0).unsigned_abs() / MINUTE_NANOS
+    }
+
     /// Returns the day of the year (1 = January 1, 365/366 = December 31).
     ///
     /// Uses the UTC calendar. The Unix epoch (1970-01-01) is day 1.
