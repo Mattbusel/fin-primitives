@@ -104,6 +104,9 @@ pub struct Position {
     pub avg_cost: Decimal,
     /// Cumulative realized P&L for this position (net of commissions).
     pub realized_pnl: Decimal,
+    /// Bar index at which the current position leg was opened. Set via [`Position::set_open_bar`].
+    #[serde(default)]
+    pub open_bar: usize,
 }
 
 impl Position {
@@ -114,7 +117,22 @@ impl Position {
             quantity: Decimal::ZERO,
             avg_cost: Decimal::ZERO,
             realized_pnl: Decimal::ZERO,
+            open_bar: 0,
         }
+    }
+
+    /// Records the bar index at which the current position leg was opened.
+    ///
+    /// Call this whenever transitioning from flat to a new position.
+    pub fn set_open_bar(&mut self, bar: usize) {
+        self.open_bar = bar;
+    }
+
+    /// Returns how many bars the current position has been open.
+    ///
+    /// `age = current_bar - self.open_bar` (saturating at 0).
+    pub fn position_age_bars(&self, current_bar: usize) -> usize {
+        current_bar.saturating_sub(self.open_bar)
     }
 
     /// Applies a fill, updating quantity, `avg_cost`, and `realized_pnl`.
@@ -819,6 +837,59 @@ impl PositionLedger {
             gross += (pos.quantity * price.value()).abs();
         }
         Ok(gross * margin_rate)
+    }
+
+    /// Returns the count of tracked positions with zero quantity (flat positions).
+    pub fn flat_count(&self) -> usize {
+        self.positions.values().filter(|p| p.is_flat()).count()
+    }
+
+    /// Returns the open position with the smallest absolute quantity.
+    ///
+    /// Returns `None` if there are no open (non-flat) positions.
+    pub fn smallest_position(&self) -> Option<&Position> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .min_by(|a, b| a.quantity.abs().partial_cmp(&b.quantity.abs()).unwrap_or(std::cmp::Ordering::Equal))
+    }
+
+    /// Returns the symbol with the highest unrealized PnL given current `prices`.
+    ///
+    /// Returns `None` if there are no open positions or the price map is empty.
+    pub fn most_profitable_symbol(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Option<&Symbol> {
+        self.positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                let price = prices.get(sym.as_str())?;
+                let pnl = p.unrealized_pnl(*price);
+                Some((sym, pnl))
+            })
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(sym, _)| sym)
+    }
+
+    /// Returns the symbol with the lowest (most negative) unrealized PnL given current `prices`.
+    ///
+    /// Returns `None` if there are no open positions or the price map is empty.
+    pub fn least_profitable_symbol(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Option<&Symbol> {
+        self.positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                let price = prices.get(sym.as_str())?;
+                let pnl = p.unrealized_pnl(*price);
+                Some((sym, pnl))
+            })
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(sym, _)| sym)
     }
 }
 

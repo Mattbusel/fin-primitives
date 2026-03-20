@@ -12,6 +12,7 @@
 //! - Order cancellation (callers must act on returned breaches)
 
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 
 /// Tracks peak equity and computes current drawdown percentage.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -285,6 +286,58 @@ impl DrawdownTracker {
     /// Note: this does NOT update the tracker — call `update(equity)` to advance the peak.
     pub fn above_high_water_mark(&self, equity: Decimal) -> bool {
         equity > self.peak_equity
+    }
+
+    /// Sortino ratio from a slice of period returns.
+    ///
+    /// `sortino = (mean_return - target) / downside_deviation`
+    ///
+    /// where downside deviation is the standard deviation of returns *below* `target`.
+    /// Returns `None` if `returns` is empty or downside deviation is zero.
+    pub fn sortino_ratio(returns: &[Decimal], target: Decimal) -> Option<f64> {
+        if returns.is_empty() {
+            return None;
+        }
+        let n = returns.len() as f64;
+        let target_f = target.to_f64()?;
+        let mean: f64 = returns.iter().filter_map(|r| r.to_f64()).sum::<f64>() / n;
+        let downside_sq_sum: f64 = returns
+            .iter()
+            .filter_map(|r| r.to_f64())
+            .map(|r| {
+                let diff = r - target_f;
+                if diff < 0.0 { diff * diff } else { 0.0 }
+            })
+            .sum();
+        if downside_sq_sum == 0.0 {
+            return None;
+        }
+        let downside_dev = (downside_sq_sum / n).sqrt();
+        if downside_dev == 0.0 {
+            return None;
+        }
+        Some((mean - target_f) / downside_dev)
+    }
+
+    /// Annualised volatility from a slice of period returns.
+    ///
+    /// `volatility = std_dev(returns) * sqrt(periods_per_year)`
+    ///
+    /// Returns `None` if `returns` has fewer than 2 elements.
+    pub fn returns_volatility(returns: &[Decimal], periods_per_year: u32) -> Option<f64> {
+        if returns.len() < 2 {
+            return None;
+        }
+        let n = returns.len() as f64;
+        let mean: f64 = returns.iter()
+            .filter_map(|r| r.to_f64())
+            .sum::<f64>() / n;
+        let variance: f64 = returns.iter()
+            .filter_map(|r| r.to_f64())
+            .map(|r| (r - mean).powi(2))
+            .sum::<f64>() / (n - 1.0);
+        let vol = variance.sqrt() * (periods_per_year as f64).sqrt();
+        Some(vol)
     }
 }
 

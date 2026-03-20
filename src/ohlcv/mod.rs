@@ -2685,6 +2685,52 @@ impl OhlcvSeries {
         Some(sum / Decimal::from(n as u32))
     }
 
+    /// Returns `(current_range / ATR) * 100`, showing how the current bar's
+    /// high-low range compares to the average true range over the last `n` bars.
+    ///
+    /// Returns `None` if fewer than `n+1` bars, `n == 0`, or ATR is zero.
+    pub fn range_to_atr_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let start = self.bars.len() - n - 1;
+        let slice = &self.bars[start..];
+        let mut tr_sum = Decimal::ZERO;
+        for w in slice.windows(2) {
+            let prev_close = w[0].close.value();
+            let high = w[1].high.value();
+            let low = w[1].low.value();
+            let tr = (high - low)
+                .max((high - prev_close).abs())
+                .max((low - prev_close).abs());
+            tr_sum += tr;
+        }
+        #[allow(clippy::cast_possible_truncation)]
+        let atr = tr_sum / Decimal::from(n as u32);
+        if atr.is_zero() {
+            return None;
+        }
+        let last = self.bars.last()?;
+        let current_range = last.high.value() - last.low.value();
+        Some(current_range / atr * Decimal::ONE_HUNDRED)
+    }
+
+    /// Returns percentage momentum: `(close - close[n]) / close[n] * 100`.
+    ///
+    /// Positive when price has risen over the last `n` bars.
+    /// Returns `None` if fewer than `n+1` bars, `n == 0`, or reference close is zero.
+    pub fn close_momentum(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
+        let ref_close = self.bars[self.bars.len() - n - 1].close.value();
+        if ref_close.is_zero() {
+            return None;
+        }
+        let current = self.bars.last()?.close.value();
+        Some((current - ref_close) / ref_close * Decimal::ONE_HUNDRED)
+    }
+
     /// Mean absolute gap percentage over the last `n` bars.
     ///
     /// `gap_pct[i] = |open[i] - close[i-1]| / close[i-1] * 100`.
@@ -2711,6 +2757,72 @@ impl OhlcvSeries {
             #[allow(clippy::cast_possible_truncation)]
             Some(sum / Decimal::from(count as u32))
         }
+    }
+
+    /// Bar-over-bar log returns for the last `n` close-to-close periods.
+    ///
+    /// Returns a `Vec` of up to `n` values. Requires at least `n + 1` bars in the series.
+    /// Returns an empty `Vec` when `n == 0` or fewer than 2 bars exist.
+    pub fn returns_series(&self, n: usize) -> Vec<Decimal> {
+        if n == 0 || self.bars.len() < 2 {
+            return vec![];
+        }
+        use rust_decimal::prelude::ToPrimitive;
+        let start = self.bars.len().saturating_sub(n + 1);
+        let slice = &self.bars[start..];
+        slice
+            .windows(2)
+            .map(|w| {
+                let prev = w[0].close.value();
+                let curr = w[1].close.value();
+                if prev.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    let ratio = (curr / prev).to_f64().unwrap_or(1.0);
+                    Decimal::try_from(ratio.ln()).unwrap_or(Decimal::ZERO)
+                }
+            })
+            .collect()
+    }
+
+    /// Length of the longest consecutive run of rising closes in the entire series.
+    ///
+    /// A close is "rising" when `close[i] > close[i-1]`.
+    /// Returns `0` when fewer than 2 bars exist.
+    pub fn max_consecutive_up(&self) -> usize {
+        if self.bars.len() < 2 {
+            return 0;
+        }
+        let mut max_run = 0usize;
+        let mut current = 0usize;
+        for w in self.bars.windows(2) {
+            if w[1].close.value() > w[0].close.value() {
+                current += 1;
+                if current > max_run {
+                    max_run = current;
+                }
+            } else {
+                current = 0;
+            }
+        }
+        max_run
+    }
+
+    /// Simple moving average of the typical price `(high + low + close) / 3`
+    /// over the last `period` bars.
+    ///
+    /// Returns `None` if `period == 0` or fewer than `period` bars exist.
+    pub fn typical_price_sma(&self, period: usize) -> Option<Decimal> {
+        if period == 0 || self.bars.len() < period {
+            return None;
+        }
+        let start = self.bars.len() - period;
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| (b.high.value() + b.low.value() + b.close.value()) / Decimal::from(3u32))
+            .sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(period as u32))
     }
 }
 

@@ -259,6 +259,24 @@ impl Tick {
     pub fn notional_volume(ticks: &[Tick]) -> Decimal {
         ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum()
     }
+
+    /// Returns the median trade price across `ticks`.
+    ///
+    /// Sorts prices and returns the middle value (lower-middle for even counts).
+    /// Returns `None` when the slice is empty.
+    pub fn median_price(ticks: &[Tick]) -> Option<Decimal> {
+        if ticks.is_empty() {
+            return None;
+        }
+        let mut prices: Vec<Decimal> = ticks.iter().map(|t| t.price.value()).collect();
+        prices.sort_unstable_by(|a, b| a.cmp(b));
+        let mid = prices.len() / 2;
+        if prices.len() % 2 == 0 {
+            Some((prices[mid - 1] + prices[mid]) / Decimal::TWO)
+        } else {
+            Some(prices[mid])
+        }
+    }
 }
 
 /// Filters ticks by optional symbol, side, price range, and minimum quantity predicates.
@@ -678,6 +696,29 @@ impl TickReplayer {
         let mut sizes: Vec<Decimal> = self.ticks.iter().map(|t| t.quantity.value()).collect();
         sizes.sort();
         Some(sizes[sizes.len() / 2])
+    }
+
+    /// Returns the arithmetic mean tick quantity across all ticks.
+    ///
+    /// Returns `None` if there are no ticks.
+    pub fn avg_trade_size(&self) -> Option<Decimal> {
+        if self.ticks.is_empty() {
+            return None;
+        }
+        let sum: Decimal = self.ticks.iter().map(|t| t.quantity.value()).sum();
+        #[allow(clippy::cast_possible_truncation)]
+        Some(sum / Decimal::from(self.ticks.len() as u64))
+    }
+
+    /// Returns the mean nanosecond interval between consecutive ticks.
+    ///
+    /// Returns `None` if there are fewer than 2 ticks.
+    pub fn tick_interval_mean_nanos(&self) -> Option<i64> {
+        if self.ticks.len() < 2 {
+            return None;
+        }
+        let total = self.ticks.last().unwrap().timestamp.elapsed_since(self.ticks.first().unwrap().timestamp);
+        Some(total / (self.ticks.len() as i64 - 1))
     }
 }
 

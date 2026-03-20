@@ -311,6 +311,13 @@ impl Price {
         let diff = (self.0 - other.0).abs();
         diff / self.0 * Decimal::ONE_HUNDRED <= pct
     }
+
+    /// Signed percentage distance from `self` to `other`: `(other - self) / self * 100`.
+    ///
+    /// Positive when `other > self`, negative when `other < self`.
+    pub fn distance_pct(self, other: Price) -> Decimal {
+        (other.0 - self.0) / self.0 * Decimal::ONE_HUNDRED
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -762,6 +769,14 @@ impl NanoTimestamp {
         // Two timestamps are on the same day when they share the same `floor(nanos / 86400e9)`.
         const DAY_NANOS: i64 = 86_400 * 1_000_000_000;
         self.0.div_euclid(DAY_NANOS) == other.0.div_euclid(DAY_NANOS)
+    }
+
+    /// Floors this timestamp to the start of the current UTC minute.
+    ///
+    /// Truncates nanoseconds and seconds: returns the timestamp at `HH:MM:00.000000000`.
+    pub fn floor_to_minute(&self) -> NanoTimestamp {
+        const MINUTE_NANOS: i64 = 60 * 1_000_000_000;
+        NanoTimestamp(self.0.div_euclid(MINUTE_NANOS) * MINUTE_NANOS)
     }
 
     /// Formats this timestamp as a UTC datetime string `"YYYY-MM-DD HH:MM:SS"`.
