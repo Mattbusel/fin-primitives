@@ -492,6 +492,26 @@ impl DrawdownTracker {
         self.total_loss_sum
     }
 
+    /// Returns `total_gain_sum / total_loss_sum`. Returns `None` if no losses recorded.
+    pub fn gain_to_loss_ratio(&self) -> Option<f64> {
+        if self.total_loss_sum == 0.0 { None } else { Some(self.total_gain_sum / self.total_loss_sum) }
+    }
+
+    /// Trading expectancy: `win_rate × avg_gain − loss_rate × avg_loss`.
+    ///
+    /// Returns `None` if fewer than 2 equity changes have been recorded.
+    pub fn expectancy(&self) -> Option<f64> {
+        let n = self.equity_change_count;
+        if n < 2 { return None; }
+        let wr = self.win_rate()?.to_f64()?;
+        let loss_rate = 1.0 - wr;
+        let gain_count = (wr * n as f64).round() as usize;
+        let loss_count = n.saturating_sub(gain_count);
+        let avg_gain = if gain_count > 0 { self.total_gain_sum / gain_count as f64 } else { 0.0 };
+        let avg_loss = if loss_count > 0 { self.total_loss_sum / loss_count as f64 } else { 0.0 };
+        Some(wr * avg_gain - loss_rate * avg_loss)
+    }
+
     /// Sortino ratio from a slice of period returns.
     ///
     /// `sortino = (mean_return - target) / downside_deviation`
@@ -604,6 +624,16 @@ impl DrawdownTracker {
         let n = self.equity_change_count as f64;
         let variance = self.equity_change_m2 / (n - 1.0);
         Some(variance.sqrt() * (periods_per_year as f64).sqrt())
+    }
+
+    /// Pain ratio: `annualized_return_pct / pain_index`.
+    ///
+    /// A higher ratio indicates better risk-adjusted performance relative to
+    /// sustained drawdown. Returns `None` if the pain index is zero (no drawdowns).
+    pub fn pain_ratio(&self, annualized_return_pct: Decimal) -> Option<Decimal> {
+        let pi = self.pain_index();
+        if pi.is_zero() { return None; }
+        Some(annualized_return_pct / pi)
     }
 }
 

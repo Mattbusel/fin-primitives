@@ -1393,6 +1393,77 @@ impl PositionLedger {
             w * w
         }).sum())
     }
+
+    /// Unrealized P&L for each open position, keyed by symbol string.
+    ///
+    /// Positions absent from `prices` are omitted from the result.
+    pub fn unrealized_pnl_by_symbol(&self, prices: &HashMap<String, Price>) -> HashMap<String, Decimal> {
+        self.positions
+            .iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                prices.get(sym.as_str())
+                    .map(|&price| (sym.as_str().to_owned(), p.unrealized_pnl(price)))
+            })
+            .collect()
+    }
+
+    /// Portfolio-level beta: sum of (weight * beta) for each open position.
+    ///
+    /// `betas` maps symbol string to the symbol's beta coefficient.
+    /// Positions with unknown beta or missing from `prices` are skipped.
+    /// Returns `None` if total market value is zero or no betas are available.
+    pub fn portfolio_beta(
+        &self,
+        prices: &HashMap<String, Price>,
+        betas: &HashMap<String, f64>,
+    ) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
+        let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
+        if open.is_empty() { return None; }
+        let total_mv: Decimal = open.iter()
+            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs()))
+            .sum();
+        if total_mv.is_zero() { return None; }
+        let total_mv_f64 = total_mv.to_f64()?;
+        let beta_sum: f64 = open.iter().filter_map(|p| {
+            let mv = prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs())?;
+            let b = betas.get(p.symbol.as_str())?;
+            let w = mv.to_f64()? / total_mv_f64;
+            Some(w * b)
+        }).sum();
+        Some(beta_sum)
+    }
+
+    /// Returns the total notional value: sum of `|quantity| × price` for all open positions.
+    ///
+    /// Positions absent from `prices` are skipped. Returns `None` if no open positions
+    /// have a matching price.
+    pub fn total_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        let total: Decimal = self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| p.quantity_abs() * price.value())
+            })
+            .sum();
+        if total.is_zero() { None } else { Some(total) }
+    }
+
+    /// Returns the largest unrealized gain (most positive unrealized P&L) among open positions.
+    ///
+    /// Returns `None` if no open positions have a matching price, or all unrealized P&Ls are
+    /// non-positive.
+    pub fn max_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
+        self.positions.values()
+            .filter(|p| !p.is_flat())
+            .filter_map(|p| {
+                prices.get(p.symbol.as_str())
+                    .map(|&price| p.unrealized_pnl(price))
+            })
+            .filter(|&pnl| pnl > Decimal::ZERO)
+            .max()
+    }
 }
 
 #[cfg(test)]

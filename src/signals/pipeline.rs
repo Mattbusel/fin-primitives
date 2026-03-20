@@ -221,6 +221,23 @@ impl SignalMap {
         }
         Some((v - min) / range)
     }
+
+    /// Returns `max_scalar - min_scalar`. Returns `None` if there are no scalar values.
+    pub fn range(&self) -> Option<Decimal> {
+        let (_, max) = self.max_scalar()?;
+        let (_, min) = self.min_scalar()?;
+        Some(max - min)
+    }
+
+    /// Returns the top `n` signals by scalar value (descending), as `(name, value)` pairs.
+    ///
+    /// If fewer than `n` scalars exist, returns all available. Returns an empty vec if none.
+    pub fn top_n(&self, n: usize) -> Vec<(&str, Decimal)> {
+        let mut pairs: Vec<(&str, Decimal)> = self.scalars().collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs.truncate(n);
+        pairs
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.
@@ -448,6 +465,7 @@ impl SignalPipeline {
         }
         self.ready_count() as f64 / self.signals.len() as f64
     }
+
 }
 
 impl Default for SignalPipeline {
