@@ -131,6 +131,11 @@ pub mod volume_imbalance;
 pub mod vam;
 pub mod bull_bear_power;
 pub mod momentum_streak;
+pub mod candle_color;
+pub mod price_position;
+pub mod qqe;
+pub mod bars_since;
+pub mod candle_pattern;
 
 pub use adx::Adx;
 pub use apo::Apo;
@@ -260,3 +265,5 @@ pub use volume_imbalance::VolumeImbalance;
 pub use vam::Vam;
 pub use bull_bear_power::BullBearPower;
 pub use momentum_streak::MomentumStreak;
+pub use candle_color::CandleColor;
+pub use price_position::PricePosition;

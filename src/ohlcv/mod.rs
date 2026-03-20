@@ -4657,6 +4657,58 @@ impl OhlcvSeries {
         }
         Some(count)
     }
+
+    /// Mean absolute open-to-prev-close gap as a percentage of the prior close
+    /// over the last `n` bars.
+    ///
+    /// `gap_pct[i] = |open[i] - close[i-1]| / close[i-1] × 100`
+    ///
+    /// Returns `None` if `n == 0`, `n < 2`, fewer than `n` bars exist, or any prior close is zero.
+    pub fn open_gap_pct(&self, n: usize) -> Option<Decimal> {
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut sum = Decimal::ZERO;
+        for i in start..self.bars.len() {
+            let prev_close = self.bars[i - 1].close.value();
+            if prev_close.is_zero() { return None; }
+            let gap = (self.bars[i].open.value() - prev_close).abs();
+            sum += gap / prev_close * Decimal::ONE_HUNDRED;
+        }
+        Some(sum / Decimal::from((n - 1) as u32))
+    }
+
+    /// Ratio of the average volume on up-close bars to the average volume on down-close bars
+    /// over the last `n` bars.
+    ///
+    /// Returns `None` if `n == 0`, fewer than `n` bars exist, there are no up or no down bars,
+    /// or the average down volume is zero.
+    pub fn volume_trend_ratio(&self, n: usize) -> Option<Decimal> {
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
+        let start = self.bars.len() - n;
+        let mut up_sum = Decimal::ZERO;
+        let mut up_count = 0u32;
+        let mut down_sum = Decimal::ZERO;
+        let mut down_count = 0u32;
+        for b in &self.bars[start..] {
+            let v = b.volume.value();
+            if b.close.value() > b.open.value() {
+                up_sum += v;
+                up_count += 1;
+            } else if b.close.value() < b.open.value() {
+                down_sum += v;
+                down_count += 1;
+            }
+        }
+        if up_count == 0 || down_count == 0 { return None; }
+        let avg_up = up_sum / Decimal::from(up_count);
+        let avg_down = down_sum / Decimal::from(down_count);
+        if avg_down.is_zero() { return None; }
+        avg_up.checked_div(avg_down)
+    }
 }
 
 #[cfg(test)]
