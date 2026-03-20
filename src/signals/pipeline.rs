@@ -292,7 +292,8 @@ impl SignalMap {
             diff * diff
         }).sum::<Decimal>() / n;
         // Approximate sqrt via f64
-        let var_f: f64 = variance.to_string().parse().ok()?;
+        use rust_decimal::prelude::ToPrimitive;
+        let var_f = variance.to_f64()?;
         Decimal::try_from(var_f.sqrt()).ok()
     }
 

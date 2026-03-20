@@ -77,8 +77,8 @@ impl Signal for PriceZScore {
             return Ok(SignalValue::Unavailable);
         }
 
-        // sqrt via Newton-Raphson on Decimal
-        let variance_f: f64 = variance.to_string().parse().unwrap_or(f64::NAN);
+        use rust_decimal::prelude::ToPrimitive;
+        let variance_f = variance.to_f64().unwrap_or(f64::NAN);
         if variance_f.is_nan() { return Ok(SignalValue::Unavailable); }
         let stddev_f = variance_f.sqrt();
         let stddev = match Decimal::try_from(stddev_f) {

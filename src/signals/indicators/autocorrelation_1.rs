@@ -70,11 +70,12 @@ impl Autocorrelation1 {
         }
         if var_x.is_zero() || var_y.is_zero() { return None; }
 
-        let var_x_f: f64 = var_x.to_string().parse().ok()?;
-        let var_y_f: f64 = var_y.to_string().parse().ok()?;
+        use rust_decimal::prelude::ToPrimitive;
+        let var_x_f = var_x.to_f64()?;
+        let var_y_f = var_y.to_f64()?;
         let denom_f = (var_x_f * var_y_f).sqrt();
         if denom_f == 0.0 { return None; }
-        let cov_f: f64 = cov.to_string().parse().ok()?;
+        let cov_f = cov.to_f64()?;
         let rho_f = cov_f / denom_f;
         Decimal::try_from(rho_f).ok()
     }

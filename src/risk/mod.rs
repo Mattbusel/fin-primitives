@@ -691,7 +691,8 @@ impl DrawdownTracker {
     /// Uses `win_rate` and `update_count` to estimate the number of positive updates.
     /// Returns `None` if there have been no positive updates recorded.
     pub fn avg_gain_pct(&self) -> Option<f64> {
-        let wr: f64 = self.win_rate()?.to_string().parse().ok()?;
+        use rust_decimal::prelude::ToPrimitive;
+        let wr = self.win_rate()?.to_f64()?;
         let gain_count = (wr / 100.0 * self.update_count as f64).round() as usize;
         if gain_count == 0 { return None; }
         Some(self.total_gain_sum / gain_count as f64)
@@ -711,9 +712,10 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if max drawdown is zero or there are fewer than 2 updates.
     pub fn return_drawdown_ratio(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         if self.worst_drawdown_pct.is_zero() { return None; }
         let net_ret = self.net_return_pct()?;
-        let dd: f64 = self.worst_drawdown_pct.to_string().parse().ok()?;
+        let dd = self.worst_drawdown_pct.to_f64()?;
         if dd == 0.0 { return None; }
         Some(net_ret / dd)
     }
@@ -741,8 +743,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if no loss has been recorded (min_equity_delta >= 0).
     pub fn max_loss_pct_single(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         if self.min_equity_delta >= 0.0 { return None; }
-        let peak: f64 = self.peak_equity.to_string().parse().ok()?;
+        let peak = self.peak_equity.to_f64()?;
         if peak <= 0.0 { return None; }
         Some((self.min_equity_delta / peak).abs() * 100.0)
     }
@@ -751,7 +754,8 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if either rate is unavailable or loss rate is zero.
     pub fn win_loss_ratio(&self) -> Option<f64> {
-        let wr = self.win_rate()?.to_string().parse::<f64>().ok()?;
+        use rust_decimal::prelude::ToPrimitive;
+        let wr = self.win_rate()?.to_f64()?;
         let lr = self.loss_rate()?;
         if lr == 0.0 { return None; }
         Some(wr / (lr * 100.0))
@@ -761,10 +765,11 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if no drawdown or no gain has been recorded.
     pub fn best_drawdown_recovery(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         if self.worst_drawdown_pct.is_zero() { return None; }
         let max_gain = self.max_gain_pct();
         if max_gain <= 0.0 { return None; }
-        let dd: f64 = self.worst_drawdown_pct.to_string().parse().ok()?;
+        let dd = self.worst_drawdown_pct.to_f64()?;
         if dd == 0.0 { return None; }
         Some(max_gain / dd)
     }
@@ -792,10 +797,11 @@ impl DrawdownTracker {
     /// Based on average gain size and current distance from peak.
     /// Returns `None` if not in drawdown, no gain history, or average gain is zero.
     pub fn time_to_recover_est(&self) -> Option<usize> {
+        use rust_decimal::prelude::ToPrimitive;
         if !self.in_drawdown() { return None; }
         let avg_gain = self.avg_gain_pct()?;
         if avg_gain <= 0.0 { return None; }
-        let distance: f64 = self.current_drawdown_pct().to_string().parse().ok()?;
+        let distance = self.current_drawdown_pct().to_f64()?;
         Some((distance / avg_gain).ceil() as usize)
     }
 
@@ -1725,8 +1731,9 @@ impl DrawdownTracker {
     /// Average loss per loss-update (absolute value). Returns `None` if no losses have been
     /// recorded.
     pub fn avg_loss_pct(&self) -> Option<f64> {
+        use rust_decimal::prelude::ToPrimitive;
         if self.total_loss_sum == 0.0 || self.update_count == 0 { return None; }
-        let wr: f64 = self.win_rate()?.to_string().parse().ok()?;
+        let wr = self.win_rate()?.to_f64()?;
         let loss_count = ((1.0 - wr / 100.0) * self.update_count as f64).round() as usize;
         if loss_count == 0 { return None; }
         Some(self.total_loss_sum / loss_count as f64)

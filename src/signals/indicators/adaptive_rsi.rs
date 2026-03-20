@@ -85,7 +85,8 @@ impl AdaptiveRsi {
     }
 
     fn effective_period(er: Decimal, min: usize, max: usize) -> usize {
-        let er_f = er.to_string().parse::<f64>().unwrap_or(0.0);
+        use rust_decimal::prelude::ToPrimitive;
+        let er_f = er.to_f64().unwrap_or(0.0);
         let p = min as f64 + (1.0 - er_f) * (max - min) as f64;
         (p.round() as usize).max(min).min(max)
     }
