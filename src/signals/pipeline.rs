@@ -92,6 +92,16 @@ impl SignalMap {
     pub fn sum_scalars(&self) -> Decimal {
         self.scalars().map(|(_, v)| v).sum()
     }
+
+    /// Collects all ready scalar values into an owned `HashMap<String, Decimal>`.
+    ///
+    /// Useful when the caller needs an owned snapshot of all current signal values,
+    /// e.g. to send across a channel or serialize.
+    pub fn get_all_scalars(&self) -> std::collections::HashMap<String, Decimal> {
+        self.scalars()
+            .map(|(name, val)| (name.to_owned(), val))
+            .collect()
+    }
 }
 
 /// A pipeline that applies a sequence of signals to each incoming OHLCV bar.

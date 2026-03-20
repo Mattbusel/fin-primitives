@@ -195,6 +195,16 @@ impl SignalValue {
         }
     }
 
+    /// Returns the absolute value of the scalar: `Scalar(|x|)` or `Unavailable`.
+    ///
+    /// Useful when you only care about the magnitude of a signal (e.g. absolute momentum).
+    pub fn abs(self) -> SignalValue {
+        match self {
+            SignalValue::Scalar(d) => SignalValue::Scalar(d.abs()),
+            SignalValue::Unavailable => SignalValue::Unavailable,
+        }
+    }
+
     /// Clamps the scalar value to `[lo, hi]`, returning `Unavailable` if `Unavailable`.
     ///
     /// If `Scalar(v)`, returns `Scalar(v.clamp(lo, hi))`. Useful for bounding oscillators

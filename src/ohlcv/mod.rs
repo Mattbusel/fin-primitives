@@ -136,6 +136,14 @@ impl OhlcvBar {
             / Decimal::from(4u32)
     }
 
+    /// Returns the weighted close price: `(high + low + close * 2) / 4`.
+    ///
+    /// Alias for `hlcc4`. Commonly called "weighted close" in technical analysis
+    /// literature; emphasises the closing price over the high and low.
+    pub fn weighted_close(&self) -> Decimal {
+        self.hlcc4()
+    }
+
     /// Returns the OHLC/4 price: `(open + high + low + close) / 4`.
     ///
     /// Equal weight for all four price components. Common in smoothed candlestick
@@ -1639,6 +1647,74 @@ impl OhlcvSeries {
             return None;
         }
         Some(s / l)
+    }
+
+    /// Returns the length of the current consecutive close-to-close streak.
+    ///
+    /// A positive value means the last N closes were each higher than the prior close
+    /// (bullish streak). A negative value means consecutive lower closes (bearish streak).
+    /// Returns `0` when the series has fewer than 2 bars.
+    ///
+    /// # Example
+    /// ```
+    /// # use fin_primitives::ohlcv::OhlcvSeries;
+    /// # use fin_primitives::types::{Price, Quantity, Symbol, NanoTimestamp};
+    /// # use fin_primitives::ohlcv::OhlcvBar;
+    /// # fn bar(close: f64) -> OhlcvBar {
+    /// #     let p = Price::new(close.to_string().parse().unwrap()).unwrap();
+    /// #     let q = Quantity::new(rust_decimal::Decimal::ONE).unwrap();
+    /// #     OhlcvBar { symbol: Symbol::new("X").unwrap(), open: p, high: p, low: p, close: p,
+    /// #                volume: q, ts_open: NanoTimestamp::new(0), ts_close: NanoTimestamp::new(1), tick_count: 1 }
+    /// # }
+    /// let mut s = OhlcvSeries::new();
+    /// s.push(bar(10.0)); s.push(bar(11.0)); s.push(bar(12.0));
+    /// assert_eq!(s.streak(), 2);
+    /// ```
+    pub fn streak(&self) -> i32 {
+        let n = self.bars.len();
+        if n < 2 {
+            return 0;
+        }
+        let mut count: i32 = 0;
+        for i in (1..n).rev() {
+            let prev = self.bars[i - 1].close.value();
+            let curr = self.bars[i].close.value();
+            if curr > prev {
+                if count < 0 {
+                    break;
+                }
+                count += 1;
+            } else if curr < prev {
+                if count > 0 {
+                    break;
+                }
+                count -= 1;
+            } else {
+                break;
+            }
+        }
+        count
+    }
+
+    /// Returns the Calmar ratio: annualised return divided by maximum drawdown.
+    ///
+    /// Annualised return is computed as `mean_log_return * bars_per_year`.
+    /// Requires at least 2 bars and a non-zero `max_drawdown`.
+    ///
+    /// Returns `None` when there is insufficient data or the max drawdown is zero.
+    pub fn calmar_ratio(&self, bars_per_year: f64) -> Option<f64> {
+        let lr = self.log_returns();
+        if lr.len() < 2 {
+            return None;
+        }
+        let ann_return = (lr.iter().sum::<f64>() / lr.len() as f64) * bars_per_year;
+        let dd = self.max_drawdown()?;
+        use rust_decimal::prelude::ToPrimitive;
+        let dd_f64 = dd.to_f64()?;
+        if dd_f64 == 0.0_f64 {
+            return None;
+        }
+        Some(ann_return / dd_f64)
     }
 }
 

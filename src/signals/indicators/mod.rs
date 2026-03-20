@@ -27,6 +27,7 @@ pub mod stochastic_d;
 pub mod tema;
 pub mod tsi;
 pub mod vwap;
+pub mod vwma;
 pub mod williams_r;
 pub mod wma;
 
@@ -54,5 +55,6 @@ pub use stochastic_d::StochasticD;
 pub use tema::Tema;
 pub use tsi::Tsi;
 pub use vwap::Vwap;
+pub use vwma::Vwma;
 pub use williams_r::WilliamsR;
 pub use wma::Wma;

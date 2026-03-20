@@ -275,6 +275,13 @@ impl TickFilter {
         self.min_notional.is_some() || self.max_notional.is_some()
     }
 
+    /// Resets all predicates, returning a fresh filter that matches every tick.
+    ///
+    /// Allows reuse of a filter builder without allocating a new one.
+    pub fn clear(self) -> Self {
+        Self::new()
+    }
+
     /// Returns `true` if no predicates are configured — the filter matches any tick.
     ///
     /// Callers can skip filter evaluation entirely when no constraints have been set,
@@ -447,6 +454,34 @@ impl TickReplayer {
     /// Returns a reference to the last tick in the replay sequence, or `None` if empty.
     pub fn last(&self) -> Option<&Tick> {
         self.ticks.last()
+    }
+
+    /// Returns the VWAP for bid-side and ask-side ticks separately.
+    ///
+    /// The tuple is `(bid_vwap, ask_vwap)`. Either element is `None` if there
+    /// are no ticks on that side or total volume for that side is zero.
+    pub fn vwap_by_side(&self) -> (Option<Decimal>, Option<Decimal>) {
+        let mut bid_notional = Decimal::ZERO;
+        let mut bid_vol = Decimal::ZERO;
+        let mut ask_notional = Decimal::ZERO;
+        let mut ask_vol = Decimal::ZERO;
+        for tick in &self.ticks {
+            let vol = tick.quantity.value();
+            let notional = tick.notional();
+            match tick.side {
+                Side::Bid => {
+                    bid_notional += notional;
+                    bid_vol += vol;
+                }
+                Side::Ask => {
+                    ask_notional += notional;
+                    ask_vol += vol;
+                }
+            }
+        }
+        let bid_vwap = if bid_vol.is_zero() { None } else { Some(bid_notional / bid_vol) };
+        let ask_vwap = if ask_vol.is_zero() { None } else { Some(ask_notional / ask_vol) };
+        (bid_vwap, ask_vwap)
     }
 
     /// Groups all ticks in this replayer by symbol.

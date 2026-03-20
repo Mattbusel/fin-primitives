@@ -278,6 +278,24 @@ impl Position {
         };
         Price::new(stop).ok()
     }
+
+    /// Returns the take-profit price for the current position at `tp_pct` percent gain.
+    ///
+    /// Returns `None` when the position is flat or `avg_cost` is zero.
+    /// For a long position, the take-profit price is `avg_cost * (1 + tp_pct / 100)`.
+    /// For a short position, the take-profit price is `avg_cost * (1 - tp_pct / 100)`.
+    pub fn take_profit_price(&self, tp_pct: Decimal) -> Option<Price> {
+        if self.is_flat() || self.avg_cost.is_zero() {
+            return None;
+        }
+        let factor = tp_pct / Decimal::ONE_HUNDRED;
+        let tp = if self.is_long() {
+            self.avg_cost * (Decimal::ONE + factor)
+        } else {
+            self.avg_cost * (Decimal::ONE - factor)
+        };
+        Price::new(tp).ok()
+    }
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.

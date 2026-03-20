@@ -612,6 +612,35 @@ impl OrderBook {
             Some(notional / target)
         }
     }
+
+    /// Returns the top `n` bid levels in descending price order (best bid first).
+    ///
+    /// Returns fewer than `n` levels if the bid side has fewer entries.
+    pub fn bid_depth(&self, n: usize) -> Vec<PriceLevel> {
+        self.bids
+            .iter()
+            .rev()
+            .take(n)
+            .map(|(price, qty)| PriceLevel {
+                price: Price::new(*price).unwrap(),
+                quantity: Quantity::new(*qty).unwrap(),
+            })
+            .collect()
+    }
+
+    /// Returns the top `n` ask levels in ascending price order (best ask first).
+    ///
+    /// Returns fewer than `n` levels if the ask side has fewer entries.
+    pub fn ask_depth(&self, n: usize) -> Vec<PriceLevel> {
+        self.asks
+            .iter()
+            .take(n)
+            .map(|(price, qty)| PriceLevel {
+                price: Price::new(*price).unwrap(),
+                quantity: Quantity::new(*qty).unwrap(),
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]

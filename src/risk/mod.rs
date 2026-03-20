@@ -147,6 +147,17 @@ impl DrawdownTracker {
     pub fn drawdown_count(&self) -> usize {
         self.updates_since_peak
     }
+
+    /// Returns the percentage gain required from the current equity to recover to the peak.
+    ///
+    /// Formula: `(peak / current - 1) * 100`. Returns `Decimal::ZERO` when already at peak
+    /// or when current equity is zero (to avoid division by zero).
+    pub fn recovery_to_peak_pct(&self) -> Decimal {
+        if self.current_equity.is_zero() || self.current_equity >= self.peak_equity {
+            return Decimal::ZERO;
+        }
+        (self.peak_equity / self.current_equity - Decimal::ONE) * Decimal::ONE_HUNDRED
+    }
 }
 
 impl std::fmt::Display for DrawdownTracker {

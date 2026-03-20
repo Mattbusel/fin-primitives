@@ -268,6 +268,18 @@ impl Price {
     pub fn midpoint(bid: Price, ask: Price) -> Decimal {
         (bid.0 + ask.0) / Decimal::TWO
     }
+
+    /// Linearly interpolates between `self` and `other` by factor `t` in `[0, 1]`.
+    ///
+    /// Returns `self + (other - self) * t`. Returns `None` if `t` is outside `[0, 1]`
+    /// or if the result is not a valid price (i.e., not strictly positive).
+    pub fn lerp(self, other: Price, t: Decimal) -> Option<Price> {
+        if t < Decimal::ZERO || t > Decimal::ONE {
+            return None;
+        }
+        let result = self.0 + (other.0 - self.0) * t;
+        Price::new(result).ok()
+    }
 }
 
 impl std::fmt::Display for Price {
@@ -385,6 +397,17 @@ impl Quantity {
     /// negative `Decimal`s wrapped in `Quantity(d)` via internal code paths).
     pub fn abs(self) -> Quantity {
         Quantity(self.0.abs())
+    }
+
+    /// Multiplies this quantity by `factor`, returning `None` if the result is negative.
+    ///
+    /// Useful for scaling position sizes by a fraction (e.g. `0.5` for half-position).
+    /// Returns `None` if `factor` is negative (which would produce an invalid quantity).
+    pub fn scale(self, factor: Decimal) -> Option<Quantity> {
+        if factor < Decimal::ZERO {
+            return None;
+        }
+        Some(Quantity(self.0 * factor))
     }
 }
 
@@ -601,6 +624,14 @@ impl NanoTimestamp {
     /// Returns the later of `self` and `other`.
     pub fn max(self, other: NanoTimestamp) -> NanoTimestamp {
         if self.0 >= other.0 { self } else { other }
+    }
+
+    /// Returns the signed nanosecond difference `self - earlier`.
+    ///
+    /// Positive when `self` is after `earlier`, negative when before.
+    /// Use for computing durations between two timestamps without assuming ordering.
+    pub fn elapsed_since(self, earlier: NanoTimestamp) -> i64 {
+        self.0 - earlier.0
     }
 
     /// Snaps this timestamp down to the nearest multiple of `period_nanos`.
