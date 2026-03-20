@@ -945,6 +945,48 @@ impl OhlcvSeries {
             })
             .collect()
     }
+
+    /// Returns compounded cumulative returns relative to the first bar's close.
+    ///
+    /// `cumret[i] = (close[i] / close[0]) - 1`
+    ///
+    /// Returns an empty `Vec` when the series is empty or the first close is zero.
+    pub fn cumulative_returns(&self) -> Vec<Decimal> {
+        let first = match self.bars.first() {
+            Some(b) => b.close.value(),
+            None => return Vec::new(),
+        };
+        if first.is_zero() {
+            return Vec::new();
+        }
+        self.bars
+            .iter()
+            .map(|b| b.close.value() / first - Decimal::ONE)
+            .collect()
+    }
+
+    /// Resamples the series by merging every `n` consecutive bars into one.
+    ///
+    /// Trailing bars that don't fill a full group of `n` are merged into the last output bar.
+    /// Returns an empty `Vec` when `n == 0` or the series is empty.
+    ///
+    /// # Errors
+    /// Returns [`FinError::BarInvariant`] if any merged bar fails invariant checks.
+    pub fn resample(&self, n: usize) -> Result<Vec<OhlcvBar>, FinError> {
+        if n == 0 || self.bars.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut result = Vec::new();
+        let mut chunks = self.bars.chunks(n);
+        for chunk in &mut chunks {
+            let mut merged = chunk[0].clone();
+            for b in &chunk[1..] {
+                merged = merged.merge(b)?;
+            }
+            result.push(merged);
+        }
+        Ok(result)
+    }
 }
 
 impl Default for OhlcvSeries {
@@ -1517,8 +1559,8 @@ mod tests {
 
     #[test]
     fn test_ohlcv_bar_is_hammer() {
-        // body = 5 (100→105), lower shadow = 15 (80→100), upper shadow = 5 (105→110) → NOT hammer (upper > body)
-        let not_hammer = make_bar("100", "110", "80", "105");
+        // body = 5 (100→105), lower shadow = 20 (80→100), upper shadow = 6 (105→111) → NOT hammer (upper > body)
+        let not_hammer = make_bar("100", "111", "80", "105");
         assert!(!not_hammer.is_hammer());
         // body = 5, lower shadow = 20 (75→95), upper shadow = 0 → IS hammer
         let hammer = make_bar("95", "100", "75", "100");
@@ -1584,12 +1626,50 @@ mod tests {
         let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(1)).unwrap();
         assert_eq!(agg.bar_count(), 0);
         agg.push_tick(&make_tick("AAPL", "100", "1", 0)).unwrap();
+        // t=2s lands in bucket [2s,3s): completes [0s,1s) + gap fills [1s,2s) = 2 bars emitted
         agg.push_tick(&make_tick("AAPL", "101", "1", 2_000_000_000))
             .unwrap();
-        assert_eq!(agg.bar_count(), 1);
-        agg.flush();
         assert_eq!(agg.bar_count(), 2);
+        agg.flush();
+        assert_eq!(agg.bar_count(), 3);
         agg.reset();
         assert_eq!(agg.bar_count(), 0);
+    }
+
+    #[test]
+    fn test_ohlcv_series_vwap_empty_returns_none() {
+        assert!(OhlcvSeries::new().vwap().is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_vwap_zero_volume_returns_none() {
+        let mut series = OhlcvSeries::new();
+        let mut bar = make_bar("100", "110", "90", "100");
+        bar.volume = Quantity::zero();
+        series.push(bar).unwrap();
+        assert!(series.vwap().is_none());
+    }
+
+    #[test]
+    fn test_ohlcv_series_vwap_constant_price() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        series.push(make_bar("100", "100", "100", "100")).unwrap();
+        assert_eq!(series.vwap().unwrap(), dec!(100));
+    }
+
+    #[test]
+    fn test_ohlcv_series_sum_volume_empty() {
+        assert_eq!(OhlcvSeries::new().sum_volume(), dec!(0));
+    }
+
+    #[test]
+    fn test_ohlcv_series_sum_volume_multiple_bars() {
+        let mut series = OhlcvSeries::new();
+        series.push(make_bar("100", "110", "90", "105")).unwrap();
+        series.push(make_bar("105", "115", "95", "110")).unwrap();
+        series.push(make_bar("110", "120", "100", "115")).unwrap();
+        // make_bar sets volume = 100 per bar
+        assert_eq!(series.sum_volume(), dec!(300));
     }
 }

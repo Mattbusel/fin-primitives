@@ -19,6 +19,8 @@ pub struct DrawdownTracker {
     peak_equity: Decimal,
     current_equity: Decimal,
     worst_drawdown_pct: Decimal,
+    /// Number of updates since the last new peak.
+    updates_since_peak: usize,
 }
 
 impl DrawdownTracker {
@@ -28,6 +30,7 @@ impl DrawdownTracker {
             peak_equity: initial_equity,
             current_equity: initial_equity,
             worst_drawdown_pct: Decimal::ZERO,
+            updates_since_peak: 0,
         }
     }
 
@@ -35,12 +38,23 @@ impl DrawdownTracker {
     pub fn update(&mut self, equity: Decimal) {
         if equity > self.peak_equity {
             self.peak_equity = equity;
+            self.updates_since_peak = 0;
+        } else {
+            self.updates_since_peak += 1;
         }
         self.current_equity = equity;
         let dd = self.current_drawdown_pct();
         if dd > self.worst_drawdown_pct {
             self.worst_drawdown_pct = dd;
         }
+    }
+
+    /// Returns the number of `update()` calls since the last new equity peak.
+    ///
+    /// A value of 0 means the last update set a new peak. Higher values indicate
+    /// how long the portfolio has been in drawdown (in update units).
+    pub fn drawdown_duration(&self) -> usize {
+        self.updates_since_peak
     }
 
     /// Returns current drawdown as a percentage: `(peak - current) / peak * 100`.
@@ -74,6 +88,7 @@ impl DrawdownTracker {
     /// from the start of the new session rather than the all-time high.
     pub fn reset_peak(&mut self) {
         self.peak_equity = self.current_equity;
+        self.updates_since_peak = 0;
     }
 
     /// Returns the worst (highest) drawdown percentage seen since construction or last reset.
@@ -86,6 +101,7 @@ impl DrawdownTracker {
         self.peak_equity = initial;
         self.current_equity = initial;
         self.worst_drawdown_pct = Decimal::ZERO;
+        self.updates_since_peak = 0;
     }
 
     /// Returns the recovery factor: `net_profit_pct / worst_drawdown_pct`.
@@ -571,5 +587,40 @@ mod tests {
         assert!(s.contains("9000"), "display should include current equity");
         assert!(s.contains("10000"), "display should include peak");
         assert!(s.contains("10.00"), "display should include drawdown pct");
+    }
+
+    #[test]
+    fn test_drawdown_tracker_recovery_factor() {
+        let mut t = DrawdownTracker::new(dec!(10000));
+        t.update(dec!(9000)); // 10% worst drawdown
+        // net profit 20% / worst_dd 10% = 2.0
+        let rf = t.recovery_factor(dec!(20)).unwrap();
+        assert_eq!(rf, dec!(2));
+    }
+
+    #[test]
+    fn test_drawdown_tracker_recovery_factor_no_drawdown() {
+        let t = DrawdownTracker::new(dec!(10000));
+        assert!(t.recovery_factor(dec!(20)).is_none());
+    }
+
+    #[test]
+    fn test_risk_monitor_check_non_mutating() {
+        let monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        // check with 20% drawdown from peak — should breach
+        let breaches = monitor.check(dec!(8000));
+        assert_eq!(breaches.len(), 1);
+        // but peak hasn't changed
+        assert_eq!(monitor.peak_equity(), dec!(10000));
+        assert_eq!(monitor.current_equity(), dec!(10000));
+    }
+
+    #[test]
+    fn test_risk_monitor_check_no_breach() {
+        let monitor = RiskMonitor::new(dec!(10000))
+            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        let breaches = monitor.check(dec!(9000)); // 10% drawdown < 15%
+        assert!(breaches.is_empty());
     }
 }

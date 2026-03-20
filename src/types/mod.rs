@@ -966,4 +966,18 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         assert_eq!(Price::midpoint(p, p), dec!(100));
     }
+
+    #[test]
+    fn test_price_mid_method() {
+        let bid = Price::new(dec!(100)).unwrap();
+        let ask = Price::new(dec!(102)).unwrap();
+        let mid = bid.mid(ask);
+        assert_eq!(mid.value(), dec!(101));
+    }
+
+    #[test]
+    fn test_price_mid_method_same_price() {
+        let p = Price::new(dec!(100)).unwrap();
+        assert_eq!(p.mid(p).value(), dec!(100));
+    }
 }

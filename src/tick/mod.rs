@@ -761,4 +761,51 @@ mod tests {
         let t = make_tick("AAPL", "100", "0", Side::Bid, 0);
         assert_eq!(t.notional_checked(), Some(dec!(0)));
     }
+
+    #[test]
+    fn test_tick_is_buy_bid_side() {
+        let t = make_tick("AAPL", "100", "1", Side::Bid, 0);
+        assert!(t.is_buy());
+        assert!(!t.is_sell());
+    }
+
+    #[test]
+    fn test_tick_is_sell_ask_side() {
+        let t = make_tick("AAPL", "100", "1", Side::Ask, 0);
+        assert!(t.is_sell());
+        assert!(!t.is_buy());
+    }
+
+    #[test]
+    fn test_tick_replayer_between_inclusive() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "101", "1", Side::Ask, 5),
+            make_tick("AAPL", "102", "1", Side::Bid, 10),
+        ];
+        let replayer = TickReplayer::new(ticks);
+        let result = replayer.between(NanoTimestamp::new(1), NanoTimestamp::new(5));
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_tick_replayer_between_no_matches() {
+        let ticks = vec![make_tick("AAPL", "100", "1", Side::Bid, 100)];
+        let replayer = TickReplayer::new(ticks);
+        let result = replayer.between(NanoTimestamp::new(1), NanoTimestamp::new(50));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_tick_filter_timestamp_range() {
+        let ticks = vec![
+            make_tick("AAPL", "100", "1", Side::Bid, 1),
+            make_tick("AAPL", "101", "1", Side::Ask, 5),
+            make_tick("AAPL", "102", "1", Side::Bid, 10),
+        ];
+        let filter = TickFilter::new()
+            .timestamp_range(NanoTimestamp::new(3), NanoTimestamp::new(10));
+        let matched: Vec<_> = ticks.iter().filter(|t| filter.matches(t)).collect();
+        assert_eq!(matched.len(), 2);
+    }
 }

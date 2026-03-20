@@ -363,6 +363,16 @@ impl PositionLedger {
         self.positions.values().map(|p| p.quantity.abs()).sum()
     }
 
+    /// Returns a reference to the open position with the largest absolute quantity.
+    ///
+    /// Returns `None` when there are no open (non-flat) positions.
+    pub fn largest_position(&self) -> Option<&Position> {
+        self.positions
+            .values()
+            .filter(|p| !p.is_flat())
+            .max_by(|a, b| a.quantity.abs().partial_cmp(&b.quantity.abs()).unwrap_or(std::cmp::Ordering::Equal))
+    }
+
     /// Returns the total market value of all open positions given a price map.
     ///
     /// # Errors
@@ -827,5 +837,65 @@ mod tests {
             Err(FinError::InsufficientFunds { .. })
         ));
         assert_eq!(ledger.cash(), dec!(100), "cash unchanged on failure");
+    }
+
+    #[test]
+    fn test_position_is_profitable_true() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let current = Price::new(dec!(110)).unwrap();
+        assert!(pos.is_profitable(current));
+    }
+
+    #[test]
+    fn test_position_is_profitable_false_when_at_loss() {
+        let mut pos = Position::new(sym("AAPL"));
+        pos.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let current = Price::new(dec!(90)).unwrap();
+        assert!(!pos.is_profitable(current));
+    }
+
+    #[test]
+    fn test_position_ledger_long_positions() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let longs: Vec<_> = ledger.long_positions().collect();
+        assert_eq!(longs.len(), 1);
+        assert_eq!(longs[0].symbol.as_str(), "AAPL");
+    }
+
+    #[test]
+    fn test_position_ledger_short_positions_empty_for_long_only() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        let shorts: Vec<_> = ledger.short_positions().collect();
+        assert!(shorts.is_empty());
+    }
+
+    #[test]
+    fn test_position_ledger_realized_pnl_after_close() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        assert_eq!(ledger.realized_pnl(&sym("AAPL")), Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_position_ledger_realized_pnl_unknown_symbol_returns_none() {
+        let ledger = PositionLedger::new(dec!(10000));
+        assert!(ledger.realized_pnl(&sym("AAPL")).is_none());
+    }
+
+    #[test]
+    fn test_position_ledger_realized_pnl_zero_before_close() {
+        let mut ledger = PositionLedger::new(dec!(10000));
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        assert_eq!(ledger.realized_pnl(&sym("AAPL")), Some(dec!(0)));
     }
 }

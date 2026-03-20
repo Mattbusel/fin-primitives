@@ -192,6 +192,59 @@ impl std::fmt::Display for SignalValue {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_signal_value_and_then_scalar_returns_value() {
+        let v = SignalValue::Scalar(dec!(50));
+        let result = v.and_then(|x| SignalValue::Scalar(x * dec!(2)));
+        assert_eq!(result, SignalValue::Scalar(dec!(100)));
+    }
+
+    #[test]
+    fn test_signal_value_and_then_scalar_can_return_unavailable() {
+        let v = SignalValue::Scalar(dec!(5));
+        let result = v.and_then(|x| {
+            if x > dec!(10) { SignalValue::Scalar(x) } else { SignalValue::Unavailable }
+        });
+        assert_eq!(result, SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_and_then_unavailable_short_circuits() {
+        let v = SignalValue::Unavailable;
+        let result = v.and_then(|_| SignalValue::Scalar(dec!(999)));
+        assert_eq!(result, SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_map_scalar() {
+        let v = SignalValue::Scalar(dec!(10));
+        assert_eq!(v.map(|x| x + dec!(5)), SignalValue::Scalar(dec!(15)));
+    }
+
+    #[test]
+    fn test_signal_value_map_unavailable() {
+        assert_eq!(SignalValue::Unavailable.map(|x| x + dec!(5)), SignalValue::Unavailable);
+    }
+
+    #[test]
+    fn test_signal_value_zip_with_both_scalar() {
+        let a = SignalValue::Scalar(dec!(10));
+        let b = SignalValue::Scalar(dec!(3));
+        assert_eq!(a.zip_with(b, |x, y| x - y), SignalValue::Scalar(dec!(7)));
+    }
+
+    #[test]
+    fn test_signal_value_zip_with_one_unavailable() {
+        let a = SignalValue::Scalar(dec!(10));
+        assert_eq!(a.zip_with(SignalValue::Unavailable, |x, y| x + y), SignalValue::Unavailable);
+    }
+}
+
 /// A stateful indicator that updates on each new bar input.
 ///
 /// # Implementors

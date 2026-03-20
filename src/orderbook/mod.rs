@@ -419,6 +419,32 @@ impl OrderBook {
         Some((*bid_p * *ask_q + *ask_p * *bid_q) / total_q)
     }
 
+    /// Returns all price levels on `side` whose price falls within `[lo, hi]` (inclusive).
+    ///
+    /// Useful for computing the available liquidity within a price band.
+    pub fn price_levels_between(&self, side: Side, lo: Price, hi: Price) -> Vec<PriceLevel> {
+        let lo_val = lo.value();
+        let hi_val = hi.value();
+        match side {
+            Side::Bid => self
+                .bids
+                .range(lo_val..=hi_val)
+                .map(|(p, q)| PriceLevel {
+                    price: Price::new(*p).unwrap_or(lo),
+                    quantity: crate::types::Quantity::new(*q).unwrap_or_else(|_| crate::types::Quantity::zero()),
+                })
+                .collect(),
+            Side::Ask => self
+                .asks
+                .range(lo_val..=hi_val)
+                .map(|(p, q)| PriceLevel {
+                    price: Price::new(*p).unwrap_or(lo),
+                    quantity: crate::types::Quantity::new(*q).unwrap_or_else(|_| crate::types::Quantity::zero()),
+                })
+                .collect(),
+        }
+    }
+
     /// Returns the smallest price increment between adjacent levels on either side.
     ///
     /// Useful for estimating the instrument's native tick size from live book data.
@@ -951,5 +977,29 @@ mod tests {
         book.apply_delta(set_delta(Side::Ask, "101", "3", 1)).unwrap();
         assert_eq!(book.level_count(Side::Ask), 1);
         assert_eq!(book.level_count(Side::Bid), 0);
+    }
+
+    #[test]
+    fn test_orderbook_weighted_mid_equal_qty() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "5", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "102", "5", 2)).unwrap();
+        // Equal qty → simple midpoint
+        assert_eq!(book.weighted_mid().unwrap(), dec!(101));
+    }
+
+    #[test]
+    fn test_orderbook_weighted_mid_bid_heavy() {
+        let mut book = make_book();
+        book.apply_delta(set_delta(Side::Bid, "100", "9", 1)).unwrap();
+        book.apply_delta(set_delta(Side::Ask, "110", "1", 2)).unwrap();
+        // (100*1 + 110*9) / (9+1) = (100 + 990) / 10 = 109
+        assert_eq!(book.weighted_mid().unwrap(), dec!(109));
+    }
+
+    #[test]
+    fn test_orderbook_weighted_mid_empty_returns_none() {
+        let book = make_book();
+        assert!(book.weighted_mid().is_none());
     }
 }

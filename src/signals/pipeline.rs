@@ -193,6 +193,7 @@ mod tests {
     use crate::ohlcv::OhlcvBar;
     use crate::signals::indicators::{Ema, Rsi, Sma};
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
+    use rust_decimal_macros::dec;
 
     fn bar(close: &str) -> OhlcvBar {
         let p = Price::new(close.parse().unwrap()).unwrap();
@@ -317,5 +318,29 @@ mod tests {
             .add(Sma::new("sma10", 10).unwrap())
             .add(Ema::new("ema20", 20).unwrap());
         assert_eq!(pipeline.get_signal("ema20").unwrap().period(), 20);
+    }
+
+    #[test]
+    fn test_signal_map_get_scalar_returns_value_when_ready() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        pipeline.update(&bar("100"));
+        pipeline.update(&bar("102"));
+        let map = pipeline.update(&bar("104"));
+        let v = map.get_scalar("sma3").unwrap();
+        assert_eq!(v, dec!(102)); // (100 + 102 + 104) / 3
+    }
+
+    #[test]
+    fn test_signal_map_get_scalar_returns_none_before_warmup() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma5", 5).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.get_scalar("sma5").is_none());
+    }
+
+    #[test]
+    fn test_signal_map_get_scalar_missing_name() {
+        let mut pipeline = SignalPipeline::new().add(Sma::new("sma3", 3).unwrap());
+        let map = pipeline.update(&bar("100"));
+        assert!(map.get_scalar("nonexistent").is_none());
     }
 }
