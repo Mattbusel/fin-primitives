@@ -31,6 +31,7 @@ pub struct RsiSlope {
     seed_gain: Decimal,
     seed_loss: Decimal,
     prev_rsi: Option<Decimal>,
+    ready: bool,
 }
 
 impl RsiSlope {
@@ -52,6 +53,7 @@ impl RsiSlope {
             seed_gain: Decimal::ZERO,
             seed_loss: Decimal::ZERO,
             prev_rsi: None,
+            ready: false,
         })
     }
 
@@ -82,7 +84,7 @@ impl Signal for RsiSlope {
     }
 
     fn is_ready(&self) -> bool {
-        self.prev_rsi.is_some() && self.avg_gain.is_some()
+        self.ready
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
@@ -135,6 +137,7 @@ impl Signal for RsiSlope {
             return Ok(SignalValue::Unavailable);
         };
         self.prev_rsi = Some(current_rsi);
+        self.ready = true;
         Ok(SignalValue::Scalar(current_rsi - prev_rsi))
     }
 
@@ -146,6 +149,7 @@ impl Signal for RsiSlope {
         self.seed_gain = Decimal::ZERO;
         self.seed_loss = Decimal::ZERO;
         self.prev_rsi = None;
+        self.ready = false;
     }
 }
 
