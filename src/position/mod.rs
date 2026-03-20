@@ -1650,6 +1650,25 @@ impl PositionLedger {
     pub fn count_losing(&self) -> usize {
         self.positions.values().filter(|p| p.realized_pnl < Decimal::ZERO).count()
     }
+
+    /// Returns the top `n` open positions by absolute notional exposure (`|qty * price|`),
+    /// sorted descending. Positions without a price in `prices` are excluded.
+    pub fn top_n_by_exposure<'a>(
+        &'a self,
+        prices: &HashMap<String, Price>,
+        n: usize,
+    ) -> Vec<(&'a Symbol, Decimal)> {
+        let mut exposures: Vec<(&Symbol, Decimal)> = self.positions.iter()
+            .filter(|(_, p)| !p.is_flat())
+            .filter_map(|(sym, p)| {
+                prices.get(p.symbol.as_str())
+                    .map(|&pr| (sym, (p.quantity * pr.value()).abs()))
+            })
+            .collect();
+        exposures.sort_by(|a, b| b.1.cmp(&a.1));
+        exposures.truncate(n);
+        exposures
+    }
 }
 
 #[cfg(test)]
