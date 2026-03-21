@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.8.0] - 2026-03-20
+
+### Added
+- `OpenCloseVelocity`: rolling mean of `close - open` per bar — measures average intrabar directional conviction.
+- `BarRangePercentile`: interpolated percentile rank of current bar range within the window.
+- `VolumeMomentumRatio`: fast average volume / slow average volume — detects participation acceleration.
+- `PriceReturnSkew`: rolling skewness of close-to-close returns — identifies tail risk asymmetry.
+- `BarQualityScore`, `ThreeBlackCrows`, `ThreeWhiteSoldiers`, `TweezerBottom`, `TweezerTop`: previously untracked files now registered.
+
+---
+
 ## [2.7.0] - 2026-03-20
 
 ### Added
