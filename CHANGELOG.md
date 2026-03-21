@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.12.0] - 2026-03-21
+
+### Added
+- `CloseInRangePct`: rolling mean of `(close - low) / range × 100` — intrabar close bias on a 0-100 scale.
+- `GapDirectionStreak`: streak of consecutive same-direction opening gaps — detects persistent overnight momentum.
+- `VolumeCv`: rolling coefficient of variation of volume `std(vol) / mean(vol)` — measures volume erraticism.
+- `BodyToWickRatio`: rolling mean of `body / total_wicks` — directional commitment vs rejection ratio.
+- `GapVolatility`, `UpperWickStreak`, `SignedBodyRatio`, `VolumeDeltaEma`: previously registered in round-108 hook commit; tests all passing.
+- `CloseMinusPrevHigh`, `HighMinusPrevClose`, `HigherTimeframeTrend`, `PriceSpreadRatio`, `VolumePriceTrend`, `OnBalanceVolumeMA`, `CloseToMidrange`, `LowMinusPrevClose`, `CloseAbovePrevLow`, `CloseSessionBias`: previously untracked files now committed (703+ indicators).
+
+---
+
 ## [2.11.0] - 2026-03-21
 
 ### Added
