@@ -1462,3 +1462,5 @@ pub use close_drawdown_from_high::CloseDrawdownFromHigh;
 
 pub mod volume_acceleration_index;
 pub use volume_acceleration_index::VolumeAccelerationIndex;
+pub mod low_to_close_ratio;
+pub use low_to_close_ratio::LowToCloseRatio;
