@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.0] - 2026-03-20
+
+### Added
+- `SharpeRatio`: rolling mean return / std dev of returns over `period` bars.
+- `SortinoRatio`: rolling mean return / downside deviation (negative returns only) over `period` bars.
+- `MaxFavorableExcursion`: rolling max % rally from the window's trough to any subsequent close — complement to `MaxAdverseExcursion`.
+- `PercentRankRange`: percentile rank of the current bar's range (`high - low`) within the rolling `period`-bar range window.
+
+---
+
 ## [1.1.0] - 2026-03-18
 
 ### Added
