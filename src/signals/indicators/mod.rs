@@ -1296,3 +1296,7 @@ pub mod upper_wick_ratio;
 pub use upper_wick_ratio::UpperWickRatio;
 pub mod lower_wick_ratio;
 pub use lower_wick_ratio::LowerWickRatio;
+pub mod volume_trend_strength;
+pub use volume_trend_strength::VolumeTrendStrength;
+pub mod range_expansion_rate;
+pub use range_expansion_rate::RangeExpansionRate;
