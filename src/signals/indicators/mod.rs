@@ -1162,7 +1162,7 @@ pub use body_volume_ratio::BodyVolumeRatio;
 pub mod gap_body_ratio;
 pub use gap_body_ratio::GapBodyRatio;
 pub mod elastic_volume_weighted_ma;
-pub use elastic_volume_weighted_ma::ElasticVolumeWeightedMa;
+pub use elastic_volume_weighted_ma::Evwma;
 pub mod fractal_dimension_index;
 pub use fractal_dimension_index::FractalDimensionIndex;
 pub mod garman_klass_volatility;

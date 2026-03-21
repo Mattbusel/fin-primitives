@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.0] - 2026-03-20
+
+### Added
+- `CalmarRatio`: rolling cumulative return / max drawdown ratio.
+- `RollingBeta`: serial autocorrelation beta (lagged OLS) for detecting momentum vs mean-reversion regimes.
+- `OpenCloseGap`: rolling mean of percent gap between previous close and current open — measures overnight drift bias.
+- `VolumeWeightedVolatility`: standard deviation of returns weighted by each bar's volume share.
+- `VolumeZScore`: rolling z-score of volume (previously untracked, now registered).
+- `BodyVolumeRatio`, `GapBodyRatio`: previously untracked files now committed.
+- `Evwma` (Elastic Volume-Weighted MA), `FractalDimensionIndex`, `GarmanKlassVolatility`, `ParkinsonVolatility`, `RogersSatchellVolatility`, `YangZhangVolatility`: previously untracked files now registered and committed.
+- Fixed `FractalDimensionIndex` test using price `0` (invalid) — changed to start from 1.
+
+---
+
 ## [2.4.0] - 2026-03-20
 
 ### Added
