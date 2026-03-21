@@ -1464,3 +1464,16 @@ pub mod volume_acceleration_index;
 pub use volume_acceleration_index::VolumeAccelerationIndex;
 pub mod low_to_close_ratio;
 pub use low_to_close_ratio::LowToCloseRatio;
+
+pub mod trend_slope_ratio;
+pub use trend_slope_ratio::TrendSlopeRatio;
+pub mod high_low_ratio;
+pub use high_low_ratio::HighLowRatio;
+pub mod net_buying_pressure;
+pub use net_buying_pressure::NetBuyingPressure;
+pub mod pivot_range_width;
+pub use pivot_range_width::PivotRangeWidth;
+pub mod open_to_low_range;
+pub use open_to_low_range::OpenToLowRange;
+pub mod high_to_open_range;
+pub use high_to_open_range::HighToOpenRange;
