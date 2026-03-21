@@ -1459,3 +1459,6 @@ pub mod high_low_symmetry;
 pub use high_low_symmetry::HighLowSymmetry;
 pub mod close_drawdown_from_high;
 pub use close_drawdown_from_high::CloseDrawdownFromHigh;
+
+pub mod volume_acceleration_index;
+pub use volume_acceleration_index::VolumeAccelerationIndex;
