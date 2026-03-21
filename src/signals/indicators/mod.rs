@@ -1440,3 +1440,18 @@ pub mod volume_cv;
 pub use volume_cv::VolumeCv;
 pub mod body_to_wick_ratio;
 pub use body_to_wick_ratio::BodyToWickRatio;
+
+pub mod bearish_engulfing;
+pub use bearish_engulfing::BearishEngulfing;
+pub mod bullish_engulfing;
+pub use bullish_engulfing::BullishEngulfing;
+pub mod closing_strength;
+pub use closing_strength::ClosingStrength;
+pub mod volume_ratio_trend;
+pub use volume_ratio_trend::VolumeRatioTrend;
+pub mod body_high_ratio;
+pub use body_high_ratio::BodyHighRatio;
+pub mod volatility_bias;
+pub use volatility_bias::VolatilityBias;
+pub mod body_color_streak;
+pub use body_color_streak::BodyColorStreak;
