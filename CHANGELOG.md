@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.7.0] - 2026-03-20
+
+### Added
+- `BodyAcceleration`: average change in body size per bar — detects momentum building or fading.
+- `HighLowSqueeze`: current range / max range in window × 100 — measures compression toward breakout.
+- `VolumeConsistency`: fraction of bars where volume increased vs prior bar — detects accumulation/distribution.
+- `ReturnConsistency`: fraction of individual bar returns consistent with the N-period net direction — trend quality metric.
+- `HighLowRatioMa`, `IntrabarMomentum`: previously untracked files now registered.
+
+---
+
 ## [2.6.0] - 2026-03-20
 
 ### Added
