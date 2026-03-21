@@ -1381,3 +1381,7 @@ pub mod close_high_low_spread;
 pub use close_high_low_spread::CloseHighLowSpread;
 pub mod volume_price_correlation;
 pub use volume_price_correlation::VolumePriceCorrelation;
+pub mod weighted_close_roc;
+pub use weighted_close_roc::WeightedCloseRoc;
+pub mod open_range_position;
+pub use open_range_position::OpenRangePosition;
