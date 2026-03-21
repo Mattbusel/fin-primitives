@@ -1477,3 +1477,14 @@ pub mod open_to_low_range;
 pub use open_to_low_range::OpenToLowRange;
 pub mod high_to_open_range;
 pub use high_to_open_range::HighToOpenRange;
+pub mod close_to_low_ratio;
+pub use close_to_low_ratio::CloseToLowRatio;
+pub mod price_range_oscillator;
+pub use price_range_oscillator::PriceRangeOscillator;
+
+pub mod range_expansion_count;
+pub use range_expansion_count::RangeExpansionCount;
+pub mod price_trend_quality;
+pub use price_trend_quality::PriceTrendQuality;
+pub mod high_close_ratio;
+pub use high_close_ratio::HighCloseRatio;
