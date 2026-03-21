@@ -1402,3 +1402,12 @@ pub mod rate_of_change_pct;
 pub use rate_of_change_pct::RateOfChangePct;
 pub mod price_level_oscillator;
 pub use price_level_oscillator::PriceLevelOscillator;
+
+pub mod gap_volatility;
+pub use gap_volatility::GapVolatility;
+pub mod signed_body_ratio;
+pub use signed_body_ratio::SignedBodyRatio;
+pub mod upper_wick_streak;
+pub use upper_wick_streak::UpperWickStreak;
+pub mod volume_delta_ema;
+pub use volume_delta_ema::VolumeDeltaEma;
