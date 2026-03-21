@@ -1292,3 +1292,7 @@ pub mod body_to_range_ema;
 pub use body_to_range_ema::BodyToRangeEma;
 pub mod volume_return_corr;
 pub use volume_return_corr::VolumeReturnCorr;
+pub mod upper_wick_ratio;
+pub use upper_wick_ratio::UpperWickRatio;
+pub mod lower_wick_ratio;
+pub use lower_wick_ratio::LowerWickRatio;
