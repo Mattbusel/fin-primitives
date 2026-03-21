@@ -1346,3 +1346,5 @@ pub mod open_midpoint_bias;
 pub use open_midpoint_bias::OpenMidpointBias;
 pub mod typical_price_roc;
 pub use typical_price_roc::TypicalPriceRoc;
+pub mod volume_momentum_oscillator;
+pub use volume_momentum_oscillator::VolumeMomentumOscillator;
