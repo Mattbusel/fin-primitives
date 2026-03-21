@@ -1411,3 +1411,7 @@ pub mod upper_wick_streak;
 pub use upper_wick_streak::UpperWickStreak;
 pub mod volume_delta_ema;
 pub use volume_delta_ema::VolumeDeltaEma;
+pub mod close_minus_prev_high;
+pub use close_minus_prev_high::CloseMinusPrevHigh;
+pub mod high_minus_prev_close;
+pub use high_minus_prev_close::HighMinusPrevClose;
