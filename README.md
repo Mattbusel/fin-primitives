@@ -8,7 +8,7 @@
 
 A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
 systems in Rust. `fin-primitives` provides the building blocks: validated types,
-order book, OHLCV aggregation, **698+ streaming technical indicators**, position ledger,
+order book, OHLCV aggregation, **699+ streaming technical indicators**, position ledger,
 and composable risk monitoring — so that upstream crates and applications can focus on
 strategy rather than infrastructure.
 
@@ -22,7 +22,7 @@ strategy rather than infrastructure.
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
 | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, **698+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **699+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 
@@ -151,7 +151,7 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ---
 
-## Technical Indicators (698+)
+## Technical Indicators (699+)
 
 All indicators implement the `Signal` trait and return `SignalValue::Unavailable`
 until warm-up is satisfied. No silent NaN or panic.
