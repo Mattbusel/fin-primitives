@@ -1415,3 +1415,18 @@ pub mod close_minus_prev_high;
 pub use close_minus_prev_high::CloseMinusPrevHigh;
 pub mod high_minus_prev_close;
 pub use high_minus_prev_close::HighMinusPrevClose;
+
+pub mod higher_timeframe_trend;
+pub use higher_timeframe_trend::HigherTimeframeTrend;
+pub mod price_spread_ratio;
+pub use price_spread_ratio::PriceSpreadRatio;
+pub mod volume_price_trend;
+pub use volume_price_trend::VolumePriceTrend;
+pub mod on_balance_volume_ma;
+pub use on_balance_volume_ma::OnBalanceVolumeMA;
+pub mod close_to_midrange;
+pub use close_to_midrange::CloseToMidrange;
+pub mod low_minus_prev_close;
+pub use low_minus_prev_close::LowMinusPrevClose;
+pub mod close_above_prev_low;
+pub use close_above_prev_low::CloseAbovePrevLow;
