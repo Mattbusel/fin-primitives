@@ -1342,3 +1342,7 @@ pub mod bar_polarity_streak;
 pub use bar_polarity_streak::BarPolarityStreak;
 pub mod volume_weighted_return;
 pub use volume_weighted_return::VolumeWeightedReturn;
+pub mod open_midpoint_bias;
+pub use open_midpoint_bias::OpenMidpointBias;
+pub mod typical_price_roc;
+pub use typical_price_roc::TypicalPriceRoc;
