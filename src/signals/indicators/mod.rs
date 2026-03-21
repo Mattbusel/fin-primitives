@@ -1282,3 +1282,7 @@ pub mod body_width_ratio;
 pub use body_width_ratio::BodyWidthRatio;
 pub mod return_kurtosis;
 pub use return_kurtosis::ReturnKurtosis;
+pub mod volume_weighted_hl;
+pub use volume_weighted_hl::VolumeWeightedHl;
+pub mod close_strength_ratio;
+pub use close_strength_ratio::CloseStrengthRatio;
