@@ -1455,3 +1455,7 @@ pub mod volatility_bias;
 pub use volatility_bias::VolatilityBias;
 pub mod body_color_streak;
 pub use body_color_streak::BodyColorStreak;
+pub mod high_low_symmetry;
+pub use high_low_symmetry::HighLowSymmetry;
+pub mod close_drawdown_from_high;
+pub use close_drawdown_from_high::CloseDrawdownFromHigh;
