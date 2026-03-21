@@ -1488,3 +1488,33 @@ pub mod price_trend_quality;
 pub use price_trend_quality::PriceTrendQuality;
 pub mod high_close_ratio;
 pub use high_close_ratio::HighCloseRatio;
+
+pub mod avg_up_return;
+pub use avg_up_return::AvgUpReturn;
+pub mod avg_down_return;
+pub use avg_down_return::AvgDownReturn;
+pub mod tail_asymmetry;
+pub use tail_asymmetry::TailAsymmetry;
+pub mod prev_high_breakout;
+pub use prev_high_breakout::PrevHighBreakout;
+
+pub mod low_close_ratio;
+pub use low_close_ratio::LowCloseRatio;
+pub mod stochastic_position;
+pub use stochastic_position::StochasticPosition;
+pub mod volume_momentum_index;
+pub use volume_momentum_index::VolumeMomentumIndex;
+
+
+pub mod velocity_ratio;
+pub use velocity_ratio::VelocityRatio;
+pub mod upper_tail_ratio;
+pub use upper_tail_ratio::UpperTailRatio;
+pub mod lower_tail_ratio;
+pub use lower_tail_ratio::LowerTailRatio;
+pub mod volume_trend_index;
+pub use volume_trend_index::VolumeTrendIndex;
+pub mod trend_volatility_ratio;
+pub use trend_volatility_ratio::TrendVolatilityRatio;
+pub mod close_gap_ratio;
+pub use close_gap_ratio::CloseGapRatio;
