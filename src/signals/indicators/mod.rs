@@ -1526,3 +1526,5 @@ pub mod high_low_spread_ma;
 pub use high_low_spread_ma::HighLowSpreadMa;
 pub mod median_price_ma;
 pub use median_price_ma::MedianPriceMa;
+pub mod open_range_ratio;
+pub use open_range_ratio::OpenRangeRatio;
