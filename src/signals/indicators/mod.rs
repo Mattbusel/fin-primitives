@@ -1288,3 +1288,7 @@ pub mod close_strength_ratio;
 pub use close_strength_ratio::CloseStrengthRatio;
 pub mod hl_midpoint_deviation;
 pub use hl_midpoint_deviation::HlMidpointDeviation;
+pub mod body_to_range_ema;
+pub use body_to_range_ema::BodyToRangeEma;
+pub mod volume_return_corr;
+pub use volume_return_corr::VolumeReturnCorr;
