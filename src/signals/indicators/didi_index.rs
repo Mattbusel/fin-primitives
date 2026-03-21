@@ -195,7 +195,7 @@ mod tests {
     fn test_bullish_needle_positive() {
         // Rising prices: short SMA > long SMA → positive needle
         let mut d = DidiIndex::new("d", 3, 8, 20).unwrap();
-        for i in 0..21 {
+        for i in 1..=21 {
             d.update_bar(&bar(&(i * 10).to_string())).unwrap();
         }
         let v = d.update_bar(&bar("300")).unwrap();

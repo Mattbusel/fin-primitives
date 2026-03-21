@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.6.0] - 2026-03-20
+
+### Added
+- `RangeVolatilityRatio`: current bar range / rolling average range — measures single-bar volatility expansion/compression.
+- `TrendStrengthIndex`: net displacement / total path × 100 — measures directional efficiency (100 = straight trend, 0 = pure chop).
+- `VolumePriceRank`: percentile rank of `volume × |close - open|` — identifies high-conviction moves vs volume-without-price-action.
+- `PriceVolatilityRatio`: current return / rolling std dev of prior returns — a forward-looking return surprise metric.
+- `MarubozuDetector`: committed (was untracked); fixed test with wrong bar wicks.
+
+---
+
 ## [2.5.0] - 2026-03-20
 
 ### Added

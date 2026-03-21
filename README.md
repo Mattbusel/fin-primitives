@@ -8,7 +8,7 @@
 
 A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
 systems in Rust. `fin-primitives` provides the building blocks: validated types,
-order book, OHLCV aggregation, **579+ streaming technical indicators**, position ledger,
+order book, OHLCV aggregation, **584+ streaming technical indicators**, position ledger,
 and composable risk monitoring — so that upstream crates and applications can focus on
 strategy rather than infrastructure.
 
@@ -49,7 +49,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-fin-primitives = "2.5"
+fin-primitives = "2.6"
 rust_decimal_macros = "1"
 ```
 
