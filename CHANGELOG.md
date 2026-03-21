@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.10.0] - 2026-03-21
+
+### Added
+- `HlMidpointDeviation`: EMA of `(close - bar_midpoint) / range` — measures persistent close bias above/below the bar midpoint.
+- `TrendBiasIndex`: `mean(ret) / MAD(ret)` — signal-to-noise ratio for returns; high = trending, near 0 = choppy.
+- `BodyCenterPosition`: EMA of body-centre position within the bar's range; near 1 = bullish commitment, near 0 = bearish.
+- `PriceChangeMad`: rolling mean absolute deviation of raw close-to-close price changes in price units.
+- `GapContinuationRatio`: rolling fraction of bars where the opening gap direction aligns with the intraday session direction.
+- `BodyTrendStrength`, `DirectionalCandleRatio`, `KickingPattern`, `MomentumRegime`, `PriceActionIndex`, `RelativeRangeRank`, `ReturnConcentration`, `ShadowPressure`, `VolatilityAdjustedRange`, `VolumeTrendStrength`, `RangeToAtrRatio`, `TickMoveRatio`: previously untracked files now registered.
+
+---
+
 ## [2.8.0] - 2026-03-20
 
 ### Added

@@ -1338,3 +1338,7 @@ pub mod volume_delta_ratio;
 pub use volume_delta_ratio::VolumeDeltaRatio;
 pub mod open_interest_proxy;
 pub use open_interest_proxy::OpenInterestProxy;
+pub mod bar_polarity_streak;
+pub use bar_polarity_streak::BarPolarityStreak;
+pub mod volume_weighted_return;
+pub use volume_weighted_return::VolumeWeightedReturn;
