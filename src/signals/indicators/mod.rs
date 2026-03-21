@@ -1286,3 +1286,5 @@ pub mod volume_weighted_hl;
 pub use volume_weighted_hl::VolumeWeightedHl;
 pub mod close_strength_ratio;
 pub use close_strength_ratio::CloseStrengthRatio;
+pub mod hl_midpoint_deviation;
+pub use hl_midpoint_deviation::HlMidpointDeviation;
