@@ -1377,3 +1377,7 @@ pub mod open_close_balance;
 pub use open_close_balance::OpenCloseBalance;
 pub mod range_position_oscillator;
 pub use range_position_oscillator::RangePositionOscillator;
+pub mod close_high_low_spread;
+pub use close_high_low_spread::CloseHighLowSpread;
+pub mod volume_price_correlation;
+pub use volume_price_correlation::VolumePriceCorrelation;

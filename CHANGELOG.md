@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.11.0] - 2026-03-21
+
+### Added
+- `CloseLocationEma`: EMA of the Close Location Value `(2*close - high - low) / range` — smoothed buy/sell pressure position.
+- `HighLowPersistence`: rolling fraction of inside bars (bar range fully within prior bar) — range compression detector.
+- `RangeContractionIndex`: `current_range / min_range_in_window` — how far above the recent tightest range the market currently is.
+- `OpenCloseBalance`: rolling `sum(close-open) / sum(|close-open|)` — directional body balance from -1 (bearish) to +1 (bullish).
+- `PriceGapMomentum`, `CloseAboveOpenStreak`, `SwingPointDetector`, `VolumeSurgeDetector`, `CandleMomentumScore`, `ConsecutiveHigherHighs`, `RangePercentile`, `TrendExhaustion`, `PriceReversalIndex`: previously untracked files now registered (673+ indicators).
+
+---
+
 ## [2.10.0] - 2026-03-21
 
 ### Added
