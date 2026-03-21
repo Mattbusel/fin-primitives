@@ -1522,14 +1522,7 @@ pub mod bar_polarity_ratio;
 pub use bar_polarity_ratio::BarPolarityRatio;
 pub mod intraday_momentum;
 pub use intraday_momentum::IntradayMomentum;
-
-pub mod intraday_momentum;
-pub use intraday_momentum::IntradayMomentum;
-pub mod bar_polarity_ratio;
-pub use bar_polarity_ratio::BarPolarityRatio;
 pub mod high_low_spread_ma;
 pub use high_low_spread_ma::HighLowSpreadMa;
-pub mod typical_price_ma;
-pub use typical_price_ma::TypicalPriceMa;
 pub mod median_price_ma;
 pub use median_price_ma::MedianPriceMa;
