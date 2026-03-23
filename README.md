@@ -14,6 +14,63 @@ strategy rather than infrastructure.
 
 ---
 
+## Backtesting Engine
+
+The `backtest::engine` module provides an event-driven backtester with realistic fill simulation.
+
+### Key Types
+
+| Type | Description |
+|------|-------------|
+| `BacktestEngine` | Stateless engine; call `BacktestEngine::run(signals, config)` |
+| `EngineConfig` | `initial_capital`, `commission`, `slippage_bps`, `data: Vec<OhlcvBar>`, `capital_fraction` |
+| `EngineSignal` | `timestamp`, `symbol`, `direction: Direction`, `strength: f64` |
+| `Direction` | `Long`, `Short`, `Flat` |
+| `BacktestResult` | `equity_curve: Vec<f64>`, `trades: Vec<CompletedTrade>`, `metrics: BacktestMetrics` |
+| `CompletedTrade` | `entry_ts`, `exit_ts`, `direction`, `entry_price`, `exit_price`, `pnl`, `pnl_pct` |
+| `BacktestMetrics` | `total_return`, `annualized_return`, `sharpe`, `sortino`, `max_drawdown`, `calmar`, `win_rate`, `profit_factor`, `avg_trade_return`, `num_trades` |
+
+### Fill Model
+
+- Signals fire at bar N; fills execute at bar N+1 open
+- Slippage is applied symmetrically: longs pay more on entry, receive less on exit
+- Commission is deducted as a fraction of notional on every fill
+- Position size = `strength * capital_fraction * current_equity / fill_price`
+
+---
+
+## Monte Carlo Simulator
+
+The `montecarlo` module runs N Geometric Brownian Motion price-path simulations using a seeded LCG for reproducibility.
+
+### Key Types
+
+| Type | Description |
+|------|-------------|
+| `MonteCarloSimulator` | Stateless simulator |
+| `GbmParams` | `mu` (annual drift), `sigma` (annual vol), `s0` (initial price) |
+| `MonteCarloConfig` | `simulations`, `horizon_days`, `seed: Option<u64>` |
+| `MonteCarloResult` | `paths`, `var_95`, `cvar_95`, `median_final`, `best_case_final`, `worst_case_final` |
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `simulate_paths(params, config)` | Run N GBM paths; returns `Vec<Vec<f64>>` |
+| `var(paths, confidence)` | Value at Risk at given confidence level |
+| `cvar(paths, confidence)` | Conditional VaR (Expected Shortfall) — always ≤ VaR |
+| `percentile_paths(paths, percentiles)` | Extract paths at given percentiles (e.g. `[5, 50, 95]`) |
+| `run(params, config)` | Convenience: simulate + compute all metrics |
+
+### Implementation Notes
+
+- RNG: Linear Congruential Generator (Numerical Recipes constants)
+- Normal samples: Box-Muller transform
+- Same seed always produces identical paths (reproducible)
+- `sigma = 0` → all paths are pure drift (deterministic)
+
+---
+
 ## Factor Model
 
 The `factor` module provides Fama-French style multi-factor OLS regression.

@@ -16,8 +16,13 @@
 //! - Live order routing
 //! - Slippage models beyond the commission rate
 
+pub mod engine;
 pub mod walk_forward;
 
+pub use engine::{
+    BacktestEngine, BacktestMetrics, BacktestResult as EngineBacktestResult, CompletedTrade,
+    Direction, EngineConfig, EngineSignal,
+};
 pub use walk_forward::{
     ParamRange, WalkForwardConfig, WalkForwardOptimizer, WalkForwardResult, WfPeriod,
 };

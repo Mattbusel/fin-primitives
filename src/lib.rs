@@ -105,4 +105,7 @@ pub mod factor;
 /// Execution cost estimation (commission, spread, market impact) and turnover-minimizing optimizer.
 pub mod execution;
 
+/// Monte Carlo price-path simulation: GBM, VaR, CVaR, and percentile paths.
+pub mod montecarlo;
+
 pub use error::FinError;
