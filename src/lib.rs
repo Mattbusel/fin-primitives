@@ -171,4 +171,12 @@ pub mod funding;
 /// detection, and staleness checking.
 pub mod alternative_data;
 
+/// Cross-market arbitrage detection: ArbitrageOpportunity, TriangularArb, StatisticalArb,
+/// ArbitrageScanner (scan_cross_market, scan_triangular, filter_by_min_profit, rank_by_confidence).
+pub mod arbitrage;
+
+/// Execution cost models: commission (Fixed, Proportional, Tiered, ZeroCommission),
+/// SpreadCost, MarketImpact (linear, sqrt, Almgren-Chriss), TotalExecutionCost, ExecutionCostBreakdown.
+pub mod execution_cost;
+
 pub use error::FinError;
