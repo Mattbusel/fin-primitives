@@ -25,6 +25,9 @@ strategy rather than infrastructure.
 | [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
+| [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
+| [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer` | Bar-by-bar; no look-ahead; equity curve recorded per bar |
+| [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
 
 ---
 
@@ -439,6 +442,173 @@ tracker.time_to_recover_est()       // estimated updates to recover from current
 
 ---
 
+## Options Greeks & Black-Scholes
+
+The `greeks` module provides a zero-panic European option pricing engine.
+
+```rust
+use fin_primitives::greeks::{BlackScholes, OptionSpec, OptionType, SpreadGreeks};
+use rust_decimal_macros::dec;
+
+fn main() -> Result<(), fin_primitives::FinError> {
+    let spec = OptionSpec {
+        strike:          dec!(100),
+        expiry_days:     30,
+        spot:            dec!(100),
+        risk_free_rate:  dec!(0.05),
+        volatility:      dec!(0.20),
+        option_type:     OptionType::Call,
+    };
+
+    // Theoretical price
+    let price = BlackScholes::price(&spec)?;
+
+    // All five Greeks
+    let g = BlackScholes::greeks(&spec)?;
+    println!("delta={} gamma={} theta={} vega={} rho={}", g.delta, g.gamma, g.theta, g.vega, g.rho);
+
+    // Implied volatility from a market quote
+    let iv = BlackScholes::implied_vol(price, &spec)?;
+
+    // Multi-leg spreads
+    let straddle = SpreadGreeks::straddle(dec!(100), dec!(100), 30, dec!(0.05), dec!(0.20));
+    let net = straddle.net_greeks()?;
+    println!("straddle net delta ≈ {}", net.delta);
+    Ok(())
+}
+```
+
+**Spread constructors:**
+
+| Constructor | Description |
+|---|---|
+| `SpreadGreeks::bull_call_spread(…)` | Long low-strike call, short high-strike call |
+| `SpreadGreeks::bear_put_spread(…)` | Long high-strike put, short low-strike put |
+| `SpreadGreeks::straddle(…)` | Long ATM call + long ATM put |
+| `SpreadGreeks::iron_condor(…)` | Short put spread + short call spread |
+| `SpreadGreeks::new(legs)` | Arbitrary legs with signed quantities |
+
+**Formulas:**
+
+| Greek | Formula |
+|---|---|
+| delta | ∂V/∂S (`N(d₁)` call, `N(d₁)−1` put) |
+| gamma | φ(d₁) / (S σ √T) |
+| theta | −(S φ(d₁) σ) / (2√T) ± r K e^{−rT} N(±d₂), per day |
+| vega  | S φ(d₁) √T / 100 (per 1 vol-point) |
+| rho   | ±K T e^{−rT} N(±d₂) / 100 (per 1 rate-point) |
+
+Implied vol is solved by bisection over `[1e-6, 5.0]` (up to 200 iterations, tolerance 1e-7).
+
+---
+
+## Backtester with Walk-Forward Optimization
+
+The `backtest` module provides a bar-by-bar event-driven backtester and a
+rolling walk-forward optimizer.
+
+```rust
+use fin_primitives::backtest::{
+    Backtester, BacktestConfig, Signal, SignalDirection, Strategy, WalkForwardOptimizer,
+};
+use fin_primitives::ohlcv::OhlcvBar;
+use rust_decimal_macros::dec;
+
+// 1. Implement the Strategy trait
+struct MomentumStrategy { last_close: Option<rust_decimal::Decimal> }
+
+impl Strategy for MomentumStrategy {
+    fn on_bar(&mut self, bar: &OhlcvBar) -> Option<Signal> {
+        let close = bar.close.value();
+        let dir = match self.last_close {
+            Some(prev) if close > prev => SignalDirection::Buy,
+            Some(prev) if close < prev => SignalDirection::Sell,
+            _ => SignalDirection::Hold,
+        };
+        self.last_close = Some(close);
+        Some(Signal::new(dir, dec!(1)))
+    }
+}
+
+fn main() -> Result<(), fin_primitives::FinError> {
+    // 2. Configure and run
+    let config = BacktestConfig::new(dec!(100_000), dec!(0.001))?;
+    let bars: Vec<OhlcvBar> = vec![/* … */];
+    let result = Backtester::new(config.clone()).run(&bars, &mut MomentumStrategy { last_close: None })?;
+
+    println!("total_return={:.2}%  sharpe={:.2}  max_dd={:.2}%  trades={}",
+        result.total_return * dec!(100),
+        result.sharpe_ratio,
+        result.max_drawdown * dec!(100),
+        result.trade_count);
+
+    // 3. Walk-forward optimization
+    let wfo = WalkForwardOptimizer::new(200, 50, config)?;
+    let wf = wfo.run(&bars, |_train| Box::new(MomentumStrategy { last_close: None }))?;
+    println!("mean OOS return={:.2}%  worst dd={:.2}%",
+        wf.mean_return * dec!(100), wf.worst_drawdown * dec!(100));
+    Ok(())
+}
+```
+
+**`BacktestResult` fields:**
+
+| Field | Description |
+|---|---|
+| `total_return` | `(final_equity − initial_capital) / initial_capital` |
+| `sharpe_ratio` | Annualised Sharpe (252-day, sample stddev), 0 if flat returns |
+| `max_drawdown` | Peak-to-trough fraction, always in `[0, 1]` |
+| `win_rate` | Fraction of closed trades with positive realized P&L |
+| `trade_count` | Total fills executed |
+| `equity_curve` | `Vec<Decimal>` sampled once per bar |
+
+---
+
+## Async Streaming Signals
+
+The `async_signals` module wraps any `SignalPipeline` with Tokio MPSC channels
+for non-blocking, zero-copy signal streaming.
+
+```rust
+use fin_primitives::async_signals::{StreamingSignalPipeline, spawn_signal_stream};
+use fin_primitives::signals::pipeline::SignalPipeline;
+use fin_primitives::signals::indicators::Sma;
+use fin_primitives::ohlcv::OhlcvBar;
+use tokio::sync::mpsc;
+
+#[tokio::main]
+async fn main() {
+    let pipeline = SignalPipeline::new().add(Sma::new("sma20", 20));
+
+    // Option A: high-level wrapper
+    let (tick_tx, mut update_rx) = StreamingSignalPipeline::new(pipeline).spawn();
+
+    // Option B: convenience function with your own tick channel
+    // let (tick_tx, tick_rx) = mpsc::channel::<OhlcvBar>(1024);
+    // let mut update_rx = spawn_signal_stream(pipeline, tick_rx);
+
+    // Push bars from any async producer
+    tokio::spawn(async move {
+        // tick_tx.send(bar).await.unwrap();
+        drop(tick_tx); // closing sender shuts down the pipeline task
+    });
+
+    while let Some(update) = update_rx.recv().await {
+        if update.is_ready() {
+            println!("{} = {}", update.signal_name, update.value);
+        }
+    }
+}
+```
+
+**Key properties:**
+- Output buffers are pre-allocated at construction time (default: 4 096 slots).
+- The background task shuts down cleanly when all tick senders are dropped.
+- Multiple signals in the same pipeline each emit one `SignalUpdate` per bar.
+- `SignalUpdate::timestamp` carries wall-clock `DateTime<Utc>` of computation.
+
+---
+
 ## NanoTimestamp Utilities (120+)
 
 ```rust
@@ -584,6 +754,54 @@ DrawdownTracker::new(initial_equity)
 RiskMonitor::new(initial_equity)
   .add_rule(rule)           -> Self     // builder pattern
   .update(equity)           -> Vec<RiskBreach>
+```
+
+### `greeks` module
+
+```rust
+BlackScholes::price(&spec)              -> Result<Decimal, FinError>
+BlackScholes::greeks(&spec)             -> Result<OptionGreeks, FinError>
+BlackScholes::implied_vol(price, &spec) -> Result<Decimal, FinError>
+
+// OptionGreeks fields: delta, gamma, theta, vega, rho (all Decimal)
+
+SpreadGreeks::bull_call_spread(spot, low_k, high_k, days, r, vol) -> SpreadGreeks
+SpreadGreeks::bear_put_spread(spot, low_k, high_k, days, r, vol)  -> SpreadGreeks
+SpreadGreeks::straddle(spot, strike, days, r, vol)                  -> SpreadGreeks
+SpreadGreeks::iron_condor(spot, p_lo, p_hi, c_lo, c_hi, days, r, vol) -> SpreadGreeks
+SpreadGreeks::new(legs)                                             -> SpreadGreeks
+  .net_greeks()                         -> Result<OptionGreeks, FinError>
+  .leg_count()                          -> usize
+```
+
+### `backtest` module
+
+```rust
+BacktestConfig::new(initial_capital, commission_rate) -> Result<Self, FinError>
+
+Backtester::new(config)
+  .run(bars, &mut strategy)             -> Result<BacktestResult, FinError>
+
+// Strategy trait
+trait Strategy {
+    fn on_bar(&mut self, bar: &OhlcvBar) -> Option<Signal>;
+}
+
+WalkForwardOptimizer::new(train_size, test_size, config) -> Result<Self, FinError>
+  .run(bars, make_strategy_fn)          -> Result<WalkForwardResult, FinError>
+
+// WalkForwardResult fields: windows, mean_return, mean_sharpe, worst_drawdown
+```
+
+### `async_signals` module
+
+```rust
+StreamingSignalPipeline::new(pipeline)
+  .spawn()                              -> (mpsc::Sender<OhlcvBar>, mpsc::Receiver<SignalUpdate>)
+
+spawn_signal_stream(pipeline, tick_rx) -> mpsc::Receiver<SignalUpdate>
+
+// SignalUpdate fields: signal_name: String, value: SignalValue, timestamp: DateTime<Utc>
 ```
 
 ---

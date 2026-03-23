@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "fin-primitives"
+version = "2.14.0"
+description = "Python bindings for the fin-primitives Rust library"
+readme = "../README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Office/Business :: Financial",
+]
+
+[tool.maturin]
+# Build the Rust crate from the parent directory
+manifest-path = "../Cargo.toml"
+# Activate the python feature to include PyO3 bindings
+features = ["python"]
+# The Python module name (must match the #[pymodule] function name)
+module-name = "_fin_primitives"
+# Only include the extension module source
+python-source = "."

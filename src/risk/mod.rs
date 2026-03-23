@@ -11,6 +11,8 @@
 //! - Position sizing
 //! - Order cancellation (callers must act on returned breaches)
 
+pub mod attribution;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -1595,6 +1597,32 @@ impl RiskMonitor {
         if std_dev == 0.0 { return None; }
         let skew = vals.iter().map(|v| ((v - mean) / std_dev).powi(3)).sum::<f64>() / n;
         Some(skew)
+    }
+
+    /// Computes a factor-level risk attribution report for the given position ledger.
+    ///
+    /// Delegates to [`attribution::RiskAttributor`], providing a convenient entry-point
+    /// directly from the monitor without requiring callers to construct an attributor manually.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fin_primitives::risk::RiskMonitor;
+    /// use fin_primitives::risk::attribution::MarketData;
+    /// use fin_primitives::position::PositionLedger;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let ledger = PositionLedger::new(dec!(100_000));
+    /// let monitor = RiskMonitor::new(dec!(100_000));
+    /// let report = monitor.attribution_report(&ledger, MarketData::default());
+    /// assert_eq!(report.attributions.len(), 6);
+    /// ```
+    pub fn attribution_report(
+        &self,
+        ledger: &crate::position::PositionLedger,
+        market_data: attribution::MarketData,
+    ) -> attribution::AttributionReport {
+        attribution::RiskAttributor::new(ledger, market_data).compute()
     }
 
 }

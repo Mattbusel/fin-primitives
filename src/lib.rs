@@ -14,6 +14,9 @@
 //! | [`signals`] | `Signal` trait, `SignalPipeline`, `Sma`, `Ema`, `Rsi` | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 //! | [`position`] | `Position`, `Fill`, `PositionLedger` | VWAP average cost; realized and unrealized P&L net of commissions |
 //! | [`risk`] | `DrawdownTracker`, `RiskRule` trait, `MaxDrawdownRule`, `MinEquityRule`, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
+//! | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
+//! | [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer` | Bar-by-bar processing with no look-ahead; equity curve recorded per bar |
+//! | [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC streaming; pre-allocated output buffers on the hot path |
 //!
 //! ## Design Principles
 //!
@@ -36,7 +39,10 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+pub mod async_signals;
+pub mod backtest;
 pub mod error;
+pub mod greeks;
 pub mod ohlcv;
 pub mod orderbook;
 pub mod position;
@@ -44,5 +50,21 @@ pub mod risk;
 pub mod signals;
 pub mod tick;
 pub mod types;
+
+/// Streaming P&L attribution: decomposes realized P&L into alpha and cost components.
+pub mod pnl;
+
+/// Streaming Pearson correlation matrix for indicator redundancy detection.
+pub mod correlation;
+
+/// Order latency tracking: measures submit→ack, ack→fill, fill→book-update phases.
+pub mod latency;
+
+/// Risk scenario backtesting: replays historical bars through risk rules.
+pub mod scenario;
+
+/// PyO3 Python bindings (enabled by the `python` feature).
+#[cfg(feature = "python")]
+pub mod python;
 
 pub use error::FinError;

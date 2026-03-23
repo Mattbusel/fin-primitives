@@ -13,8 +13,10 @@
 //! - Persistence
 //! - Real-time streaming (use `OhlcvAggregator` upstream)
 
+pub mod compose;
 pub mod indicators;
 pub mod pipeline;
+pub mod warmup;
 
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;

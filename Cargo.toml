@@ -1,9 +1,9 @@
 [package]
 name = "fin-primitives"
-version = "2.13.0"
+version = "2.14.0"
 edition = "2021"
 rust-version = "1.81"
-description = "Financial market primitives: validated types, order book, OHLCV aggregation, 550+ streaming technical indicators, position ledger, and risk monitoring."
+description = "Financial market primitives: validated types, order book, OHLCV aggregation, 725+ streaming technical indicators, option Greeks/Black-Scholes, backtester, async streaming signals, position ledger, and risk monitoring."
 authors = ["Matt Busel <matt@busel.dev>"]
 repository = "https://github.com/Mattbusel/fin-primitives"
 documentation = "https://docs.rs/fin-primitives"
@@ -12,6 +12,15 @@ license = "MIT"
 keywords = ["finance", "trading", "hft", "orderbook", "market-data"]
 categories = ["finance", "data-structures", "algorithms"]
 include = ["src/**/*", "benches/**/*", "tests/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[features]
+# python: expose PyO3 bindings; build with `maturin develop --features python`
+python = ["dep:pyo3"]
+
+[lib]
+# When the `python` feature is enabled the crate is also compiled as a cdylib
+# extension module. Without the feature it remains a normal rlib.
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 # serde: serialization framework
@@ -24,6 +33,10 @@ rust_decimal = { version = "1", features = ["serde-with-str"] }
 rust_decimal_macros = "1"
 # thiserror: zero-cost error derive, replaces manual Display impls
 thiserror = "1"
+# pyo3: Python bindings, only when the `python` feature is enabled
+pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
+# tokio: async runtime required for async_signals streaming pipeline
+tokio = { version = "1.40", features = ["rt", "sync", "macros"] }
 
 [dev-dependencies]
 # proptest: property-based testing, required for algorithmic correctness guarantees

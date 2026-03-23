@@ -123,6 +123,15 @@ impl OrderBook {
             }
         };
         if let Some((best_bid_p, best_ask_p)) = maybe_inversion {
+            // Log the inversion before rolling back so operators can diagnose
+            // feed quality issues without needing to instrument call sites.
+            tracing::warn!(
+                symbol = %self.symbol,
+                best_bid = %best_bid_p,
+                best_ask = %best_ask_p,
+                sequence = delta.sequence,
+                "OrderBook: inverted spread detected — rolling back delta and returning error"
+            );
             // Roll back the mutation to keep the book consistent.
             match delta.action {
                 DeltaAction::Set => match delta.side {
