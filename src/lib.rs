@@ -129,4 +129,7 @@ pub mod derivatives;
 /// Technical analysis indicators: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, OBV, Stochastic, candlestick patterns.
 pub mod technical;
 
+/// Fixed income analytics: bond pricing, duration, convexity, YTM solver (Brent's method), DV01.
+pub mod fixed_income;
+
 pub use error::FinError;
