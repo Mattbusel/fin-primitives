@@ -99,4 +99,10 @@ pub mod portfolio;
 #[cfg(feature = "python")]
 pub mod python;
 
+/// Fama-French style multi-factor regression, factor exposure decomposition, and portfolio-level aggregation.
+pub mod factor;
+
+/// Execution cost estimation (commission, spread, market impact) and turnover-minimizing optimizer.
+pub mod execution;
+
 pub use error::FinError;

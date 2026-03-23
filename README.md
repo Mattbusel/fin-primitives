@@ -14,6 +14,103 @@ strategy rather than infrastructure.
 
 ---
 
+## Factor Model
+
+The `factor` module provides Fama-French style multi-factor OLS regression.
+
+### Structs
+
+| Type | Description |
+|------|-------------|
+| `Factor { name, returns }` | Named return series for one risk factor (e.g. market, value, momentum) |
+| `FactorExposure { asset, betas, alpha, r_squared, residual_variance }` | OLS regression output for one asset |
+| `VarianceDecomposition { systematic_variance, idiosyncratic_variance, factor_contributions }` | Variance attribution |
+| `FactorPortfolio` | Aggregates per-asset exposures weighted by portfolio weights |
+
+### Formulas
+
+**OLS via normal equations:**
+
+```
+β̂ = (X'X)⁻¹ X'y
+```
+
+where `X` is the `T × (K+1)` design matrix (first column = intercept ones).
+
+Matrix inversion: analytic for 2×2 and 3×3, Gaussian elimination with partial pivoting for larger systems.
+
+**Variance decomposition:**
+
+```
+factor_contributions[i] = β_i² σ_i² + 2 Σ_{j>i} β_i β_j cov(i,j)
+systematic_variance     = β' Σ β
+total_variance          ≈ systematic_variance + residual_variance
+```
+
+### Quick Example
+
+```rust
+use fin_primitives::factor::{Factor, FactorModel};
+
+let market = Factor::new("MKT", vec![0.01, -0.02, 0.015, 0.005, -0.01]);
+let asset  = vec![0.008, -0.018, 0.012, 0.003, -0.009];
+
+let exposure = FactorModel::fit("AAPL", &asset, &[market]);
+println!("alpha={:.4}  beta={:.4}  R²={:.4}",
+    exposure.alpha, exposure.betas[0], exposure.r_squared);
+```
+
+---
+
+## Execution Cost Model
+
+The `execution` module estimates round-trip trading costs and finds optimal rebalancing trades.
+
+### Structs
+
+| Type | Description |
+|------|-------------|
+| `ExecutionCost { commission_usd, spread_cost_usd, market_impact_usd, total_cost_usd, cost_bps }` | Full cost breakdown |
+| `CostParams { commission_per_share, spread_bps, impact_coefficient, avg_daily_volume }` | Model parameters |
+| `Trade { symbol, direction, weight_change, estimated_cost_bps }` | A single rebalancing trade |
+
+### Formulas
+
+```
+commission_usd    = commission_per_share × shares
+spread_cost_usd   = (spread_bps / 10_000) × notional_usd
+impact_bps        = impact_coefficient × sqrt(shares / avg_daily_volume) × 10_000
+market_impact_usd = (impact_bps / 10_000) × notional_usd
+total_cost_usd    = commission_usd + spread_cost_usd + market_impact_usd
+cost_bps          = total_cost_usd / notional_usd × 10_000
+```
+
+### Quick Example
+
+```rust
+use fin_primitives::execution::{CostModel, CostParams, TurnoverOptimizer};
+use std::collections::HashMap;
+
+let params = CostParams {
+    commission_per_share: 0.005,
+    spread_bps: 5.0,
+    impact_coefficient: 0.1,
+    avg_daily_volume: 1_000_000.0,
+};
+
+let cost = CostModel::estimate(100_000.0, 10_000.0, 10.0, &params);
+println!("Total cost: ${:.2} ({:.1} bps)", cost.total_cost_usd, cost.cost_bps);
+
+let current: HashMap<String, f64> = [("SPY".into(), 0.6), ("TLT".into(), 0.4)].into();
+let target:  HashMap<String, f64> = [("SPY".into(), 0.5), ("TLT".into(), 0.5)].into();
+let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
+for t in &trades {
+    println!("{}: {:?} {:.1}% @ {:.1} bps", t.symbol, t.direction, t.weight_change * 100.0, t.estimated_cost_bps);
+}
+```
+
+---
+
 ## What's New
 
 ### v2.17.0 — Portfolio Optimization and Kelly Criterion Position Sizing
