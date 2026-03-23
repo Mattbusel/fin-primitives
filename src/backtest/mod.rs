@@ -2,7 +2,10 @@
 //!
 //! ## Responsibility
 //! Provides a bar-by-bar backtester, a `Strategy` trait for signal generation,
-//! equity curve tracking, and a walk-forward optimizer.
+//! equity curve tracking, and a full walk-forward optimizer with grid search.
+//!
+//! ## Sub-modules
+//! - [`walk_forward`]: grid-search walk-forward optimizer with per-period OOS evaluation
 //!
 //! ## Guarantees
 //! - Bars are processed in the order supplied; no look-ahead
@@ -12,6 +15,12 @@
 //! ## NOT Responsible For
 //! - Live order routing
 //! - Slippage models beyond the commission rate
+
+pub mod walk_forward;
+
+pub use walk_forward::{
+    ParamRange, WalkForwardConfig, WalkForwardOptimizer, WalkForwardResult, WfPeriod,
+};
 
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;

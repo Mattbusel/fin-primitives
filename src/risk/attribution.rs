@@ -451,17 +451,23 @@ impl<'a> RiskAttributor<'a> {
     /// 2. Beta and volatility data from `market_data`.
     /// 3. A simplified variance-decomposition model to split risk into factors.
     pub fn compute(&self) -> AttributionReport {
-        let equity_dec = self.ledger.total_equity_at(Decimal::ZERO);
+        // Use cash as a proxy for equity (cash + unrealised PnL requires market prices,
+        // which are not available here; callers with full market data should use
+        // `PositionLedger::equity(prices)` and pass the result in a custom `MarketData`).
+        let cash = self.ledger.cash();
+        // Sum cost basis across all open positions as a proxy for invested capital.
+        let positions: Vec<_> = self.ledger.positions().collect();
+        let total_cost_basis: Decimal = positions.iter()
+            .map(|p| p.total_cost_basis())
+            .sum();
+        let equity_dec = cash + total_cost_basis;
         let equity = equity_dec.to_f64().unwrap_or(0.0);
 
         if equity == 0.0 {
             return self.empty_report(equity);
         }
 
-        // Collect position weights and factor inputs.
-        let positions = self.ledger.positions();
         let n = positions.len();
-
         if n == 0 {
             return self.empty_report(equity);
         }
