@@ -108,4 +108,13 @@ pub mod execution;
 /// Monte Carlo price-path simulation: GBM, VaR, CVaR, and percentile paths.
 pub mod montecarlo;
 
+/// Yield curve construction, interpolation (linear and natural cubic spline),
+/// forward rates, Macaulay duration, convexity, curve shape classification,
+/// and Nelson-Siegel parametric model with gradient-descent fitting.
+pub mod yield_curve;
+
+/// Event study framework: abnormal returns, cumulative AR, CAR pre/post,
+/// peak/trough identification, and t-statistic significance testing.
+pub mod events;
+
 pub use error::FinError;

@@ -1,5 +1,76 @@
 # fin-primitives
 
+## Yield Curve Modeler
+
+The `yield_curve` module provides a full yield curve construction and analytics toolkit.
+
+### Key Types
+
+| Type | Description |
+|------|-------------|
+| `YieldPoint` | A single `(maturity_years: f64, yield_rate: f64)` observation |
+| `YieldCurve` | Collection of `YieldPoint`s sorted by maturity; primary analytics surface |
+| `CurveShape` | `Normal`, `Inverted`, `Flat`, `Humped` — classified from first/last yields and interior peak |
+| `NelsonSiegel` | Parametric model: `beta0`, `beta1`, `beta2`, `tau` |
+
+### Interpolation
+
+| Method | Description |
+|--------|-------------|
+| `YieldCurve::linear_interp(t)` | Piecewise-linear interpolation; clamps at endpoints |
+| `YieldCurve::cubic_spline(t)` | Natural cubic spline via tridiagonal (Thomas) solver |
+
+### Analytics
+
+| Method | Formula |
+|--------|---------|
+| `forward_rate(t1, t2)` | `f = (r2·t2 − r1·t1) / (t2 − t1)` |
+| `duration(cash_flows)` | Macaulay: `Σ(t · CF · e^(−r·t)) / Σ(CF · e^(−r·t))` |
+| `convexity(cash_flows)` | `Σ(t² · CF · e^(−r·t)) / PV` |
+| `shape()` | Classifies as `Normal / Inverted / Flat / Humped` |
+
+### Nelson-Siegel Model
+
+```
+r(t) = β₀ + β₁·(1−e^(−t/τ))/(t/τ) + β₂·((1−e^(−t/τ))/(t/τ) − e^(−t/τ))
+```
+
+`NelsonSiegel::fit(points)` fits all four parameters via gradient descent (500 iterations).
+
+---
+
+## Event Study Framework
+
+The `events` module implements a standard event-study methodology for measuring abnormal
+returns around discrete market events (earnings releases, guidance, macro shocks).
+
+### Key Types
+
+| Type | Description |
+|------|-------------|
+| `MarketEvent` | `event_id`, `event_date` (Unix secs), `event_type`, `description` |
+| `EventWindow` | `pre_days: i32`, `post_days: i32` — e.g. `(-10, +10)` |
+| `AbnormalReturn` | Per-day: `day`, `raw_return`, `expected_return`, `abnormal_return`, `car` |
+| `EventResult` | Full result: `car_pre`, `car_post`, `peak_day`, `trough_day`, `abnormal_returns` |
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `EventStudy::compute(event, prices, benchmark, window)` | Market-model abnormal returns; benchmark return = expected return |
+| `EventStudy::significance(results)` | t-statistic: `mean_CAR / (std_CAR / √N)` |
+
+### Formulas
+
+```
+AR(d)  = raw_return(d) − benchmark_return(d)
+CAR(d) = Σ AR from window_start to d
+t-stat = mean(CAR) / (std(CAR) / √N)
+```
+
+---
+
+
 [![CI](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/fin-primitives.svg)](https://crates.io/crates/fin-primitives)
 [![docs.rs](https://docs.rs/fin-primitives/badge.svg)](https://docs.rs/fin-primitives)
