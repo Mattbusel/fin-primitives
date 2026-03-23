@@ -12,6 +12,15 @@
 //! ## NOT Responsible For
 //! - Risk checks (see `risk` module)
 //! - Order management
+//!
+//! ## Sub-modules
+//!
+//! - [`kelly`]: Kelly Criterion position sizing — full Kelly, fractional Kelly,
+//!   and multi-asset Kelly portfolio allocation with correlation penalty.
+
+pub mod kelly;
+
+pub use kelly::{fractional_kelly, full_kelly, KellyInput, KellyPortfolio, KellyResult};
 
 use crate::error::FinError;
 use crate::types::{NanoTimestamp, Price, Quantity, Side, Symbol};

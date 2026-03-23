@@ -12,7 +12,8 @@
 //! | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
 //! | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` | Bar invariants (`high >= low`, etc.) enforced on every push |
 //! | [`signals`] | `Signal` trait, `SignalPipeline`, `Sma`, `Ema`, `Rsi` | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
-//! | [`position`] | `Position`, `Fill`, `PositionLedger` | VWAP average cost; realized and unrealized P&L net of commissions |
+//! | [`position`] | `Position`, `Fill`, `PositionLedger`, `KellyCriterion` | VWAP average cost; realized and unrealized P&L net of commissions; Kelly Criterion sizing |
+//! | [`portfolio`] | `PortfolioOptimizer`, `CovarianceMatrix`, `OptimizationObjective` | Markowitz mean-variance optimization; Ledoit-Wolf shrinkage; projected gradient descent |
 //! | [`risk`] | `DrawdownTracker`, `RiskRule` trait, `MaxDrawdownRule`, `MinEquityRule`, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 //! | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
 //! | [`backtest`] | `Backtester`, `Strategy`, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
@@ -89,6 +90,10 @@ pub mod volatility;
 
 /// Almgren-Chriss optimal order execution and market impact model.
 pub mod impact;
+
+/// Portfolio optimization: Markowitz mean-variance (MinVariance, MaxSharpe, RiskParity,
+/// EqualWeight) via projected gradient descent with Ledoit-Wolf covariance shrinkage.
+pub mod portfolio;
 
 /// PyO3 Python bindings (enabled by the `python` feature).
 #[cfg(feature = "python")]

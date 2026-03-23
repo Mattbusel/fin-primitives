@@ -16,6 +16,86 @@ strategy rather than infrastructure.
 
 ## What's New
 
+### v2.17.0 — Portfolio Optimization and Kelly Criterion Position Sizing
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Portfolio Optimizer** | `portfolio::optimizer` | Markowitz mean-variance optimization — `MinVariance`, `MaxSharpe`, `RiskParity`, `EqualWeight` via projected gradient descent (200 iters, simplex projection); `CovarianceMatrix` with `ledoit_wolf_shrinkage`; `MaxWeight`, `MinWeight`, `LongOnly`, `SectorConstraint` constraints; `effective_n` (inverse HHI) |
+| **Kelly Criterion Sizer** | `position::kelly` | `full_kelly`, `fractional_kelly`, `KellyResult` with position size, max loss, and expected log growth; `KellyPortfolio::allocate` — multi-asset Kelly with correlation penalty and total-fraction cap |
+
+#### Portfolio Optimization — quick example
+
+```rust
+use fin_primitives::portfolio::{Asset, CovarianceMatrix, OptimizationObjective, Constraint, PortfolioOptimizer};
+
+let assets = vec![
+    Asset { symbol: "SPY".into(),  expected_return: 0.10, variance: 0.04 },
+    Asset { symbol: "TLT".into(),  expected_return: 0.05, variance: 0.01 },
+    Asset { symbol: "GLD".into(),  expected_return: 0.07, variance: 0.025 },
+];
+
+let mut cov = CovarianceMatrix::new(vec!["SPY".into(), "TLT".into(), "GLD".into()]);
+cov.set(0, 0, 0.04);  cov.set(0, 1, -0.01); cov.set(0, 2, 0.005);
+cov.set(1, 1, 0.01);  cov.set(1, 2, 0.002);
+cov.set(2, 2, 0.025);
+cov.ledoit_wolf_shrinkage();  // analytical Ledoit-Wolf shrinkage toward scaled identity
+
+let result = PortfolioOptimizer::optimize(
+    &assets,
+    &cov,
+    &OptimizationObjective::MaxSharpe { risk_free_rate: 0.04 },
+    &[Constraint::LongOnly, Constraint::MaxWeight(0.6)],
+);
+
+println!("Sharpe: {:.3}", result.sharpe_ratio);
+println!("Effective N: {:.2}", result.effective_n);  // inverse HHI diversification measure
+for (sym, w) in &result.weights {
+    println!("  {sym}: {:.1}%", w * 100.0);
+}
+```
+
+**Math:**
+- Portfolio variance: `σ²_p = w' Σ w`
+- Sharpe ratio: `S = (μ_p − r_f) / σ_p`
+- Ledoit-Wolf shrinkage: `Σ* = (1−α)Σ + α·μ·I` where `α = Σ_{i≠j} Σ²_{ij} / ((n+2)·Σ_{i≠j} Σ²_{ij})`
+- Effective N (inverse HHI): `N* = 1 / Σ_i w²_i`
+
+#### Kelly Criterion Position Sizing — quick example
+
+```rust
+use fin_primitives::position::{KellyInput, full_kelly, fractional_kelly, KellyPortfolio};
+use fin_primitives::portfolio::CovarianceMatrix;
+
+let input = KellyInput {
+    win_probability: 0.60,   // 60 % win rate
+    win_return:      1.0,    // +100 % on win
+    loss_return:     1.0,    // −100 % on loss (full loss)
+    bankroll:        50_000.0,
+};
+
+let full = full_kelly(&input);
+println!("Full Kelly fraction: {:.1}%",  full.fraction * 100.0);  // 20.0 %
+println!("Position size: ${:.0}",        full.position_size_usd);  // $10,000
+println!("Max loss: ${:.0}",             full.max_loss_usd);
+println!("Expected log growth: {:.4}",   full.expected_growth);
+
+let half = fractional_kelly(&input, 0.5);
+println!("Half-Kelly fraction: {:.1}%",  half.fraction * 100.0);   // 10.0 %
+
+// Multi-asset Kelly with correlation penalty
+let assets = vec![input.clone(), KellyInput { win_probability: 0.55, win_return: 1.5, loss_return: 1.0, bankroll: 50_000.0 }];
+let mut cov = CovarianceMatrix::new(vec!["BTC".into(), "ETH".into()]);
+cov.set(0, 1, 0.8);  // high positive correlation → penalty applied
+let allocs = KellyPortfolio::allocate(&assets, &cov, 0.5);  // cap total at 50 %
+```
+
+**Math:**
+- Full Kelly: `f* = (b·p − q) / b` where `b = win_return`, `p = win_probability`, `q = 1−p`
+- Expected log growth: `g = p·ln(1 + b·f) + q·ln(1 − f)`
+- Correlation penalty: `f̃_i = f_i / (1 + Σ_{j≠i} |ρ_{ij}|·f_j)`
+
+---
+
 ### v2.16.0 — Signal Warmup Contracts, Signal Composition Engine, Risk Attribution
 
 | Change | Module | Detail |
