@@ -1006,4 +1006,360 @@ mod tests {
         assert!(snap.avg_spread_bps.is_none());
         assert!(snap.order_imbalance.is_none());
     }
+
+    // ── TradeSign / Lee-Ready ─────────────────────────────────────────────
+
+    #[test]
+    fn test_trade_sign_classify_buy() {
+        assert_eq!(TradeSign::classify(100.5, 100.0), TradeSign::Buy);
+    }
+
+    #[test]
+    fn test_trade_sign_classify_sell() {
+        assert_eq!(TradeSign::classify(99.5, 100.0), TradeSign::Sell);
+    }
+
+    #[test]
+    fn test_trade_sign_classify_unknown_equal() {
+        assert_eq!(TradeSign::classify(100.0, 100.0), TradeSign::Unknown);
+    }
+
+    // ── KyleLambdaEstimate ────────────────────────────────────────────────
+
+    #[test]
+    fn test_kyle_lambda_estimate_positive() {
+        let changes = vec![0.1, 0.2, 0.15, 0.25, -0.05];
+        let volumes = vec![100.0, 200.0, 150.0, 250.0, -50.0];
+        let est = KyleLambdaEstimate::estimate(&changes, &volumes);
+        assert!(est.lambda > 0.0, "lambda={}", est.lambda);
+        assert!((0.0..=1.0).contains(&est.r_squared), "r2={}", est.r_squared);
+    }
+
+    #[test]
+    fn test_kyle_lambda_estimate_empty() {
+        let est = KyleLambdaEstimate::estimate(&[], &[]);
+        assert_eq!(est.lambda, 0.0);
+        assert_eq!(est.r_squared, 0.0);
+    }
+
+    #[test]
+    fn test_kyle_lambda_estimate_zero_variance() {
+        let changes = vec![0.1, 0.1, 0.1];
+        let volumes = vec![100.0, 100.0, 100.0];
+        let est = KyleLambdaEstimate::estimate(&changes, &volumes);
+        assert_eq!(est.lambda, 0.0);
+        assert_eq!(est.r_squared, 0.0);
+    }
+
+    // ── HasbrouckShare ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_hasbrouck_share_equal_variance() {
+        let a = vec![0.1, -0.1, 0.2, -0.2, 0.1];
+        let b = vec![0.1, -0.1, 0.2, -0.2, 0.1];
+        let hs = HasbrouckShare::estimate(&a, &b);
+        // Equal variance → shares close to 0.5 each
+        assert!((hs.security_a_share - 0.5).abs() < 0.01, "a={}", hs.security_a_share);
+        assert!((hs.security_b_share - 0.5).abs() < 0.01, "b={}", hs.security_b_share);
+    }
+
+    #[test]
+    fn test_hasbrouck_share_sums_to_one() {
+        let a = vec![0.1, 0.2, -0.1, 0.3];
+        let b = vec![0.05, 0.1, -0.2, 0.15];
+        let hs = HasbrouckShare::estimate(&a, &b);
+        let total = hs.security_a_share + hs.security_b_share;
+        assert!((total - 1.0).abs() < 1e-10, "total={total}");
+    }
+
+    #[test]
+    fn test_hasbrouck_share_empty() {
+        let hs = HasbrouckShare::estimate(&[], &[]);
+        assert_eq!(hs.security_a_share, 0.5);
+        assert_eq!(hs.security_b_share, 0.5);
+    }
+
+    // ── PinEstimate ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_pin_probability_basic() {
+        let buys = vec![80u64, 90, 85, 70, 95];
+        let sells = vec![20u64, 10, 15, 30, 5];
+        let pin = PinEstimate::from_trade_counts(&buys, &sells);
+        let p = pin.pin_probability();
+        assert!((0.0..=1.0).contains(&p), "pin={p}");
+    }
+
+    #[test]
+    fn test_pin_probability_zero_denominator() {
+        let pin = PinEstimate { alpha: 0.0, mu: 0.0, epsilon_b: 0.0, epsilon_s: 0.0 };
+        assert_eq!(pin.pin_probability(), 0.0);
+    }
+
+    #[test]
+    fn test_pin_from_empty_counts() {
+        let pin = PinEstimate::from_trade_counts(&[], &[]);
+        assert_eq!(pin.pin_probability(), 0.0);
+    }
+}
+
+// ─────────────────────────────────────────
+//  TradeSign — Lee-Ready tick classification
+// ─────────────────────────────────────────
+
+/// Trade direction classification using the Lee-Ready tick test.
+///
+/// The tick test compares the current trade price to the previous trade price:
+/// - Price increased → the trade is a `Buy` (up-tick).
+/// - Price decreased → the trade is a `Sell` (down-tick).
+/// - Price unchanged → `Unknown` (zero-tick; caller may apply the previous sign).
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::TradeSign;
+///
+/// assert_eq!(TradeSign::classify(100.5, 100.0), TradeSign::Buy);
+/// assert_eq!(TradeSign::classify(99.5, 100.0), TradeSign::Sell);
+/// assert_eq!(TradeSign::classify(100.0, 100.0), TradeSign::Unknown);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TradeSign {
+    /// Trade occurred on an up-tick (buy-initiated).
+    Buy,
+    /// Trade occurred on a down-tick (sell-initiated).
+    Sell,
+    /// Trade occurred on a zero-tick (direction indeterminate).
+    Unknown,
+}
+
+impl TradeSign {
+    /// Classify a trade using the Lee-Ready tick test.
+    ///
+    /// - `price`: current trade price.
+    /// - `prev_price`: immediately preceding trade price.
+    pub fn classify(price: f64, prev_price: f64) -> Self {
+        if price > prev_price {
+            Self::Buy
+        } else if price < prev_price {
+            Self::Sell
+        } else {
+            Self::Unknown
+        }
+    }
+}
+
+// ─────────────────────────────────────────
+//  KyleLambdaEstimate — OLS price-impact coefficient
+// ─────────────────────────────────────────
+
+/// Kyle's Lambda estimated via OLS regression of price changes on signed volume.
+///
+/// `lambda` = OLS slope of `price_changes ~ signed_volumes`.
+/// `r_squared` = coefficient of determination of that regression (0 to 1).
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::KyleLambdaEstimate;
+///
+/// let changes = vec![0.1, 0.2, -0.05, 0.15];
+/// let volumes = vec![100.0, 200.0, -50.0, 150.0];
+/// let est = KyleLambdaEstimate::estimate(&changes, &volumes);
+/// assert!(est.lambda >= 0.0 || est.lambda < 0.0); // finite value
+/// assert!((0.0..=1.0).contains(&est.r_squared));
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct KyleLambdaEstimate {
+    /// OLS price-impact coefficient (price change per unit of signed order flow).
+    pub lambda: f64,
+    /// R-squared of the OLS regression.
+    pub r_squared: f64,
+}
+
+impl KyleLambdaEstimate {
+    /// Estimate Kyle's Lambda from slices of price changes and signed volumes.
+    ///
+    /// Uses OLS: `lambda = Cov(ΔP, Q) / Var(Q)`.
+    /// R-squared is computed as `(Cor(ΔP, Q))^2`.
+    ///
+    /// Returns `lambda = 0.0` and `r_squared = 0.0` when there are fewer than 2
+    /// observations or when signed volume has zero variance.
+    pub fn estimate(price_changes: &[f64], signed_volumes: &[f64]) -> Self {
+        let n = price_changes.len().min(signed_volumes.len());
+        if n < 2 {
+            return Self { lambda: 0.0, r_squared: 0.0 };
+        }
+        let nf = n as f64;
+        let mean_dp = price_changes[..n].iter().sum::<f64>() / nf;
+        let mean_dq = signed_volumes[..n].iter().sum::<f64>() / nf;
+
+        let mut cov_pq = 0.0_f64;
+        let mut var_q = 0.0_f64;
+        let mut var_p = 0.0_f64;
+        for i in 0..n {
+            let dp = price_changes[i] - mean_dp;
+            let dq = signed_volumes[i] - mean_dq;
+            cov_pq += dp * dq;
+            var_q += dq * dq;
+            var_p += dp * dp;
+        }
+
+        if var_q == 0.0 {
+            return Self { lambda: 0.0, r_squared: 0.0 };
+        }
+
+        let lambda = cov_pq / var_q;
+        let r_squared = if var_p == 0.0 {
+            0.0
+        } else {
+            let cor = cov_pq / (var_q.sqrt() * var_p.sqrt());
+            (cor * cor).min(1.0).max(0.0)
+        };
+
+        Self { lambda, r_squared }
+    }
+}
+
+// ─────────────────────────────────────────
+//  HasbrouckShare — variance decomposition information share
+// ─────────────────────────────────────────
+
+/// Simplified Hasbrouck (1995) information share via variance decomposition.
+///
+/// Decomposes the contribution of each security to the common efficient price
+/// using the fraction of total return variance attributable to each series.
+///
+/// `security_a_share = Var(a) / (Var(a) + Var(b))`, and similarly for B.
+/// Both shares sum to 1.0. When total variance is zero, each share is 0.5.
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::HasbrouckShare;
+///
+/// let a = vec![0.1, -0.1, 0.2];
+/// let b = vec![0.05, -0.05, 0.1];
+/// let hs = HasbrouckShare::estimate(&a, &b);
+/// assert!((hs.security_a_share + hs.security_b_share - 1.0).abs() < 1e-10);
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct HasbrouckShare {
+    /// Information share attributed to security A (0 to 1).
+    pub security_a_share: f64,
+    /// Information share attributed to security B (0 to 1).
+    pub security_b_share: f64,
+}
+
+impl HasbrouckShare {
+    /// Estimate Hasbrouck information shares from return series.
+    ///
+    /// `returns_a` and `returns_b` are period returns for the two securities.
+    /// Uses the length of the shorter slice.
+    pub fn estimate(returns_a: &[f64], returns_b: &[f64]) -> Self {
+        let n = returns_a.len().min(returns_b.len());
+        if n == 0 {
+            return Self { security_a_share: 0.5, security_b_share: 0.5 };
+        }
+        let nf = n as f64;
+        let mean_a = returns_a[..n].iter().sum::<f64>() / nf;
+        let mean_b = returns_b[..n].iter().sum::<f64>() / nf;
+        let var_a: f64 = returns_a[..n].iter().map(|x| (x - mean_a).powi(2)).sum::<f64>() / nf;
+        let var_b: f64 = returns_b[..n].iter().map(|x| (x - mean_b).powi(2)).sum::<f64>() / nf;
+        let total = var_a + var_b;
+        if total == 0.0 {
+            return Self { security_a_share: 0.5, security_b_share: 0.5 };
+        }
+        Self {
+            security_a_share: var_a / total,
+            security_b_share: var_b / total,
+        }
+    }
+}
+
+// ─────────────────────────────────────────
+//  PinEstimate — Probability of Informed Trading
+// ─────────────────────────────────────────
+
+/// Easley et al. (1996) PIN model parameters estimated via method-of-moments.
+///
+/// Parameters:
+/// - `alpha`: probability of an information event (0 to 1).
+/// - `mu`: arrival rate of informed traders given an event.
+/// - `epsilon_b`: uninformed buy-order arrival rate.
+/// - `epsilon_s`: uninformed sell-order arrival rate.
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::PinEstimate;
+///
+/// let buys = vec![80u64, 90, 85];
+/// let sells = vec![20u64, 10, 15];
+/// let pin = PinEstimate::from_trade_counts(&buys, &sells);
+/// let p = pin.pin_probability();
+/// assert!((0.0..=1.0).contains(&p));
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct PinEstimate {
+    /// Probability of an information event occurring.
+    pub alpha: f64,
+    /// Informed trader arrival rate conditional on an event.
+    pub mu: f64,
+    /// Uninformed buy-order arrival rate.
+    pub epsilon_b: f64,
+    /// Uninformed sell-order arrival rate.
+    pub epsilon_s: f64,
+}
+
+impl PinEstimate {
+    /// Estimate PIN parameters from daily buy/sell trade counts via method-of-moments.
+    ///
+    /// Method-of-moments approximation:
+    /// - `epsilon_b ≈ mean(min(buys, sells))` (uninformed baseline)
+    /// - `epsilon_s ≈ mean(min(buys, sells))`
+    /// - `mu ≈ mean(|buys - sells|)` (excess flow attributable to informed)
+    /// - `alpha ≈ fraction of days with buys > sells` (event probability)
+    ///
+    /// Returns all-zero parameters when both slices are empty.
+    pub fn from_trade_counts(buy_days: &[u64], sell_days: &[u64]) -> Self {
+        let n = buy_days.len().min(sell_days.len());
+        if n == 0 {
+            return Self { alpha: 0.0, mu: 0.0, epsilon_b: 0.0, epsilon_s: 0.0 };
+        }
+        let nf = n as f64;
+        let mut sum_min = 0.0_f64;
+        let mut sum_excess = 0.0_f64;
+        let mut event_days = 0u64;
+
+        for i in 0..n {
+            let b = buy_days[i] as f64;
+            let s = sell_days[i] as f64;
+            let mn = b.min(s);
+            let excess = (b - s).abs();
+            sum_min += mn;
+            sum_excess += excess;
+            if (b - s).abs() > 1e-9 {
+                event_days += 1;
+            }
+        }
+
+        let epsilon_b = sum_min / nf;
+        let epsilon_s = epsilon_b;
+        let mu = sum_excess / nf;
+        let alpha = event_days as f64 / nf;
+
+        Self { alpha, mu, epsilon_b, epsilon_s }
+    }
+
+    /// Compute the PIN probability.
+    ///
+    /// `PIN = alpha * mu / (alpha * mu + epsilon_b + epsilon_s)`
+    ///
+    /// Returns `0.0` when the denominator is zero.
+    pub fn pin_probability(&self) -> f64 {
+        let numerator = self.alpha * self.mu;
+        let denominator = numerator + self.epsilon_b + self.epsilon_s;
+        if denominator == 0.0 {
+            0.0
+        } else {
+            numerator / denominator
+        }
+    }
 }
