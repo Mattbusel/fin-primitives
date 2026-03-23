@@ -31,6 +31,9 @@
 //! - Zero panics; all arithmetic uses f64 helpers with fallback defaults
 //! - Thresholds are fully configurable at construction
 
+/// 2-state Hidden Markov Model with Viterbi decoding for Bull/Bear regime classification.
+pub mod hmm;
+
 use crate::error::FinError;
 use crate::signals::indicators::{Adx, BollingerWidth, HistoricalVolatility, HurstExponent};
 use crate::signals::{BarInput, Signal, SignalValue};

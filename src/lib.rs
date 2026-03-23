@@ -117,4 +117,8 @@ pub mod yield_curve;
 /// peak/trough identification, and t-statistic significance testing.
 pub mod events;
 
+/// Crypto-specific financial metrics: funding rates, perpetual basis,
+/// open-interest ratio, liquidation heatmap, and Fear & Greed index.
+pub mod crypto;
+
 pub use error::FinError;
