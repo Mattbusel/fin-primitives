@@ -14,15 +14,48 @@ strategy rather than infrastructure.
 
 ---
 
+## What's New
+
+### v2.15.0 — Composite Signal Builder, OrderBook Diagnostic Logging
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Multi-signal composite builder** | `signals::composite` | Combine N indicators with `WeightedSum`, `All` (AND), `Any` (OR), or `First` (priority fallback) strategies using a fluent builder API |
+| **OrderBook inversion diagnostic log** | `orderbook` | Inverted-spread detection now emits a `WARN` log with symbol, prices, and sequence number before rolling back — operators can correlate bad feed data without instrumenting call sites |
+
+#### Composite signal — quick example
+
+```rust
+use fin_primitives::signals::composite::{CompositeSignal, CompositeMode};
+use fin_primitives::signals::indicators::{Sma, Rsi};
+use rust_decimal_macros::dec;
+
+// 50% SMA + 50% RSI blend: returns Unavailable until both indicators warm up.
+let mut blend = CompositeSignal::builder("sma_rsi_blend")
+    .add(Sma::new("sma20", 20)?, dec!(0.5))
+    .add(Rsi::new("rsi14", 14)?, dec!(0.5))
+    .mode(CompositeMode::WeightedSum)
+    .build();
+
+// AND gate: fire only when both are non-zero.
+let mut gate = CompositeSignal::builder("trend_confirm")
+    .add(Sma::new("sma50", 50)?, dec!(1))
+    .add(Rsi::new("rsi14", 14)?, dec!(1))
+    .mode(CompositeMode::All)
+    .build();
+```
+
+---
+
 ## What Is Included
 
 | Module | What it provides | Key guarantee |
 |--------|-----------------|---------------|
 | [`types`] | `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` newtypes | Validation at construction; no invalid value can exist at runtime |
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
-| [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
+| [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected, logged, and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods), `CompositeSignal` (multi-signal combiner) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
