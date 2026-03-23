@@ -153,11 +153,8 @@ async fn run_pipeline(
     while let Some(bar) = tick_rx.recv().await {
         let ts = Utc::now();
 
-        // update_bar returns a SignalMap
-        let map = match pipeline.update_bar(&bar) {
-            Ok(m) => m,
-            Err(_) => continue, // skip bars that fail to update
-        };
+        // SignalPipeline::update takes &OhlcvBar and returns SignalMap (infallible).
+        let map = pipeline.update(&bar);
 
         // Build name list from first non-empty map
         if known_names.is_empty() {
