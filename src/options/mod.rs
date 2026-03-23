@@ -1,18 +1,33 @@
 //! # Module: options
 //!
 //! ## Responsibility
-//! Black-Scholes European option pricing, Greeks (delta, gamma, theta, vega, rho),
-//! and implied volatility solving via Newton-Raphson iteration.
+//! Black-Scholes European option pricing, Greeks (delta, gamma, theta, vega, rho,
+//! vanna, volga), implied volatility solving, and volatility surface interpolation.
+//!
+//! ## Sub-modules
+//! - [`greeks`] — BSM Greeks suite with Brent's-method IV solver (pure f64 API).
+//! - [`surface`] — Volatility surface with bilinear interpolation.
 //!
 //! ## Design
-//! - All public API uses `rust_decimal::Decimal` for inputs/outputs.
+//! - All public API uses `rust_decimal::Decimal` for inputs/outputs in the legacy engine.
+//! - The new `greeks` and `surface` modules use `f64` for ergonomics.
 //! - Transcendental math (exp, ln, sqrt, erf) is done in `f64` internally.
 //! - Every fallible operation returns `Result<_, FinError>`; no panics on edge inputs.
 //!
 //! ## NOT Responsible For
 //! - American-style options (European only)
 //! - Discrete dividend adjustments
-//! - Smile/surface interpolation
+
+/// BSM closed-form Greeks suite and implied-volatility solver.
+pub mod greeks;
+
+/// Volatility surface with bilinear interpolation over (strike, expiry).
+pub mod surface;
+
+pub use greeks::{
+    GreekError, Greeks, OptionParams, OptionType, bsm_greeks, bsm_price, implied_volatility,
+};
+pub use surface::{VolPoint, VolSmile, VolSurface};
 
 use crate::error::FinError;
 use rust_decimal::prelude::ToPrimitive;
