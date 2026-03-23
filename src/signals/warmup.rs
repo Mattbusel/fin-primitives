@@ -74,30 +74,28 @@ pub trait WarmupContract {
 ///
 /// This allows all built-in indicators (`Sma`, `Ema`, `Rsi`, …) to be used with
 /// [`WarmupGuard`] and [`WarmupReport`] without additional boilerplate.
+///
+/// Note: because [`Signal`] already exposes `is_ready()` and `period()`, the blanket
+/// impl delegates via fully-qualified syntax to avoid ambiguity.
 impl<S: Signal> WarmupContract for S {
     fn warmup_period(&self) -> usize {
-        self.period()
+        // Fully-qualified call to Signal::period to avoid name collision.
+        <S as Signal>::period(self)
     }
 
     fn is_ready(&self) -> bool {
-        self.is_ready()
+        // Fully-qualified call to Signal::is_ready to avoid name collision.
+        <S as Signal>::is_ready(self)
     }
 
     fn bars_remaining(&self) -> usize {
-        if self.is_ready() {
+        if <S as Signal>::is_ready(self) {
             0
         } else {
-            // `period()` is the number of bars needed; subtract what we've seen.
-            // Because `is_ready()` is false, the signal itself tracks this implicitly
-            // via its period field. We derive the remaining count from the period.
-            // Individual indicators store their bar count internally; the public API
-            // only exposes `is_ready()` and `period()`, so we use those.
-            //
-            // The accurate remaining count would require access to internal state.
-            // We conservatively return `warmup_period()` as the upper bound when
-            // the signal is not ready but no internal count is exposed. Concrete
-            // structs may override this blanket impl for precision.
-            self.period()
+            // `period()` is the total warmup needed. Since we cannot observe the
+            // internal bar count through the Signal trait alone, we return the full
+            // period as an upper bound. `WarmupGuard` tracks `bars_seen` independently.
+            <S as Signal>::period(self)
         }
     }
 }

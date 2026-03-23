@@ -15,8 +15,9 @@
 //! | [`position`] | `Position`, `Fill`, `PositionLedger` | VWAP average cost; realized and unrealized P&L net of commissions |
 //! | [`risk`] | `DrawdownTracker`, `RiskRule` trait, `MaxDrawdownRule`, `MinEquityRule`, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 //! | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
-//! | [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer` | Bar-by-bar processing with no look-ahead; equity curve recorded per bar |
+//! | [`backtest`] | `Backtester`, `Strategy`, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
 //! | [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC streaming; pre-allocated output buffers on the hot path |
+//! | [`regime`] | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-conditional RSI adaptation |
 //!
 //! ## Design Principles
 //!
@@ -69,11 +70,21 @@ pub mod microstructure;
 /// ML feature vector builder: snapshot N indicator outputs, normalize, and serialize for ML pipelines.
 pub mod ml;
 
-/// Market regime detection: classifies the current market as Trending, MeanReverting, Volatile, or Quiet.
+/// Market regime engine: Hurst exponent, GARCH(1,1), cross-asset correlation breakdown,
+/// `RegimeConditionalSignal` (regime-adaptive RSI), and full `RegimeHistory` audit trail.
 pub mod regime;
 
 /// Cross-asset rolling correlations and PCA-based dimensionality reduction.
 pub mod cross_asset;
+
+/// Black-Scholes options pricing engine with Greeks and implied volatility solver.
+pub mod options;
+
+/// Realised volatility estimators: Close-to-Close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang.
+pub mod volatility;
+
+/// Almgren-Chriss optimal order execution and market impact model.
+pub mod impact;
 
 /// PyO3 Python bindings (enabled by the `python` feature).
 #[cfg(feature = "python")]

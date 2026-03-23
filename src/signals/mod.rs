@@ -16,7 +16,9 @@
 pub mod combine;
 pub mod compose;
 pub mod composite;
+pub mod entropy;
 pub mod indicators;
+pub mod multi_tf;
 pub mod pipeline;
 pub mod warmup;
 
