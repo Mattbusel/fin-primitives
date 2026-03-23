@@ -82,7 +82,6 @@
 use crate::backtest::{BacktestConfig, Backtester, BacktestResult, Strategy};
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
-use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 // ─── ParamRange ───────────────────────────────────────────────────────────────
@@ -441,6 +440,7 @@ mod tests {
     use super::*;
     use crate::backtest::{Signal, SignalDirection};
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
+    use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
 
     fn make_bar(close: f64, ts: i64) -> OhlcvBar {

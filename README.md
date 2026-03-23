@@ -68,8 +68,9 @@ let mut gate = CompositeSignal::builder("trend_confirm")
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
 | [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor`, **`RiskAttributor`** (6-factor), **`BhbAttribution`** | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
-| [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer` | Bar-by-bar; no look-ahead; equity curve recorded per bar |
+| [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
 | [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
+| [`regime`] | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-adaptive RSI |
 
 ---
 
@@ -765,6 +766,228 @@ Implied vol is solved by bisection over `[1e-6, 5.0]` (up to 200 iterations, tol
 
 ---
 
+## Regime Detection Engine
+
+The `regime` module classifies the current market state using four complementary
+quantitative signals, then adapts strategy parameters per regime.
+
+### Regimes
+
+| Regime | Primary Signal | Condition |
+|--------|---------------|-----------|
+| `Trending` | Hurst exponent | H > 0.6 (persistent process) |
+| `MeanReverting` | Hurst exponent | H < 0.4 (anti-persistent) |
+| `HighVolatility` | Realized vol / long-run mean | ratio > 2.0x; GARCH confirms |
+| `LowVolatility` | Realized vol / long-run mean | ratio < 0.5x; BB width compressed |
+| `Crisis` | Cross-asset correlation | > 60% of pairs decorrelated simultaneously |
+| `Neutral` | — | No dominant signal |
+| `Unknown` | — | Warm-up phase incomplete |
+
+Priority order: `Crisis > HighVolatility > Trending > MeanReverting > LowVolatility > Neutral`
+
+### GARCH(1,1) Persistent Volatility
+
+The `Garch11` struct fits an online GARCH(1,1) model — ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁ — and flags when conditional vol exceeds the long-run level by a configurable multiplier. This catches regimes where volatility is structurally elevated (crisis, rate shock) rather than just transiently spiked.
+
+```rust
+use fin_primitives::regime::{Garch11, RegimeDetector, RegimeConfig, MarketRegime, RegimeConditionalSignal};
+use fin_primitives::signals::BarInput;
+use rust_decimal_macros::dec;
+
+// ── Standalone GARCH ──────────────────────────────────────────────────────────
+let mut garch = Garch11::new(0.1, 0.85, 1e-6).unwrap();
+let log_returns = [-0.01_f64, 0.02, -0.03, 0.015, -0.025];
+for ret in log_returns {
+    let sigma = garch.update(ret);
+    println!("σ = {sigma:.6}  elevated = {}", garch.is_vol_elevated(1.5));
+}
+println!("long-run σ = {:.6}", garch.long_run_sigma());
+
+// ── Full regime detector ──────────────────────────────────────────────────────
+let mut detector = RegimeDetector::new(14, RegimeConfig::default()).unwrap();
+
+let bars = vec![
+    BarInput::new(dec!(100), dec!(102), dec!(98), dec!(100), dec!(5_000)),
+    // ... more bars
+];
+
+for bar in &bars {
+    let (regime, confidence) = detector.update(bar, &[]).unwrap();
+    // cross_returns: &[(asset_idx, log_return)] for multi-asset crisis detection
+    // e.g. detector.update(bar, &[(1, -0.02), (2, 0.01)]).unwrap()
+
+    println!("[{}] regime = {regime}  confidence = {confidence:.2}  risk_off = {}",
+        bar.close, regime.short_code(), regime.is_risk_off());
+}
+
+// Inspect regime history
+for epoch in detector.history() {
+    println!("  {:?}  started_at={} confidence={:.2} duration={:?}",
+        epoch.regime, epoch.started_at_bar, epoch.confidence, epoch.duration_bars());
+}
+```
+
+### Regime-Conditional Signal Adaptation
+
+`RegimeConditionalSignal` applies RSI with a short period in trending markets,
+a longer period when mean-reverting, and suppresses the signal entirely in crisis:
+
+```rust
+use fin_primitives::regime::{RegimeConditionalSignal, MarketRegime};
+use fin_primitives::signals::BarInput;
+use rust_decimal_macros::dec;
+
+let mut signal = RegimeConditionalSignal::new(
+    14,  // RSI period in Trending regime
+    21,  // RSI period in MeanReverting regime
+    14,  // RSI period in all other non-risk-off regimes
+).unwrap();
+
+let bar = BarInput::new(dec!(100), dec!(102), dec!(98), dec!(100), dec!(1000));
+
+match signal.update(&bar, MarketRegime::Trending) {
+    Some(Ok(rsi)) => println!("RSI(14) in trending = {rsi:.2}"),
+    Some(Err(e))  => eprintln!("error: {e}"),
+    None          => println!("signal suppressed (warm-up or risk-off)"),
+}
+// Crisis/Unknown → None (flat signal, no trading)
+assert!(signal.update(&bar, MarketRegime::Crisis).is_none());
+```
+
+### RegimeConfig Thresholds
+
+```rust
+RegimeConfig {
+    hurst_trending:              0.6,   // H > 0.6 → Trending
+    hurst_mean_reverting:        0.4,   // H < 0.4 → MeanReverting
+    vol_high_multiplier:         2.0,   // realized vol > 2x long-run mean → HighVolatility
+    vol_low_multiplier:          0.5,   // realized vol < 0.5x long-run mean → LowVolatility
+    adx_trend_threshold:        25.0,   // ADX above this confirms trend
+    bb_width_quiet:             0.02,   // BB width below this confirms LowVolatility
+    crisis_correlation_threshold: 0.3, // |r| below this = decorrelated pair
+    crisis_pair_fraction:        0.6,  // 60%+ of pairs decorrelated → Crisis
+    garch_alpha:                 0.1,  // GARCH innovation weight
+    garch_beta:                  0.85, // GARCH persistence weight
+    garch_omega:                 1e-6, // GARCH long-run floor
+    garch_vol_multiplier:        1.5,  // GARCH sigma multiplier for high-vol flag
+}
+```
+
+---
+
+## Walk-Forward Optimizer (Grid Search)
+
+The `backtest::walk_forward` module provides proper out-of-sample validation
+via a rolling train/test split with parameter grid search.
+
+### Algorithm
+
+```text
+|────── train ──────|── test ──|
+       step ──►
+               |────── train ──────|── test ──|
+```
+
+For each window:
+1. Grid search over all parameter combinations on the **training** slice.
+2. Select parameters that maximize in-sample Sharpe ratio.
+3. Evaluate those parameters on the **held-out test** slice.
+4. Record `WfPeriod` with both IS and OOS metrics.
+
+Aggregate: `aggregate_sharpe = mean(OOS Sharpe)`, `stability_score = fraction of OOS windows with positive Sharpe`.
+
+### Example
+
+```rust
+use fin_primitives::backtest::walk_forward::{WalkForwardOptimizer, WalkForwardConfig, ParamRange};
+use fin_primitives::backtest::{BacktestConfig, Signal, SignalDirection, Strategy};
+use fin_primitives::ohlcv::OhlcvBar;
+use std::collections::HashMap;
+use rust_decimal_macros::dec;
+
+// ── Define a parametric strategy ─────────────────────────────────────────────
+struct SmaStrategy { period: usize, bar_count: usize, window: std::collections::VecDeque<rust_decimal::Decimal> }
+
+impl Strategy for SmaStrategy {
+    fn on_bar(&mut self, bar: &OhlcvBar) -> Option<Signal> {
+        let close = bar.close.value();
+        self.window.push_back(close);
+        if self.window.len() > self.period { self.window.pop_front(); }
+        if self.window.len() < self.period { return None; }
+        let sma: rust_decimal::Decimal = self.window.iter().sum::<rust_decimal::Decimal>()
+            / rust_decimal::Decimal::from(self.period);
+        let dir = if close > sma { SignalDirection::Buy } else { SignalDirection::Sell };
+        Some(Signal::new(dir, dec!(1)))
+    }
+}
+
+// ── Configure the optimizer ───────────────────────────────────────────────────
+let config = WalkForwardConfig {
+    train_window: 120,  // 120 bars for in-sample fitting
+    test_window:   30,  // 30 bars for out-of-sample evaluation
+    step:          30,  // advance by 30 bars each iteration
+    param_space: vec![
+        ParamRange { name: "sma_period".to_owned(), min: 5.0, max: 25.0, step: 5.0 },
+    ],
+};
+
+let bt_config = BacktestConfig::new(dec!(100_000), dec!(0.001)).unwrap();
+let optimizer = WalkForwardOptimizer::new(config, bt_config).unwrap();
+
+let bars: Vec<OhlcvBar> = vec![/* ... historical bars */];
+
+let result = optimizer.run(&bars, |train_bars, params| {
+    let period = params.get("sma_period").copied().unwrap_or(10.0) as usize;
+    Box::new(SmaStrategy { period, bar_count: 0, window: Default::default() })
+}).unwrap();
+
+// ── Interpret results ─────────────────────────────────────────────────────────
+println!("Periods evaluated:    {}", result.periods.len());
+println!("Aggregate OOS Sharpe: {:.2}", result.aggregate_sharpe);
+println!("Stability score:      {:.1}%", result.stability_score * 100.0);
+println!("Mean OOS return:      {:.2}%", result.mean_oos_return * 100.0);
+println!("Worst OOS drawdown:   {:.2}%", result.worst_oos_drawdown * 100.0);
+
+// Robustness check: Sharpe > 0 and at least 65% of windows profitable
+if result.is_robust(0.65) {
+    println!("Strategy PASSED walk-forward robustness check");
+}
+
+// Per-period detail
+for (i, period) in result.periods.iter().enumerate() {
+    println!("  [WF {}] IS Sharpe={:.2}  OOS Sharpe={:.2}  best_params={:?}",
+        i, period.in_sample_sharpe, period.out_of_sample_sharpe, period.best_params);
+}
+
+// Best / worst OOS windows
+if let Some(best) = result.best_period() {
+    println!("Best OOS window:  bars {}–{} (Sharpe {:.2})", best.test_start, best.test_end, best.out_of_sample_sharpe);
+}
+```
+
+### `WalkForwardResult` Fields
+
+| Field | Description |
+|---|---|
+| `periods` | `Vec<WfPeriod>` — one entry per rolling window |
+| `aggregate_sharpe` | Mean out-of-sample Sharpe across all periods |
+| `stability_score` | Fraction of OOS windows with positive Sharpe; `[0, 1]` |
+| `mean_oos_return` | Mean OOS total return across all periods |
+| `worst_oos_drawdown` | Maximum OOS drawdown seen across any single period |
+
+### `WfPeriod` Fields
+
+| Field | Description |
+|---|---|
+| `train_start / train_end` | Bar index range of the training window |
+| `test_start / test_end` | Bar index range of the test window |
+| `best_params` | `HashMap<String, f64>` — winning parameter combination |
+| `in_sample_sharpe` | Best Sharpe achieved on training data |
+| `out_of_sample_sharpe` | Sharpe achieved on held-out test data |
+| `oos_result` | Full `BacktestResult` for the OOS period |
+
+---
+
 ## Backtester with Walk-Forward Optimization
 
 The `backtest` module provides a bar-by-bar event-driven backtester and a
@@ -1109,6 +1332,57 @@ WalkForwardOptimizer::new(train_size, test_size, config) -> Result<Self, FinErro
   .run(bars, make_strategy_fn)          -> Result<WalkForwardResult, FinError>
 
 // WalkForwardResult fields: windows, mean_return, mean_sharpe, worst_drawdown
+
+// Grid-search walk-forward (backtest::walk_forward)
+WalkForwardOptimizer::new(config, bt_config)  -> Result<Self, FinError>
+  .run(bars, make_strategy_fn)                -> Result<WalkForwardResult, FinError>
+
+// WalkForwardResult fields: periods, aggregate_sharpe, stability_score, mean_oos_return, worst_oos_drawdown
+WalkForwardResult::is_robust(min_stability)   -> bool
+  .best_period() / .worst_period()            -> Option<&WfPeriod>
+
+// WfPeriod fields: train_start, train_end, test_start, test_end,
+//                  best_params, in_sample_sharpe, out_of_sample_sharpe, oos_result
+```
+
+### `regime` module
+
+```rust
+RegimeDetector::new(period, config)     -> Result<Self, FinError>
+  .update(&bar, cross_returns)          -> Result<(MarketRegime, f64), FinError>
+  .current_regime()                     -> MarketRegime
+  .history()                            -> &[RegimeHistory]
+  .is_ready()                           -> bool
+  .garch()                              -> &Garch11
+  .correlation_detector()               -> &CorrelationBreakdownDetector
+  .reset()
+
+// MarketRegime variants
+MarketRegime::Trending | MeanReverting | HighVolatility | LowVolatility | Crisis | Neutral | Unknown
+MarketRegime::is_risk_off()             -> bool   // Crisis | Unknown
+MarketRegime::short_code()              -> &str   // "TRD", "MRV", "HVL", etc.
+
+// GARCH(1,1)
+Garch11::new(alpha, beta, omega)        -> Result<Self, FinError>
+  .update(log_return)                   -> f64    // returns σₜ
+  .sigma() / .variance()               -> f64
+  .long_run_sigma()                     -> f64
+  .is_vol_elevated(multiplier)          -> bool
+
+// Correlation breakdown
+CorrelationBreakdownDetector::new(window, threshold, crisis_fraction) -> Result<Self, FinError>
+  .update(asset_idx, log_return)
+  .is_crisis()                          -> bool
+
+// RegimeHistory
+RegimeHistory { regime, started_at_bar, confidence, ended_at_bar }
+  .duration_bars()                      -> Option<usize>
+  .is_active()                          -> bool
+
+// Regime-conditional RSI
+RegimeConditionalSignal::new(trending_period, mean_reverting_period, neutral_period)
+  .update(&bar, regime)                 -> Option<Result<f64, FinError>>
+  .is_ready()                           -> bool
 ```
 
 ### `async_signals` module

@@ -351,8 +351,10 @@ mod tests {
         let result = Backtester::new(config)
             .run(&bars, &mut BuyAndHold { bought: false })
             .unwrap();
-        // Final equity should be above initial (bought at 100, last close = 109)
-        assert!(result.final_equity > dec!(10_000));
+        // Bought 1 unit @ 100 from 10 000 cash; final close = 109.
+        // equity = (10 000 - 100) + unrealized_pnl(109) = 9 900 + 9 = 9 909.
+        // Assert equity grew relative to first bar (9 900) and trade count is 1.
+        assert!(result.final_equity > dec!(9_900), "final_equity={}", result.final_equity);
         assert_eq!(result.trade_count, 1);
     }
 
@@ -365,11 +367,16 @@ mod tests {
 
     #[test]
     fn test_max_drawdown_flat_market_is_zero() {
+        // Hold strategy: no trades, cash never changes, drawdown must be zero.
+        struct HoldOnly;
+        impl Strategy for HoldOnly {
+            fn on_bar(&mut self, _bar: &OhlcvBar) -> Option<Signal> {
+                Some(Signal::hold())
+            }
+        }
         let bars: Vec<OhlcvBar> = (0..5).map(|i| make_bar(dec!(100), i)).collect();
         let config = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
-        let result = Backtester::new(config)
-            .run(&bars, &mut BuyAndHold { bought: false })
-            .unwrap();
+        let result = Backtester::new(config).run(&bars, &mut HoldOnly).unwrap();
         assert_eq!(result.max_drawdown, dec!(0));
     }
 

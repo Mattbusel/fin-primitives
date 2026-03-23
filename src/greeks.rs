@@ -167,11 +167,13 @@ impl BlackScholes {
                 (delta, gamma, theta, vega, rho)
             }
             OptionType::Put => {
-                let nd1_neg = big_phi(-d1);
-                let nd2_neg = big_phi(-d2);
+                // N(d1) - 1 = -N(-d1); we compute N(-d1) and negate for delta
+                let nd1_neg = big_phi(-d1); // N(-d1)
+                let nd2_neg = big_phi(-d2); // N(-d2)
                 let phi_d1 = phi(d1);
 
-                let delta = nd1_neg - 1.0;
+                // put delta = N(d1) - 1 = -N(-d1)
+                let delta = -nd1_neg;
                 let gamma = phi_d1 / (s * v * sqrt_t);
                 let theta =
                     (-(s * phi_d1 * v) / (2.0 * sqrt_t) + r * k * exp_rt * nd2_neg) / 365.0;
