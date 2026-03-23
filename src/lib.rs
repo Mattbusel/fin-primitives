@@ -179,4 +179,8 @@ pub mod arbitrage;
 /// SpreadCost, MarketImpact (linear, sqrt, Almgren-Chriss), TotalExecutionCost, ExecutionCostBreakdown.
 pub mod execution_cost;
 
+/// Credit analytics: credit default swap (CDS) pricing with hazard rate models,
+/// survival probability curves, par spread, CS01, and bootstrap from market spreads.
+pub mod credit;
+
 pub use error::FinError;

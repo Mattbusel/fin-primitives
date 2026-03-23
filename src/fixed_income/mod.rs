@@ -7,6 +7,10 @@
 
 pub mod bond;
 
+/// Interest rate swap pricing: fixed/floating legs, discount curve bootstrapping,
+/// par swap rate, DV01, and modified duration.
+pub mod swaps;
+
 /// Mortgage calculations: amortization schedules, prepayment savings, refinance breakeven, and LTV.
 pub mod mortgage;
 
