@@ -7,6 +7,11 @@
 
 pub mod bond;
 
+/// Mortgage calculations: amortization schedules, prepayment savings, refinance breakeven, and LTV.
+pub mod mortgage;
+
+pub use mortgage::{AmortizationRow, MortgageCalculator, MortgageTerms};
+
 pub use bond::{
     Bond, CouponFrequency,
     convexity, current_yield, dv01, macaulay_duration, modified_duration,
