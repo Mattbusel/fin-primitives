@@ -152,4 +152,12 @@ pub mod performance;
 /// silhouette scoring, and cluster label extraction.
 pub mod clustering;
 
+/// Tax lot accounting: FIFO, LIFO, SpecificLot, MinTax, and AverageCost disposal methods,
+/// realized gain/loss records, wash-sale detection, and unrealized P&L.
+pub mod tax;
+
+/// Portfolio rebalancing: drift calculation, threshold and calendar triggers,
+/// proportional trade generation, turnover estimation, and tax-aware rebalancing.
+pub mod rebalancing;
+
 pub use error::FinError;
