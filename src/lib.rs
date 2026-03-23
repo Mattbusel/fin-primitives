@@ -121,4 +121,10 @@ pub mod events;
 /// open-interest ratio, liquidation heatmap, and Fear & Greed index.
 pub mod crypto;
 
+/// Interest rate swap pricing: discount curve, par rate, DV01, NPV.
+pub mod derivatives;
+
+/// Technical analysis indicators: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, OBV, Stochastic, candlestick patterns.
+pub mod technical;
+
 pub use error::FinError;
