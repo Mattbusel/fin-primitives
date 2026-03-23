@@ -8,3 +8,6 @@ pub mod swaps;
 
 /// Futures pricing, basis analytics, calendar spreads, and roll yield.
 pub mod futures;
+
+/// Multi-leg option strategy analytics: straddle, strangle, collar, butterfly, P&L profiles.
+pub mod option_strategies;
