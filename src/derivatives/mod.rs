@@ -14,3 +14,6 @@ pub mod option_strategies;
 
 /// Exotic option pricing: barrier, Asian, lookback, and digital options.
 pub mod exotic_options;
+
+/// Variance swap pricing, realised variance tracking, and VIX replication.
+pub mod variance_swap;
