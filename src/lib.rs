@@ -132,4 +132,16 @@ pub mod technical;
 /// Fixed income analytics: bond pricing, duration, convexity, YTM solver (Brent's method), DV01.
 pub mod fixed_income;
 
+/// Liquidity measures: bid-ask spread, market depth, composite liquidity scoring,
+/// and Amihud (2002) illiquidity ratio with rolling window averaging.
+pub mod liquidity;
+
+/// Statistical pairs trading: Engle-Granger cointegration, ADF stationarity test,
+/// spread z-score signal generation, and Welford online mean/variance tracking.
+pub mod pairs_trading;
+
+/// ML feature engineering: price features, microstructure features, feature vectors,
+/// z-score normalization, cross-sectional ranking, and lagged feature construction.
+pub mod ml_features;
+
 pub use error::FinError;
