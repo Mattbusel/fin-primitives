@@ -30,6 +30,10 @@ pub mod var;
 /// VaR calculation engine: Historical, Parametric (Cornish-Fisher), Monte Carlo (LCG+Box-Muller), rolling VaR.
 pub mod var_engine;
 
+/// Liquidity risk measurement: market depth, Amihud illiquidity, liquidation cost models,
+/// and portfolio liquidity-adjusted VaR.
+pub mod liquidity_risk;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 

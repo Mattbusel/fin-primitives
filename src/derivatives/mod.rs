@@ -11,3 +11,6 @@ pub mod futures;
 
 /// Multi-leg option strategy analytics: straddle, strangle, collar, butterfly, P&L profiles.
 pub mod option_strategies;
+
+/// Exotic option pricing: barrier, Asian, lookback, and digital options.
+pub mod exotic_options;
