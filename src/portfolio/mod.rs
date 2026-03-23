@@ -30,6 +30,10 @@ pub mod factor_model;
 /// cost estimation, tax-lot optimisation, and minimum-variance rebalancing.
 pub mod rebalancing;
 
+/// CDO tranching, waterfall cashflow distribution, and Monte Carlo CDO pricing
+/// via Gaussian one-factor copula.
+pub mod structured_products;
+
 pub use optimizer::{
     Asset, Constraint, CovarianceMatrix, OptimizationObjective, OptimizedPortfolio,
     PortfolioOptimizer,

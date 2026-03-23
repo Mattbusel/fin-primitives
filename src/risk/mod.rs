@@ -38,6 +38,9 @@ pub mod liquidity_risk;
 /// regulatory (DFAST/CCAR) scenarios with per-position shock application and P&L reporting.
 pub mod scenario_engine;
 
+/// Credit scoring, expected loss, Credit VaR, z-spread, and rating migration.
+pub mod credit_risk;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
