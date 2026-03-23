@@ -144,4 +144,12 @@ pub mod pairs_trading;
 /// z-score normalization, cross-sectional ranking, and lagged feature construction.
 pub mod ml_features;
 
+/// Portfolio performance metrics: Sharpe, Sortino, Calmar, Omega, Information Ratio,
+/// Max Drawdown, and CAGR.
+pub mod performance;
+
+/// Asset clustering using k-means on return correlations: KMeans, CorrelationClusterer,
+/// silhouette scoring, and cluster label extraction.
+pub mod clustering;
+
 pub use error::FinError;
