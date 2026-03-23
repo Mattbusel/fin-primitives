@@ -63,8 +63,17 @@ pub mod latency;
 /// Risk scenario backtesting: replays historical bars through risk rules.
 pub mod scenario;
 
-/// Market microstructure anomaly detection: spoofing, layering, quote stuffing.
+/// Tick-level microstructure metrics: bid-ask spread, Amihud illiquidity, Kyle's lambda, Roll implied spread.
 pub mod microstructure;
+
+/// ML feature vector builder: snapshot N indicator outputs, normalize, and serialize for ML pipelines.
+pub mod ml;
+
+/// Market regime detection: classifies the current market as Trending, MeanReverting, Volatile, or Quiet.
+pub mod regime;
+
+/// Cross-asset rolling correlations and PCA-based dimensionality reduction.
+pub mod cross_asset;
 
 /// PyO3 Python bindings (enabled by the `python` feature).
 #[cfg(feature = "python")]

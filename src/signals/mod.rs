@@ -13,6 +13,7 @@
 //! - Persistence
 //! - Real-time streaming (use `OhlcvAggregator` upstream)
 
+pub mod combine;
 pub mod compose;
 pub mod composite;
 pub mod indicators;
