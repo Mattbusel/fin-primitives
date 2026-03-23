@@ -15,7 +15,7 @@
 //! - Persistence
 
 use crate::error::FinError;
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 

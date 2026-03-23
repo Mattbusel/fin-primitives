@@ -16,6 +16,15 @@ strategy rather than infrastructure.
 
 ## What's New
 
+### v2.16.0 — Signal Warmup Contracts, Signal Composition Engine, Risk Attribution
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Signal Warmup Contracts** | `signals::warmup` | `WarmupContract` trait, `WarmupGuard` (returns `Err(NotReady)` instead of `Unavailable`), `WarmupReporter` (pipeline warmup snapshot) |
+| **Signal Composition Engine** | `signals::compose` | `SignalExpr` DSL, `ComposedSignal` evaluator, fluent `SignalBuilder` API for lag/normalize/threshold chains |
+| **Risk Attribution** | `risk::attribution` | `RiskAttributor` decomposes portfolio risk into 6 factors; `BhbAttribution` for Brinson-Hood-Beebower P&L attribution |
+| **`RiskMonitor::attribution_report`** | `risk` | Convenience method on `RiskMonitor` to get an `AttributionReport` in one call |
+
 ### v2.15.0 — Composite Signal Builder, OrderBook Diagnostic Logging
 
 | Change | Module | Detail |
@@ -55,12 +64,35 @@ let mut gate = CompositeSignal::builder("trend_confirm")
 | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
 | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected, logged, and rolled back |
 | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods), `CompositeSignal` (multi-signal combiner) | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods), `CompositeSignal`, **`SignalExpr` composition DSL**, **`WarmupGuard`** | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
 | [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
-| [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
+| [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor`, **`RiskAttributor`** (6-factor), **`BhbAttribution`** | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
 | [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer` | Bar-by-bar; no look-ahead; equity curve recorded per bar |
 | [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
+
+---
+
+## Why fin-primitives?
+
+Most financial Rust crates solve one problem. `fin-primitives` solves the whole
+stack — validated domain types through streaming indicators through risk monitoring
+— with a single consistent design contract:
+
+| Concern | How fin-primitives addresses it |
+|---------|--------------------------------|
+| **Correctness** | `Price`/`Quantity`/`Symbol` are validated newtypes; invalid values cannot exist at runtime |
+| **Precision** | All prices use `rust_decimal::Decimal`; floating-point drift is structurally impossible |
+| **No surprises** | Signals return `Unavailable` — never silent NaN — until warmup is complete; `WarmupGuard` converts that to a typed `Err` |
+| **Composability** | `Signal`, `RiskRule`, `TickFilter` are traits; plug in your own without forking |
+| **Expressiveness** | The `SignalExpr` DSL lets you write `rsi.lag(1).normalize(ZScore).threshold(2.0, Above)` instead of bespoke structs |
+| **Attribution** | The 6-factor `RiskAttributor` and BHB P&L decomposition let you see *why* your portfolio is taking risk, not just *how much* |
+| **Scale** | 725+ streaming indicators, 370+ OHLCV analytics, 145+ ledger methods, 120+ drawdown statistics — all in one coherent API |
+| **Safety** | `#![forbid(unsafe_code)]`; zero `unwrap`/`expect` in production paths; every error is typed and propagatable |
+
+```
+"The goal is to make correctness the path of least resistance."
+```
 
 ---
 
@@ -433,6 +465,204 @@ map.all_positive() / .all_negative()
 
 ---
 
+## Signal Warmup Contracts
+
+Every indicator has an implicit warmup period. `signals::warmup` makes that
+period queryable, enforceable, and reportable:
+
+| Type | Purpose |
+|------|---------|
+| `WarmupContract` | Trait: `warmup_period()`, `is_ready()`, `bars_remaining()` — implemented by all `Signal` types |
+| `WarmupGuard<S>` | Wraps any signal; returns `Err(NotReady)` until warmup completes instead of silent `Unavailable` |
+| `WarmupReporter` | Tracks warmup progress for N signals and produces `WarmupReport` snapshots |
+| `WarmupReport` | `all_ready()`, `pipeline_bars_remaining()`, `warming_signals()`, `display()` |
+
+```rust
+use fin_primitives::signals::indicators::Sma;
+use fin_primitives::signals::{BarInput, Signal};
+use fin_primitives::signals::warmup::{WarmupContract, WarmupGuard, WarmupReporter};
+use rust_decimal_macros::dec;
+
+// Guard: explicit error instead of silent Unavailable
+let sma = Sma::new("sma5", 5).unwrap();
+let mut guard = WarmupGuard::new(sma);
+
+for _ in 0..4 {
+    let bar = BarInput::from_close(dec!(100));
+    // Err(NotReady { bars_remaining: 4, 3, 2, 1 })
+    assert!(guard.update_checked(&bar).is_err());
+}
+// 5th bar — Ok(SignalValue::Scalar(...))
+assert!(guard.update_checked(&BarInput::from_close(dec!(100))).is_ok());
+
+// Reporter: pipeline-level warmup snapshot
+let mut reporter = WarmupReporter::new(
+    vec![5, 14, 20],
+    vec!["sma5".into(), "rsi14".into(), "bb20".into()],
+);
+reporter.tick_n(5); // 5 bars consumed
+let report = reporter.report(reporter.bars_consumed());
+assert!(report.statuses[0].is_ready);   // sma5 done
+assert!(!report.statuses[1].is_ready);  // rsi14 still warming
+println!("{}", report.display());
+// WarmupReport [bars_consumed=5, ready=1/3, pipeline_remaining=15]
+//   [READY]   sma5  (period=5)
+//   [WARMING] rsi14 (period=14, remaining=9)
+//   [WARMING] bb20  (period=20, remaining=15)
+```
+
+---
+
+## Signal Composition Engine
+
+`signals::compose` provides a composable expression-tree DSL for building
+derived signals from existing indicators without writing bespoke structs.
+
+### Expression Nodes
+
+| Node | Description |
+|------|-------------|
+| `Raw(name)` | Leaf: raw output of a named indicator |
+| `Add(a, b)` | Element-wise sum; `Unavailable` if either is |
+| `Sub(a, b)` | `a - b`; `Unavailable` if either is |
+| `Mul(expr, f)` | Scale by constant `f` |
+| `Lag(expr, n)` | Delay by `n` bars; `Unavailable` until buffer fills |
+| `Normalize(expr, method, window)` | `MinMax`, `ZScore`, or `Percentile` normalisation |
+| `Threshold(expr, level, dir)` | `Above` → `+1/0`, `Below` → `-1/0`, `Cross` → `+1/-1/0` |
+
+### Fluent `SignalBuilder` API
+
+```rust
+use fin_primitives::signals::indicators::Rsi;
+use fin_primitives::signals::{BarInput, Signal};
+use fin_primitives::signals::compose::{SignalBuilder, NormMethod, Direction};
+use rust_decimal_macros::dec;
+
+// RSI(14) → lag(1) → ZScore(20) → threshold(+2σ, Above)
+let rsi = Rsi::new("rsi14", 14).unwrap();
+let mut momentum_signal = SignalBuilder::new(rsi)
+    .lag(1)
+    .normalize_window(NormMethod::ZScore, 20)
+    .threshold(dec!(2), Direction::Above)
+    .build_named("rsi_zscore_cross");
+
+// Feed bars; signal returns Scalar(1) when RSI z-score crosses above +2σ
+let bar = BarInput::from_close(dec!(100));
+let _ = momentum_signal.update(&bar); // Unavailable during warmup
+
+// Combine two signals manually
+use fin_primitives::signals::compose::{SignalExpr, ComposedSignal};
+use fin_primitives::signals::indicators::Sma;
+
+let sma_fast = Sma::new("sma5", 5).unwrap();
+let sma_slow = Sma::new("sma20", 20).unwrap();
+let expr = SignalExpr::raw("sma5")
+    .sub(SignalExpr::raw("sma20"))      // MACD-style crossover
+    .threshold(dec!(0), Direction::Cross);
+let leaves: Vec<Box<dyn Signal>> = vec![Box::new(sma_fast), Box::new(sma_slow)];
+let mut cross = ComposedSignal::new("fast_slow_cross", expr, leaves).unwrap();
+```
+
+### Normalisation Methods
+
+| Method | Formula | Output |
+|--------|---------|--------|
+| `MinMax` | `(v - min) / (max - min)` | `[0, 1]` |
+| `ZScore` | `(v - mean) / std_dev` | Unbounded; typically `[-3, +3]` |
+| `Percentile` | Rank within rolling window | `[0, 1]` |
+
+---
+
+## Risk Attribution
+
+`risk::attribution` decomposes portfolio risk into six named factors and supports
+Brinson-Hood-Beebower P&L attribution. Use `RiskMonitor::attribution_report` or
+construct `RiskAttributor` directly.
+
+### Six-Factor Risk Decomposition
+
+| Factor | Driver | Estimation |
+|--------|--------|------------|
+| `Market` | Systematic beta exposure | `β² × σ²_market` |
+| `Sector` | Industry concentration | HHI × `σ²_market × 0.5` |
+| `Idiosyncratic` | Stock-specific residual | `Σ w_i² × σ²_idio_i` |
+| `Leverage` | Borrowed capital amplification | `(L−1)² × σ²_market` |
+| `Concentration` | Large single-position weight | HHI × `σ²_market × 0.3` |
+| `Liquidity` | Illiquid exit risk | `(1 − avg_liquidity) × σ²_market` |
+
+```rust
+use fin_primitives::risk::RiskMonitor;
+use fin_primitives::risk::attribution::{MarketData, RiskAttributor};
+use fin_primitives::position::PositionLedger;
+use rust_decimal_macros::dec;
+
+let ledger = PositionLedger::new(dec!(100_000));
+// Populate ledger with positions via ledger.apply_fill(...)
+
+let market_data = MarketData::new(0.15)   // 15% annualised market vol
+    .with_beta("AAPL", 1.2)
+    .with_beta("MSFT", 0.9)
+    .with_sector("AAPL", "Technology")
+    .with_sector("MSFT", "Technology")
+    .with_liquidity("AAPL", 0.98)
+    .with_idio_vol("AAPL", 0.25);
+
+// Via RiskMonitor (one-liner)
+let monitor = RiskMonitor::new(dec!(100_000));
+let report = monitor.attribution_report(&ledger, market_data.clone());
+
+println!("{}", report.summary());
+// AttributionReport [equity=..., total_risk=..., beta=1.05, hhi=0.5, leverage=1.0x]
+//   Market (Beta)        42.3%  (...)
+//   Sector               18.1%  (...)
+//   Idiosyncratic        27.4%  (...)
+//   ...
+
+// Or directly via RiskAttributor
+let attributor = RiskAttributor::new(&ledger, market_data);
+let report = attributor.compute();
+let dominant = report.dominant_factor().unwrap();
+println!("Largest risk factor: {}", dominant.factor.name());
+```
+
+### Brinson-Hood-Beebower P&L Attribution
+
+```rust
+use fin_primitives::risk::attribution::{RiskAttributor, BhbInput, BhbSectorInput, MarketData};
+use fin_primitives::position::PositionLedger;
+use rust_decimal_macros::dec;
+
+let ledger = PositionLedger::new(dec!(100_000));
+let attributor = RiskAttributor::new(&ledger, MarketData::default());
+
+let bhb = attributor.compute_bhb(&BhbInput {
+    benchmark_total_return: 0.05,
+    sectors: vec![
+        BhbSectorInput {
+            sector: "Technology".into(),
+            portfolio_weight:   0.60,  // overweight vs benchmark
+            benchmark_weight:   0.40,
+            portfolio_sector_return: 0.08,
+            benchmark_sector_return: 0.06,
+        },
+        BhbSectorInput {
+            sector: "Energy".into(),
+            portfolio_weight:   0.40,
+            benchmark_weight:   0.60,
+            portfolio_sector_return: 0.02,
+            benchmark_sector_return: 0.04,
+        },
+    ],
+});
+
+println!("Active return: {:.2}%", bhb.total_active_return * 100.0);
+println!("  Allocation:   {:.4}", bhb.total_allocation);
+println!("  Selection:    {:.4}", bhb.total_selection);
+println!("  Interaction:  {:.4}", bhb.total_interaction);
+```
+
+---
+
 ## PositionLedger Analytics (145+)
 
 ```rust
@@ -751,9 +981,10 @@ OhlcvSeries::new()
 // Signal trait
 trait Signal {
     fn name(&self)   -> &str;
-    fn update(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError>;
+    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError>;
     fn is_ready(&self) -> bool;
     fn period(&self) -> usize;
+    fn reset(&mut self);
 }
 
 SignalPipeline::new()
@@ -762,6 +993,35 @@ SignalPipeline::new()
 
 SignalMap::get(name)     -> Option<&SignalValue>
 // SignalValue: Scalar(Decimal) | Unavailable
+
+// Warmup contracts (signals::warmup)
+WarmupGuard::new(signal)
+  .update_checked(&bar)  -> Result<SignalValue, WarmupError>
+  .is_ready()            -> bool
+  .bars_remaining()      -> usize
+  .bars_seen()           -> usize
+
+WarmupReporter::new(periods, names)
+  .tick() / .tick_n(n)
+  .report(bars_consumed) -> WarmupReport
+
+WarmupReport::all_ready()              -> bool
+  .pipeline_bars_remaining()           -> usize
+  .warming_signals()                   -> impl Iterator
+  .display()                           -> String
+
+// Signal composition (signals::compose)
+SignalBuilder::new(signal)
+  .lag(n)
+  .normalize(NormMethod)
+  .normalize_window(NormMethod, window)
+  .threshold(level, Direction)
+  .scale(factor)
+  .build()               -> ComposedSignal  // implements Signal
+  .build_named(name)     -> ComposedSignal
+
+ComposedSignal::new(name, expr, leaves) -> Result<Self, FinError>
+  // implements Signal: update / is_ready / period / reset
 ```
 
 ### `position` module
@@ -787,6 +1047,31 @@ DrawdownTracker::new(initial_equity)
 RiskMonitor::new(initial_equity)
   .add_rule(rule)           -> Self     // builder pattern
   .update(equity)           -> Vec<RiskBreach>
+  .attribution_report(&ledger, market_data) -> AttributionReport
+
+// Risk attribution (risk::attribution)
+MarketData::new(market_vol)
+  .with_beta(symbol, beta)
+  .with_sector(symbol, sector)
+  .with_liquidity(symbol, score)
+  .with_idio_vol(symbol, vol)
+
+RiskAttributor::new(&ledger, market_data)
+  .compute()                -> AttributionReport
+  .compute_bhb(&input)      -> BhbAttribution
+
+AttributionReport::get(factor)          -> Option<&RiskAttribution>
+  .dominant_factor()                    -> Option<&RiskAttribution>
+  .factors_above(threshold_pct)         -> Vec<&RiskAttribution>
+  .summary()                            -> String
+  // Fields: attributions, total_risk, portfolio_beta, concentration_hhi, leverage_ratio
+
+BhbAttribution                          // P&L decomposition
+  .total_active_return: f64
+  .total_allocation: f64
+  .total_selection: f64
+  .total_interaction: f64
+  .best_allocation_sector()             -> Option<&SectorEffect>
 ```
 
 ### `greeks` module
@@ -899,16 +1184,19 @@ impl Signal for AlwaysZero {
         OhlcvSeries                   |
          (370+ analytics)   vwap_for_qty / spread
               |
-        SignalPipeline
-        (540+ indicators)
-              |
+        SignalPipeline ─────── CompositeSignal
+        (725+ indicators)            │
+              │                SignalExpr DSL
+        WarmupGuard / WarmupReporter │
+              │              (compose.rs)
          SignalMap (90+ methods)
               |
      PositionLedger (145+ methods)
+              |          │
+        DrawdownTracker  └──── RiskAttributor ──── BhbAttribution
+        (120+ methods)         (6-factor model)   (BHB P&L split)
               |
-        DrawdownTracker (120+ methods)
-              |
-         RiskMonitor
+         RiskMonitor ──── attribution_report()
               |
        Vec<RiskBreach>
 ```
