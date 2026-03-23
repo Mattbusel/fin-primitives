@@ -484,7 +484,7 @@ mod tests {
     #[test]
     fn test_warmup_contract_ema_not_ready_initially() {
         let ema = Ema::new("ema5", 5).unwrap();
-        assert!(!ema.is_ready());
+        assert!(!WarmupContract::is_ready(&ema));
     }
 
     #[test]
@@ -492,9 +492,9 @@ mod tests {
         let mut sma = Sma::new("sma3", 3).unwrap();
         sma.update(&bar("10")).unwrap();
         sma.update(&bar("20")).unwrap();
-        assert!(!sma.is_ready());
+        assert!(!WarmupContract::is_ready(&sma));
         sma.update(&bar("30")).unwrap();
-        assert!(sma.is_ready());
+        assert!(WarmupContract::is_ready(&sma));
         assert_eq!(sma.bars_remaining(), 0);
     }
 

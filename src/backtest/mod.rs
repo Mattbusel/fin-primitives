@@ -299,139 +299,8 @@ fn compute_sharpe(returns: &[Decimal]) -> Decimal {
     Decimal::try_from(sharpe_annual).unwrap_or(Decimal::ZERO)
 }
 
-// ─── Walk-Forward Optimizer ───────────────────────────────────────────────────
-
-/// Per-window result from a walk-forward analysis.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WindowResult {
-    /// Index of the first bar in the training window.
-    pub train_start: usize,
-    /// Index of the last bar in the training window (exclusive).
-    pub train_end: usize,
-    /// Index of the first bar in the test window.
-    pub test_start: usize,
-    /// Index of the last bar in the test window (exclusive).
-    pub test_end: usize,
-    /// Backtest result on the out-of-sample (test) window.
-    pub test_result: BacktestResult,
-}
-
-/// Aggregated output of a walk-forward analysis.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WalkForwardResult {
-    /// Results for each individual walk-forward window.
-    pub windows: Vec<WindowResult>,
-    /// Mean total return across all test windows.
-    pub mean_return: Decimal,
-    /// Mean Sharpe ratio across all test windows.
-    pub mean_sharpe: Decimal,
-    /// Maximum drawdown observed across all test windows.
-    pub worst_drawdown: Decimal,
-}
-
-/// Splits `bars` into rolling training/test windows and runs a backtest on each test segment.
-pub struct WalkForwardOptimizer {
-    /// Number of bars in each training window.
-    pub train_size: usize,
-    /// Number of bars in each test window.
-    pub test_size: usize,
-    /// Backtest configuration applied to each window.
-    pub config: BacktestConfig,
-}
-
-impl WalkForwardOptimizer {
-    /// Creates a new optimizer.
-    ///
-    /// # Errors
-    /// Returns [`FinError::InvalidInput`] if `train_size` or `test_size` are zero.
-    pub fn new(
-        train_size: usize,
-        test_size: usize,
-        config: BacktestConfig,
-    ) -> Result<Self, FinError> {
-        if train_size == 0 {
-            return Err(FinError::InvalidInput(
-                "train_size must be > 0".to_owned(),
-            ));
-        }
-        if test_size == 0 {
-            return Err(FinError::InvalidInput(
-                "test_size must be > 0".to_owned(),
-            ));
-        }
-        Ok(Self { train_size, test_size, config })
-    }
-
-    /// Runs walk-forward analysis over `bars`.
-    ///
-    /// The strategy factory `make_strategy` is called once per window with the
-    /// training slice so the strategy can fit its parameters on in-sample data.
-    /// The returned strategy is then evaluated on the out-of-sample test slice.
-    ///
-    /// # Errors
-    /// - [`FinError::InvalidInput`] if `bars` is too short for even one window.
-    /// - Propagates any [`FinError`] from individual backtest runs.
-    pub fn run<F>(
-        &self,
-        bars: &[OhlcvBar],
-        mut make_strategy: F,
-    ) -> Result<WalkForwardResult, FinError>
-    where
-        F: FnMut(&[OhlcvBar]) -> Box<dyn Strategy>,
-    {
-        let window = self.train_size + self.test_size;
-        if bars.len() < window {
-            return Err(FinError::InvalidInput(format!(
-                "need at least {} bars for one walk-forward window, got {}",
-                window,
-                bars.len()
-            )));
-        }
-
-        let backtester = Backtester::new(self.config.clone());
-        let mut windows: Vec<WindowResult> = Vec::new();
-        let mut offset = 0;
-
-        while offset + window <= bars.len() {
-            let train_start = offset;
-            let train_end = offset + self.train_size;
-            let test_start = train_end;
-            let test_end = train_end + self.test_size;
-
-            let train_bars = &bars[train_start..train_end];
-            let test_bars = &bars[test_start..test_end];
-
-            let mut strategy = make_strategy(train_bars);
-            let test_result = backtester.run(test_bars, strategy.as_mut())?;
-
-            windows.push(WindowResult {
-                train_start,
-                train_end,
-                test_start,
-                test_end,
-                test_result,
-            });
-
-            offset += self.test_size; // rolling: advance by test_size each step
-        }
-
-        if windows.is_empty() {
-            return Err(FinError::InvalidInput(
-                "no walk-forward windows could be constructed".to_owned(),
-            ));
-        }
-
-        let n = Decimal::from(windows.len());
-        let mean_return = windows.iter().map(|w| w.test_result.total_return).sum::<Decimal>() / n;
-        let mean_sharpe = windows.iter().map(|w| w.test_result.sharpe_ratio).sum::<Decimal>() / n;
-        let worst_drawdown = windows
-            .iter()
-            .map(|w| w.test_result.max_drawdown)
-            .fold(Decimal::ZERO, Decimal::max);
-
-        Ok(WalkForwardResult { windows, mean_return, mean_sharpe, worst_drawdown })
-    }
-}
+// Walk-forward types and optimizer are fully implemented in the walk_forward
+// sub-module and re-exported above via `pub use walk_forward::{...}`.
 
 // ─── tests ────────────────────────────────────────────────────────────────────
 
@@ -451,8 +320,8 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::new(dec!(1000)).unwrap(),
-            ts_open: NanoTimestamp(ts),
-            ts_close: NanoTimestamp(ts + 1),
+            ts_open: NanoTimestamp::new(ts),
+            ts_close: NanoTimestamp::new(ts + 1),
             tick_count: 1,
         }
     }
@@ -511,23 +380,43 @@ mod tests {
 
     #[test]
     fn test_walk_forward_basic() {
+        use crate::backtest::walk_forward::WalkForwardConfig;
+        use std::collections::HashMap;
         let bars: Vec<OhlcvBar> = (0..30)
             .map(|i| make_bar(dec!(100) + Decimal::from(i), i))
             .collect();
-        let config = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
-        let wfo = WalkForwardOptimizer::new(15, 5, config).unwrap();
+        let bt_config = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
+        let wf_config = WalkForwardConfig {
+            train_window: 15,
+            test_window: 5,
+            step: 5,
+            param_space: vec![],
+        };
+        let wfo = WalkForwardOptimizer::new(wf_config, bt_config).unwrap();
         let result = wfo
-            .run(&bars, |_train| Box::new(BuyAndHold { bought: false }))
+            .run(&bars, |_train, _params: &HashMap<String, f64>| {
+                Box::new(BuyAndHold { bought: false })
+            })
             .unwrap();
-        assert!(!result.windows.is_empty());
+        assert!(!result.periods.is_empty());
     }
 
     #[test]
     fn test_walk_forward_insufficient_bars() {
+        use crate::backtest::walk_forward::WalkForwardConfig;
+        use std::collections::HashMap;
         let bars: Vec<OhlcvBar> = (0..5).map(|i| make_bar(dec!(100), i)).collect();
-        let config = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
-        let wfo = WalkForwardOptimizer::new(10, 5, config).unwrap();
-        let result = wfo.run(&bars, |_train| Box::new(BuyAndHold { bought: false }));
+        let bt_config = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
+        let wf_config = WalkForwardConfig {
+            train_window: 10,
+            test_window: 5,
+            step: 5,
+            param_space: vec![],
+        };
+        let wfo = WalkForwardOptimizer::new(wf_config, bt_config).unwrap();
+        let result = wfo.run(&bars, |_train, _params: &HashMap<String, f64>| {
+            Box::new(BuyAndHold { bought: false })
+        });
         assert!(result.is_err());
     }
 

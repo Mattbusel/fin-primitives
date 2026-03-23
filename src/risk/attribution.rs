@@ -649,8 +649,8 @@ mod tests {
 
     fn ledger_with_position() -> PositionLedger {
         let mut ledger = PositionLedger::new(dec!(100_000));
-        ledger.apply_fill(&make_fill("AAPL", Side::Bid, "10", "150")).unwrap();
-        ledger.apply_fill(&make_fill("MSFT", Side::Bid, "5", "300")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150")).unwrap();
+        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "300")).unwrap();
         ledger
     }
 
@@ -771,7 +771,7 @@ mod tests {
     #[test]
     fn test_attribution_report_hhi_single_position() {
         let mut ledger = PositionLedger::new(dec!(100_000));
-        ledger.apply_fill(&make_fill("AAPL", Side::Bid, "10", "100")).unwrap();
+        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100")).unwrap();
         let market_data = MarketData::default();
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();

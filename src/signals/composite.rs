@@ -158,6 +158,23 @@ impl Signal for CompositeSignal {
         &self.name
     }
 
+    /// Returns `true` when all constituent signals are ready.
+    fn is_ready(&self) -> bool {
+        self.constituents.iter().all(|c| c.signal.is_ready())
+    }
+
+    /// Returns the maximum warm-up period across all constituent signals.
+    fn period(&self) -> usize {
+        self.constituents.iter().map(|c| c.signal.period()).max().unwrap_or(0)
+    }
+
+    /// Resets all constituent signals to their initial state.
+    fn reset(&mut self) {
+        for c in &mut self.constituents {
+            c.signal.reset();
+        }
+    }
+
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Collect all constituent values first.
         let mut values: Vec<(Decimal, Decimal)> = Vec::with_capacity(self.constituents.len()); // (weight, scalar)

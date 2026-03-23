@@ -199,15 +199,15 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::new(dec!(1)).unwrap(),
-            ts_open: NanoTimestamp(ts),
-            ts_close: NanoTimestamp(ts + 1),
+            ts_open: NanoTimestamp::new(ts),
+            ts_close: NanoTimestamp::new(ts + 1),
             tick_count: 1,
         }
     }
 
     #[tokio::test]
     async fn test_streaming_pipeline_receives_updates() {
-        let sma = Sma::new("sma3", 3);
+        let sma = Sma::new("sma3", 3).unwrap();
         let pipeline = SignalPipeline::new().add(sma);
 
         let (tick_tx, mut update_rx) = StreamingSignalPipeline::new(pipeline).spawn();
@@ -237,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_spawn_signal_stream_convenience() {
-        let sma = Sma::new("sma2", 2);
+        let sma = Sma::new("sma2", 2).unwrap();
         let pipeline = SignalPipeline::new().add(sma);
 
         let (tick_tx, tick_rx) = mpsc::channel::<OhlcvBar>(16);
@@ -258,7 +258,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_pipeline_closes_when_sender_dropped() {
-        let sma = Sma::new("sma5", 5);
+        let sma = Sma::new("sma5", 5).unwrap();
         let pipeline = SignalPipeline::new().add(sma);
         let (tick_tx, mut update_rx) = StreamingSignalPipeline::new(pipeline).spawn();
 

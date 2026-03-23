@@ -456,8 +456,8 @@ mod tests {
             low: p,
             close: p,
             volume: Quantity::new(dec!(1000)).unwrap(),
-            ts_open: NanoTimestamp(ts),
-            ts_close: NanoTimestamp(ts + 1),
+            ts_open: NanoTimestamp::new(ts),
+            ts_close: NanoTimestamp::new(ts + 1),
             tick_count: 1,
         }
     }
