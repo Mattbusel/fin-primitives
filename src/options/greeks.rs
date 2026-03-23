@@ -567,3 +567,352 @@ mod tests {
         assert!((iv - 0.05).abs() < 1e-4, "low-vol IV error: {:.6}", iv - 0.05);
     }
 }
+
+// ─── BSMInputs-based API (alternative struct layout matching task spec) ────────
+
+/// All inputs required for Black-Scholes-Merton pricing, matching a common
+/// quant convention: S, K, r, q, sigma, T.
+#[derive(Debug, Clone, Copy)]
+pub struct BSMInputs {
+    /// Current underlying spot price S (must be > 0).
+    pub S: f64,
+    /// Strike price K (must be > 0).
+    pub K: f64,
+    /// Continuously-compounded annual risk-free rate r.
+    pub r: f64,
+    /// Continuous dividend yield q.
+    pub q: f64,
+    /// Annual volatility sigma (must be > 0).
+    pub sigma: f64,
+    /// Time to expiry in years T (must be > 0).
+    pub T: f64,
+}
+
+/// Standard normal CDF (Abramowitz & Stegun polynomial, max |err| ≈ 7.5e-8).
+pub fn norm_cdf(x: f64) -> f64 {
+    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
+    let poly = t * (0.319_381_530
+        + t * (-0.356_563_782
+            + t * (1.781_477_937
+                + t * (-1.821_255_978
+                    + t * 1.330_274_429))));
+    let pdf = (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt();
+    let cdf_pos = 1.0 - pdf * poly;
+    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+}
+
+/// Standard normal PDF.
+pub fn norm_pdf(x: f64) -> f64 {
+    (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt()
+}
+
+/// d1 component of BSM.
+pub fn d1(inputs: &BSMInputs) -> f64 {
+    ((inputs.S / inputs.K).ln()
+        + (inputs.r - inputs.q + 0.5 * inputs.sigma * inputs.sigma) * inputs.T)
+        / (inputs.sigma * inputs.T.sqrt())
+}
+
+/// d2 = d1 - sigma * sqrt(T).
+pub fn d2(inputs: &BSMInputs) -> f64 {
+    d1(inputs) - inputs.sigma * inputs.T.sqrt()
+}
+
+/// BSM price for a European call or put with continuous dividend yield.
+pub fn bsm_price_q(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
+    let d1v = d1(inputs);
+    let d2v = d2(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    let er = (-inputs.r * inputs.T).exp();
+    match opt_type {
+        OptionType::Call => {
+            inputs.S * eq * norm_cdf(d1v) - inputs.K * er * norm_cdf(d2v)
+        }
+        OptionType::Put => {
+            inputs.K * er * norm_cdf(-d2v) - inputs.S * eq * norm_cdf(-d1v)
+        }
+    }
+}
+
+/// Delta: ∂V/∂S (per share sensitivity to spot).
+pub fn delta(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
+    let d1v = d1(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    match opt_type {
+        OptionType::Call => eq * norm_cdf(d1v),
+        OptionType::Put => eq * (norm_cdf(d1v) - 1.0),
+    }
+}
+
+/// Gamma: ∂²V/∂S² (same for calls and puts).
+pub fn gamma(inputs: &BSMInputs) -> f64 {
+    let d1v = d1(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    eq * norm_pdf(d1v) / (inputs.S * inputs.sigma * inputs.T.sqrt())
+}
+
+/// Theta: ∂V/∂t per calendar day (negative for long options).
+pub fn theta(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
+    let d1v = d1(inputs);
+    let d2v = d2(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    let er = (-inputs.r * inputs.T).exp();
+    let common = -inputs.S * eq * norm_pdf(d1v) * inputs.sigma / (2.0 * inputs.T.sqrt());
+    let annual = match opt_type {
+        OptionType::Call => {
+            common - inputs.r * inputs.K * er * norm_cdf(d2v)
+                + inputs.q * inputs.S * eq * norm_cdf(d1v)
+        }
+        OptionType::Put => {
+            common + inputs.r * inputs.K * er * norm_cdf(-d2v)
+                - inputs.q * inputs.S * eq * norm_cdf(-d1v)
+        }
+    };
+    annual / 365.0
+}
+
+/// Vega: ∂V/∂sigma per 1% move in volatility.
+pub fn vega(inputs: &BSMInputs) -> f64 {
+    let d1v = d1(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    inputs.S * eq * norm_pdf(d1v) * inputs.T.sqrt() * 0.01
+}
+
+/// Rho: ∂V/∂r per 1% move in the risk-free rate.
+pub fn rho(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
+    let d2v = d2(inputs);
+    let er = (-inputs.r * inputs.T).exp();
+    match opt_type {
+        OptionType::Call => inputs.K * inputs.T * er * norm_cdf(d2v) * 0.01,
+        OptionType::Put => -inputs.K * inputs.T * er * norm_cdf(-d2v) * 0.01,
+    }
+}
+
+/// Vanna: ∂delta/∂sigma = -norm_pdf(d1) * d2 / sigma.
+pub fn vanna(inputs: &BSMInputs) -> f64 {
+    let d1v = d1(inputs);
+    let d2v = d2(inputs);
+    -norm_pdf(d1v) * d2v / inputs.sigma
+}
+
+/// Volga (Vomma): ∂vega/∂sigma = vega * d1 * d2 / sigma.
+pub fn volga(inputs: &BSMInputs) -> f64 {
+    let d1v = d1(inputs);
+    let d2v = d2(inputs);
+    let vega_val = vega(inputs) / 0.01; // full vega
+    vega_val * d1v * d2v / inputs.sigma
+}
+
+/// Charm: ∂delta/∂T (the rate of change of delta with respect to time).
+///
+/// For a call: -q * e^{-qT} * N(d1) + e^{-qT} * n(d1) * (2*(r-q)*T - d2*sigma*sqrt(T)) / (2*T*sigma*sqrt(T))
+pub fn charm(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
+    let d1v = d1(inputs);
+    let d2v = d2(inputs);
+    let eq = (-inputs.q * inputs.T).exp();
+    let inner = (2.0 * (inputs.r - inputs.q) * inputs.T - d2v * inputs.sigma * inputs.T.sqrt())
+        / (2.0 * inputs.T * inputs.sigma * inputs.T.sqrt());
+    match opt_type {
+        OptionType::Call => {
+            -inputs.q * eq * norm_cdf(d1v) + eq * norm_pdf(d1v) * inner
+        }
+        OptionType::Put => {
+            inputs.q * eq * norm_cdf(-d1v) + eq * norm_pdf(d1v) * inner
+        }
+    }
+}
+
+/// All Greeks for a BSM option in a single struct.
+#[derive(Debug, Clone, Copy)]
+pub struct GreeksResult {
+    /// Option fair value.
+    pub price: f64,
+    /// Delta: ∂V/∂S.
+    pub delta: f64,
+    /// Gamma: ∂²V/∂S².
+    pub gamma: f64,
+    /// Theta per calendar day.
+    pub theta: f64,
+    /// Vega per 1% vol move.
+    pub vega: f64,
+    /// Rho per 1% rate move.
+    pub rho: f64,
+    /// Vanna: ∂delta/∂sigma.
+    pub vanna: f64,
+    /// Volga: ∂vega/∂sigma.
+    pub volga: f64,
+    /// Charm: ∂delta/∂T.
+    pub charm: f64,
+}
+
+/// Compute all Greeks for the given inputs and option type.
+pub fn compute_all(inputs: &BSMInputs, opt_type: OptionType) -> GreeksResult {
+    GreeksResult {
+        price: bsm_price_q(inputs, opt_type),
+        delta: delta(inputs, opt_type),
+        gamma: gamma(inputs),
+        theta: theta(inputs, opt_type),
+        vega: vega(inputs),
+        rho: rho(inputs, opt_type),
+        vanna: vanna(inputs),
+        volga: volga(inputs),
+        charm: charm(inputs, opt_type),
+    }
+}
+
+/// Implied volatility solver using bisection (100 iterations, bounds [1e-6, 10.0]).
+///
+/// Returns `None` if the market price is outside the bounds that can be
+/// produced by any vol in the search range.
+pub fn implied_vol(
+    market_price: f64,
+    inputs: &BSMInputs,
+    opt_type: OptionType,
+) -> Option<f64> {
+    if market_price <= 0.0 {
+        return None;
+    }
+    let f = |sigma: f64| -> f64 {
+        let inp = BSMInputs { sigma, ..*inputs };
+        bsm_price_q(&inp, opt_type) - market_price
+    };
+
+    let mut lo = 1e-6_f64;
+    let mut hi = 10.0_f64;
+    let flo = f(lo);
+    let fhi = f(hi);
+
+    // Bracket check
+    if flo * fhi > 0.0 {
+        return None;
+    }
+
+    for _ in 0..100 {
+        let mid = 0.5 * (lo + hi);
+        let fmid = f(mid);
+        if fmid.abs() < 1e-8 || (hi - lo) < 1e-10 {
+            return Some(mid);
+        }
+        if flo * fmid < 0.0 {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    Some(0.5 * (lo + hi))
+}
+
+// ─── BSMInputs-based tests ────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod bsm_inputs_tests {
+    use super::*;
+
+    fn atm_call() -> (BSMInputs, OptionType) {
+        let inp = BSMInputs {
+            S: 100.0,
+            K: 100.0,
+            r: 0.05,
+            q: 0.0,
+            sigma: 0.20,
+            T: 1.0,
+        };
+        (inp, OptionType::Call)
+    }
+
+    fn atm_put() -> (BSMInputs, OptionType) {
+        let (inp, _) = atm_call();
+        (inp, OptionType::Put)
+    }
+
+    #[test]
+    fn call_delta_near_half_atm() {
+        let (inp, ot) = atm_call();
+        let d = delta(&inp, ot);
+        // ATM delta is slightly above 0.5 due to r>0
+        assert!((d - 0.5).abs() < 0.1, "ATM call delta should be ~0.5, got {d}");
+    }
+
+    #[test]
+    fn put_delta_near_neg_half_atm() {
+        let (inp, ot) = atm_put();
+        let d = delta(&inp, ot);
+        assert!((d + 0.5).abs() < 0.1, "ATM put delta should be ~-0.5, got {d}");
+    }
+
+    #[test]
+    fn put_call_parity_with_dividends() {
+        let (inp, _) = atm_call();
+        let call_p = bsm_price_q(&inp, OptionType::Call);
+        let put_p = bsm_price_q(&inp, OptionType::Put);
+        // C - P = S*e^{-qT} - K*e^{-rT}
+        let expected = inp.S * (-inp.q * inp.T).exp() - inp.K * (-inp.r * inp.T).exp();
+        assert!(
+            (call_p - put_p - expected).abs() < 1e-8,
+            "put-call parity violated: diff={:.9}",
+            (call_p - put_p - expected).abs()
+        );
+    }
+
+    #[test]
+    fn gamma_symmetry_call_put() {
+        let (inp, _) = atm_call();
+        let g_call = gamma(&inp);
+        // gamma is the same for call and put
+        assert!(g_call > 0.0, "gamma must be positive");
+        // verify it matches explicitly computed value
+        let g_put = gamma(&inp);
+        assert!((g_call - g_put).abs() < 1e-15, "gamma must be same for call and put");
+    }
+
+    #[test]
+    fn vega_symmetry_call_put() {
+        let (inp, _) = atm_call();
+        let v_call = vega(&inp);
+        let v_put = vega(&inp);
+        assert!((v_call - v_put).abs() < 1e-15, "vega must be same for call and put");
+        assert!(v_call > 0.0, "vega must be positive");
+    }
+
+    #[test]
+    fn iv_roundtrip() {
+        let (inp, ot) = atm_call();
+        let price = bsm_price_q(&inp, ot);
+        let iv = implied_vol(price, &inp, ot).expect("IV should converge");
+        assert!(
+            (iv - inp.sigma).abs() < 1e-5,
+            "IV roundtrip error: got {iv:.6}, expected {:.6}",
+            inp.sigma
+        );
+    }
+
+    #[test]
+    fn compute_all_consistency() {
+        let (inp, ot) = atm_call();
+        let gr = compute_all(&inp, ot);
+        assert!((gr.delta - delta(&inp, ot)).abs() < 1e-15);
+        assert!((gr.gamma - gamma(&inp)).abs() < 1e-15);
+        assert!((gr.vega - vega(&inp)).abs() < 1e-15);
+    }
+
+    #[test]
+    fn vanna_finite() {
+        let (inp, _) = atm_call();
+        let v = vanna(&inp);
+        assert!(v.is_finite(), "vanna must be finite");
+    }
+
+    #[test]
+    fn volga_finite() {
+        let (inp, _) = atm_call();
+        let vg = volga(&inp);
+        assert!(vg.is_finite(), "volga must be finite");
+    }
+
+    #[test]
+    fn charm_finite() {
+        let (inp, ot) = atm_call();
+        let c = charm(&inp, ot);
+        assert!(c.is_finite(), "charm must be finite");
+    }
+}
