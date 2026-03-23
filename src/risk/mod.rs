@@ -13,6 +13,10 @@
 
 pub mod attribution;
 
+/// Correlation matrix estimation (Pearson), Ledoit-Wolf shrinkage toward identity,
+/// and simplified DCC-GARCH rolling/EWMA correlation utilities.
+pub mod correlation_matrix;
+
 /// Multi-factor stress testing with correlation shocks and portfolio VaR under stress.
 pub mod stress_scenarios;
 

@@ -7,6 +7,10 @@
 
 pub mod optimizer;
 
+/// Mean-variance portfolio optimization: gradient-based Sharpe maximization,
+/// variance minimization, efficient frontier generation, and constraint projection.
+pub mod optimization;
+
 /// Black-Litterman portfolio optimization model: blends equilibrium returns with investor views.
 pub mod black_litterman;
 
