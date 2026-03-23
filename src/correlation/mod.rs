@@ -4,6 +4,10 @@
 //! Streaming Pearson correlation matrix across a configurable window of indicator outputs.
 //! Identifies redundant signals (pairs with |r| > a configurable threshold, default 0.95).
 //!
+//! Also exposes [`stats`] for standalone Pearson, Spearman, Kendall tau-b functions,
+//! a symbol-based [`stats::SymbolCorrelationMatrix`], and a [`stats::RollingCorrelation`]
+//! rolling-window tracker.
+//!
 //! ## Guarantees
 //! - Returns `None` from [`CorrelationMatrix::get`] until `window` samples have been seen
 //! - Correlation values are clamped to `[-1, 1]` to absorb floating-point rounding errors
@@ -12,6 +16,10 @@
 //! ## NOT Responsible For
 //! - Causal inference or feature selection policy
 //! - Persistence
+
+/// Standalone correlation measures: Pearson, Spearman rank, Kendall tau-b,
+/// symbol-keyed `SymbolCorrelationMatrix`, and `RollingCorrelation`.
+pub mod stats;
 
 use crate::error::FinError;
 use std::collections::VecDeque;

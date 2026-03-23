@@ -17,7 +17,10 @@
 //!
 //! ## NOT Responsible For
 //! - Forward volatility (implied vol is in `options`)
-//! - GARCH/ARCH models
+
+/// GARCH(1,1) parametric volatility model: MLE fitting, conditional variance,
+/// multi-step forecasting, and volatility term structure.
+pub mod garch;
 
 use crate::error::FinError;
 
