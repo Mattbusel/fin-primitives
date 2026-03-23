@@ -7,6 +7,9 @@
 
 pub mod optimizer;
 
+/// Black-Litterman portfolio optimization model: blends equilibrium returns with investor views.
+pub mod black_litterman;
+
 /// Portfolio diversification metrics: HHI, effective-N, Gini, concentration ratio,
 /// diversification ratio, Sortino, Calmar, Treynor, information ratio.
 pub mod diversification;

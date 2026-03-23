@@ -9,6 +9,8 @@
 //! - Rolling history uses `VecDeque` with configurable max size (no unbounded growth)
 //! - All public items are documented
 
+pub mod defi;
+
 use std::collections::VecDeque;
 
 // ─────────────────────────────────────────
