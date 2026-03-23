@@ -450,6 +450,258 @@ impl RollImpliedSpread {
     }
 }
 
+// ─────────────────────────────────────────
+//  OrderImbalance
+// ─────────────────────────────────────────
+
+/// Rolling buy/sell volume order imbalance measure.
+///
+/// `OIR = (V_buy - V_sell) / (V_buy + V_sell)` for each bar.
+/// Rolling mean over the configured window.
+///
+/// Range: `[-1.0, 1.0]`. Positive values indicate buy-side pressure.
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::OrderImbalance;
+/// use rust_decimal_macros::dec;
+///
+/// let mut oi = OrderImbalance::new(3).unwrap();
+/// oi.update(dec!(600), dec!(400)).unwrap(); // OIR = 0.2
+/// oi.update(dec!(700), dec!(300)).unwrap(); // OIR = 0.4
+/// oi.update(dec!(800), dec!(200)).unwrap(); // OIR = 0.6
+/// let imbalance = oi.get().unwrap();
+/// assert!(imbalance > 0.0, "positive buy pressure: {imbalance}");
+/// ```
+#[derive(Debug)]
+pub struct OrderImbalance {
+    window: usize,
+    /// Rolling buffer of per-bar order imbalance ratios.
+    buf: VecDeque<f64>,
+}
+
+impl OrderImbalance {
+    /// Constructs an `OrderImbalance` tracker.
+    ///
+    /// # Errors
+    /// Returns [`FinError`] if `window == 0`.
+    pub fn new(window: usize) -> Result<Self, FinError> {
+        if window == 0 {
+            return Err(FinError::InvalidPeriod(window));
+        }
+        Ok(Self { window, buf: VecDeque::with_capacity(window) })
+    }
+
+    /// Records a volume observation.
+    ///
+    /// - `buy_volume`: aggressive buy volume for the bar (must be >= 0).
+    /// - `sell_volume`: aggressive sell volume for the bar (must be >= 0).
+    ///
+    /// # Errors
+    /// Returns [`FinError::InvalidInput`] if both volumes are zero or either is negative.
+    pub fn update(&mut self, buy_volume: Decimal, sell_volume: Decimal) -> Result<(), FinError> {
+        if buy_volume < Decimal::ZERO {
+            return Err(FinError::InvalidInput(
+                "buy_volume must be non-negative".to_owned(),
+            ));
+        }
+        if sell_volume < Decimal::ZERO {
+            return Err(FinError::InvalidInput(
+                "sell_volume must be non-negative".to_owned(),
+            ));
+        }
+        let total = buy_volume + sell_volume;
+        if total == Decimal::ZERO {
+            return Err(FinError::InvalidInput(
+                "buy_volume + sell_volume must be positive".to_owned(),
+            ));
+        }
+        let bv = buy_volume.to_f64().unwrap_or(0.0);
+        let sv = sell_volume.to_f64().unwrap_or(0.0);
+        let tot = bv + sv;
+        let oir = (bv - sv) / tot;
+        self.buf.push_back(oir);
+        if self.buf.len() > self.window {
+            self.buf.pop_front();
+        }
+        Ok(())
+    }
+
+    /// Returns the rolling mean order imbalance ratio, or `None` until ready.
+    pub fn get(&self) -> Option<f64> {
+        if self.buf.len() < self.window {
+            return None;
+        }
+        let sum: f64 = self.buf.iter().sum();
+        Some(sum / self.buf.len() as f64)
+    }
+
+    /// Returns `true` when the window is full.
+    pub fn is_ready(&self) -> bool {
+        self.buf.len() >= self.window
+    }
+
+    /// Returns the configured window size.
+    pub fn window(&self) -> usize {
+        self.window
+    }
+
+    /// Returns the number of samples buffered.
+    pub fn sample_count(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Resets the tracker.
+    pub fn reset(&mut self) {
+        self.buf.clear();
+    }
+}
+
+// ─────────────────────────────────────────
+//  MicrostructureMetrics
+// ─────────────────────────────────────────
+
+/// Aggregated snapshot of all available microstructure metrics for a symbol.
+///
+/// Each field is `Some` if the underlying tracker has enough data (window full),
+/// or `None` if still warming up.
+#[derive(Debug, Clone, Default)]
+pub struct MicrostructureSnapshot {
+    /// Rolling average bid-ask spread in basis points.
+    pub avg_spread_bps: Option<f64>,
+    /// Rolling mean order imbalance ratio `[-1, 1]`.
+    pub order_imbalance: Option<f64>,
+    /// Kyle's lambda (price impact per unit of signed order flow).
+    pub kyle_lambda: Option<f64>,
+    /// Amihud illiquidity ratio (`|return| / volume`).
+    pub amihud_illiquidity: Option<f64>,
+    /// Roll implied spread (autocovariance-based).
+    pub roll_spread: Option<f64>,
+}
+
+/// Feeds real-time market data into all microstructure estimators and produces
+/// aggregate [`MicrostructureSnapshot`]s on demand.
+///
+/// # Example
+/// ```rust
+/// use fin_primitives::microstructure::MicrostructureMetrics;
+/// use rust_decimal_macros::dec;
+///
+/// let mut m = MicrostructureMetrics::new(5).unwrap();
+/// for _ in 0..5 {
+///     m.update_spread(dec!(99.90), dec!(100.10)).unwrap();
+///     m.update_volume_imbalance(dec!(600), dec!(400)).unwrap();
+///     m.update_price_impact(dec!(0.05), dec!(100)).unwrap();
+///     m.update_amihud(dec!(100), dec!(102), dec!(1000)).unwrap();
+///     m.update_roll(dec!(0.05)).unwrap();
+/// }
+/// let snap = m.snapshot();
+/// assert!(snap.avg_spread_bps.is_some());
+/// ```
+pub struct MicrostructureMetrics {
+    spread: BidAskSpread,
+    imbalance: OrderImbalance,
+    kyle: KyleLambda,
+    amihud: AmihudIlliquidity,
+    roll: RollImpliedSpread,
+}
+
+impl MicrostructureMetrics {
+    /// Create a new aggregator with the given rolling window for all sub-trackers.
+    ///
+    /// `KyleLambda` and `RollImpliedSpread` require `window >= 2`.
+    ///
+    /// # Errors
+    /// Returns [`FinError::InvalidPeriod`] if `window < 2`.
+    pub fn new(window: usize) -> Result<Self, FinError> {
+        if window < 2 {
+            return Err(FinError::InvalidPeriod(window));
+        }
+        Ok(Self {
+            spread: BidAskSpread::new(window)?,
+            imbalance: OrderImbalance::new(window)?,
+            kyle: KyleLambda::new(window)?,
+            amihud: AmihudIlliquidity::new(window)?,
+            roll: RollImpliedSpread::new(window)?,
+        })
+    }
+
+    /// Feed a bid/ask quote into the spread tracker.
+    ///
+    /// # Errors
+    /// Propagates errors from [`BidAskSpread::update`].
+    pub fn update_spread(&mut self, bid: Decimal, ask: Decimal) -> Result<(), FinError> {
+        self.spread.update(bid, ask)
+    }
+
+    /// Feed a buy/sell volume observation into the order imbalance tracker.
+    ///
+    /// # Errors
+    /// Propagates errors from [`OrderImbalance::update`].
+    pub fn update_volume_imbalance(
+        &mut self,
+        buy_volume: Decimal,
+        sell_volume: Decimal,
+    ) -> Result<(), FinError> {
+        self.imbalance.update(buy_volume, sell_volume)
+    }
+
+    /// Feed a price-change / signed-volume pair into the Kyle's lambda estimator.
+    ///
+    /// # Errors
+    /// Propagates errors from [`KyleLambda::update`].
+    pub fn update_price_impact(
+        &mut self,
+        price_change: Decimal,
+        signed_volume: Decimal,
+    ) -> Result<(), FinError> {
+        self.kyle.update(price_change, signed_volume)
+    }
+
+    /// Feed a prev/current close and volume into the Amihud illiquidity estimator.
+    ///
+    /// # Errors
+    /// Propagates errors from [`AmihudIlliquidity::update`].
+    pub fn update_amihud(
+        &mut self,
+        prev_close: Decimal,
+        close: Decimal,
+        volume: Decimal,
+    ) -> Result<(), FinError> {
+        self.amihud.update(prev_close, close, volume)
+    }
+
+    /// Feed a price change into the Roll spread estimator.
+    ///
+    /// # Errors
+    /// Propagates errors from [`RollImpliedSpread::update`].
+    pub fn update_roll(&mut self, price_change: Decimal) -> Result<(), FinError> {
+        self.roll.update(price_change)
+    }
+
+    /// Produce a snapshot of all currently available metrics.
+    ///
+    /// Fields are `None` until the underlying rolling window is full.
+    pub fn snapshot(&self) -> MicrostructureSnapshot {
+        MicrostructureSnapshot {
+            avg_spread_bps: self.spread.average_spread_bps(),
+            order_imbalance: self.imbalance.get(),
+            kyle_lambda: self.kyle.get(),
+            amihud_illiquidity: self.amihud.get(),
+            roll_spread: self.roll.get(),
+        }
+    }
+
+    /// Reset all sub-trackers.
+    pub fn reset(&mut self) {
+        self.spread.reset();
+        self.imbalance.reset();
+        self.kyle.reset();
+        self.amihud.reset();
+        self.roll.reset();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -639,5 +891,119 @@ mod tests {
         assert!(r.is_ready());
         r.reset();
         assert!(!r.is_ready());
+    }
+
+    // ── OrderImbalance ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_order_imbalance_zero_window_fails() {
+        assert!(OrderImbalance::new(0).is_err());
+    }
+
+    #[test]
+    fn test_order_imbalance_not_ready_before_window() {
+        let mut oi = OrderImbalance::new(3).unwrap();
+        oi.update(dec!(600), dec!(400)).unwrap();
+        assert!(!oi.is_ready());
+        assert!(oi.get().is_none());
+    }
+
+    #[test]
+    fn test_order_imbalance_positive_for_buy_heavy() {
+        let mut oi = OrderImbalance::new(3).unwrap();
+        oi.update(dec!(800), dec!(200)).unwrap();
+        oi.update(dec!(700), dec!(300)).unwrap();
+        oi.update(dec!(900), dec!(100)).unwrap();
+        let imbalance = oi.get().unwrap();
+        assert!(imbalance > 0.0, "expected positive imbalance: {imbalance}");
+    }
+
+    #[test]
+    fn test_order_imbalance_negative_for_sell_heavy() {
+        let mut oi = OrderImbalance::new(3).unwrap();
+        oi.update(dec!(200), dec!(800)).unwrap();
+        oi.update(dec!(300), dec!(700)).unwrap();
+        oi.update(dec!(100), dec!(900)).unwrap();
+        let imbalance = oi.get().unwrap();
+        assert!(imbalance < 0.0, "expected negative imbalance: {imbalance}");
+    }
+
+    #[test]
+    fn test_order_imbalance_zero_total_fails() {
+        let mut oi = OrderImbalance::new(3).unwrap();
+        assert!(oi.update(dec!(0), dec!(0)).is_err());
+    }
+
+    #[test]
+    fn test_order_imbalance_negative_volume_fails() {
+        let mut oi = OrderImbalance::new(3).unwrap();
+        assert!(oi.update(dec!(-100), dec!(100)).is_err());
+    }
+
+    #[test]
+    fn test_order_imbalance_reset() {
+        let mut oi = OrderImbalance::new(2).unwrap();
+        oi.update(dec!(500), dec!(500)).unwrap();
+        oi.update(dec!(500), dec!(500)).unwrap();
+        assert!(oi.is_ready());
+        oi.reset();
+        assert!(!oi.is_ready());
+    }
+
+    // ── MicrostructureMetrics ──────────────────────────────────────────────
+
+    #[test]
+    fn test_microstructure_metrics_window_too_small_fails() {
+        assert!(MicrostructureMetrics::new(1).is_err());
+        assert!(MicrostructureMetrics::new(0).is_err());
+    }
+
+    #[test]
+    fn test_microstructure_metrics_snapshot_none_before_warm() {
+        let mut m = MicrostructureMetrics::new(5).unwrap();
+        m.update_spread(dec!(99.9), dec!(100.1)).unwrap();
+        let snap = m.snapshot();
+        assert!(snap.avg_spread_bps.is_none());
+        assert!(snap.order_imbalance.is_none());
+        assert!(snap.kyle_lambda.is_none());
+        assert!(snap.amihud_illiquidity.is_none());
+        assert!(snap.roll_spread.is_none());
+    }
+
+    #[test]
+    fn test_microstructure_metrics_snapshot_some_after_warm() {
+        let mut m = MicrostructureMetrics::new(3).unwrap();
+        for i in 0..3 {
+            m.update_spread(dec!(99.90), dec!(100.10)).unwrap();
+            m.update_volume_imbalance(dec!(600), dec!(400)).unwrap();
+            m.update_price_impact(
+                Decimal::from_f64(0.05 + i as f64 * 0.01).unwrap_or(dec!(0.05)),
+                Decimal::from_f64(100.0 + i as f64 * 50.0).unwrap_or(dec!(100)),
+            ).unwrap();
+            m.update_amihud(dec!(100), dec!(102), dec!(1000)).unwrap();
+            m.update_roll(if i % 2 == 0 { dec!(0.05) } else { dec!(-0.05) }).unwrap();
+        }
+        let snap = m.snapshot();
+        assert!(snap.avg_spread_bps.is_some());
+        assert!(snap.order_imbalance.is_some());
+        assert!(snap.amihud_illiquidity.is_some());
+        // Roll needs window+1 samples; may still be None with 3 samples and window=3
+        let _ = snap.roll_spread; // just verify no panic
+    }
+
+    #[test]
+    fn test_microstructure_metrics_reset() {
+        let mut m = MicrostructureMetrics::new(2).unwrap();
+        for _ in 0..2 {
+            m.update_spread(dec!(99.9), dec!(100.1)).unwrap();
+            m.update_volume_imbalance(dec!(500), dec!(500)).unwrap();
+            m.update_price_impact(dec!(0.05), dec!(100)).unwrap();
+            m.update_amihud(dec!(100), dec!(102), dec!(1000)).unwrap();
+            m.update_roll(dec!(0.05)).unwrap();
+        }
+        m.reset();
+        let snap = m.snapshot();
+        assert!(snap.avg_spread_bps.is_none());
+        assert!(snap.order_imbalance.is_none());
     }
 }

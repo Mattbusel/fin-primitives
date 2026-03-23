@@ -77,6 +77,10 @@ pub mod regime;
 /// Cross-asset rolling correlations and PCA-based dimensionality reduction.
 pub mod cross_asset;
 
+/// Portfolio performance attribution: Brinson-Hood-Beebower decomposition, multi-factor
+/// attribution, marginal risk contribution, and comprehensive performance tearsheet.
+pub mod attribution;
+
 /// Black-Scholes options pricing engine with Greeks and implied volatility solver.
 pub mod options;
 
