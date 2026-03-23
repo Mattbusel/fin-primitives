@@ -22,6 +22,10 @@ pub mod diversification;
 /// Brinson-Fachler variant, and sector-level summaries.
 pub mod attribution;
 
+/// Multi-factor risk model: OLS regression, Fama-French 3-factor, APT,
+/// information ratio, factor contributions, and systematic/idiosyncratic decomposition.
+pub mod factor_model;
+
 pub use optimizer::{
     Asset, Constraint, CovarianceMatrix, OptimizationObjective, OptimizedPortfolio,
     PortfolioOptimizer,

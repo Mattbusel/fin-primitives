@@ -34,6 +34,10 @@ pub mod var_engine;
 /// and portfolio liquidity-adjusted VaR.
 pub mod liquidity_risk;
 
+/// Scenario analysis and stress testing: historical, hypothetical, Monte Carlo,
+/// regulatory (DFAST/CCAR) scenarios with per-position shock application and P&L reporting.
+pub mod scenario_engine;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
