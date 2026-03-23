@@ -160,4 +160,15 @@ pub mod tax;
 /// proportional trade generation, turnover estimation, and tax-aware rebalancing.
 pub mod rebalancing;
 
+/// Funding rate calculations for perpetual futures: premium index, clamped funding rate,
+/// payment computation, annualization, exponentially-weighted rate prediction,
+/// and rolling history with avg/volatility/cumulative-payment aggregation.
+pub mod funding;
+
+/// Alternative data integration: social sentiment, web traffic, satellite imagery,
+/// credit card data, job postings, and patent filings.
+/// Provides `AltDataAggregator` with composite signals, Pearson correlation, z-score anomaly
+/// detection, and staleness checking.
+pub mod alternative_data;
+
 pub use error::FinError;
