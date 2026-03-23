@@ -304,7 +304,6 @@ impl WalkForwardOptimizer {
             // ── Grid search on training window ────────────────────────────────
             let mut best_is_sharpe = f64::NEG_INFINITY;
             let mut best_params: HashMap<String, f64> = HashMap::new();
-            let mut best_oos_result: Option<BacktestResult> = None;
 
             let search_grid: &[HashMap<String, f64>] = &grid;
 
@@ -337,17 +336,15 @@ impl WalkForwardOptimizer {
                 .parse::<f64>()
                 .unwrap_or(0.0);
 
-            best_oos_result = Some(oos_result.clone());
-
             periods.push(WfPeriod {
                 train_start,
                 train_end,
                 test_start,
                 test_end,
                 best_params,
-                in_sample_sharpe: best_is_sharpe.max(0.0), // clamp for display
+                in_sample_sharpe: best_is_sharpe.max(0.0), // clamp negative for display
                 out_of_sample_sharpe: oos_sharpe,
-                oos_result: best_oos_result.unwrap_or(oos_result),
+                oos_result,
             });
 
             offset += self.config.step;

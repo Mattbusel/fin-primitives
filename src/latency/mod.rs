@@ -296,8 +296,8 @@ mod tests {
         assert_eq!(stats.count, 10);
         assert_eq!(stats.min_ns, 100);
         assert_eq!(stats.max_ns, 1000);
-        // p50 at index 5 (0-based) of sorted [100..1000]
-        assert_eq!(stats.p50_ns, 500);
+        // nearest-rank: idx = (50 * 10) / 100 = 5 → value at index 5 = 600
+        assert_eq!(stats.p50_ns, 600);
         assert_eq!(stats.p99_ns, 1000);
     }
 

@@ -977,8 +977,8 @@ mod tests {
             m.update_spread(dec!(99.90), dec!(100.10)).unwrap();
             m.update_volume_imbalance(dec!(600), dec!(400)).unwrap();
             m.update_price_impact(
-                Decimal::from_f64(0.05 + i as f64 * 0.01).unwrap_or(dec!(0.05)),
-                Decimal::from_f64(100.0 + i as f64 * 50.0).unwrap_or(dec!(100)),
+                rust_decimal::prelude::FromPrimitive::from_f64(0.05 + i as f64 * 0.01).unwrap_or(dec!(0.05)),
+                rust_decimal::prelude::FromPrimitive::from_f64(100.0 + i as f64 * 50.0).unwrap_or(dec!(100)),
             ).unwrap();
             m.update_amihud(dec!(100), dec!(102), dec!(1000)).unwrap();
             m.update_roll(if i % 2 == 0 { dec!(0.05) } else { dec!(-0.05) }).unwrap();

@@ -933,9 +933,8 @@ impl RegimeConditionalSignal {
             Ok(SignalValue::Scalar(v)) => {
                 Some(Ok(v.to_f64().unwrap_or(50.0)))
             }
-            Ok(SignalValue::Unavailable) => None,
-            Err(e) => Some(Err(e)),
             Ok(_) => None,
+            Err(e) => Some(Err(e)),
         }
     }
 
