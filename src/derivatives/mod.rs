@@ -20,3 +20,9 @@ pub mod variance_swap;
 
 /// Forward contract pricing: equity, FX, commodity forwards, and forward curves.
 pub mod forwards;
+
+/// Short-rate models: Vasicek, CIR, and Hull-White with bond pricing and simulation.
+pub mod interest_rate_models;
+
+/// Credit Default Swap pricing: protection/premium legs, par spread, CS01, and implied hazard rates.
+pub mod credit_default_swap;
