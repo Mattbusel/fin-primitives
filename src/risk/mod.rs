@@ -13,6 +13,9 @@
 
 pub mod attribution;
 
+/// Multi-factor stress testing with correlation shocks and portfolio VaR under stress.
+pub mod stress_scenarios;
+
 /// Stress testing framework: apply named market shock scenarios to a portfolio
 /// and aggregate P&L impact per position and in total.
 pub mod stress;
