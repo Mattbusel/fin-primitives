@@ -2527,3 +2527,361 @@ mod tests {
         assert!((calmar - 1.5).abs() < 0.001, "calmar should be ~1.5: {calmar}");
     }
 }
+
+// ─── RiskMetrics ──────────────────────────────────────────────────────────────
+
+/// Portfolio risk metrics computed from a slice of periodic returns.
+///
+/// All methods are pure functions — they take slices of `f64` returns and
+/// produce scalar metrics.  Returns should be expressed as decimal fractions
+/// (e.g. `0.01` for a 1% gain, `-0.02` for a 2% loss).
+///
+/// ## Conventions
+///
+/// - `returns` — per-period simple returns, e.g. daily or monthly.
+/// - `periods_per_year` — 252 for daily trading, 12 for monthly, etc.
+/// - `risk_free` — per-period risk-free rate (same frequency as `returns`).
+/// - `confidence` — VaR/CVaR confidence level, e.g. `0.95` for 95%.
+pub struct RiskMetrics;
+
+impl RiskMetrics {
+    /// Annualised Sharpe ratio: `(mean_return - risk_free) / std_dev * sqrt(periods_per_year)`.
+    ///
+    /// Returns `0.0` when the standard deviation of returns is zero.
+    pub fn sharpe(returns: &[f64], risk_free: f64, periods_per_year: f64) -> f64 {
+        if returns.len() < 2 {
+            return 0.0;
+        }
+        let n = returns.len() as f64;
+        let mean = returns.iter().sum::<f64>() / n;
+        let excess = mean - risk_free;
+        let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / (n - 1.0);
+        let std_dev = variance.sqrt();
+        if std_dev == 0.0 {
+            return 0.0;
+        }
+        excess / std_dev * periods_per_year.sqrt()
+    }
+
+    /// Annualised Sortino ratio.
+    ///
+    /// Uses downside deviation (semi-deviation below `target_return`) as the
+    /// risk denominator instead of total standard deviation.
+    ///
+    /// Returns `0.0` when there are no returns below the target.
+    pub fn sortino(returns: &[f64], target_return: f64, periods_per_year: f64) -> f64 {
+        if returns.is_empty() {
+            return 0.0;
+        }
+        let n = returns.len() as f64;
+        let mean = returns.iter().sum::<f64>() / n;
+        let downside_sq_sum: f64 = returns
+            .iter()
+            .filter(|&&r| r < target_return)
+            .map(|&r| (r - target_return).powi(2))
+            .sum();
+        if downside_sq_sum == 0.0 {
+            return 0.0;
+        }
+        let downside_dev = (downside_sq_sum / n).sqrt();
+        (mean - target_return) / downside_dev * periods_per_year.sqrt()
+    }
+
+    /// Calmar ratio: annualised return divided by maximum drawdown.
+    ///
+    /// Returns `0.0` when there is no drawdown.
+    ///
+    /// `returns` must be simple per-period returns (not cumulative).
+    pub fn calmar(returns: &[f64], periods_per_year: f64) -> f64 {
+        if returns.is_empty() {
+            return 0.0;
+        }
+        let ann_ret = Self::annualized_return(returns, periods_per_year);
+        // Build cumulative wealth index for max-drawdown calculation.
+        let cum: Vec<f64> = returns
+            .iter()
+            .scan(1.0_f64, |wealth, &r| {
+                *wealth *= 1.0 + r;
+                Some(*wealth)
+            })
+            .collect();
+        let mdd = Self::max_drawdown(&cum);
+        if mdd == 0.0 { 0.0 } else { ann_ret / mdd }
+    }
+
+    /// Maximum peak-to-trough drawdown as a positive fraction (e.g. `0.20` = 20% drawdown).
+    ///
+    /// `cumulative_returns` must be a wealth index (e.g. `[1.0, 1.05, 0.98, 1.10]`)
+    /// where each element is the portfolio value relative to the starting value.
+    pub fn max_drawdown(cumulative_returns: &[f64]) -> f64 {
+        let mut peak = f64::NEG_INFINITY;
+        let mut max_dd = 0.0_f64;
+        for &val in cumulative_returns {
+            if val > peak {
+                peak = val;
+            }
+            if peak > 0.0 {
+                let dd = (peak - val) / peak;
+                if dd > max_dd {
+                    max_dd = dd;
+                }
+            }
+        }
+        max_dd
+    }
+
+    /// Per-period drawdown series.
+    ///
+    /// Returns a `Vec<f64>` of the same length as `cumulative_returns`, where each
+    /// element is the fractional distance below the running peak at that point.
+    /// A value of `0.0` means the portfolio is at or above its previous peak.
+    pub fn drawdown_series(cumulative_returns: &[f64]) -> Vec<f64> {
+        let mut peak = f64::NEG_INFINITY;
+        cumulative_returns
+            .iter()
+            .map(|&val| {
+                if val > peak {
+                    peak = val;
+                }
+                if peak > 0.0 { (peak - val) / peak } else { 0.0 }
+            })
+            .collect()
+    }
+
+    /// Historical Value-at-Risk at `confidence` level (e.g. `0.95`).
+    ///
+    /// Returns the negative of the `(1 - confidence)` quantile of returns so
+    /// that a positive VaR indicates a loss (standard convention).
+    ///
+    /// Returns `0.0` if `returns` is empty or `confidence` is outside `(0, 1)`.
+    pub fn var_historical(returns: &[f64], confidence: f64) -> f64 {
+        if returns.is_empty() || !(0.0..1.0).contains(&confidence) {
+            return 0.0;
+        }
+        let mut sorted = returns.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let idx = ((1.0 - confidence) * sorted.len() as f64).floor() as usize;
+        let idx = idx.min(sorted.len() - 1);
+        -sorted[idx] // convention: VaR is positive for a loss
+    }
+
+    /// Historical Conditional Value-at-Risk (Expected Shortfall) at `confidence`.
+    ///
+    /// Returns the average loss in the worst `(1 - confidence)` fraction of returns,
+    /// expressed as a positive number (loss convention).
+    ///
+    /// Returns `0.0` if `returns` is empty or `confidence` is outside `(0, 1)`.
+    pub fn cvar_historical(returns: &[f64], confidence: f64) -> f64 {
+        if returns.is_empty() || !(0.0..1.0).contains(&confidence) {
+            return 0.0;
+        }
+        let mut sorted = returns.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let cutoff = ((1.0 - confidence) * sorted.len() as f64).ceil() as usize;
+        let cutoff = cutoff.max(1).min(sorted.len());
+        let tail = &sorted[..cutoff];
+        let mean_tail = tail.iter().sum::<f64>() / tail.len() as f64;
+        -mean_tail // positive for losses
+    }
+
+    /// Omega ratio: ratio of gains above `threshold` to losses below it.
+    ///
+    /// `Omega = E[max(R - T, 0)] / E[max(T - R, 0)]`
+    ///
+    /// Returns `f64::INFINITY` when there are no returns below the threshold.
+    /// Returns `0.0` when there are no returns above the threshold.
+    pub fn omega_ratio(returns: &[f64], threshold: f64) -> f64 {
+        let gains: f64 = returns.iter().map(|&r| (r - threshold).max(0.0)).sum();
+        let losses: f64 = returns.iter().map(|&r| (threshold - r).max(0.0)).sum();
+        if losses == 0.0 {
+            return f64::INFINITY;
+        }
+        gains / losses
+    }
+
+    /// Beta and alpha of `returns` relative to `benchmark`.
+    ///
+    /// Uses ordinary-least-squares regression of returns on benchmark.
+    ///
+    /// Returns `(beta, alpha)` where alpha is the per-period excess return.
+    /// Returns `(0.0, 0.0)` when the benchmark has zero variance or
+    /// `returns` and `benchmark` have different lengths (or are empty).
+    pub fn beta_alpha(returns: &[f64], benchmark: &[f64], risk_free: f64) -> (f64, f64) {
+        let n = returns.len().min(benchmark.len());
+        if n < 2 {
+            return (0.0, 0.0);
+        }
+        let r: Vec<f64> = returns[..n].iter().map(|&x| x - risk_free).collect();
+        let b: Vec<f64> = benchmark[..n].iter().map(|&x| x - risk_free).collect();
+        let n_f = n as f64;
+        let mean_r = r.iter().sum::<f64>() / n_f;
+        let mean_b = b.iter().sum::<f64>() / n_f;
+        let cov: f64 = r.iter().zip(b.iter()).map(|(&ri, &bi)| (ri - mean_r) * (bi - mean_b)).sum::<f64>() / (n_f - 1.0);
+        let var_b: f64 = b.iter().map(|&bi| (bi - mean_b).powi(2)).sum::<f64>() / (n_f - 1.0);
+        if var_b == 0.0 {
+            return (0.0, 0.0);
+        }
+        let beta = cov / var_b;
+        let alpha = mean_r - beta * mean_b;
+        (beta, alpha)
+    }
+
+    /// Information ratio: mean excess return over benchmark divided by tracking error.
+    ///
+    /// `IR = mean(returns - benchmark) / std_dev(returns - benchmark)`
+    ///
+    /// Returns `0.0` when tracking error is zero or inputs are incompatible.
+    pub fn information_ratio(returns: &[f64], benchmark: &[f64]) -> f64 {
+        let n = returns.len().min(benchmark.len());
+        if n < 2 {
+            return 0.0;
+        }
+        let excess: Vec<f64> = returns[..n].iter().zip(benchmark[..n].iter()).map(|(&r, &b)| r - b).collect();
+        let n_f = n as f64;
+        let mean_ex = excess.iter().sum::<f64>() / n_f;
+        let var_ex = excess.iter().map(|&e| (e - mean_ex).powi(2)).sum::<f64>() / (n_f - 1.0);
+        let te = var_ex.sqrt();
+        if te == 0.0 { 0.0 } else { mean_ex / te }
+    }
+
+    /// Annualised return from per-period simple returns.
+    ///
+    /// Uses compound growth: `(product(1 + r_i))^(periods_per_year / n) - 1`.
+    pub fn annualized_return(returns: &[f64], periods_per_year: f64) -> f64 {
+        if returns.is_empty() {
+            return 0.0;
+        }
+        let n = returns.len() as f64;
+        let total_growth: f64 = returns.iter().map(|&r| 1.0 + r).product();
+        if total_growth <= 0.0 {
+            return -1.0;
+        }
+        total_growth.powf(periods_per_year / n) - 1.0
+    }
+
+    /// Annualised volatility (standard deviation) of per-period returns.
+    ///
+    /// Uses sample standard deviation: `std_dev(returns) * sqrt(periods_per_year)`.
+    ///
+    /// Returns `0.0` if fewer than 2 returns are provided.
+    pub fn annualized_volatility(returns: &[f64], periods_per_year: f64) -> f64 {
+        if returns.len() < 2 {
+            return 0.0;
+        }
+        let n = returns.len() as f64;
+        let mean = returns.iter().sum::<f64>() / n;
+        let variance = returns.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / (n - 1.0);
+        variance.sqrt() * periods_per_year.sqrt()
+    }
+}
+
+// ─── RiskMetrics tests ────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod risk_metrics_tests {
+    use super::RiskMetrics;
+
+    fn daily_returns() -> Vec<f64> {
+        vec![0.01, -0.005, 0.02, -0.01, 0.015, 0.0, 0.008, -0.003, 0.012, -0.007]
+    }
+
+    #[test]
+    fn sharpe_positive_for_positive_excess_returns() {
+        let rets = daily_returns();
+        let s = RiskMetrics::sharpe(&rets, 0.0, 252.0);
+        assert!(s > 0.0, "sharpe should be positive: {s}");
+    }
+
+    #[test]
+    fn sharpe_empty_returns_zero() {
+        assert_eq!(RiskMetrics::sharpe(&[], 0.0, 252.0), 0.0);
+    }
+
+    #[test]
+    fn sortino_positive_for_positive_mean() {
+        let rets = daily_returns();
+        let s = RiskMetrics::sortino(&rets, 0.0, 252.0);
+        assert!(s > 0.0, "sortino should be positive: {s}");
+    }
+
+    #[test]
+    fn calmar_positive_rising_equity() {
+        let rets: Vec<f64> = (0..50).map(|i| 0.001 * (i as f64 + 1.0)).collect();
+        let c = RiskMetrics::calmar(&rets, 252.0);
+        assert!(c > 0.0, "calmar should be positive: {c}");
+    }
+
+    #[test]
+    fn max_drawdown_known_sequence() {
+        // Peak at 1.1, trough at 0.8 → drawdown = (1.1 - 0.8) / 1.1 ≈ 0.2727
+        let cum = vec![1.0, 1.05, 1.1, 0.9, 0.8, 0.95, 1.0];
+        let mdd = RiskMetrics::max_drawdown(&cum);
+        assert!((mdd - (1.1 - 0.8) / 1.1).abs() < 1e-9, "mdd={mdd}");
+    }
+
+    #[test]
+    fn max_drawdown_monotone_rising_is_zero() {
+        let cum: Vec<f64> = (1..=10).map(|i| i as f64).collect();
+        assert_eq!(RiskMetrics::max_drawdown(&cum), 0.0);
+    }
+
+    #[test]
+    fn drawdown_series_length_matches_input() {
+        let cum = vec![1.0, 1.05, 0.95, 1.02];
+        let dd = RiskMetrics::drawdown_series(&cum);
+        assert_eq!(dd.len(), cum.len());
+        assert_eq!(dd[0], 0.0); // at peak, no drawdown
+    }
+
+    #[test]
+    fn var_historical_95_confidence() {
+        // With 100 uniform returns, 95% VaR should be near the 5th percentile loss.
+        let rets: Vec<f64> = (0..100).map(|i| (i as f64 - 50.0) / 1000.0).collect();
+        let v = RiskMetrics::var_historical(&rets, 0.95);
+        assert!(v > 0.0, "VaR should be positive (loss): {v}");
+    }
+
+    #[test]
+    fn cvar_historical_greater_than_var() {
+        let rets: Vec<f64> = (0..100).map(|i| (i as f64 - 50.0) / 1000.0).collect();
+        let var = RiskMetrics::var_historical(&rets, 0.95);
+        let cvar = RiskMetrics::cvar_historical(&rets, 0.95);
+        assert!(cvar >= var, "CVaR ({cvar}) should be >= VaR ({var})");
+    }
+
+    #[test]
+    fn omega_ratio_positive_mean_above_threshold() {
+        let rets = daily_returns();
+        let omega = RiskMetrics::omega_ratio(&rets, 0.0);
+        assert!(omega > 1.0, "omega should be > 1 when mean > threshold: {omega}");
+    }
+
+    #[test]
+    fn beta_alpha_market_neutral() {
+        // Returns identical to benchmark → beta ≈ 1, alpha ≈ 0
+        let rets = vec![0.01, -0.005, 0.02, -0.01];
+        let (beta, alpha) = RiskMetrics::beta_alpha(&rets, &rets, 0.0);
+        assert!((beta - 1.0).abs() < 1e-9, "beta should be ~1: {beta}");
+        assert!(alpha.abs() < 1e-9, "alpha should be ~0: {alpha}");
+    }
+
+    #[test]
+    fn information_ratio_identical_series_zero() {
+        let rets = daily_returns();
+        let ir = RiskMetrics::information_ratio(&rets, &rets);
+        assert_eq!(ir, 0.0, "IR should be 0 when series are identical");
+    }
+
+    #[test]
+    fn annualized_return_no_gain_loss() {
+        let rets = vec![0.0; 252];
+        let ann = RiskMetrics::annualized_return(&rets, 252.0);
+        assert!(ann.abs() < 1e-9, "zero returns → zero annualized return: {ann}");
+    }
+
+    #[test]
+    fn annualized_volatility_zero_for_constant_returns() {
+        let rets = vec![0.01; 100];
+        assert_eq!(RiskMetrics::annualized_volatility(&rets, 252.0), 0.0);
+    }
+}

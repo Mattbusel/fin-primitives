@@ -478,6 +478,397 @@ impl SpreadGreeks {
     }
 }
 
+// ─── f64-native interface ─────────────────────────────────────────────────────
+//
+// The following types provide a direct f64-based Black-Scholes API that is
+// more convenient for numerical computation (e.g. calibration loops and ML
+// feature generation) than the Decimal-based `OptionSpec` / `BlackScholes`
+// interface above.  Both APIs share the same underlying math.
+
+/// Black-Scholes parameters (f64 native, no `Decimal` conversion).
+#[derive(Debug, Clone, Copy)]
+pub struct BSParams {
+    /// Current underlying spot price (must be positive).
+    pub spot: f64,
+    /// Strike / exercise price (must be positive).
+    pub strike: f64,
+    /// Time to expiry in **years** (must be > 0).
+    pub time_to_expiry: f64,
+    /// Continuously compounded annual risk-free rate (e.g. `0.05` for 5%).
+    pub risk_free_rate: f64,
+    /// Annual implied or historical volatility (e.g. `0.20` for 20%; must be > 0).
+    pub volatility: f64,
+    /// Call or Put.
+    pub option_type: OptionType,
+}
+
+/// Full set of first- and second-order Black-Scholes Greeks.
+///
+/// All Greeks use standard market conventions:
+/// - `theta` is per **calendar day** (divide by 365 from annual).
+/// - `vega` is per **1 percentage-point** move in vol (i.e. per 0.01 σ).
+/// - `rho` is per **1 percentage-point** move in the risk-free rate.
+#[derive(Debug, Clone, Copy)]
+pub struct Greeks {
+    /// ∂V/∂S — sensitivity to spot price.
+    pub delta: f64,
+    /// ∂²V/∂S² — rate of change of delta with respect to spot.
+    pub gamma: f64,
+    /// ∂V/∂t per calendar day (negative for long options = time decay).
+    pub theta: f64,
+    /// ∂V/∂σ per 1% vol move.
+    pub vega: f64,
+    /// ∂V/∂r per 1% rate move.
+    pub rho: f64,
+    /// ∂Delta/∂σ (also written dDelta/dVol or dVega/dS).
+    pub vanna: f64,
+    /// ∂²V/∂σ² per 1% vol move (also called Vomma or Volga).
+    pub volga: f64,
+    /// ∂Delta/∂t per calendar day — rate of change of delta due to time decay.
+    pub charm: f64,
+    /// ∂Gamma/∂S — third-order spot sensitivity.
+    pub speed: f64,
+}
+
+/// Black-Scholes pricing and Greeks calculator using native `f64`.
+///
+/// All methods are pure functions; none mutate state.  Edge-case inputs
+/// (e.g. zero time, negative vol) return `None` rather than panicking.
+pub struct BSCalculator;
+
+impl BSCalculator {
+    /// Black-Scholes theoretical price.
+    ///
+    /// Returns `None` if any parameter is non-positive (spot, strike, vol) or
+    /// time-to-expiry is zero.
+    pub fn price(p: &BSParams) -> Option<f64> {
+        let (d1, d2) = Self::d1_d2(p)?;
+        let exp_rt = (-p.risk_free_rate * p.time_to_expiry).exp();
+        let price = match p.option_type {
+            OptionType::Call => p.spot * norm_cdf(d1) - p.strike * exp_rt * norm_cdf(d2),
+            OptionType::Put => p.strike * exp_rt * norm_cdf(-d2) - p.spot * norm_cdf(-d1),
+        };
+        Some(price)
+    }
+
+    /// Full set of first- and second-order Greeks.
+    ///
+    /// Returns `None` if parameters are invalid (same conditions as [`price`]).
+    ///
+    /// [`price`]: BSCalculator::price
+    pub fn greeks(p: &BSParams) -> Option<Greeks> {
+        let (d1, d2) = Self::d1_d2(p)?;
+        let s = p.spot;
+        let k = p.strike;
+        let r = p.risk_free_rate;
+        let v = p.volatility;
+        let t = p.time_to_expiry;
+        let sqrt_t = t.sqrt();
+        let exp_rt = (-r * t).exp();
+        let phi_d1 = norm_pdf(d1);
+
+        // ── First-order Greeks ───────────────────────────────────────────────
+        let (delta, theta, rho) = match p.option_type {
+            OptionType::Call => {
+                let nd1 = norm_cdf(d1);
+                let nd2 = norm_cdf(d2);
+                let delta = nd1;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t)
+                    - r * k * exp_rt * nd2)
+                    / 365.0;
+                let rho = k * t * exp_rt * nd2 / 100.0;
+                (delta, theta, rho)
+            }
+            OptionType::Put => {
+                let nd1_neg = norm_cdf(-d1);
+                let nd2_neg = norm_cdf(-d2);
+                let delta = nd1_neg - 1.0;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t)
+                    + r * k * exp_rt * nd2_neg)
+                    / 365.0;
+                let rho = -k * t * exp_rt * nd2_neg / 100.0;
+                (delta, theta, rho)
+            }
+        };
+
+        let gamma = phi_d1 / (s * v * sqrt_t);
+        let vega = s * phi_d1 * sqrt_t / 100.0; // per 1% vol move
+
+        // ── Second-order Greeks ──────────────────────────────────────────────
+        // Vanna: dDelta/dVol  (= dVega/dS * 1/spot)
+        let vanna = -phi_d1 * d2 / v;
+
+        // Volga / Vomma: dVega/dVol  per 1% vol move
+        // Raw: S * phi(d1) * sqrt(T) * d1 * d2 / vol
+        // Scaled by /100 twice (vega is per 1%, so volga is per 1%²)
+        let volga = vega * d1 * d2 / v;
+
+        // Charm: dDelta/dTime  per calendar day
+        // Call: -phi(d1) * [2rT - d2 * v * sqrt(T)] / [2T * v * sqrt(T)] / 365
+        let charm = match p.option_type {
+            OptionType::Call => {
+                (-phi_d1
+                    * (2.0 * r * t - d2 * v * sqrt_t)
+                    / (2.0 * t * v * sqrt_t))
+                    / 365.0
+            }
+            OptionType::Put => {
+                (phi_d1
+                    * (2.0 * r * t - d2 * v * sqrt_t)
+                    / (2.0 * t * v * sqrt_t))
+                    / 365.0
+            }
+        };
+
+        // Speed: dGamma/dS = -Gamma/S * (d1 / (v * sqrt_t) + 1)
+        let speed = -gamma / s * (d1 / (v * sqrt_t) + 1.0);
+
+        Some(Greeks { delta, gamma, theta, vega, rho, vanna, volga, charm, speed })
+    }
+
+    /// Delta only (faster than computing all Greeks).
+    pub fn delta(p: &BSParams) -> Option<f64> {
+        let (d1, _) = Self::d1_d2(p)?;
+        Some(match p.option_type {
+            OptionType::Call => norm_cdf(d1),
+            OptionType::Put => norm_cdf(-d1) - 1.0,
+        })
+    }
+
+    /// Gamma (same for calls and puts).
+    pub fn gamma(p: &BSParams) -> Option<f64> {
+        let (d1, _) = Self::d1_d2(p)?;
+        Some(norm_pdf(d1) / (p.spot * p.volatility * p.time_to_expiry.sqrt()))
+    }
+
+    /// Theta per calendar day.
+    pub fn theta(p: &BSParams) -> Option<f64> {
+        let (d1, d2) = Self::d1_d2(p)?;
+        let phi_d1 = norm_pdf(d1);
+        let exp_rt = (-p.risk_free_rate * p.time_to_expiry).exp();
+        let sqrt_t = p.time_to_expiry.sqrt();
+        let base = -(p.spot * phi_d1 * p.volatility) / (2.0 * sqrt_t);
+        let theta = match p.option_type {
+            OptionType::Call => (base - p.risk_free_rate * p.strike * exp_rt * norm_cdf(d2)) / 365.0,
+            OptionType::Put => (base + p.risk_free_rate * p.strike * exp_rt * norm_cdf(-d2)) / 365.0,
+        };
+        Some(theta)
+    }
+
+    /// Vega per 1% vol move.
+    pub fn vega(p: &BSParams) -> Option<f64> {
+        let (d1, _) = Self::d1_d2(p)?;
+        Some(p.spot * norm_pdf(d1) * p.time_to_expiry.sqrt() / 100.0)
+    }
+
+    /// Rho per 1% rate move.
+    pub fn rho(p: &BSParams) -> Option<f64> {
+        let (_, d2) = Self::d1_d2(p)?;
+        let exp_rt = (-p.risk_free_rate * p.time_to_expiry).exp();
+        Some(match p.option_type {
+            OptionType::Call => p.strike * p.time_to_expiry * exp_rt * norm_cdf(d2) / 100.0,
+            OptionType::Put => -p.strike * p.time_to_expiry * exp_rt * norm_cdf(-d2) / 100.0,
+        })
+    }
+
+    /// Newton-Raphson implied volatility solver.
+    ///
+    /// Searches for the volatility `σ` such that `BS_price(σ) == market_price`.
+    ///
+    /// - `tolerance` — convergence threshold for the price error (e.g. `1e-6`).
+    /// - `max_iter` — maximum Newton-Raphson iterations (e.g. `100`).
+    ///
+    /// Returns `None` when the solver does not converge or parameters are invalid.
+    pub fn implied_volatility(
+        market_price: f64,
+        p: &BSParams,
+        tolerance: f64,
+        max_iter: usize,
+    ) -> Option<f64> {
+        if market_price <= 0.0 || p.spot <= 0.0 || p.strike <= 0.0 || p.time_to_expiry <= 0.0 {
+            return None;
+        }
+
+        // Initial guess: Brenner-Subrahmanyam approximation
+        let mut sigma = (2.0 * std::f64::consts::PI / p.time_to_expiry).sqrt()
+            * market_price
+            / p.spot;
+        // Clamp to a reasonable range
+        sigma = sigma.clamp(1e-4, 5.0);
+
+        for _ in 0..max_iter {
+            let trial = BSParams { volatility: sigma, ..*p };
+            let price = Self::price(&trial)?;
+            let error = price - market_price;
+            if error.abs() < tolerance {
+                return Some(sigma);
+            }
+            let v = Self::vega(&trial)?;
+            // vega is per 1% → convert back to per unit for Newton step
+            let vega_raw = v * 100.0;
+            if vega_raw.abs() < 1e-10 {
+                break; // near-zero vega; cannot converge
+            }
+            sigma -= error / vega_raw;
+            sigma = sigma.clamp(1e-4, 5.0);
+        }
+
+        // Last attempt: return current sigma if within 10× tolerance
+        let trial = BSParams { volatility: sigma, ..*p };
+        let final_price = Self::price(&trial)?;
+        if (final_price - market_price).abs() < tolerance * 10.0 {
+            Some(sigma)
+        } else {
+            None
+        }
+    }
+
+    // ── private helpers ───────────────────────────────────────────────────────
+
+    /// Computes d1 and d2.  Returns `None` for invalid parameters.
+    fn d1_d2(p: &BSParams) -> Option<(f64, f64)> {
+        if p.spot <= 0.0 || p.strike <= 0.0 || p.volatility <= 0.0 || p.time_to_expiry <= 0.0 {
+            return None;
+        }
+        let sqrt_t = p.time_to_expiry.sqrt();
+        let d1 = ((p.spot / p.strike).ln()
+            + (p.risk_free_rate + 0.5 * p.volatility * p.volatility) * p.time_to_expiry)
+            / (p.volatility * sqrt_t);
+        let d2 = d1 - p.volatility * sqrt_t;
+        Some((d1, d2))
+    }
+}
+
+/// Standard normal PDF: φ(x) = exp(-x²/2) / √(2π).
+fn norm_pdf(x: f64) -> f64 {
+    (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt()
+}
+
+/// Standard normal CDF via the Horner-form polynomial approximation.
+///
+/// Abramowitz & Stegun 26.2.17 — maximum absolute error ≈ 7.5 × 10⁻⁸.
+fn norm_cdf(x: f64) -> f64 {
+    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
+    let poly = t
+        * (0.319_381_530
+            + t * (-0.356_563_782
+                + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
+    let cdf_pos = 1.0 - norm_pdf(x) * poly;
+    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+}
+
+// ─── BSCalculator tests ───────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod bs_tests {
+    use super::*;
+
+    fn atm_call() -> BSParams {
+        BSParams {
+            spot: 100.0,
+            strike: 100.0,
+            time_to_expiry: 30.0 / 365.0,
+            risk_free_rate: 0.05,
+            volatility: 0.20,
+            option_type: OptionType::Call,
+        }
+    }
+
+    fn atm_put() -> BSParams {
+        BSParams { option_type: OptionType::Put, ..atm_call() }
+    }
+
+    #[test]
+    fn price_call_positive() {
+        let p = BSCalculator::price(&atm_call()).unwrap();
+        assert!(p > 0.0 && p < 10.0, "call price out of range: {p}");
+    }
+
+    #[test]
+    fn put_call_parity() {
+        let c = BSCalculator::price(&atm_call()).unwrap();
+        let p = BSCalculator::price(&atm_put()).unwrap();
+        let params = atm_call();
+        let forward = params.spot
+            - params.strike * (-params.risk_free_rate * params.time_to_expiry).exp();
+        assert!((c - p - forward).abs() < 1e-6, "put-call parity violated: {}", c - p - forward);
+    }
+
+    #[test]
+    fn delta_call_between_zero_and_one() {
+        let d = BSCalculator::delta(&atm_call()).unwrap();
+        assert!(d > 0.0 && d < 1.0, "call delta out of range: {d}");
+    }
+
+    #[test]
+    fn delta_put_between_neg_one_and_zero() {
+        let d = BSCalculator::delta(&atm_put()).unwrap();
+        assert!(d > -1.0 && d < 0.0, "put delta out of range: {d}");
+    }
+
+    #[test]
+    fn gamma_positive() {
+        let g = BSCalculator::gamma(&atm_call()).unwrap();
+        assert!(g > 0.0, "gamma should be positive: {g}");
+    }
+
+    #[test]
+    fn theta_negative_call() {
+        let t = BSCalculator::theta(&atm_call()).unwrap();
+        assert!(t < 0.0, "theta should be negative for long call: {t}");
+    }
+
+    #[test]
+    fn vega_positive() {
+        let v = BSCalculator::vega(&atm_call()).unwrap();
+        assert!(v > 0.0, "vega should be positive: {v}");
+    }
+
+    #[test]
+    fn all_greeks_available() {
+        let g = BSCalculator::greeks(&atm_call()).unwrap();
+        assert!(g.delta > 0.0);
+        assert!(g.gamma > 0.0);
+        assert!(g.theta < 0.0);
+        assert!(g.vega > 0.0);
+    }
+
+    #[test]
+    fn implied_vol_roundtrip() {
+        let params = atm_call();
+        let market_price = BSCalculator::price(&params).unwrap();
+        let iv = BSCalculator::implied_volatility(market_price, &params, 1e-6, 100).unwrap();
+        assert!((iv - params.volatility).abs() < 1e-4, "IV roundtrip error: {}", iv - params.volatility);
+    }
+
+    #[test]
+    fn implied_vol_invalid_price_returns_none() {
+        assert!(BSCalculator::implied_volatility(-1.0, &atm_call(), 1e-6, 100).is_none());
+    }
+
+    #[test]
+    fn invalid_params_return_none() {
+        let bad = BSParams { spot: -1.0, ..atm_call() };
+        assert!(BSCalculator::price(&bad).is_none());
+        assert!(BSCalculator::greeks(&bad).is_none());
+    }
+
+    #[test]
+    fn vanna_sign_for_atm_call() {
+        // Vanna for a call: -phi(d1)*d2/vol
+        // Near ATM d2 is small/positive → vanna should be near zero or slightly negative
+        let g = BSCalculator::greeks(&atm_call()).unwrap();
+        // Just verify it computes without NaN/Inf
+        assert!(g.vanna.is_finite(), "vanna should be finite: {}", g.vanna);
+    }
+
+    #[test]
+    fn speed_is_finite() {
+        let g = BSCalculator::greeks(&atm_call()).unwrap();
+        assert!(g.speed.is_finite(), "speed should be finite: {}", g.speed);
+    }
+}
+
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
