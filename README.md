@@ -909,6 +909,66 @@ The test suite includes unit tests in every module and property-based tests usin
 
 ---
 
+## Market Microstructure Anomaly Detection
+
+The `microstructure` module detects three illegal order-book manipulation
+patterns in real time: spoofing, layering, and quote stuffing.  All detection
+runs locally with no external calls.
+
+```rust
+use fin_primitives::microstructure::{
+    MicrostructureDetector, DetectorConfig, OrderEvent, OrderAction, AlertKind,
+};
+use fin_primitives::types::{Price, Quantity, Side};
+use rust_decimal::Decimal;
+
+let mut detector = MicrostructureDetector::new(DetectorConfig {
+    spoof_min_quantity: Decimal::from(1_000),   // flag orders > 1000 qty
+    spoof_cancel_window_ns: 500_000_000,        // cancelled within 500 ms
+    layer_min_levels: 3,                         // 3+ distinct price levels
+    layer_window_ns: 200_000_000,               // within 200 ms
+    stuff_rate_threshold: 100,                  // 100+ cancels per second
+    stuff_window_ns: 1_000_000_000,
+});
+
+// Feed events from your exchange adapter.
+detector.on_event(OrderEvent {
+    order_id: 1,
+    action: OrderAction::Add,
+    price: Price::new("100.00").unwrap(),
+    quantity: Quantity::new("5000").unwrap(),
+    side: Side::Bid,
+    timestamp_ns: 0,
+});
+detector.on_event(OrderEvent {
+    order_id: 1,
+    action: OrderAction::Cancel,
+    price: Price::new("100.00").unwrap(),
+    quantity: Quantity::new("5000").unwrap(),
+    side: Side::Bid,
+    timestamp_ns: 200_000_000, // 200 ms — within spoof window
+});
+
+for alert in detector.drain_alerts() {
+    match alert.kind {
+        AlertKind::Spoofing      => println!("SPOOF: {}", alert.detail),
+        AlertKind::Layering      => println!("LAYER: {}", alert.detail),
+        AlertKind::QuoteStuffing => println!("STUFF: {}", alert.detail),
+    }
+}
+
+// Aggregate stats.
+let s = detector.stats();
+println!("Events: {}, Cancels: {}, Spoof: {}, Layer: {}, Stuff: {}",
+    s.events_total, s.cancels_total, s.spoof_alerts, s.layer_alerts, s.stuff_alerts);
+```
+
+Detection heuristics are based on public CFTC/SEC regulatory guidance and
+academic literature (Comerton-Forde & Putniņš, 2015).  All thresholds are
+configurable via [`DetectorConfig`].
+
+---
+
 ## Contributing
 
 1. Fork the repository and create a branch from `main`.

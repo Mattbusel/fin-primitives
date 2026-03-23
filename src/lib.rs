@@ -63,6 +63,9 @@ pub mod latency;
 /// Risk scenario backtesting: replays historical bars through risk rules.
 pub mod scenario;
 
+/// Market microstructure anomaly detection: spoofing, layering, quote stuffing.
+pub mod microstructure;
+
 /// PyO3 Python bindings (enabled by the `python` feature).
 #[cfg(feature = "python")]
 pub mod python;

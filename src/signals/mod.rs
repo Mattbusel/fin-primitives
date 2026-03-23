@@ -14,6 +14,7 @@
 //! - Real-time streaming (use `OhlcvAggregator` upstream)
 
 pub mod compose;
+pub mod composite;
 pub mod indicators;
 pub mod pipeline;
 pub mod warmup;
