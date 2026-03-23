@@ -23,6 +23,9 @@ pub mod stress;
 /// Value at Risk (VaR) and Conditional VaR (CVaR): Historical, Parametric, Monte Carlo, Cornish-Fisher.
 pub mod var;
 
+/// VaR calculation engine: Historical, Parametric (Cornish-Fisher), Monte Carlo (LCG+Box-Muller), rolling VaR.
+pub mod var_engine;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 

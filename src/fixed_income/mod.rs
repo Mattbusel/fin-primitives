@@ -7,6 +7,9 @@
 
 pub mod bond;
 
+/// Yield curve modeling: linear/cubic-spline interpolation, forward rates, par yields, Nelson-Siegel fitting.
+pub mod yield_curve;
+
 /// Bond spread analytics: Z-spread, OAS, I-spread, and asset-swap spread.
 pub mod spread_analytics;
 
