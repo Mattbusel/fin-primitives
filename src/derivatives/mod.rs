@@ -17,3 +17,6 @@ pub mod exotic_options;
 
 /// Variance swap pricing, realised variance tracking, and VIX replication.
 pub mod variance_swap;
+
+/// Forward contract pricing: equity, FX, commodity forwards, and forward curves.
+pub mod forwards;

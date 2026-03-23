@@ -174,6 +174,255 @@ impl MortgageCalculator {
     }
 }
 
+// ── MBS / Advanced Mortgage Analytics ────────────────────────────────────────
+
+/// Mortgage product type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MortgageType {
+    /// Fixed-rate mortgage.
+    Fixed,
+    /// Adjustable-rate mortgage.
+    AdjustableRate {
+        /// Initial interest rate (annual, decimal).
+        initial_rate: f64,
+        /// Maximum rate change per adjustment period.
+        adjustment_cap: f64,
+        /// Maximum lifetime rate increase over initial.
+        lifetime_cap: f64,
+    },
+    /// Interest-only period followed by full amortization.
+    InterestOnly {
+        /// Number of months in the interest-only period.
+        io_period_months: u32,
+    },
+    /// Balloon payment at a specific month.
+    BalloonPayment {
+        /// Month at which the balloon payment is due.
+        balloon_at_month: u32,
+    },
+}
+
+/// A single mortgage loan with full analytics.
+#[derive(Debug, Clone)]
+pub struct MortgageLoan {
+    /// Original principal balance.
+    pub principal: f64,
+    /// Annual interest rate as a decimal.
+    pub annual_rate: f64,
+    /// Total term in months.
+    pub term_months: u32,
+    /// Mortgage product type.
+    pub mortgage_type: MortgageType,
+    /// Unix timestamp of origination.
+    pub origination_date: u64,
+}
+
+impl MortgageLoan {
+    /// Standard amortization monthly payment: P*r*(1+r)^n / ((1+r)^n - 1).
+    pub fn monthly_payment(&self) -> f64 {
+        let r = self.annual_rate / 12.0;
+        let n = self.term_months as f64;
+        if r == 0.0 {
+            return self.principal / n;
+        }
+        let factor = (1.0 + r).powf(n);
+        self.principal * r * factor / (factor - 1.0)
+    }
+
+    /// Full amortization schedule.
+    pub fn amortize(&self) -> Vec<AmortizationRow> {
+        let payment = self.monthly_payment();
+        let r = self.annual_rate / 12.0;
+        let mut balance = self.principal;
+        let mut schedule = Vec::with_capacity(self.term_months as usize);
+
+        for month in 1..=self.term_months {
+            let interest = balance * r;
+            let principal_paid = if month == self.term_months {
+                balance
+            } else {
+                (payment - interest).max(0.0).min(balance)
+            };
+            let actual_payment = if month == self.term_months {
+                principal_paid + interest
+            } else {
+                payment
+            };
+            balance -= principal_paid;
+            schedule.push(AmortizationRow {
+                month,
+                payment: actual_payment,
+                interest,
+                principal: principal_paid,
+                balance: balance.max(0.0),
+            });
+        }
+        schedule
+    }
+
+    /// Remaining balance after `after_months` payments.
+    pub fn remaining_balance(&self, after_months: u32) -> f64 {
+        let schedule = self.amortize();
+        let idx = (after_months as usize).min(schedule.len());
+        if idx == 0 {
+            return self.principal;
+        }
+        schedule[idx - 1].balance
+    }
+
+    /// Total interest paid over the loan lifetime.
+    pub fn total_interest(&self) -> f64 {
+        self.amortize().iter().map(|r| r.interest).sum()
+    }
+
+    /// Loan-to-value ratio.
+    pub fn ltv(&self, property_value: f64) -> f64 {
+        if property_value == 0.0 {
+            return f64::INFINITY;
+        }
+        self.principal / property_value
+    }
+}
+
+/// Prepayment model for MBS analytics.
+#[derive(Debug, Clone)]
+pub enum PrepaymentModel {
+    /// Constant prepayment rate (annual, e.g. 0.08 = 8% CPR).
+    CPR(f64),
+    /// PSA standard prepayment benchmark.
+    PSA {
+        /// PSA speed multiplier (1.0 = 100% PSA).
+        psa_factor: f64,
+    },
+    /// Actual historical prepayment rates (monthly SMM).
+    ActualHistory(Vec<f64>),
+}
+
+/// Compute the single monthly mortality (SMM) rate for a given model and month.
+pub fn monthly_smm(model: &PrepaymentModel, month: u32) -> f64 {
+    match model {
+        PrepaymentModel::CPR(cpr) => 1.0 - (1.0 - cpr).powf(1.0 / 12.0),
+        PrepaymentModel::PSA { psa_factor } => {
+            // PSA: ramps from 0.2% CPR at month 1 to 6% CPR at month 30, flat thereafter
+            let cpr = if month <= 30 {
+                0.06 * psa_factor * (month as f64 / 30.0)
+            } else {
+                0.06 * psa_factor
+            };
+            1.0 - (1.0 - cpr).powf(1.0 / 12.0)
+        }
+        PrepaymentModel::ActualHistory(rates) => {
+            let idx = (month as usize).saturating_sub(1);
+            if idx < rates.len() {
+                rates[idx]
+            } else {
+                0.0
+            }
+        }
+    }
+}
+
+/// A pool of mortgage loans for MBS analytics.
+#[derive(Debug, Clone)]
+pub struct MbsPool {
+    /// Constituent mortgage loans.
+    pub loans: Vec<MortgageLoan>,
+    /// Aggregate pool balance.
+    pub pool_balance: f64,
+    /// Weighted average coupon (annual rate).
+    pub wac: f64,
+    /// Weighted average maturity (months).
+    pub wam: f64,
+}
+
+impl MbsPool {
+    /// Construct an MBS pool, computing WAC and WAM from loans.
+    pub fn new(loans: Vec<MortgageLoan>) -> Self {
+        let pool_balance: f64 = loans.iter().map(|l| l.principal).sum();
+        let wac = if pool_balance == 0.0 {
+            0.0
+        } else {
+            loans.iter().map(|l| l.annual_rate * l.principal).sum::<f64>() / pool_balance
+        };
+        let wam = if pool_balance == 0.0 {
+            0.0
+        } else {
+            loans.iter().map(|l| l.term_months as f64 * l.principal).sum::<f64>() / pool_balance
+        };
+        Self { loans, pool_balance, wac, wam }
+    }
+
+    /// Monthly cash flows: (scheduled_principal, interest, prepayment).
+    pub fn cash_flows(&self, prepayment: &PrepaymentModel) -> Vec<(f64, f64, f64)> {
+        let max_months = self.loans.iter().map(|l| l.term_months).max().unwrap_or(0);
+        let mut result = Vec::with_capacity(max_months as usize);
+
+        // Aggregate by summing per-loan cash flows with prepayment
+        for month in 1..=max_months {
+            let mut total_principal = 0.0;
+            let mut total_interest = 0.0;
+            let mut total_prepayment = 0.0;
+
+            for loan in &self.loans {
+                if month > loan.term_months {
+                    continue;
+                }
+                let r = loan.annual_rate / 12.0;
+                // Approximate remaining balance at start of month
+                let bal = loan.remaining_balance(month - 1);
+                if bal <= 0.0 {
+                    continue;
+                }
+                let interest = bal * r;
+                let payment = loan.monthly_payment();
+                let sched_principal = (payment - interest).max(0.0).min(bal);
+                let smm = monthly_smm(prepayment, month);
+                let prepay_amt = (bal - sched_principal) * smm;
+                total_interest += interest;
+                total_principal += sched_principal;
+                total_prepayment += prepay_amt;
+            }
+            result.push((total_principal, total_interest, total_prepayment));
+        }
+        result
+    }
+
+    /// Price of the MBS pool as PV of cash flows discounted at `discount_rate`.
+    pub fn price(&self, discount_rate: f64, prepayment: &PrepaymentModel) -> f64 {
+        let cfs = self.cash_flows(prepayment);
+        let r = discount_rate / 12.0;
+        cfs.iter().enumerate().map(|(i, (p, interest, pp))| {
+            let cf = p + interest + pp;
+            let t = (i + 1) as f64;
+            cf / (1.0 + r).powf(t)
+        }).sum()
+    }
+
+    /// Effective duration via parallel shift of ±1bp.
+    pub fn duration(&self, discount_rate: f64, prepayment: &PrepaymentModel) -> f64 {
+        let shift = 0.0001;
+        let p_up = self.price(discount_rate + shift, prepayment);
+        let p_dn = self.price(discount_rate - shift, prepayment);
+        let p0 = self.price(discount_rate, prepayment);
+        if p0 == 0.0 {
+            return 0.0;
+        }
+        (p_dn - p_up) / (2.0 * shift * p0)
+    }
+
+    /// Convexity via parallel shift of ±1bp.
+    pub fn convexity(&self, discount_rate: f64, prepayment: &PrepaymentModel) -> f64 {
+        let shift = 0.0001;
+        let p_up = self.price(discount_rate + shift, prepayment);
+        let p_dn = self.price(discount_rate - shift, prepayment);
+        let p0 = self.price(discount_rate, prepayment);
+        if p0 == 0.0 {
+            return 0.0;
+        }
+        (p_up + p_dn - 2.0 * p0) / (shift * shift * p0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
