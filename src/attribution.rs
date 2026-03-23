@@ -1112,3 +1112,335 @@ mod tests {
         assert_eq!(series.len(), 3);
     }
 }
+
+// ---------------------------------------------------------------------------
+// BHB Sector-level API
+// ---------------------------------------------------------------------------
+
+/// A single sector used in Brinson-Hood-Beebower performance attribution.
+///
+/// Holds the portfolio and benchmark weights and returns for one sector
+/// (e.g. "Technology", "Healthcare") within a single measurement period.
+#[derive(Debug, Clone)]
+pub struct Sector {
+    /// Human-readable sector name.
+    pub name: String,
+    /// Portfolio weight in this sector; expected in `[0, 1]`.
+    pub portfolio_weight: f64,
+    /// Benchmark weight in this sector; expected in `[0, 1]`.
+    pub benchmark_weight: f64,
+    /// Portfolio return within this sector for the period.
+    pub portfolio_return: f64,
+    /// Benchmark return within this sector for the period.
+    pub benchmark_return: f64,
+}
+
+/// Computed attribution effects for a single sector.
+#[derive(Debug, Clone)]
+pub struct SectorAttribution {
+    /// Sector inputs used in computation.
+    pub sector: Sector,
+    /// Allocation effect: `(w_p - w_b) * (r_b_sector - R_b)`.
+    pub allocation_effect: f64,
+    /// Selection effect: `w_b * (r_p - r_b)`.
+    pub selection_effect: f64,
+    /// Interaction effect: `(w_p - w_b) * (r_p - r_b)`.
+    pub interaction_effect: f64,
+    /// Total active return for this sector: allocation + selection + interaction.
+    pub total_active_return: f64,
+}
+
+/// Aggregate attribution report across all sectors.
+#[derive(Debug, Clone)]
+pub struct SectorAttributionReport {
+    /// Per-sector decomposition results.
+    pub sectors: Vec<SectorAttribution>,
+    /// Sum of allocation effects across all sectors.
+    pub total_allocation: f64,
+    /// Sum of selection effects across all sectors.
+    pub total_selection: f64,
+    /// Sum of interaction effects across all sectors.
+    pub total_interaction: f64,
+    /// Total active return: total_allocation + total_selection + total_interaction.
+    pub total_active_return: f64,
+    /// Benchmark portfolio return (weighted sum of sector benchmark returns).
+    pub benchmark_return: f64,
+    /// Portfolio return (weighted sum of sector portfolio returns).
+    pub portfolio_return: f64,
+}
+
+/// Brinson-Hood-Beebower attribution calculator that works directly with [`Sector`] slices.
+///
+/// This struct holds the total benchmark return (`R_b`) used in the allocation effect
+/// formula and exposes the three BHB effect computations as methods.
+pub struct Attribution {
+    /// Total benchmark return used as the benchmark reference in the allocation effect.
+    pub benchmark_return: f64,
+}
+
+impl Attribution {
+    /// Create a new `Attribution` calculator using the given total benchmark return.
+    pub fn new(benchmark_return: f64) -> Self {
+        Self { benchmark_return }
+    }
+
+    /// Allocation effect for a sector: `(w_p - w_b) * (r_b_sector - R_b)`.
+    ///
+    /// Measures whether the manager added value by over/under-weighting the sector
+    /// relative to the benchmark, evaluated against the sector's benchmark return.
+    pub fn allocation_effect(&self, s: &Sector) -> f64 {
+        (s.portfolio_weight - s.benchmark_weight) * (s.benchmark_return - self.benchmark_return)
+    }
+
+    /// Selection effect for a sector: `w_b * (r_p - r_b)`.
+    ///
+    /// Measures whether the manager picked better securities within the sector.
+    pub fn selection_effect(&self, s: &Sector) -> f64 {
+        s.benchmark_weight * (s.portfolio_return - s.benchmark_return)
+    }
+
+    /// Interaction effect for a sector: `(w_p - w_b) * (r_p - r_b)`.
+    ///
+    /// Joint effect of simultaneous over/under-weighting and stock selection.
+    pub fn interaction_effect(&self, s: &Sector) -> f64 {
+        (s.portfolio_weight - s.benchmark_weight) * (s.portfolio_return - s.benchmark_return)
+    }
+
+    /// Total active return for a sector: allocation + selection + interaction.
+    pub fn total_active_return(&self, s: &Sector) -> f64 {
+        self.allocation_effect(s) + self.selection_effect(s) + self.interaction_effect(s)
+    }
+}
+
+/// Run full Brinson-Hood-Beebower attribution over a slice of sectors.
+///
+/// The total benchmark return (`R_b`) is computed as the benchmark-weight-averaged
+/// return across all sectors.  Per-sector effects are then computed using that
+/// aggregate benchmark return, and results are aggregated into a
+/// [`SectorAttributionReport`].
+///
+/// # Example
+///
+/// ```rust
+/// use fin_primitives::attribution::{Sector, run_attribution};
+///
+/// let sectors = vec![
+///     Sector { name: "Tech".into(), portfolio_weight: 0.40, benchmark_weight: 0.30,
+///               portfolio_return: 0.12, benchmark_return: 0.10 },
+///     Sector { name: "Energy".into(), portfolio_weight: 0.60, benchmark_weight: 0.70,
+///               portfolio_return: 0.04, benchmark_return: 0.05 },
+/// ];
+/// let report = run_attribution(&sectors);
+/// let active = report.total_active_return;
+/// let decomposed = report.total_allocation + report.total_selection + report.total_interaction;
+/// assert!((active - decomposed).abs() < 1e-12);
+/// ```
+pub fn run_attribution(sectors: &[Sector]) -> SectorAttributionReport {
+    // Compute total benchmark return as benchmark-weight-averaged sector benchmark returns.
+    let benchmark_return: f64 = sectors
+        .iter()
+        .map(|s| s.benchmark_weight * s.benchmark_return)
+        .sum();
+
+    // Compute total portfolio return as portfolio-weight-averaged sector portfolio returns.
+    let portfolio_return: f64 = sectors
+        .iter()
+        .map(|s| s.portfolio_weight * s.portfolio_return)
+        .sum();
+
+    let calc = Attribution::new(benchmark_return);
+
+    let mut sector_results: Vec<SectorAttribution> = Vec::with_capacity(sectors.len());
+    let mut total_allocation = 0.0_f64;
+    let mut total_selection = 0.0_f64;
+    let mut total_interaction = 0.0_f64;
+
+    for s in sectors {
+        let alloc = calc.allocation_effect(s);
+        let sel = calc.selection_effect(s);
+        let inter = calc.interaction_effect(s);
+        let total = alloc + sel + inter;
+
+        total_allocation += alloc;
+        total_selection += sel;
+        total_interaction += inter;
+
+        sector_results.push(SectorAttribution {
+            sector: s.clone(),
+            allocation_effect: alloc,
+            selection_effect: sel,
+            interaction_effect: inter,
+            total_active_return: total,
+        });
+    }
+
+    let total_active_return = total_allocation + total_selection + total_interaction;
+
+    SectorAttributionReport {
+        sectors: sector_results,
+        total_allocation,
+        total_selection,
+        total_interaction,
+        total_active_return,
+        benchmark_return,
+        portfolio_return,
+    }
+}
+
+impl SectorAttributionReport {
+    /// Render the attribution report as a plain ASCII table.
+    ///
+    /// Columns: Sector | Port.Wt | Bench.Wt | Port.Ret | Bench.Ret | Alloc | Select | Interact | Active
+    pub fn to_table(&self) -> String {
+        let header = format!(
+            "{:<18} {:>8} {:>8} {:>9} {:>9} {:>8} {:>8} {:>9} {:>8}",
+            "Sector", "P.Wt%", "B.Wt%", "P.Ret%", "B.Ret%", "Alloc%", "Select%", "Interact%", "Active%"
+        );
+        let sep = "-".repeat(header.len());
+
+        let mut rows = vec![header.clone(), sep.clone()];
+
+        for sa in &self.sectors {
+            let s = &sa.sector;
+            rows.push(format!(
+                "{:<18} {:>8.2} {:>8.2} {:>9.2} {:>9.2} {:>8.4} {:>8.4} {:>9.4} {:>8.4}",
+                s.name,
+                s.portfolio_weight * 100.0,
+                s.benchmark_weight * 100.0,
+                s.portfolio_return * 100.0,
+                s.benchmark_return * 100.0,
+                sa.allocation_effect * 100.0,
+                sa.selection_effect * 100.0,
+                sa.interaction_effect * 100.0,
+                sa.total_active_return * 100.0,
+            ));
+        }
+
+        rows.push(sep.clone());
+        rows.push(format!(
+            "{:<18} {:>8} {:>8} {:>9.2} {:>9.2} {:>8.4} {:>8.4} {:>9.4} {:>8.4}",
+            "TOTAL",
+            "",
+            "",
+            self.portfolio_return * 100.0,
+            self.benchmark_return * 100.0,
+            self.total_allocation * 100.0,
+            self.total_selection * 100.0,
+            self.total_interaction * 100.0,
+            self.total_active_return * 100.0,
+        ));
+
+        rows.join("\n")
+    }
+
+    /// Return the top `n` sectors sorted by absolute total active return (descending).
+    ///
+    /// If `n` exceeds the number of sectors, all sectors are returned.
+    pub fn top_contributors(&self, n: usize) -> Vec<&SectorAttribution> {
+        let mut sorted: Vec<&SectorAttribution> = self.sectors.iter().collect();
+        sorted.sort_by(|a, b| {
+            b.total_active_return
+                .abs()
+                .partial_cmp(&a.total_active_return.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        sorted.truncate(n);
+        sorted
+    }
+}
+
+#[cfg(test)]
+mod bhb_sector_tests {
+    use super::*;
+
+    fn two_sector_example() -> Vec<Sector> {
+        vec![
+            Sector {
+                name: "Tech".into(),
+                portfolio_weight: 0.40,
+                benchmark_weight: 0.30,
+                portfolio_return: 0.12,
+                benchmark_return: 0.10,
+            },
+            Sector {
+                name: "Energy".into(),
+                portfolio_weight: 0.60,
+                benchmark_weight: 0.70,
+                portfolio_return: 0.04,
+                benchmark_return: 0.05,
+            },
+        ]
+    }
+
+    #[test]
+    fn bhb_decomposition_identity() {
+        let report = run_attribution(&two_sector_example());
+        let decomposed =
+            report.total_allocation + report.total_selection + report.total_interaction;
+        assert!(
+            (report.total_active_return - decomposed).abs() < 1e-12,
+            "active return must equal sum of three effects: {} vs {}",
+            report.total_active_return,
+            decomposed
+        );
+    }
+
+    #[test]
+    fn bhb_active_return_matches_port_minus_bench() {
+        let report = run_attribution(&two_sector_example());
+        // Portfolio return: 0.40*0.12 + 0.60*0.04 = 0.048 + 0.024 = 0.072
+        // Benchmark return: 0.30*0.10 + 0.70*0.05 = 0.030 + 0.035 = 0.065
+        // Active = 0.072 - 0.065 = 0.007
+        let expected_active = report.portfolio_return - report.benchmark_return;
+        assert!(
+            (report.total_active_return - expected_active).abs() < 1e-10,
+            "total active return {:.6} != port-bench {:.6}",
+            report.total_active_return,
+            expected_active
+        );
+    }
+
+    #[test]
+    fn bhb_known_example() {
+        // Single-sector sanity check.
+        let sectors = vec![Sector {
+            name: "EM".into(),
+            portfolio_weight: 0.50,
+            benchmark_weight: 0.40,
+            portfolio_return: 0.08,
+            benchmark_return: 0.06,
+        }];
+        let rb = 0.40 * 0.06; // = 0.024
+        let report = run_attribution(&sectors);
+        let sa = &report.sectors[0];
+        // Allocation = (0.50-0.40)*(0.06-0.024) = 0.10*0.036 = 0.0036
+        assert!((sa.allocation_effect - 0.0036).abs() < 1e-10, "alloc={}", sa.allocation_effect);
+        // Selection = 0.40*(0.08-0.06) = 0.40*0.02 = 0.008
+        assert!((sa.selection_effect - 0.008).abs() < 1e-10, "sel={}", sa.selection_effect);
+        // Interaction = (0.50-0.40)*(0.08-0.06) = 0.10*0.02 = 0.002
+        assert!((sa.interaction_effect - 0.002).abs() < 1e-10, "inter={}", sa.interaction_effect);
+        let _ = rb; // used implicitly above
+    }
+
+    #[test]
+    fn bhb_top_contributors_order() {
+        let report = run_attribution(&two_sector_example());
+        let top = report.top_contributors(1);
+        assert_eq!(top.len(), 1);
+    }
+
+    #[test]
+    fn bhb_empty_sectors() {
+        let report = run_attribution(&[]);
+        assert_eq!(report.sectors.len(), 0);
+        assert!((report.total_active_return).abs() < 1e-15);
+    }
+
+    #[test]
+    fn bhb_table_contains_total_row() {
+        let report = run_attribution(&two_sector_example());
+        let table = report.to_table();
+        assert!(table.contains("TOTAL"), "table should have a TOTAL row:\n{table}");
+        assert!(table.contains("Tech"), "table should have Tech sector:\n{table}");
+    }
+}

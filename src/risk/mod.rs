@@ -13,6 +13,10 @@
 
 pub mod attribution;
 
+/// Stress testing framework: apply named market shock scenarios to a portfolio
+/// and aggregate P&L impact per position and in total.
+pub mod stress;
+
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
