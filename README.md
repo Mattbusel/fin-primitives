@@ -1,421 +1,29 @@
 # fin-primitives
 
-## Yield Curve Modeler
-
-The `yield_curve` module provides a full yield curve construction and analytics toolkit.
-
-### Key Types
-
-| Type | Description |
-|------|-------------|
-| `YieldPoint` | A single `(maturity_years: f64, yield_rate: f64)` observation |
-| `YieldCurve` | Collection of `YieldPoint`s sorted by maturity; primary analytics surface |
-| `CurveShape` | `Normal`, `Inverted`, `Flat`, `Humped` — classified from first/last yields and interior peak |
-| `NelsonSiegel` | Parametric model: `beta0`, `beta1`, `beta2`, `tau` |
-
-### Interpolation
-
-| Method | Description |
-|--------|-------------|
-| `YieldCurve::linear_interp(t)` | Piecewise-linear interpolation; clamps at endpoints |
-| `YieldCurve::cubic_spline(t)` | Natural cubic spline via tridiagonal (Thomas) solver |
-
-### Analytics
-
-| Method | Formula |
-|--------|---------|
-| `forward_rate(t1, t2)` | `f = (r2·t2 − r1·t1) / (t2 − t1)` |
-| `duration(cash_flows)` | Macaulay: `Σ(t · CF · e^(−r·t)) / Σ(CF · e^(−r·t))` |
-| `convexity(cash_flows)` | `Σ(t² · CF · e^(−r·t)) / PV` |
-| `shape()` | Classifies as `Normal / Inverted / Flat / Humped` |
-
-### Nelson-Siegel Model
-
-```
-r(t) = β₀ + β₁·(1−e^(−t/τ))/(t/τ) + β₂·((1−e^(−t/τ))/(t/τ) − e^(−t/τ))
-```
-
-`NelsonSiegel::fit(points)` fits all four parameters via gradient descent (500 iterations).
-
----
-
-## Event Study Framework
-
-The `events` module implements a standard event-study methodology for measuring abnormal
-returns around discrete market events (earnings releases, guidance, macro shocks).
-
-### Key Types
-
-| Type | Description |
-|------|-------------|
-| `MarketEvent` | `event_id`, `event_date` (Unix secs), `event_type`, `description` |
-| `EventWindow` | `pre_days: i32`, `post_days: i32` — e.g. `(-10, +10)` |
-| `AbnormalReturn` | Per-day: `day`, `raw_return`, `expected_return`, `abnormal_return`, `car` |
-| `EventResult` | Full result: `car_pre`, `car_post`, `peak_day`, `trough_day`, `abnormal_returns` |
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `EventStudy::compute(event, prices, benchmark, window)` | Market-model abnormal returns; benchmark return = expected return |
-| `EventStudy::significance(results)` | t-statistic: `mean_CAR / (std_CAR / √N)` |
-
-### Formulas
-
-```
-AR(d)  = raw_return(d) − benchmark_return(d)
-CAR(d) = Σ AR from window_start to d
-t-stat = mean(CAR) / (std(CAR) / √N)
-```
-
----
-
-
 [![CI](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/fin-primitives.svg)](https://crates.io/crates/fin-primitives)
 [![docs.rs](https://docs.rs/fin-primitives/badge.svg)](https://docs.rs/fin-primitives)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org)
 
-A zero-panic, decimal-precise foundation for high-frequency trading and quantitative
-systems in Rust. `fin-primitives` provides the building blocks: validated types,
-order book, OHLCV aggregation, **725+ streaming technical indicators**, position ledger,
-and composable risk monitoring — so that upstream crates and applications can focus on
-strategy rather than infrastructure.
-
----
-
-## Backtesting Engine
-
-The `backtest::engine` module provides an event-driven backtester with realistic fill simulation.
-
-### Key Types
-
-| Type | Description |
-|------|-------------|
-| `BacktestEngine` | Stateless engine; call `BacktestEngine::run(signals, config)` |
-| `EngineConfig` | `initial_capital`, `commission`, `slippage_bps`, `data: Vec<OhlcvBar>`, `capital_fraction` |
-| `EngineSignal` | `timestamp`, `symbol`, `direction: Direction`, `strength: f64` |
-| `Direction` | `Long`, `Short`, `Flat` |
-| `BacktestResult` | `equity_curve: Vec<f64>`, `trades: Vec<CompletedTrade>`, `metrics: BacktestMetrics` |
-| `CompletedTrade` | `entry_ts`, `exit_ts`, `direction`, `entry_price`, `exit_price`, `pnl`, `pnl_pct` |
-| `BacktestMetrics` | `total_return`, `annualized_return`, `sharpe`, `sortino`, `max_drawdown`, `calmar`, `win_rate`, `profit_factor`, `avg_trade_return`, `num_trades` |
-
-### Fill Model
-
-- Signals fire at bar N; fills execute at bar N+1 open
-- Slippage is applied symmetrically: longs pay more on entry, receive less on exit
-- Commission is deducted as a fraction of notional on every fill
-- Position size = `strength * capital_fraction * current_equity / fill_price`
-
----
-
-## Monte Carlo Simulator
-
-The `montecarlo` module runs N Geometric Brownian Motion price-path simulations using a seeded LCG for reproducibility.
-
-### Key Types
-
-| Type | Description |
-|------|-------------|
-| `MonteCarloSimulator` | Stateless simulator |
-| `GbmParams` | `mu` (annual drift), `sigma` (annual vol), `s0` (initial price) |
-| `MonteCarloConfig` | `simulations`, `horizon_days`, `seed: Option<u64>` |
-| `MonteCarloResult` | `paths`, `var_95`, `cvar_95`, `median_final`, `best_case_final`, `worst_case_final` |
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `simulate_paths(params, config)` | Run N GBM paths; returns `Vec<Vec<f64>>` |
-| `var(paths, confidence)` | Value at Risk at given confidence level |
-| `cvar(paths, confidence)` | Conditional VaR (Expected Shortfall) — always ≤ VaR |
-| `percentile_paths(paths, percentiles)` | Extract paths at given percentiles (e.g. `[5, 50, 95]`) |
-| `run(params, config)` | Convenience: simulate + compute all metrics |
-
-### Implementation Notes
-
-- RNG: Linear Congruential Generator (Numerical Recipes constants)
-- Normal samples: Box-Muller transform
-- Same seed always produces identical paths (reproducible)
-- `sigma = 0` → all paths are pure drift (deterministic)
-
----
-
-## Factor Model
-
-The `factor` module provides Fama-French style multi-factor OLS regression.
-
-### Structs
-
-| Type | Description |
-|------|-------------|
-| `Factor { name, returns }` | Named return series for one risk factor (e.g. market, value, momentum) |
-| `FactorExposure { asset, betas, alpha, r_squared, residual_variance }` | OLS regression output for one asset |
-| `VarianceDecomposition { systematic_variance, idiosyncratic_variance, factor_contributions }` | Variance attribution |
-| `FactorPortfolio` | Aggregates per-asset exposures weighted by portfolio weights |
-
-### Formulas
-
-**OLS via normal equations:**
-
-```
-β̂ = (X'X)⁻¹ X'y
-```
-
-where `X` is the `T × (K+1)` design matrix (first column = intercept ones).
-
-Matrix inversion: analytic for 2×2 and 3×3, Gaussian elimination with partial pivoting for larger systems.
-
-**Variance decomposition:**
-
-```
-factor_contributions[i] = β_i² σ_i² + 2 Σ_{j>i} β_i β_j cov(i,j)
-systematic_variance     = β' Σ β
-total_variance          ≈ systematic_variance + residual_variance
-```
-
-### Quick Example
-
-```rust
-use fin_primitives::factor::{Factor, FactorModel};
-
-let market = Factor::new("MKT", vec![0.01, -0.02, 0.015, 0.005, -0.01]);
-let asset  = vec![0.008, -0.018, 0.012, 0.003, -0.009];
-
-let exposure = FactorModel::fit("AAPL", &asset, &[market]);
-println!("alpha={:.4}  beta={:.4}  R²={:.4}",
-    exposure.alpha, exposure.betas[0], exposure.r_squared);
-```
-
----
-
-## Execution Cost Model
-
-The `execution` module estimates round-trip trading costs and finds optimal rebalancing trades.
-
-### Structs
-
-| Type | Description |
-|------|-------------|
-| `ExecutionCost { commission_usd, spread_cost_usd, market_impact_usd, total_cost_usd, cost_bps }` | Full cost breakdown |
-| `CostParams { commission_per_share, spread_bps, impact_coefficient, avg_daily_volume }` | Model parameters |
-| `Trade { symbol, direction, weight_change, estimated_cost_bps }` | A single rebalancing trade |
-
-### Formulas
-
-```
-commission_usd    = commission_per_share × shares
-spread_cost_usd   = (spread_bps / 10_000) × notional_usd
-impact_bps        = impact_coefficient × sqrt(shares / avg_daily_volume) × 10_000
-market_impact_usd = (impact_bps / 10_000) × notional_usd
-total_cost_usd    = commission_usd + spread_cost_usd + market_impact_usd
-cost_bps          = total_cost_usd / notional_usd × 10_000
-```
-
-### Quick Example
-
-```rust
-use fin_primitives::execution::{CostModel, CostParams, TurnoverOptimizer};
-use std::collections::HashMap;
-
-let params = CostParams {
-    commission_per_share: 0.005,
-    spread_bps: 5.0,
-    impact_coefficient: 0.1,
-    avg_daily_volume: 1_000_000.0,
-};
-
-let cost = CostModel::estimate(100_000.0, 10_000.0, 10.0, &params);
-println!("Total cost: ${:.2} ({:.1} bps)", cost.total_cost_usd, cost.cost_bps);
-
-let current: HashMap<String, f64> = [("SPY".into(), 0.6), ("TLT".into(), 0.4)].into();
-let target:  HashMap<String, f64> = [("SPY".into(), 0.5), ("TLT".into(), 0.5)].into();
-let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
-for t in &trades {
-    println!("{}: {:?} {:.1}% @ {:.1} bps", t.symbol, t.direction, t.weight_change * 100.0, t.estimated_cost_bps);
-}
-```
-
----
-
-## What's New
-
-### v2.17.0 — Portfolio Optimization and Kelly Criterion Position Sizing
-
-| Change | Module | Detail |
-|--------|--------|--------|
-| **Portfolio Optimizer** | `portfolio::optimizer` | Markowitz mean-variance optimization — `MinVariance`, `MaxSharpe`, `RiskParity`, `EqualWeight` via projected gradient descent (200 iters, simplex projection); `CovarianceMatrix` with `ledoit_wolf_shrinkage`; `MaxWeight`, `MinWeight`, `LongOnly`, `SectorConstraint` constraints; `effective_n` (inverse HHI) |
-| **Kelly Criterion Sizer** | `position::kelly` | `full_kelly`, `fractional_kelly`, `KellyResult` with position size, max loss, and expected log growth; `KellyPortfolio::allocate` — multi-asset Kelly with correlation penalty and total-fraction cap |
-
-#### Portfolio Optimization — quick example
-
-```rust
-use fin_primitives::portfolio::{Asset, CovarianceMatrix, OptimizationObjective, Constraint, PortfolioOptimizer};
-
-let assets = vec![
-    Asset { symbol: "SPY".into(),  expected_return: 0.10, variance: 0.04 },
-    Asset { symbol: "TLT".into(),  expected_return: 0.05, variance: 0.01 },
-    Asset { symbol: "GLD".into(),  expected_return: 0.07, variance: 0.025 },
-];
-
-let mut cov = CovarianceMatrix::new(vec!["SPY".into(), "TLT".into(), "GLD".into()]);
-cov.set(0, 0, 0.04);  cov.set(0, 1, -0.01); cov.set(0, 2, 0.005);
-cov.set(1, 1, 0.01);  cov.set(1, 2, 0.002);
-cov.set(2, 2, 0.025);
-cov.ledoit_wolf_shrinkage();  // analytical Ledoit-Wolf shrinkage toward scaled identity
-
-let result = PortfolioOptimizer::optimize(
-    &assets,
-    &cov,
-    &OptimizationObjective::MaxSharpe { risk_free_rate: 0.04 },
-    &[Constraint::LongOnly, Constraint::MaxWeight(0.6)],
-);
-
-println!("Sharpe: {:.3}", result.sharpe_ratio);
-println!("Effective N: {:.2}", result.effective_n);  // inverse HHI diversification measure
-for (sym, w) in &result.weights {
-    println!("  {sym}: {:.1}%", w * 100.0);
-}
-```
-
-**Math:**
-- Portfolio variance: `σ²_p = w' Σ w`
-- Sharpe ratio: `S = (μ_p − r_f) / σ_p`
-- Ledoit-Wolf shrinkage: `Σ* = (1−α)Σ + α·μ·I` where `α = Σ_{i≠j} Σ²_{ij} / ((n+2)·Σ_{i≠j} Σ²_{ij})`
-- Effective N (inverse HHI): `N* = 1 / Σ_i w²_i`
-
-#### Kelly Criterion Position Sizing — quick example
-
-```rust
-use fin_primitives::position::{KellyInput, full_kelly, fractional_kelly, KellyPortfolio};
-use fin_primitives::portfolio::CovarianceMatrix;
-
-let input = KellyInput {
-    win_probability: 0.60,   // 60 % win rate
-    win_return:      1.0,    // +100 % on win
-    loss_return:     1.0,    // −100 % on loss (full loss)
-    bankroll:        50_000.0,
-};
-
-let full = full_kelly(&input);
-println!("Full Kelly fraction: {:.1}%",  full.fraction * 100.0);  // 20.0 %
-println!("Position size: ${:.0}",        full.position_size_usd);  // $10,000
-println!("Max loss: ${:.0}",             full.max_loss_usd);
-println!("Expected log growth: {:.4}",   full.expected_growth);
-
-let half = fractional_kelly(&input, 0.5);
-println!("Half-Kelly fraction: {:.1}%",  half.fraction * 100.0);   // 10.0 %
-
-// Multi-asset Kelly with correlation penalty
-let assets = vec![input.clone(), KellyInput { win_probability: 0.55, win_return: 1.5, loss_return: 1.0, bankroll: 50_000.0 }];
-let mut cov = CovarianceMatrix::new(vec!["BTC".into(), "ETH".into()]);
-cov.set(0, 1, 0.8);  // high positive correlation → penalty applied
-let allocs = KellyPortfolio::allocate(&assets, &cov, 0.5);  // cap total at 50 %
-```
-
-**Math:**
-- Full Kelly: `f* = (b·p − q) / b` where `b = win_return`, `p = win_probability`, `q = 1−p`
-- Expected log growth: `g = p·ln(1 + b·f) + q·ln(1 − f)`
-- Correlation penalty: `f̃_i = f_i / (1 + Σ_{j≠i} |ρ_{ij}|·f_j)`
-
----
-
-### v2.16.0 — Signal Warmup Contracts, Signal Composition Engine, Risk Attribution
-
-| Change | Module | Detail |
-|--------|--------|--------|
-| **Signal Warmup Contracts** | `signals::warmup` | `WarmupContract` trait, `WarmupGuard` (returns `Err(NotReady)` instead of `Unavailable`), `WarmupReporter` (pipeline warmup snapshot) |
-| **Signal Composition Engine** | `signals::compose` | `SignalExpr` DSL, `ComposedSignal` evaluator, fluent `SignalBuilder` API for lag/normalize/threshold chains |
-| **Risk Attribution** | `risk::attribution` | `RiskAttributor` decomposes portfolio risk into 6 factors; `BhbAttribution` for Brinson-Hood-Beebower P&L attribution |
-| **`RiskMonitor::attribution_report`** | `risk` | Convenience method on `RiskMonitor` to get an `AttributionReport` in one call |
-
-### v2.15.0 — Composite Signal Builder, OrderBook Diagnostic Logging
-
-| Change | Module | Detail |
-|--------|--------|--------|
-| **Multi-signal composite builder** | `signals::composite` | Combine N indicators with `WeightedSum`, `All` (AND), `Any` (OR), or `First` (priority fallback) strategies using a fluent builder API |
-| **OrderBook inversion diagnostic log** | `orderbook` | Inverted-spread detection now emits a `WARN` log with symbol, prices, and sequence number before rolling back — operators can correlate bad feed data without instrumenting call sites |
-
-#### Composite signal — quick example
-
-```rust
-use fin_primitives::signals::composite::{CompositeSignal, CompositeMode};
-use fin_primitives::signals::indicators::{Sma, Rsi};
-use rust_decimal_macros::dec;
-
-// 50% SMA + 50% RSI blend: returns Unavailable until both indicators warm up.
-let mut blend = CompositeSignal::builder("sma_rsi_blend")
-    .add(Sma::new("sma20", 20)?, dec!(0.5))
-    .add(Rsi::new("rsi14", 14)?, dec!(0.5))
-    .mode(CompositeMode::WeightedSum)
-    .build();
-
-// AND gate: fire only when both are non-zero.
-let mut gate = CompositeSignal::builder("trend_confirm")
-    .add(Sma::new("sma50", 50)?, dec!(1))
-    .add(Rsi::new("rsi14", 14)?, dec!(1))
-    .mode(CompositeMode::All)
-    .build();
-```
-
----
-
-## What Is Included
-
-| Module | What it provides | Key guarantee |
-|--------|-----------------|---------------|
-| [`types`] | `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` newtypes | Validation at construction; no invalid value can exist at runtime |
-| [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
-| [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected, logged, and rolled back |
-| [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
-| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods), `CompositeSignal`, **`SignalExpr` composition DSL**, **`WarmupGuard`** | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
-| [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
-| [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor`, **`RiskAttributor`** (6-factor), **`BhbAttribution`** | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
-| [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
-| [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
-| [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
-| [`regime`] | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-adaptive RSI |
-
----
-
-## Why fin-primitives?
-
-Most financial Rust crates solve one problem. `fin-primitives` solves the whole
-stack — validated domain types through streaming indicators through risk monitoring
-— with a single consistent design contract:
-
-| Concern | How fin-primitives addresses it |
-|---------|--------------------------------|
-| **Correctness** | `Price`/`Quantity`/`Symbol` are validated newtypes; invalid values cannot exist at runtime |
-| **Precision** | All prices use `rust_decimal::Decimal`; floating-point drift is structurally impossible |
-| **No surprises** | Signals return `Unavailable` — never silent NaN — until warmup is complete; `WarmupGuard` converts that to a typed `Err` |
-| **Composability** | `Signal`, `RiskRule`, `TickFilter` are traits; plug in your own without forking |
-| **Expressiveness** | The `SignalExpr` DSL lets you write `rsi.lag(1).normalize(ZScore).threshold(2.0, Above)` instead of bespoke structs |
-| **Attribution** | The 6-factor `RiskAttributor` and BHB P&L decomposition let you see *why* your portfolio is taking risk, not just *how much* |
-| **Scale** | 725+ streaming indicators, 370+ OHLCV analytics, 145+ ledger methods, 120+ drawdown statistics — all in one coherent API |
-| **Safety** | `#![forbid(unsafe_code)]`; zero `unwrap`/`expect` in production paths; every error is typed and propagatable |
-
-```
-"The goal is to make correctness the path of least resistance."
-```
-
----
-
-## Design Principles
-
-- **Zero panics.** Every fallible operation returns `Result<_, FinError>`.
-  No `unwrap` or `expect` in production code paths.
-- **Decimal precision.** All prices and quantities use [`rust_decimal::Decimal`].
-  Floating-point drift is structurally impossible.
-- **Nanosecond timestamps.** `NanoTimestamp` is a newtype over `i64` nanoseconds
-  since Unix epoch, suitable for microsecond-accurate event ordering and replay.
-- **Composable by design.** `RiskRule`, `Signal`, and `TickFilter` are traits;
-  plug in your own implementations without forking.
-- **Separation of concerns.** Each module has a documented responsibility contract
-  and an explicit "NOT Responsible For" section.
-
----
+Validated, decimal-precise building blocks for trading and quantitative systems in Rust:
+price/quantity types, an L2 order book, tick-to-OHLCV aggregation, a large library of
+streaming technical indicators, a position ledger, risk rules, option Greeks and a
+backtester.
+
+Most Rust finance code starts by re-implementing the same pieces: a `Price` type that
+cannot go negative, a bar aggregator, an RSI that does not emit NaN during warm-up, a
+ledger that tracks realized and unrealized P&L. `fin-primitives` puts those pieces in one
+crate with one error type (`FinError`) and one design contract, so the code on top can
+focus on the strategy or the research question.
+
+> Research and engineering library. Nothing here is a trading strategy, and nothing in
+> this repository is financial advice. Backtest results depend entirely on your data and
+> assumptions.
+
+**Contents:** [Quickstart](#quickstart) · [What is included](#what-is-included) ·
+[Architecture](#architecture-overview) · [Module guides](#module-guides) ·
+[API reference](#api-reference) · [Tests and benchmarks](#running-tests-and-benchmarks)
 
 ## Quickstart
 
@@ -423,9 +31,27 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-fin-primitives = "2.9"
+fin-primitives = "2"          # crates.io (latest published: 2.12.0)
 rust_decimal_macros = "1"
 ```
+
+The `main` branch (Cargo.toml version 2.14.0) is ahead of crates.io. Several modules
+described below (portfolio optimizer, Kelly sizing, signal composition, factor model,
+yield curve, event study and others) may only be available from git:
+
+```toml
+fin-primitives = { git = "https://github.com/Mattbusel/fin-primitives" }
+```
+
+Or clone and run the test suite:
+
+```bash
+git clone https://github.com/Mattbusel/fin-primitives
+cd fin-primitives
+cargo test
+```
+
+The three examples below compile against the current `main` branch.
 
 ### Example: Buy, mark-to-market, check risk
 
@@ -466,8 +92,8 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ```rust
 use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
-use fin_primitives::signals::SignalPipeline;
 use fin_primitives::signals::indicators::Sma;
+use fin_primitives::signals::pipeline::SignalPipeline;
 use fin_primitives::tick::Tick;
 use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
 use rust_decimal_macros::dec;
@@ -475,7 +101,7 @@ use rust_decimal_macros::dec;
 fn main() -> Result<(), fin_primitives::FinError> {
     let sym = Symbol::new("BTC")?;
     let mut agg = OhlcvAggregator::new(sym.clone(), Timeframe::Minutes(1))?;
-    let mut pipeline = SignalPipeline::new().add(Sma::new("sma20", 20));
+    let mut pipeline = SignalPipeline::new().add(Sma::new("sma20", 20)?);
 
     let tick = Tick::new(
         sym,
@@ -485,8 +111,9 @@ fn main() -> Result<(), fin_primitives::FinError> {
         NanoTimestamp::now(),
     );
 
-    if let Some(bar) = agg.push_tick(&tick)? {
-        let signals = pipeline.update(&bar)?;
+    // push_tick returns every bar completed by this tick (usually zero or one).
+    for bar in agg.push_tick(&tick)? {
+        let signals = pipeline.update(&bar);
         println!("sma20 = {:?}", signals.get("sma20"));
     }
     Ok(())
@@ -497,13 +124,13 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 ```rust
 use fin_primitives::signals::indicators::Rsi;
-use fin_primitives::signals::{Signal, SignalValue};
+use fin_primitives::signals::{BarInput, Signal, SignalValue};
 use fin_primitives::ohlcv::OhlcvBar;
 use fin_primitives::types::{NanoTimestamp, Price, Quantity, Symbol};
 use rust_decimal_macros::dec;
 
 fn main() -> Result<(), fin_primitives::FinError> {
-    let mut rsi = Rsi::new("rsi14", 14);
+    let mut rsi = Rsi::new("rsi14", 14)?;
     let closes = [44, 44, 44, 43, 44, 44, 45, 45, 43, 44, 44, 45, 45, 43, 44u32];
     for c in closes {
         let p = Price::new(dec!(1) * rust_decimal::Decimal::from(c))?;
@@ -511,11 +138,11 @@ fn main() -> Result<(), fin_primitives::FinError> {
             symbol: Symbol::new("X")?,
             open: p, high: p, low: p, close: p,
             volume: Quantity::zero(),
-            ts_open: NanoTimestamp(0),
-            ts_close: NanoTimestamp(1),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
             tick_count: 1,
         };
-        if let SignalValue::Scalar(v) = rsi.update(&bar)? {
+        if let SignalValue::Scalar(v) = rsi.update(&BarInput::from(&bar))? {
             println!("RSI(14) = {v:.2}");
         }
     }
@@ -523,9 +150,103 @@ fn main() -> Result<(), fin_primitives::FinError> {
 }
 ```
 
+## What Is Included
+
+| Module | What it provides | Key guarantee |
+|--------|-----------------|---------------|
+| [`types`] | `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` newtypes | Validation at construction; no invalid value can exist at runtime |
+| [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer always yields ticks in ascending timestamp order |
+| [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected, logged, and rolled back |
+| [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` (370+ analytics) | Bar invariants (`high >= low`, etc.) enforced on every push |
+| [`signals`] | `Signal` trait, `SignalPipeline`, **725+ built-in indicators**, `SignalMap` (90+ methods), `CompositeSignal`, **`SignalExpr` composition DSL**, **`WarmupGuard`** | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
+| [`position`] | `Position`, `Fill`, `PositionLedger` (145+ methods) | VWAP average cost; realized and unrealized P&L net of commissions |
+| [`risk`] | `DrawdownTracker` (120+ methods), `RiskRule` trait, `RiskMonitor`, **`RiskAttributor`** (6-factor), **`BhbAttribution`** | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
+| [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
+| [`backtest`] | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
+| [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
+| [`regime`] | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-adaptive RSI |
+
+Additional modules in `src/` (see [docs.rs](https://docs.rs/fin-primitives) or the source for
+their APIs): `pnl`, `correlation`, `latency`, `scenario`, `ml`, `ml_features`, `cross_asset`,
+`attribution`, `options`, `volatility`, `impact`, `portfolio`, `factor`, `execution`,
+`execution_cost`, `montecarlo`, `yield_curve`, `events`, `microstructure`, `crypto`,
+`derivatives`, `technical`, `fixed_income`, `credit`, `liquidity`, `pairs_trading`,
+`performance`, `clustering`, `tax`, `rebalancing`, `funding`, `alternative_data`,
+`arbitrage`. Optional Python bindings are behind the `python` feature
+(`maturin develop --features python`).
+
+## Why fin-primitives?
+
+Most financial Rust crates solve one problem. `fin-primitives` solves the whole
+stack, validated domain types through streaming indicators through risk monitoring
+- with a single consistent design contract:
+
+| Concern | How fin-primitives addresses it |
+|---------|--------------------------------|
+| **Correctness** | `Price`/`Quantity`/`Symbol` are validated newtypes; invalid values cannot exist at runtime |
+| **Precision** | Prices and quantities use `rust_decimal::Decimal`; statistical and portfolio math uses `f64` |
+| **No surprises** | Signals return `Unavailable`, never silent NaN, until warmup is complete; `WarmupGuard` converts that to a typed `Err` |
+| **Composability** | `Signal`, `RiskRule`, `TickFilter` are traits; plug in your own without forking |
+| **Expressiveness** | The `SignalExpr` DSL lets you write `rsi.lag(1).normalize(ZScore).threshold(2.0, Above)` instead of bespoke structs |
+| **Attribution** | The 6-factor `RiskAttributor` and BHB P&L decomposition let you see *why* your portfolio is taking risk, not just *how much* |
+| **Scale** | 725+ streaming indicators, 370+ OHLCV analytics, 145+ ledger methods, 120+ drawdown statistics, all in one coherent API |
+| **Safety** | `#![forbid(unsafe_code)]`; fallible operations return a typed `FinError`; Clippy warns on `unwrap`/`expect`/`panic` |
+
+## Design Principles
+
+- **Typed errors.** Fallible operations return `Result<_, FinError>`. The crate's
+  Clippy config warns on `unwrap`, `expect` and `panic`.
+- **Decimal precision.** Prices and quantities use [`rust_decimal::Decimal`], so
+  price arithmetic has no binary floating-point rounding. Statistical models
+  (GARCH, Monte Carlo, portfolio optimization) work in `f64`.
+- **Nanosecond timestamps.** `NanoTimestamp` is a newtype over `i64` nanoseconds
+  since Unix epoch, suitable for microsecond-accurate event ordering and replay.
+- **Composable by design.** `RiskRule`, `Signal`, and `TickFilter` are traits;
+  plug in your own implementations without forking.
+- **Separation of concerns.** Each module has a documented responsibility contract
+  and an explicit "NOT Responsible For" section.
+
+## Architecture Overview
+
+```
+                      Tick stream
+                          |
+                    TickReplayer / TickFilter
+                          |
+              +-----------+-----------+
+              |                       |
+        OhlcvAggregator          OrderBook
+              |                 (apply_delta)
+        OhlcvSeries                   |
+         (370+ analytics)   vwap_for_qty / spread
+              |
+        SignalPipeline ─────── CompositeSignal
+        (725+ indicators)            │
+              │                SignalExpr DSL
+        WarmupGuard / WarmupReporter │
+              │              (compose.rs)
+         SignalMap (90+ methods)
+              |
+     PositionLedger (145+ methods)
+              |          │
+        DrawdownTracker  └──── RiskAttributor ──── BhbAttribution
+        (120+ methods)         (6-factor model)   (BHB P&L split)
+              |
+         RiskMonitor ──── attribution_report()
+              |
+       Vec<RiskBreach>
+```
+
+All arrows represent pure data flow. No shared mutable state crosses module
+boundaries. Wrap any component in `Arc<Mutex<_>>` for multi-threaded use.
+
 ---
 
-## Technical Indicators (725+)
+## Module guides
+
+Detailed notes per subsystem. Counts in headings (for example "725+") are the number of indicator types or methods in that module.
+
+### Technical Indicators (725+)
 
 All indicators implement the `Signal` trait and return `SignalValue::Unavailable`
 until warm-up is satisfied. No silent NaN or panic.
@@ -692,9 +413,7 @@ until warm-up is satisfied. No silent NaN or panic.
 | **PriceEntropyScore(n)** | Shannon entropy of up/flat/down bins, normalized to [0,1] | n + 1 |
 | **VolatilityOfVolatility(n)** | Std dev of rolling ATR values | 2n − 1 |
 
----
-
-## OhlcvSeries Analytics (370+)
+### OhlcvSeries Analytics (370+)
 
 `OhlcvSeries` ships an extensive built-in analytics library. A selection:
 
@@ -724,9 +443,7 @@ until warm-up is satisfied. No silent NaN or panic.
 `consecutive_lower_lows`, `longest_winning_streak`, `longest_losing_streak`,
 `longest_flat_streak`, `bars_since_new_high`, `bars_since_new_low`
 
----
-
-## SignalValue Combinators (70+)
+### SignalValue Combinators (70+)
 
 `SignalValue` carries a scalar or `Unavailable` and propagates unavailability
 through every operation:
@@ -747,9 +464,7 @@ sv.sign_match(other)               // true if same sign
 sv.map(f) / sv.zip_with(other, f)  // functor / applicative style
 ```
 
----
-
-## SignalMap Analytics (90+)
+### SignalMap Analytics (90+)
 
 `SignalMap` is the output of `SignalPipeline::update`. Fleet-wide analytics:
 
@@ -769,16 +484,14 @@ map.count_positive() / .count_negative() / .count_zero()
 map.all_positive() / .all_negative()
 ```
 
----
-
-## Signal Warmup Contracts
+### Signal Warmup Contracts
 
 Every indicator has an implicit warmup period. `signals::warmup` makes that
 period queryable, enforceable, and reportable:
 
 | Type | Purpose |
 |------|---------|
-| `WarmupContract` | Trait: `warmup_period()`, `is_ready()`, `bars_remaining()` — implemented by all `Signal` types |
+| `WarmupContract` | Trait: `warmup_period()`, `is_ready()`, `bars_remaining()`, implemented by all `Signal` types |
 | `WarmupGuard<S>` | Wraps any signal; returns `Err(NotReady)` until warmup completes instead of silent `Unavailable` |
 | `WarmupReporter` | Tracks warmup progress for N signals and produces `WarmupReport` snapshots |
 | `WarmupReport` | `all_ready()`, `pipeline_bars_remaining()`, `warming_signals()`, `display()` |
@@ -798,7 +511,7 @@ for _ in 0..4 {
     // Err(NotReady { bars_remaining: 4, 3, 2, 1 })
     assert!(guard.update_checked(&bar).is_err());
 }
-// 5th bar — Ok(SignalValue::Scalar(...))
+// 5th bar, Ok(SignalValue::Scalar(...))
 assert!(guard.update_checked(&BarInput::from_close(dec!(100))).is_ok());
 
 // Reporter: pipeline-level warmup snapshot
@@ -817,14 +530,12 @@ println!("{}", report.display());
 //   [WARMING] bb20  (period=20, remaining=15)
 ```
 
----
-
-## Signal Composition Engine
+### Signal Composition Engine
 
 `signals::compose` provides a composable expression-tree DSL for building
 derived signals from existing indicators without writing bespoke structs.
 
-### Expression Nodes
+#### Expression Nodes
 
 | Node | Description |
 |------|-------------|
@@ -836,7 +547,7 @@ derived signals from existing indicators without writing bespoke structs.
 | `Normalize(expr, method, window)` | `MinMax`, `ZScore`, or `Percentile` normalisation |
 | `Threshold(expr, level, dir)` | `Above` → `+1/0`, `Below` → `-1/0`, `Cross` → `+1/-1/0` |
 
-### Fluent `SignalBuilder` API
+#### Fluent `SignalBuilder` API
 
 ```rust
 use fin_primitives::signals::indicators::Rsi;
@@ -869,7 +580,7 @@ let leaves: Vec<Box<dyn Signal>> = vec![Box::new(sma_fast), Box::new(sma_slow)];
 let mut cross = ComposedSignal::new("fast_slow_cross", expr, leaves).unwrap();
 ```
 
-### Normalisation Methods
+#### Normalisation Methods
 
 | Method | Formula | Output |
 |--------|---------|--------|
@@ -877,15 +588,51 @@ let mut cross = ComposedSignal::new("fast_slow_cross", expr, leaves).unwrap();
 | `ZScore` | `(v - mean) / std_dev` | Unbounded; typically `[-3, +3]` |
 | `Percentile` | Rank within rolling window | `[0, 1]` |
 
----
+### PositionLedger Analytics (145+)
 
-## Risk Attribution
+```rust
+ledger.equity(&prices)                      // cash + unrealized P&L
+ledger.total_unrealized_pnl(&prices)        // sum of all open position P&L
+ledger.concentration_ratio()               // Herfindahl-Hirschman Index
+ledger.long_exposure() / .short_exposure()  // directional gross exposure
+ledger.avg_long_entry_price()               // VWAP of long entries
+ledger.avg_short_entry_price()              // VWAP of short entries
+ledger.pct_long() / .pct_short()            // directional balance
+ledger.win_rate()                           // % of closed positions with positive P&L
+ledger.largest_position() / .smallest_position()
+ledger.symbols_with_unrealized_loss(&prices)
+ledger.risk_reward_ratio()
+ledger.kelly_fraction()
+```
+
+### DrawdownTracker Analytics (120+)
+
+```rust
+tracker.current_drawdown_pct()      // (peak − equity) / peak × 100
+tracker.max_drawdown_pct()          // worst drawdown seen
+tracker.calmar_ratio()              // annualized return / max drawdown
+tracker.sharpe_ratio()              // using per-update equity changes
+tracker.sortino_ratio()             // downside-deviation adjusted
+tracker.win_rate()                  // fraction of updates that gained equity
+tracker.avg_gain_pct()              // average gain per gaining update
+tracker.avg_loss_pct()              // average loss per losing update
+tracker.equity_change_std()         // std dev of per-update equity changes
+tracker.gain_loss_asymmetry()       // ratio of avg gain magnitude to avg loss magnitude
+tracker.recovery_factor()           // net return / max drawdown
+tracker.omega_ratio()               // probability-weighted gain/loss ratio
+tracker.equity_multiple()           // current / initial equity
+tracker.return_drawdown_ratio()     // net return % / worst drawdown %
+tracker.streak_win_rate()           // max_gain_streak / total streak length
+tracker.time_to_recover_est()       // estimated updates to recover from current drawdown
+```
+
+### Risk Attribution
 
 `risk::attribution` decomposes portfolio risk into six named factors and supports
 Brinson-Hood-Beebower P&L attribution. Use `RiskMonitor::attribution_report` or
 construct `RiskAttributor` directly.
 
-### Six-Factor Risk Decomposition
+#### Six-Factor Risk Decomposition
 
 | Factor | Driver | Estimation |
 |--------|--------|------------|
@@ -931,7 +678,7 @@ let dominant = report.dominant_factor().unwrap();
 println!("Largest risk factor: {}", dominant.factor.name());
 ```
 
-### Brinson-Hood-Beebower P&L Attribution
+#### Brinson-Hood-Beebower P&L Attribution
 
 ```rust
 use fin_primitives::risk::attribution::{RiskAttributor, BhbInput, BhbSectorInput, MarketData};
@@ -967,53 +714,9 @@ println!("  Selection:    {:.4}", bhb.total_selection);
 println!("  Interaction:  {:.4}", bhb.total_interaction);
 ```
 
----
+### Options Greeks & Black-Scholes
 
-## PositionLedger Analytics (145+)
-
-```rust
-ledger.equity(&prices)                      // cash + unrealized P&L
-ledger.total_unrealized_pnl(&prices)        // sum of all open position P&L
-ledger.concentration_ratio()               // Herfindahl-Hirschman Index
-ledger.long_exposure() / .short_exposure()  // directional gross exposure
-ledger.avg_long_entry_price()               // VWAP of long entries
-ledger.avg_short_entry_price()              // VWAP of short entries
-ledger.pct_long() / .pct_short()            // directional balance
-ledger.win_rate()                           // % of closed positions with positive P&L
-ledger.largest_position() / .smallest_position()
-ledger.symbols_with_unrealized_loss(&prices)
-ledger.risk_reward_ratio()
-ledger.kelly_fraction()
-```
-
----
-
-## DrawdownTracker Analytics (120+)
-
-```rust
-tracker.current_drawdown_pct()      // (peak − equity) / peak × 100
-tracker.max_drawdown_pct()          // worst drawdown seen
-tracker.calmar_ratio()              // annualized return / max drawdown
-tracker.sharpe_ratio()              // using per-update equity changes
-tracker.sortino_ratio()             // downside-deviation adjusted
-tracker.win_rate()                  // fraction of updates that gained equity
-tracker.avg_gain_pct()              // average gain per gaining update
-tracker.avg_loss_pct()              // average loss per losing update
-tracker.equity_change_std()         // std dev of per-update equity changes
-tracker.gain_loss_asymmetry()       // ratio of avg gain magnitude to avg loss magnitude
-tracker.recovery_factor()           // net return / max drawdown
-tracker.omega_ratio()               // probability-weighted gain/loss ratio
-tracker.equity_multiple()           // current / initial equity
-tracker.return_drawdown_ratio()     // net return % / worst drawdown %
-tracker.streak_win_rate()           // max_gain_streak / total streak length
-tracker.time_to_recover_est()       // estimated updates to recover from current drawdown
-```
-
----
-
-## Options Greeks & Black-Scholes
-
-The `greeks` module provides a zero-panic European option pricing engine.
+The `greeks` module provides a European option pricing engine whose functions return `Result` instead of panicking.
 
 ```rust
 use fin_primitives::greeks::{BlackScholes, OptionSpec, OptionType, SpreadGreeks};
@@ -1069,14 +772,12 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 Implied vol is solved by bisection over `[1e-6, 5.0]` (up to 200 iterations, tolerance 1e-7).
 
----
-
-## Regime Detection Engine
+### Regime Detection Engine
 
 The `regime` module classifies the current market state using four complementary
 quantitative signals, then adapts strategy parameters per regime.
 
-### Regimes
+#### Regimes
 
 | Regime | Primary Signal | Condition |
 |--------|---------------|-----------|
@@ -1085,14 +786,14 @@ quantitative signals, then adapts strategy parameters per regime.
 | `HighVolatility` | Realized vol / long-run mean | ratio > 2.0x; GARCH confirms |
 | `LowVolatility` | Realized vol / long-run mean | ratio < 0.5x; BB width compressed |
 | `Crisis` | Cross-asset correlation | > 60% of pairs decorrelated simultaneously |
-| `Neutral` | — | No dominant signal |
-| `Unknown` | — | Warm-up phase incomplete |
+| `Neutral` |, | No dominant signal |
+| `Unknown` |, | Warm-up phase incomplete |
 
 Priority order: `Crisis > HighVolatility > Trending > MeanReverting > LowVolatility > Neutral`
 
-### GARCH(1,1) Persistent Volatility
+#### GARCH(1,1) Persistent Volatility
 
-The `Garch11` struct fits an online GARCH(1,1) model — ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁ — and flags when conditional vol exceeds the long-run level by a configurable multiplier. This catches regimes where volatility is structurally elevated (crisis, rate shock) rather than just transiently spiked.
+The `Garch11` struct fits an online GARCH(1,1) model, ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁, and flags when conditional vol exceeds the long-run level by a configurable multiplier. This catches regimes where volatility is structurally elevated (crisis, rate shock) rather than just transiently spiked.
 
 ```rust
 use fin_primitives::regime::{Garch11, RegimeDetector, RegimeConfig, MarketRegime, RegimeConditionalSignal};
@@ -1132,7 +833,7 @@ for epoch in detector.history() {
 }
 ```
 
-### Regime-Conditional Signal Adaptation
+#### Regime-Conditional Signal Adaptation
 
 `RegimeConditionalSignal` applies RSI with a short period in trending markets,
 a longer period when mean-reverting, and suppresses the signal entirely in crisis:
@@ -1159,7 +860,7 @@ match signal.update(&bar, MarketRegime::Trending) {
 assert!(signal.update(&bar, MarketRegime::Crisis).is_none());
 ```
 
-### RegimeConfig Thresholds
+#### RegimeConfig Thresholds
 
 ```rust
 RegimeConfig {
@@ -1178,14 +879,72 @@ RegimeConfig {
 }
 ```
 
----
+### Backtester with Walk-Forward Optimization
 
-## Walk-Forward Optimizer (Grid Search)
+The `backtest` module provides a bar-by-bar event-driven backtester and a
+rolling walk-forward optimizer.
+
+```rust
+use fin_primitives::backtest::{
+    Backtester, BacktestConfig, Signal, SignalDirection, Strategy, WalkForwardOptimizer,
+};
+use fin_primitives::ohlcv::OhlcvBar;
+use rust_decimal_macros::dec;
+
+// 1. Implement the Strategy trait
+struct MomentumStrategy { last_close: Option<rust_decimal::Decimal> }
+
+impl Strategy for MomentumStrategy {
+    fn on_bar(&mut self, bar: &OhlcvBar) -> Option<Signal> {
+        let close = bar.close.value();
+        let dir = match self.last_close {
+            Some(prev) if close > prev => SignalDirection::Buy,
+            Some(prev) if close < prev => SignalDirection::Sell,
+            _ => SignalDirection::Hold,
+        };
+        self.last_close = Some(close);
+        Some(Signal::new(dir, dec!(1)))
+    }
+}
+
+fn main() -> Result<(), fin_primitives::FinError> {
+    // 2. Configure and run
+    let config = BacktestConfig::new(dec!(100_000), dec!(0.001))?;
+    let bars: Vec<OhlcvBar> = vec![/* … */];
+    let result = Backtester::new(config.clone()).run(&bars, &mut MomentumStrategy { last_close: None })?;
+
+    println!("total_return={:.2}%  sharpe={:.2}  max_dd={:.2}%  trades={}",
+        result.total_return * dec!(100),
+        result.sharpe_ratio,
+        result.max_drawdown * dec!(100),
+        result.trade_count);
+
+    // 3. Walk-forward optimization
+    let wfo = WalkForwardOptimizer::new(200, 50, config)?;
+    let wf = wfo.run(&bars, |_train| Box::new(MomentumStrategy { last_close: None }))?;
+    println!("mean OOS return={:.2}%  worst dd={:.2}%",
+        wf.mean_return * dec!(100), wf.worst_drawdown * dec!(100));
+    Ok(())
+}
+```
+
+**`BacktestResult` fields:**
+
+| Field | Description |
+|---|---|
+| `total_return` | `(final_equity − initial_capital) / initial_capital` |
+| `sharpe_ratio` | Annualised Sharpe (252-day, sample stddev), 0 if flat returns |
+| `max_drawdown` | Peak-to-trough fraction, always in `[0, 1]` |
+| `win_rate` | Fraction of closed trades with positive realized P&L |
+| `trade_count` | Total fills executed |
+| `equity_curve` | `Vec<Decimal>` sampled once per bar |
+
+### Walk-Forward Optimizer (Grid Search)
 
 The `backtest::walk_forward` module provides proper out-of-sample validation
 via a rolling train/test split with parameter grid search.
 
-### Algorithm
+#### Algorithm
 
 ```text
 |────── train ──────|── test ──|
@@ -1201,7 +960,7 @@ For each window:
 
 Aggregate: `aggregate_sharpe = mean(OOS Sharpe)`, `stability_score = fraction of OOS windows with positive Sharpe`.
 
-### Example
+#### Example
 
 ```rust
 use fin_primitives::backtest::walk_forward::{WalkForwardOptimizer, WalkForwardConfig, ParamRange};
@@ -1270,92 +1029,298 @@ if let Some(best) = result.best_period() {
 }
 ```
 
-### `WalkForwardResult` Fields
+#### `WalkForwardResult` Fields
 
 | Field | Description |
 |---|---|
-| `periods` | `Vec<WfPeriod>` — one entry per rolling window |
+| `periods` | `Vec<WfPeriod>`, one entry per rolling window |
 | `aggregate_sharpe` | Mean out-of-sample Sharpe across all periods |
 | `stability_score` | Fraction of OOS windows with positive Sharpe; `[0, 1]` |
 | `mean_oos_return` | Mean OOS total return across all periods |
 | `worst_oos_drawdown` | Maximum OOS drawdown seen across any single period |
 
-### `WfPeriod` Fields
+#### `WfPeriod` Fields
 
 | Field | Description |
 |---|---|
 | `train_start / train_end` | Bar index range of the training window |
 | `test_start / test_end` | Bar index range of the test window |
-| `best_params` | `HashMap<String, f64>` — winning parameter combination |
+| `best_params` | `HashMap<String, f64>`, winning parameter combination |
 | `in_sample_sharpe` | Best Sharpe achieved on training data |
 | `out_of_sample_sharpe` | Sharpe achieved on held-out test data |
 | `oos_result` | Full `BacktestResult` for the OOS period |
 
----
+### Backtesting Engine
 
-## Backtester with Walk-Forward Optimization
+The `backtest::engine` module provides an event-driven backtester with realistic fill simulation.
 
-The `backtest` module provides a bar-by-bar event-driven backtester and a
-rolling walk-forward optimizer.
+#### Key Types
+
+| Type | Description |
+|------|-------------|
+| `BacktestEngine` | Stateless engine; call `BacktestEngine::run(signals, config)` |
+| `EngineConfig` | `initial_capital`, `commission`, `slippage_bps`, `data: Vec<OhlcvBar>`, `capital_fraction` |
+| `EngineSignal` | `timestamp`, `symbol`, `direction: Direction`, `strength: f64` |
+| `Direction` | `Long`, `Short`, `Flat` |
+| `BacktestResult` | `equity_curve: Vec<f64>`, `trades: Vec<CompletedTrade>`, `metrics: BacktestMetrics` |
+| `CompletedTrade` | `entry_ts`, `exit_ts`, `direction`, `entry_price`, `exit_price`, `pnl`, `pnl_pct` |
+| `BacktestMetrics` | `total_return`, `annualized_return`, `sharpe`, `sortino`, `max_drawdown`, `calmar`, `win_rate`, `profit_factor`, `avg_trade_return`, `num_trades` |
+
+#### Fill Model
+
+- Signals fire at bar N; fills execute at bar N+1 open
+- Slippage is applied symmetrically: longs pay more on entry, receive less on exit
+- Commission is deducted as a fraction of notional on every fill
+- Position size = `strength * capital_fraction * current_equity / fill_price`
+
+### Monte Carlo Simulator
+
+The `montecarlo` module runs N Geometric Brownian Motion price-path simulations using a seeded LCG for reproducibility.
+
+#### Key Types
+
+| Type | Description |
+|------|-------------|
+| `MonteCarloSimulator` | Stateless simulator |
+| `GbmParams` | `mu` (annual drift), `sigma` (annual vol), `s0` (initial price) |
+| `MonteCarloConfig` | `simulations`, `horizon_days`, `seed: Option<u64>` |
+| `MonteCarloResult` | `paths`, `var_95`, `cvar_95`, `median_final`, `best_case_final`, `worst_case_final` |
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `simulate_paths(params, config)` | Run N GBM paths; returns `Vec<Vec<f64>>` |
+| `var(paths, confidence)` | Value at Risk at given confidence level |
+| `cvar(paths, confidence)` | Conditional VaR (Expected Shortfall), always ≤ VaR |
+| `percentile_paths(paths, percentiles)` | Extract paths at given percentiles (e.g. `[5, 50, 95]`) |
+| `run(params, config)` | Convenience: simulate + compute all metrics |
+
+#### Implementation Notes
+
+- RNG: Linear Congruential Generator (Numerical Recipes constants)
+- Normal samples: Box-Muller transform
+- Same seed always produces identical paths (reproducible)
+- `sigma = 0` → all paths are pure drift (deterministic)
+
+### Factor Model
+
+The `factor` module provides Fama-French style multi-factor OLS regression.
+
+#### Structs
+
+| Type | Description |
+|------|-------------|
+| `Factor { name, returns }` | Named return series for one risk factor (e.g. market, value, momentum) |
+| `FactorExposure { asset, betas, alpha, r_squared, residual_variance }` | OLS regression output for one asset |
+| `VarianceDecomposition { systematic_variance, idiosyncratic_variance, factor_contributions }` | Variance attribution |
+| `FactorPortfolio` | Aggregates per-asset exposures weighted by portfolio weights |
+
+#### Formulas
+
+**OLS via normal equations:**
+
+```
+β̂ = (X'X)⁻¹ X'y
+```
+
+where `X` is the `T × (K+1)` design matrix (first column = intercept ones).
+
+Matrix inversion: analytic for 2×2 and 3×3, Gaussian elimination with partial pivoting for larger systems.
+
+**Variance decomposition:**
+
+```
+factor_contributions[i] = β_i² σ_i² + 2 Σ_{j>i} β_i β_j cov(i,j)
+systematic_variance     = β' Σ β
+total_variance          ≈ systematic_variance + residual_variance
+```
+
+#### Quick Example
 
 ```rust
-use fin_primitives::backtest::{
-    Backtester, BacktestConfig, Signal, SignalDirection, Strategy, WalkForwardOptimizer,
+use fin_primitives::factor::{Factor, FactorModel};
+
+let market = Factor::new("MKT", vec![0.01, -0.02, 0.015, 0.005, -0.01]);
+let asset  = vec![0.008, -0.018, 0.012, 0.003, -0.009];
+
+let exposure = FactorModel::fit("AAPL", &asset, &[market]);
+println!("alpha={:.4}  beta={:.4}  R²={:.4}",
+    exposure.alpha, exposure.betas[0], exposure.r_squared);
+```
+
+### Execution Cost Model
+
+The `execution` module estimates round-trip trading costs and finds optimal rebalancing trades.
+
+#### Structs
+
+| Type | Description |
+|------|-------------|
+| `ExecutionCost { commission_usd, spread_cost_usd, market_impact_usd, total_cost_usd, cost_bps }` | Full cost breakdown |
+| `CostParams { commission_per_share, spread_bps, impact_coefficient, avg_daily_volume }` | Model parameters |
+| `Trade { symbol, direction, weight_change, estimated_cost_bps }` | A single rebalancing trade |
+
+#### Formulas
+
+```
+commission_usd    = commission_per_share × shares
+spread_cost_usd   = (spread_bps / 10_000) × notional_usd
+impact_bps        = impact_coefficient × sqrt(shares / avg_daily_volume) × 10_000
+market_impact_usd = (impact_bps / 10_000) × notional_usd
+total_cost_usd    = commission_usd + spread_cost_usd + market_impact_usd
+cost_bps          = total_cost_usd / notional_usd × 10_000
+```
+
+#### Quick Example
+
+```rust
+use fin_primitives::execution::{CostModel, CostParams, TurnoverOptimizer};
+use std::collections::HashMap;
+
+let params = CostParams {
+    commission_per_share: 0.005,
+    spread_bps: 5.0,
+    impact_coefficient: 0.1,
+    avg_daily_volume: 1_000_000.0,
 };
-use fin_primitives::ohlcv::OhlcvBar;
-use rust_decimal_macros::dec;
 
-// 1. Implement the Strategy trait
-struct MomentumStrategy { last_close: Option<rust_decimal::Decimal> }
+let cost = CostModel::estimate(100_000.0, 10_000.0, 10.0, &params);
+println!("Total cost: ${:.2} ({:.1} bps)", cost.total_cost_usd, cost.cost_bps);
 
-impl Strategy for MomentumStrategy {
-    fn on_bar(&mut self, bar: &OhlcvBar) -> Option<Signal> {
-        let close = bar.close.value();
-        let dir = match self.last_close {
-            Some(prev) if close > prev => SignalDirection::Buy,
-            Some(prev) if close < prev => SignalDirection::Sell,
-            _ => SignalDirection::Hold,
-        };
-        self.last_close = Some(close);
-        Some(Signal::new(dir, dec!(1)))
-    }
-}
-
-fn main() -> Result<(), fin_primitives::FinError> {
-    // 2. Configure and run
-    let config = BacktestConfig::new(dec!(100_000), dec!(0.001))?;
-    let bars: Vec<OhlcvBar> = vec![/* … */];
-    let result = Backtester::new(config.clone()).run(&bars, &mut MomentumStrategy { last_close: None })?;
-
-    println!("total_return={:.2}%  sharpe={:.2}  max_dd={:.2}%  trades={}",
-        result.total_return * dec!(100),
-        result.sharpe_ratio,
-        result.max_drawdown * dec!(100),
-        result.trade_count);
-
-    // 3. Walk-forward optimization
-    let wfo = WalkForwardOptimizer::new(200, 50, config)?;
-    let wf = wfo.run(&bars, |_train| Box::new(MomentumStrategy { last_close: None }))?;
-    println!("mean OOS return={:.2}%  worst dd={:.2}%",
-        wf.mean_return * dec!(100), wf.worst_drawdown * dec!(100));
-    Ok(())
+let current: HashMap<String, f64> = [("SPY".into(), 0.6), ("TLT".into(), 0.4)].into();
+let target:  HashMap<String, f64> = [("SPY".into(), 0.5), ("TLT".into(), 0.5)].into();
+let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
+for t in &trades {
+    println!("{}: {:?} {:.1}% @ {:.1} bps", t.symbol, t.direction, t.weight_change * 100.0, t.estimated_cost_bps);
 }
 ```
 
-**`BacktestResult` fields:**
+### Yield Curve Modeler
 
-| Field | Description |
-|---|---|
-| `total_return` | `(final_equity − initial_capital) / initial_capital` |
-| `sharpe_ratio` | Annualised Sharpe (252-day, sample stddev), 0 if flat returns |
-| `max_drawdown` | Peak-to-trough fraction, always in `[0, 1]` |
-| `win_rate` | Fraction of closed trades with positive realized P&L |
-| `trade_count` | Total fills executed |
-| `equity_curve` | `Vec<Decimal>` sampled once per bar |
+The `yield_curve` module provides a full yield curve construction and analytics toolkit.
 
----
+#### Key Types
 
-## Async Streaming Signals
+| Type | Description |
+|------|-------------|
+| `YieldPoint` | A single `(maturity_years: f64, yield_rate: f64)` observation |
+| `YieldCurve` | Collection of `YieldPoint`s sorted by maturity; primary analytics surface |
+| `CurveShape` | `Normal`, `Inverted`, `Flat`, `Humped`, classified from first/last yields and interior peak |
+| `NelsonSiegel` | Parametric model: `beta0`, `beta1`, `beta2`, `tau` |
+
+#### Interpolation
+
+| Method | Description |
+|--------|-------------|
+| `YieldCurve::linear_interp(t)` | Piecewise-linear interpolation; clamps at endpoints |
+| `YieldCurve::cubic_spline(t)` | Natural cubic spline via tridiagonal (Thomas) solver |
+
+#### Analytics
+
+| Method | Formula |
+|--------|---------|
+| `forward_rate(t1, t2)` | `f = (r2·t2 − r1·t1) / (t2 − t1)` |
+| `duration(cash_flows)` | Macaulay: `Σ(t · CF · e^(−r·t)) / Σ(CF · e^(−r·t))` |
+| `convexity(cash_flows)` | `Σ(t² · CF · e^(−r·t)) / PV` |
+| `shape()` | Classifies as `Normal / Inverted / Flat / Humped` |
+
+#### Nelson-Siegel Model
+
+```
+r(t) = β₀ + β₁·(1−e^(−t/τ))/(t/τ) + β₂·((1−e^(−t/τ))/(t/τ) − e^(−t/τ))
+```
+
+`NelsonSiegel::fit(points)` fits all four parameters via gradient descent (500 iterations).
+
+### Event Study Framework
+
+The `events` module implements a standard event-study methodology for measuring abnormal
+returns around discrete market events (earnings releases, guidance, macro shocks).
+
+#### Key Types
+
+| Type | Description |
+|------|-------------|
+| `MarketEvent` | `event_id`, `event_date` (Unix secs), `event_type`, `description` |
+| `EventWindow` | `pre_days: i32`, `post_days: i32`, e.g. `(-10, +10)` |
+| `AbnormalReturn` | Per-day: `day`, `raw_return`, `expected_return`, `abnormal_return`, `car` |
+| `EventResult` | Full result: `car_pre`, `car_post`, `peak_day`, `trough_day`, `abnormal_returns` |
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `EventStudy::compute(event, prices, benchmark, window)` | Market-model abnormal returns; benchmark return = expected return |
+| `EventStudy::significance(results)` | t-statistic: `mean_CAR / (std_CAR / √N)` |
+
+#### Formulas
+
+```
+AR(d)  = raw_return(d) − benchmark_return(d)
+CAR(d) = Σ AR from window_start to d
+t-stat = mean(CAR) / (std(CAR) / √N)
+```
+
+### Market Microstructure Anomaly Detection
+
+The `microstructure` module detects three illegal order-book manipulation
+patterns in real time: spoofing, layering, and quote stuffing.  All detection
+runs locally with no external calls.
+
+```rust
+use fin_primitives::microstructure::{
+    MicrostructureDetector, DetectorConfig, OrderEvent, OrderAction, AlertKind,
+};
+use fin_primitives::types::{Price, Quantity, Side};
+use rust_decimal::Decimal;
+
+let mut detector = MicrostructureDetector::new(DetectorConfig {
+    spoof_min_quantity: Decimal::from(1_000),   // flag orders > 1000 qty
+    spoof_cancel_window_ns: 500_000_000,        // cancelled within 500 ms
+    layer_min_levels: 3,                         // 3+ distinct price levels
+    layer_window_ns: 200_000_000,               // within 200 ms
+    stuff_rate_threshold: 100,                  // 100+ cancels per second
+    stuff_window_ns: 1_000_000_000,
+});
+
+// Feed events from your exchange adapter.
+detector.on_event(OrderEvent {
+    order_id: 1,
+    action: OrderAction::Add,
+    price: Price::new("100.00").unwrap(),
+    quantity: Quantity::new("5000").unwrap(),
+    side: Side::Bid,
+    timestamp_ns: 0,
+});
+detector.on_event(OrderEvent {
+    order_id: 1,
+    action: OrderAction::Cancel,
+    price: Price::new("100.00").unwrap(),
+    quantity: Quantity::new("5000").unwrap(),
+    side: Side::Bid,
+    timestamp_ns: 200_000_000, // 200 ms, within spoof window
+});
+
+for alert in detector.drain_alerts() {
+    match alert.kind {
+        AlertKind::Spoofing      => println!("SPOOF: {}", alert.detail),
+        AlertKind::Layering      => println!("LAYER: {}", alert.detail),
+        AlertKind::QuoteStuffing => println!("STUFF: {}", alert.detail),
+    }
+}
+
+// Aggregate stats.
+let s = detector.stats();
+println!("Events: {}, Cancels: {}, Spoof: {}, Layer: {}, Stuff: {}",
+    s.events_total, s.cancels_total, s.spoof_alerts, s.layer_alerts, s.stuff_alerts);
+```
+
+Detection heuristics are based on public CFTC/SEC regulatory guidance and
+academic literature (Comerton-Forde & Putniņš, 2015).  All thresholds are
+configurable via [`DetectorConfig`].
+
+### Async Streaming Signals
 
 The `async_signals` module wraps any `SignalPipeline` with Tokio MPSC channels
 for non-blocking, zero-copy signal streaming.
@@ -1398,9 +1363,7 @@ async fn main() {
 - Multiple signals in the same pipeline each emit one `SignalUpdate` per bar.
 - `SignalUpdate::timestamp` carries wall-clock `DateTime<Utc>` of computation.
 
----
-
-## NanoTimestamp Utilities (120+)
+### NanoTimestamp Utilities (120+)
 
 ```rust
 NanoTimestamp::now()                // current UTC nanoseconds
@@ -1417,6 +1380,126 @@ ts.quarter()                        // 1–4
 ts.elapsed_days() / .elapsed_hours() / .elapsed_minutes()
 ts.nanoseconds_between(other)
 ts.lerp(other, t)                   // interpolate two timestamps
+```
+
+### Recent additions
+
+#### Portfolio Optimization and Kelly Criterion Position Sizing
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Portfolio Optimizer** | `portfolio::optimizer` | Markowitz mean-variance optimization, `MinVariance`, `MaxSharpe`, `RiskParity`, `EqualWeight` via projected gradient descent (200 iters, simplex projection); `CovarianceMatrix` with `ledoit_wolf_shrinkage`; `MaxWeight`, `MinWeight`, `LongOnly`, `SectorConstraint` constraints; `effective_n` (inverse HHI) |
+| **Kelly Criterion Sizer** | `position::kelly` | `full_kelly`, `fractional_kelly`, `KellyResult` with position size, max loss, and expected log growth; `KellyPortfolio::allocate`, multi-asset Kelly with correlation penalty and total-fraction cap |
+
+##### Portfolio Optimization: quick example
+
+```rust
+use fin_primitives::portfolio::{Asset, CovarianceMatrix, OptimizationObjective, Constraint, PortfolioOptimizer};
+
+let assets = vec![
+    Asset { symbol: "SPY".into(),  expected_return: 0.10, variance: 0.04 },
+    Asset { symbol: "TLT".into(),  expected_return: 0.05, variance: 0.01 },
+    Asset { symbol: "GLD".into(),  expected_return: 0.07, variance: 0.025 },
+];
+
+let mut cov = CovarianceMatrix::new(vec!["SPY".into(), "TLT".into(), "GLD".into()]);
+cov.set(0, 0, 0.04);  cov.set(0, 1, -0.01); cov.set(0, 2, 0.005);
+cov.set(1, 1, 0.01);  cov.set(1, 2, 0.002);
+cov.set(2, 2, 0.025);
+cov.ledoit_wolf_shrinkage();  // analytical Ledoit-Wolf shrinkage toward scaled identity
+
+let result = PortfolioOptimizer::optimize(
+    &assets,
+    &cov,
+    &OptimizationObjective::MaxSharpe { risk_free_rate: 0.04 },
+    &[Constraint::LongOnly, Constraint::MaxWeight(0.6)],
+);
+
+println!("Sharpe: {:.3}", result.sharpe_ratio);
+println!("Effective N: {:.2}", result.effective_n);  // inverse HHI diversification measure
+for (sym, w) in &result.weights {
+    println!("  {sym}: {:.1}%", w * 100.0);
+}
+```
+
+**Math:**
+- Portfolio variance: `σ²_p = w' Σ w`
+- Sharpe ratio: `S = (μ_p − r_f) / σ_p`
+- Ledoit-Wolf shrinkage: `Σ* = (1−α)Σ + α·μ·I` where `α = Σ_{i≠j} Σ²_{ij} / ((n+2)·Σ_{i≠j} Σ²_{ij})`
+- Effective N (inverse HHI): `N* = 1 / Σ_i w²_i`
+
+##### Kelly Criterion Position Sizing: quick example
+
+```rust
+use fin_primitives::position::{KellyInput, full_kelly, fractional_kelly, KellyPortfolio};
+use fin_primitives::portfolio::CovarianceMatrix;
+
+let input = KellyInput {
+    win_probability: 0.60,   // 60 % win rate
+    win_return:      1.0,    // +100 % on win
+    loss_return:     1.0,    // −100 % on loss (full loss)
+    bankroll:        50_000.0,
+};
+
+let full = full_kelly(&input);
+println!("Full Kelly fraction: {:.1}%",  full.fraction * 100.0);  // 20.0 %
+println!("Position size: ${:.0}",        full.position_size_usd);  // $10,000
+println!("Max loss: ${:.0}",             full.max_loss_usd);
+println!("Expected log growth: {:.4}",   full.expected_growth);
+
+let half = fractional_kelly(&input, 0.5);
+println!("Half-Kelly fraction: {:.1}%",  half.fraction * 100.0);   // 10.0 %
+
+// Multi-asset Kelly with correlation penalty
+let assets = vec![input.clone(), KellyInput { win_probability: 0.55, win_return: 1.5, loss_return: 1.0, bankroll: 50_000.0 }];
+let mut cov = CovarianceMatrix::new(vec!["BTC".into(), "ETH".into()]);
+cov.set(0, 1, 0.8);  // high positive correlation → penalty applied
+let allocs = KellyPortfolio::allocate(&assets, &cov, 0.5);  // cap total at 50 %
+```
+
+**Math:**
+- Full Kelly: `f* = (b·p − q) / b` where `b = win_return`, `p = win_probability`, `q = 1−p`
+- Expected log growth: `g = p·ln(1 + b·f) + q·ln(1 − f)`
+- Correlation penalty: `f̃_i = f_i / (1 + Σ_{j≠i} |ρ_{ij}|·f_j)`
+
+---
+
+#### Signal Warmup Contracts, Signal Composition Engine, Risk Attribution
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Signal Warmup Contracts** | `signals::warmup` | `WarmupContract` trait, `WarmupGuard` (returns `Err(NotReady)` instead of `Unavailable`), `WarmupReporter` (pipeline warmup snapshot) |
+| **Signal Composition Engine** | `signals::compose` | `SignalExpr` DSL, `ComposedSignal` evaluator, fluent `SignalBuilder` API for lag/normalize/threshold chains |
+| **Risk Attribution** | `risk::attribution` | `RiskAttributor` decomposes portfolio risk into 6 factors; `BhbAttribution` for Brinson-Hood-Beebower P&L attribution |
+| **`RiskMonitor::attribution_report`** | `risk` | Convenience method on `RiskMonitor` to get an `AttributionReport` in one call |
+
+#### Composite Signal Builder, OrderBook Diagnostic Logging
+
+| Change | Module | Detail |
+|--------|--------|--------|
+| **Multi-signal composite builder** | `signals::composite` | Combine N indicators with `WeightedSum`, `All` (AND), `Any` (OR), or `First` (priority fallback) strategies using a fluent builder API |
+| **OrderBook inversion diagnostic log** | `orderbook` | Inverted-spread detection now emits a `WARN` log with symbol, prices, and sequence number before rolling back, operators can correlate bad feed data without instrumenting call sites |
+
+##### Composite signal: quick example
+
+```rust
+use fin_primitives::signals::composite::{CompositeSignal, CompositeMode};
+use fin_primitives::signals::indicators::{Sma, Rsi};
+use rust_decimal_macros::dec;
+
+// 50% SMA + 50% RSI blend: returns Unavailable until both indicators warm up.
+let mut blend = CompositeSignal::builder("sma_rsi_blend")
+    .add(Sma::new("sma20", 20)?, dec!(0.5))
+    .add(Rsi::new("rsi14", 14)?, dec!(0.5))
+    .mode(CompositeMode::WeightedSum)
+    .build();
+
+// AND gate: fire only when both are non-zero.
+let mut gate = CompositeSignal::builder("trend_confirm")
+    .add(Sma::new("sma50", 50)?, dec!(1))
+    .add(Rsi::new("rsi14", 14)?, dec!(1))
+    .mode(CompositeMode::All)
+    .build();
 ```
 
 ---
@@ -1462,8 +1545,6 @@ Any bar that violates these relationships is rejected with `FinError::BarInvaria
 - **Realized P&L** (on reduce/close): `closed_qty × (fill_price − avg_cost)` for long.
 - **Unrealized P&L**: `position_qty × (current_price − avg_cost)`.
 - Both are **net of commissions**.
-
----
 
 ## API Reference
 
@@ -1701,8 +1782,6 @@ spawn_signal_stream(pipeline, tick_rx) -> mpsc::Receiver<SignalUpdate>
 // SignalUpdate fields: signal_name: String, value: SignalValue, timestamp: DateTime<Utc>
 ```
 
----
-
 ## Custom Implementations
 
 ### Custom `RiskRule`
@@ -1747,56 +1826,16 @@ impl Signal for AlwaysZero {
 }
 ```
 
----
-
-## Architecture Overview
-
-```
-                      Tick stream
-                          |
-                    TickReplayer / TickFilter
-                          |
-              +-----------+-----------+
-              |                       |
-        OhlcvAggregator          OrderBook
-              |                 (apply_delta)
-        OhlcvSeries                   |
-         (370+ analytics)   vwap_for_qty / spread
-              |
-        SignalPipeline ─────── CompositeSignal
-        (725+ indicators)            │
-              │                SignalExpr DSL
-        WarmupGuard / WarmupReporter │
-              │              (compose.rs)
-         SignalMap (90+ methods)
-              |
-     PositionLedger (145+ methods)
-              |          │
-        DrawdownTracker  └──── RiskAttributor ──── BhbAttribution
-        (120+ methods)         (6-factor model)   (BHB P&L split)
-              |
-         RiskMonitor ──── attribution_report()
-              |
-       Vec<RiskBreach>
-```
-
-All arrows represent pure data flow. No shared mutable state crosses module
-boundaries. Wrap any component in `Arc<Mutex<_>>` for multi-threaded use.
-
----
-
 ## Performance Notes
 
-- **O(1) order book mutations**: `apply_delta` performs a single `BTreeMap::insert`
+- **O(log n) order book mutations**: `apply_delta` performs a single `BTreeMap::insert`
   or `BTreeMap::remove`. Inverted-spread check reads two keys and does not allocate.
 - **O(1) streaming indicators**: `Ema` and `Rsi` maintain constant-size state
   regardless of history length. `Sma` uses a `VecDeque` capped at `period` elements.
 - **Zero-copy tick replay**: `TickReplayer` sorts once at construction and returns
   shared references on each call; no per-tick heap allocation.
 
----
-
-## Running Tests
+## Running Tests and Benchmarks
 
 ```bash
 cargo test
@@ -1805,69 +1844,20 @@ cargo clippy --all-features -- -D warnings
 cargo doc --no-deps --open
 ```
 
-The test suite includes unit tests in every module and property-based tests using `proptest`.
+The test suite includes unit tests inside the modules, integration tests in `tests/`
+(order book reconstruction, indicator accuracy, position/risk lifecycle, serde
+round-trips) and property-based tests using `proptest`.
 
----
+Criterion microbenchmarks for tick filtering, order book deltas and indicators live in
+`benches/tick_bench.rs`:
 
-## Market Microstructure Anomaly Detection
-
-The `microstructure` module detects three illegal order-book manipulation
-patterns in real time: spoofing, layering, and quote stuffing.  All detection
-runs locally with no external calls.
-
-```rust
-use fin_primitives::microstructure::{
-    MicrostructureDetector, DetectorConfig, OrderEvent, OrderAction, AlertKind,
-};
-use fin_primitives::types::{Price, Quantity, Side};
-use rust_decimal::Decimal;
-
-let mut detector = MicrostructureDetector::new(DetectorConfig {
-    spoof_min_quantity: Decimal::from(1_000),   // flag orders > 1000 qty
-    spoof_cancel_window_ns: 500_000_000,        // cancelled within 500 ms
-    layer_min_levels: 3,                         // 3+ distinct price levels
-    layer_window_ns: 200_000_000,               // within 200 ms
-    stuff_rate_threshold: 100,                  // 100+ cancels per second
-    stuff_window_ns: 1_000_000_000,
-});
-
-// Feed events from your exchange adapter.
-detector.on_event(OrderEvent {
-    order_id: 1,
-    action: OrderAction::Add,
-    price: Price::new("100.00").unwrap(),
-    quantity: Quantity::new("5000").unwrap(),
-    side: Side::Bid,
-    timestamp_ns: 0,
-});
-detector.on_event(OrderEvent {
-    order_id: 1,
-    action: OrderAction::Cancel,
-    price: Price::new("100.00").unwrap(),
-    quantity: Quantity::new("5000").unwrap(),
-    side: Side::Bid,
-    timestamp_ns: 200_000_000, // 200 ms — within spoof window
-});
-
-for alert in detector.drain_alerts() {
-    match alert.kind {
-        AlertKind::Spoofing      => println!("SPOOF: {}", alert.detail),
-        AlertKind::Layering      => println!("LAYER: {}", alert.detail),
-        AlertKind::QuoteStuffing => println!("STUFF: {}", alert.detail),
-    }
-}
-
-// Aggregate stats.
-let s = detector.stats();
-println!("Events: {}, Cancels: {}, Spoof: {}, Layer: {}, Stuff: {}",
-    s.events_total, s.cancels_total, s.spoof_alerts, s.layer_alerts, s.stuff_alerts);
+```bash
+cargo bench --bench tick_bench
 ```
 
-Detection heuristics are based on public CFTC/SEC regulatory guidance and
-academic literature (Comerton-Forde & Putniņš, 2015).  All thresholds are
-configurable via [`DetectorConfig`].
+No benchmark results are published in this README; run them on your own hardware.
 
----
+CI (`.github/workflows/ci.yml`) currently runs `cargo check` on every push.
 
 ## Contributing
 
@@ -1877,11 +1867,10 @@ configurable via [`DetectorConfig`].
 4. Every new behavior must have at least one happy-path test and one edge-case test.
 5. Run `cargo fmt`, `cargo clippy -- -D warnings`, and `cargo test` before opening a PR.
 
----
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
 
-> Also used inside [tokio-prompt-orchestrator](https://github.com/Mattbusel/tokio-prompt-orchestrator),
-> a production Rust orchestration layer for LLM pipelines.
+## Related projects
+
+- [fin-stream](https://github.com/Mattbusel/fin-stream): real-time market data streaming (tick normalization, SPSC ring buffer, OHLCV, order book) that depends on this crate.
