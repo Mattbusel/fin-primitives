@@ -5,7 +5,7 @@
 //! close more heavily than the standard typical price.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 

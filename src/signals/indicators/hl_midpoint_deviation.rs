@@ -7,7 +7,6 @@
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
-use std::collections::VecDeque;
 
 /// Rolling EMA of `(close - midpoint) / range`.
 ///

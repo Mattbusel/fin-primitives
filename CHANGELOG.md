@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.1] - 2026-09-25
+
+### Changed
+- README and docs.rs front page lead with a one-sentence summary, a recorded demo GIF, an install table and a 3-step first program whose output is shown.
+- Install line now adds `rust_decimal` too: the `dec!` macro does not compile without it.
+- Package metadata: clearer description, keywords, categories and homepage.
+
+### Fixed
+- The library builds without compiler warnings (unused imports and variables removed, dead code in `CompositeSignal` Any mode dropped). No API changes.
+
+---
+
 ## [2.13.0] - 2026-03-21
 
 ### Added

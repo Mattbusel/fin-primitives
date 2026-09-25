@@ -4,7 +4,7 @@
 //! to [0, 1]. Tracks the EMA of this per-bar value.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `(open − low) / (high − low)` per bar.

@@ -5,7 +5,7 @@
 //! close location value, normalized to [0, 1].
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `(close − low) / (high − low)`.

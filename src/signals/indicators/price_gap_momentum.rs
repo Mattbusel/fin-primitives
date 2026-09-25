@@ -4,7 +4,7 @@
 //! measuring the smoothed magnitude and direction of overnight / session gaps.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `open[t] − close[t-1]`.

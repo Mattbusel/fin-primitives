@@ -98,7 +98,10 @@ impl CdsContract {
     }
 
     /// CS01: sensitivity of MTM to a 1bp increase in the running spread.
-    pub fn cs01(&self, hazard_rate: f64, risk_free_rate: f64) -> f64 {
+    ///
+    /// The hazard rate is re-implied from the bumped spreads, so the first
+    /// argument is not used; it is kept for signature compatibility.
+    pub fn cs01(&self, _hazard_rate: f64, risk_free_rate: f64) -> f64 {
         let v_up = {
             let mut cds = CdsContract::new(self.notional, self.spread_bps, self.maturity_years, self.recovery_rate);
             cds.payment_freq = self.payment_freq;

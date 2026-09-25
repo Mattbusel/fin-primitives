@@ -5,7 +5,7 @@
 //! The count increments for each matching bar and resets when polarity changes.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// Count of consecutive bars sharing the same polarity relative to `close - open`.

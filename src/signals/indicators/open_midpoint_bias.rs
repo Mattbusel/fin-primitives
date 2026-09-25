@@ -4,7 +4,7 @@
 //! systematically gaps above or below the bar's equilibrium midpoint.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `(open − midpoint) / range` per bar.

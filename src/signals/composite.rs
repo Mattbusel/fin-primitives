@@ -226,18 +226,6 @@ impl Signal for CompositeSignal {
                 if all_unavailable {
                     return Ok(SignalValue::Unavailable);
                 }
-                let any_nonzero = values
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, _)| {
-                        // Only consider constituents that returned a real value.
-                        // any_unavailable tracks whether there's at least one unavailable;
-                        // we need to skip those placeholder zeros.
-                        // Re-check by evaluating which indices are valid.
-                        let _ = i; // We'll use a different approach below.
-                        true
-                    })
-                    .any(|(_, (_, v))| !v.is_zero());
                 // Simpler: iterate again tracking unavailability per-constituent.
                 let any_nonzero = self.any_nonzero_available(&values, any_unavailable);
                 Ok(SignalValue::Scalar(if any_nonzero {

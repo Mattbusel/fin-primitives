@@ -4,7 +4,7 @@
 //! extension below the prior bar's close each bar.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `low[t] − close[t−1]`.

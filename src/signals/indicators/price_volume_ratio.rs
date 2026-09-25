@@ -5,7 +5,7 @@
 //! higher price levels; declining values indicate more volume per price unit.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
