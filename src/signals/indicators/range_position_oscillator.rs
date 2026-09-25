@@ -5,7 +5,7 @@
 //! settles within the bar's range.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// Difference between fast-EMA(CLV) and slow-EMA(CLV).

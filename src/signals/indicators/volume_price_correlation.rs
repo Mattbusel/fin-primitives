@@ -5,7 +5,7 @@
 //! trend) or diverging volume (potential reversal warning).
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 use std::collections::VecDeque;

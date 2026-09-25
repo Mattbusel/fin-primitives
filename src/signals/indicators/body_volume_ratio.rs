@@ -5,7 +5,6 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 
 /// Body-to-Volume Ratio: `|close - open| / volume`.
 ///

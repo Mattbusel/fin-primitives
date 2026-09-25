@@ -5,7 +5,6 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 
 /// Wicks-vs-Body Ratio: `(upper_wick + lower_wick) / body_size`.
 ///

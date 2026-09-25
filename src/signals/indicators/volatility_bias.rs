@@ -4,7 +4,7 @@
 //! versus downward moves, identifying directional volatility asymmetry.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 

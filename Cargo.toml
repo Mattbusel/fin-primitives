@@ -1,16 +1,17 @@
 [package]
 name = "fin-primitives"
-version = "2.14.0"
+version = "2.14.1"
 edition = "2021"
 rust-version = "1.81"
-description = "Financial market primitives: validated types, order book, OHLCV aggregation, 725+ streaming technical indicators, option Greeks/Black-Scholes, backtester, async streaming signals, position ledger, and risk monitoring."
+description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
 authors = ["Matt Busel <matt@busel.dev>"]
 repository = "https://github.com/Mattbusel/fin-primitives"
+homepage = "https://mattbusel.github.io/fin-primitives/"
 documentation = "https://docs.rs/fin-primitives"
 readme = "README.md"
 license = "MIT"
-keywords = ["finance", "trading", "hft", "orderbook", "market-data"]
-categories = ["finance", "data-structures", "algorithms"]
+keywords = ["finance", "trading", "orderbook", "technical-analysis", "quant"]
+categories = ["finance", "mathematics", "data-structures"]
 include = ["src/**/*", "benches/**/*", "tests/**/*", "examples/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [features]

@@ -5,7 +5,7 @@
 //! whether volume is accelerating (positive) or decelerating (negative).
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// Difference between fast-EMA(volume) and slow-EMA(volume).

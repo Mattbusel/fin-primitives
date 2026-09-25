@@ -1,53 +1,153 @@
+# fin-primitives
+
+**The basic parts of trading software, done once and checked: exact price and size types that refuse bad values, an order book, candles built from trades, indicators, option prices and risk limits, in one Rust crate.**
+
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-dark.png">
-    <img alt="fin-primitives: validated, decimal-precise building blocks for trading and quant systems. Shows 32 one-minute ETH-USD candles with EMA(9) aggregated from ticks, next to a BTC-USD level-2 order book." src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-light.png" width="100%">
-  </picture>
+  <img alt="A real terminal session: cargo run --example order_book prints a BTC-USD depth ladder and rejects two bad updates, option_chain prints call and put prices with Greeks, and position_risk shows a ledger tripping a 4% drawdown limit" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/demo.gif" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://crates.io/crates/fin-primitives"><img alt="crates.io" src="https://img.shields.io/crates/v/fin-primitives.svg"></a>
   <a href="https://docs.rs/fin-primitives"><img alt="docs.rs" src="https://docs.rs/fin-primitives/badge.svg"></a>
-  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Mattbusel/fin-primitives/blob/main/LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 <p align="center">
   <a href="https://mattbusel.github.io/fin-primitives/"><b>Site</b></a> &nbsp;&middot;&nbsp;
   <a href="https://docs.rs/fin-primitives"><b>API docs</b></a> &nbsp;&middot;&nbsp;
-  <a href="#run-the-examples"><b>Examples</b></a> &nbsp;&middot;&nbsp;
-  <a href="https://github.com/Mattbusel/fin-stream"><b>fin-stream</b></a> (real-time market data on top of this crate)
+  <a href="#results"><b>Examples</b></a> &nbsp;&middot;&nbsp;
+  <a href="https://github.com/Mattbusel/fin-stream"><b>fin-stream</b></a> (live market data on top of this crate)
 </p>
 
-# fin-primitives
+The GIF above is a real recording of three of the bundled examples (made 2026-09-25). They
+finish in a few milliseconds, which is why each screen appears at once.
 
-Validated, decimal-precise building blocks for trading and quantitative systems in Rust:
-price and quantity types that cannot hold invalid values, a sequence-checked level-2 order
-book, tick-to-OHLCV aggregation, streaming indicators with an explicit warm-up contract, a
-position ledger, risk rules, Black-Scholes Greeks and a walk-forward backtester. One error
-type, `FinError`, covers all of it.
+## Install
 
-> Research and engineering library. Nothing here is a trading strategy, and nothing in
-> this repository is financial advice. Backtest results depend entirely on your data and
-> assumptions.
+| How | Command |
+|-----|---------|
+| **cargo** (easiest) | `cargo add fin-primitives rust_decimal rust_decimal_macros` |
+| Cargo.toml | `fin-primitives = "2.14"` (plus `rust_decimal = "1"` and `rust_decimal_macros = "1"` for the `dec!` macro) |
+| Latest `main` from git | `cargo add fin-primitives --git https://github.com/Mattbusel/fin-primitives` |
+| Just run the examples | `git clone https://github.com/Mattbusel/fin-primitives && cd fin-primitives && cargo run --example order_book` |
 
-## Quickstart
+It is a library, so there is nothing to install system-wide. Needs Rust 1.81 or newer.
+
+## Use it in 3 steps
+
+**1. Make a project and add the crate**
 
 ```bash
-cargo add fin-primitives rust_decimal_macros
+cargo new book-demo && cd book-demo
+cargo add fin-primitives rust_decimal rust_decimal_macros
 ```
 
-crates.io has **2.12.0**; the `main` branch is **2.14.0** and some newer modules
-(portfolio optimizer, Kelly sizing, signal composition, factor model, yield curve, event
-study and others) may only be available from git:
+**2. Put this in `src/main.rs`**
 
-```toml
-fin-primitives = { git = "https://github.com/Mattbusel/fin-primitives" }
+```rust
+use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
+use fin_primitives::types::{Price, Quantity, Side, Symbol};
+use rust_decimal_macros::dec;
+
+fn main() -> Result<(), fin_primitives::FinError> {
+    // 1. Values are checked when you create them.
+    println!("Price::new(-5) -> {}", Price::new(dec!(-5)).unwrap_err());
+
+    // 2. Build a small BTC-USD order book from four quotes.
+    let mut book = OrderBook::new(Symbol::new("BTC-USD")?);
+    let quotes = [
+        (Side::Ask, dec!(64250.50), dec!(0.842)),
+        (Side::Ask, dec!(64251.00), dec!(1.310)),
+        (Side::Bid, dec!(64250.00), dec!(1.204)),
+        (Side::Bid, dec!(64249.50), dec!(0.655)),
+    ];
+    for (seq, (side, price, qty)) in (1..).zip(quotes) {
+        book.apply_delta(BookDelta {
+            side,
+            price: Price::new(price)?,
+            quantity: Quantity::new(qty)?,
+            action: DeltaAction::Set,
+            sequence: seq,
+        })?;
+    }
+
+    // 3. Ask it questions.
+    println!("spread         {}", book.spread().unwrap_or_default());
+    println!("mid price      {}", book.mid_price().unwrap_or_default());
+    let one_btc = Quantity::new(dec!(1))?;
+    println!("buy 1 BTC at   {} average", book.vwap_for_qty(Side::Ask, one_btc)?.round_dp(2));
+    Ok(())
+}
 ```
 
-Build a book from sequenced deltas, read the top of book, and price a market order by
-walking the levels. This is the crate-level doctest, so it is compiled and run by
-`cargo test --doc`:
+**3. Run it**
+
+```bash
+cargo run
+```
+
+You will see:
+
+```text
+Price::new(-5) -> Price must be positive, got -5
+spread         0.50
+mid price      64250.25
+buy 1 BTC at   64250.58 average
+```
+
+A negative price never gets into your program, the book knows its own spread and middle
+price, and "what would buying 1 BTC cost" is one call (0.842 BTC fill at the best ask, the
+other 0.158 at the next level up). This exact program was built against fin-primitives
+2.14 from crates.io and run on 2026-09-25.
+
+## Results
+
+Four examples ship in [`examples/`](https://github.com/Mattbusel/fin-primitives/tree/main/examples).
+The images are their real output (colors on in a terminal, `NO_COLOR=1` turns them off):
+
+```bash
+git clone https://github.com/Mattbusel/fin-primitives && cd fin-primitives
+cargo run --example order_book     # or candles, position_risk, option_chain
+```
+
+**`order_book`**: a BTC-USD book built from 14 deltas, printed as a depth ladder with
+spread, micro-price, imbalance and the VWAP of a 5 BTC market buy. Then two bad deltas: one
+that would cross the book (rejected and rolled back) and one with a sequence gap.
+
+<p align="center"><img alt="Terminal output of cargo run --example order_book: a 7-level BTC-USD ladder with depth bars, book statistics, and two rejected deltas" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-order_book.png" width="760"></p>
+
+**`candles`**: 337 ticks from a seeded random walk go through `OhlcvAggregator` into 32
+one-minute bars, drawn as candles with EMA(9). RSI(14) reports `Unavailable` for the first
+14 bars instead of a NaN or a zero.
+
+<p align="center"><img alt="Terminal output of cargo run --example candles: a candlestick chart of 32 bars with an EMA overlay, then a table of OHLCV, EMA and RSI values with warm-up rows" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-candles.png" width="720"></p>
+
+<details>
+<summary><b><code>position_risk</code></b>: fills, marks, and a drawdown rule and equity floor firing</summary>
+
+<br>
+
+A `PositionLedger` takes fills and marks; its `net_liquidation_value` feeds a `RiskMonitor`
+with a 4% drawdown rule and an equity floor. The last buy is refused for insufficient cash.
+
+<p align="center"><img alt="Terminal output of cargo run --example position_risk: a ten-step session log with equity, drawdown and breaches, then a positions table" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-position_risk.png" width="640"></p>
+
+</details>
+
+<details>
+<summary><b><code>option_chain</code></b>: a Black-Scholes chain with Greeks and an implied-vol round trip</summary>
+
+<br>
+
+<p align="center"><img alt="Terminal output of cargo run --example option_chain: call and put prices, delta, theta, gamma and vega for strikes 195 to 230, then implied vol recovering 28%" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-option_chain.png" width="600"></p>
+
+</details>
+
+<details>
+<summary><b>More: the crate-level example</b> (compiled and run by <code>cargo test --doc</code>)</summary>
+
+<br>
 
 ```rust
 use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
@@ -93,48 +193,14 @@ fn main() -> Result<(), fin_primitives::FinError> {
 }
 ```
 
-## Run the examples
-
-Four examples ship in [`examples/`](examples). Clone and run them; the images below are
-their real output (colors on in a terminal, `NO_COLOR=1` turns them off).
-
-```bash
-git clone https://github.com/Mattbusel/fin-primitives && cd fin-primitives
-cargo run --example order_book
-```
-
-**`order_book`**: a BTC-USD book built from 14 deltas, printed as a depth ladder with
-spread, micro-price, imbalance and the VWAP of a 5 BTC market buy. Then two bad deltas: one
-that would cross the book (rejected and rolled back) and one with a sequence gap.
-
-<p align="center"><img alt="Terminal output of cargo run --example order_book: a 7-level BTC-USD ladder with depth bars, book statistics, and two rejected deltas" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-order_book.png" width="760"></p>
-
-**`candles`**: 337 ticks from a seeded random walk go through `OhlcvAggregator` into 32
-one-minute bars, drawn as candles with EMA(9). RSI(14) reports `Unavailable` for the first
-14 bars instead of a NaN or a zero.
-
-<p align="center"><img alt="Terminal output of cargo run --example candles: a candlestick chart of 32 bars with an EMA overlay, then a table of OHLCV, EMA and RSI values with warm-up rows" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-candles.png" width="720"></p>
-
-<details>
-<summary><b><code>position_risk</code></b>: fills, marks, and a drawdown rule and equity floor firing</summary>
-
-<br>
-
-A `PositionLedger` takes fills and marks; its `net_liquidation_value` feeds a `RiskMonitor`
-with a 4% drawdown rule and an equity floor. The last buy is refused for insufficient cash.
-
-<p align="center"><img alt="Terminal output of cargo run --example position_risk: a ten-step session log with equity, drawdown and breaches, then a positions table" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-position_risk.png" width="640"></p>
-
 </details>
 
-<details>
-<summary><b><code>option_chain</code></b>: a Black-Scholes chain with Greeks and an implied-vol round trip</summary>
-
-<br>
-
-<p align="center"><img alt="Terminal output of cargo run --example option_chain: call and put prices, delta, theta, gamma and vega for strikes 195 to 230, then implied vol recovering 28%" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/term-option_chain.png" width="600"></p>
-
-</details>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-dark.png">
+    <img alt="fin-primitives: validated, decimal-precise building blocks for trading and quant systems. Shows 32 one-minute ETH-USD candles with EMA(9) aggregated from ticks, next to a BTC-USD level-2 order book." src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-light.png" width="100%">
+  </picture>
+</p>
 
 ## Architecture
 

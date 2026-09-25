@@ -120,7 +120,7 @@ impl MonteCarloCdo {
             let mut portfolio_loss = 0.0f64;
             let unit_loss = (1.0 - self.structure.recovery_rate) / n as f64;
 
-            for (i, &thr) in thresholds.iter().enumerate() {
+            for &thr in thresholds.iter() {
                 let (eps, _) = box_muller(&mut state);
                 let z_i = sqrt_rho * m + sqrt_one_minus_rho * eps;
                 if z_i < thr {

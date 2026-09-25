@@ -1,11 +1,23 @@
 //! # fin-primitives
 //!
-//! Validated, decimal-precise building blocks for trading and quantitative
-//! systems: price and quantity types that cannot hold invalid values, a
-//! sequence-checked level-2 order book, tick-to-OHLCV aggregation, streaming
-//! indicators with an explicit warm-up contract, a position ledger, risk rules,
-//! Black-Scholes Greeks and a walk-forward backtester. One error type,
-//! [`FinError`], covers all of it.
+//! The basic parts of trading software, done once and checked: exact price and
+//! size types that refuse bad values, an order book, candles built from trades,
+//! indicators, option prices and risk limits.
+//!
+//! ![Three bundled examples running in a terminal: an order book ladder, an option chain with Greeks, and a position ledger tripping a drawdown limit](https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/demo.gif)
+//!
+//! Add it (the `dec!` macro for decimal literals needs both `rust_decimal` crates):
+//!
+//! ```text
+//! cargo add fin-primitives rust_decimal rust_decimal_macros
+//! ```
+//!
+//! The main types: [`Price`](types::Price), [`Quantity`](types::Quantity) and
+//! [`Symbol`](types::Symbol) (validated values), [`OrderBook`](orderbook::OrderBook),
+//! [`OhlcvAggregator`](ohlcv::OhlcvAggregator) (ticks to candles), the
+//! [`Signal`](signals::Signal) trait and its indicators,
+//! [`PositionLedger`](position::PositionLedger), [`RiskMonitor`](risk::RiskMonitor),
+//! [`BlackScholes`](greeks::BlackScholes), and one error type, [`FinError`].
 //!
 //! ## A first look
 //!

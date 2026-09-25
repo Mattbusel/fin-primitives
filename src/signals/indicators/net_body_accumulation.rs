@@ -4,7 +4,7 @@
 //! the net directional progress of price across all bars in the window.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 

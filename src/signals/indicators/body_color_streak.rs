@@ -4,7 +4,7 @@
 //! close > open, bearish = close < open). Resets on color change or neutral bar.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// Count of consecutive bars with the same body color.

@@ -573,6 +573,7 @@ mod tests {
 /// All inputs required for Black-Scholes-Merton pricing, matching a common
 /// quant convention: S, K, r, q, sigma, T.
 #[derive(Debug, Clone, Copy)]
+#[allow(non_snake_case)]
 pub struct BSMInputs {
     /// Current underlying spot price S (must be > 0).
     pub S: f64,

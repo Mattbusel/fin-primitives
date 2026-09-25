@@ -5,7 +5,7 @@
 //! equal distance from high to mid and from mid to low.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
+use crate::signals::{BarInput, SignalValue};
 use rust_decimal::Decimal;
 
 /// EMA of `|(high − mid) − (mid − low)| / range`.
