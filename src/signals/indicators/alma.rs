@@ -13,7 +13,7 @@ use std::collections::VecDeque;
 /// Parameters:
 /// - `period`: window length (default 9)
 /// - `sigma`: Gaussian width (default 6.0 — higher = sharper peak, less smoothing)
-/// - `offset`: centre shift in [0,1] (default 0.85 — 1.0 = full right-shift, low lag)
+/// - `offset`: centre shift in \[0,1\] (default 0.85 — 1.0 = full right-shift, low lag)
 ///
 /// Returns [`SignalValue::Unavailable`] until `period` bars have been seen.
 ///

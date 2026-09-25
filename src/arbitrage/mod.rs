@@ -1,4 +1,5 @@
-//! # Module: arbitrage
+//! Cross-market arbitrage detection: ArbitrageOpportunity, TriangularArb, StatisticalArb,
+//! ArbitrageScanner (scan_cross_market, scan_triangular, filter_by_min_profit, rank_by_confidence).
 //!
 //! ## Responsibility
 //! Cross-market and triangular arbitrage detection for financial markets.

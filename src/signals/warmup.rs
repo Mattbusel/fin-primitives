@@ -270,7 +270,7 @@ impl SignalWarmupStatus {
 ///
 /// ```rust
 /// use fin_primitives::signals::indicators::{Sma, Rsi};
-/// use fin_primitives::signals::warmup::WarmupReporter;
+/// use fin_primitives::signals::warmup::{WarmupContract, WarmupReporter};
 ///
 /// let sma = Sma::new("sma10", 10).unwrap();
 /// let rsi = Rsi::new("rsi14", 14).unwrap();

@@ -3,8 +3,8 @@
 //! Event-driven backtester with realistic fill simulation.
 //!
 //! ## Responsibility
-//! Provides [`BacktestEngine`] which runs a list of [`Signal`]s over
-//! a [`BacktestConfig`] containing OHLCV bars, simulating fills at the
+//! Provides [`BacktestEngine`] which runs a list of `Signal`s over
+//! a `BacktestConfig` containing OHLCV bars, simulating fills at the
 //! next-bar open with slippage and commission deductions.
 //!
 //! ## Guarantees

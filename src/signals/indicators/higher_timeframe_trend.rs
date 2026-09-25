@@ -19,14 +19,14 @@ use std::collections::VecDeque;
 ///
 /// Formula: `trend = sign(sum of htf returns over num_htf_bars - 1 pairs)`
 ///
-/// Returns `SignalValue::Unavailable` until `agg_period * (num_htf_bars + 1)` bars seen.
+/// Returns `SignalValue::Unavailable` until `agg_period * num_htf_bars` bars seen.
 ///
 /// # Example
 /// ```rust
 /// use fin_primitives::signals::indicators::HigherTimeframeTrend;
 /// use fin_primitives::signals::Signal;
 /// let htt = HigherTimeframeTrend::new("htt_5_4", 5, 4).unwrap();
-/// assert_eq!(htt.period(), 25); // 5 * (4+1)
+/// assert_eq!(htt.period(), 20); // 5 * 4
 /// ```
 pub struct HigherTimeframeTrend {
     name: String,

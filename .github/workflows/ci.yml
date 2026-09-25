@@ -6,4 +6,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo check
+      - name: Build and run the examples
+        run: |
+          for e in order_book candles position_risk option_chain; do
+            cargo run --quiet --example "$e"
+          done
+      - name: Doc tests
+        run: cargo test --doc
+      - name: Docs build without broken links
+        run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D rustdoc::broken_intra_doc_links

@@ -1,4 +1,4 @@
-//! # Module: scenario
+//! Risk scenario backtesting: replays historical bars through risk rules.
 //!
 //! ## Responsibility
 //! Risk scenario backtesting: replays a sequence of historical OHLCV bars through a

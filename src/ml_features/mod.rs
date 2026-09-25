@@ -1,4 +1,5 @@
-//! # Module: ml_features
+//! ML feature engineering: price features, microstructure features, feature vectors,
+//! z-score normalization, cross-sectional ranking, and lagged feature construction.
 //!
 //! ## Responsibility
 //! ML feature engineering for financial time-series: price-based features,
@@ -48,7 +49,7 @@ impl PriceFeatures {
     /// Requires at least `window + 1` observations for all features.
     ///
     /// # Errors
-    /// - [`FinError::InsufficientData`] if fewer than `window + 2` closes.
+    /// - `FinError::InsufficientData` if fewer than `window + 2` closes.
     /// - [`FinError::InvalidPeriod`] if `window == 0`.
     pub fn compute(closes: &[f64], window: usize) -> Result<Self, FinError> {
         if window == 0 {
@@ -327,7 +328,7 @@ impl FeatureNormalizer {
     /// Fit the normalizer to a dataset.
     ///
     /// # Errors
-    /// [`FinError::InsufficientData`] if fewer than 2 observations.
+    /// `FinError::InsufficientData` if fewer than 2 observations.
     /// [`FinError::InvalidInput`] if std dev is zero (constant series).
     pub fn fit(&mut self, data: &[f64]) -> Result<(), FinError> {
         if data.len() < 2 {

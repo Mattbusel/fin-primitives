@@ -1,4 +1,4 @@
-//! # Module: correlation
+//! Streaming Pearson correlation matrix for indicator redundancy detection.
 //!
 //! ## Responsibility
 //! Streaming Pearson correlation matrix across a configurable window of indicator outputs.

@@ -1,4 +1,5 @@
-//! # Module: execution_cost
+//! Execution cost models: commission (Fixed, Proportional, Tiered, ZeroCommission),
+//! SpreadCost, MarketImpact (linear, sqrt, Almgren-Chriss), TotalExecutionCost, ExecutionCostBreakdown.
 //!
 //! ## Responsibility
 //! Execution cost models including commission, bid-ask spread cost,

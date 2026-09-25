@@ -1,4 +1,5 @@
-//! # Module: liquidity
+//! Liquidity measures: bid-ask spread, market depth, composite liquidity scoring,
+//! and Amihud (2002) illiquidity ratio with rolling window averaging.
 //!
 //! ## Responsibility
 //! Liquidity measures for financial markets: bid-ask spread analysis,

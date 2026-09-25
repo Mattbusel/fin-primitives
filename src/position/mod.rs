@@ -1,4 +1,4 @@
-//! # Module: position
+//! Fills, positions and a multi-symbol `PositionLedger` with realized and unrealized P&L.
 //!
 //! ## Responsibility
 //! Tracks individual positions per symbol and a multi-position ledger with cash accounting.
@@ -739,6 +739,11 @@ impl PositionLedger {
     }
 
     /// Returns total equity: `cash + sum(unrealized P&L of open positions)`.
+    ///
+    /// Cash has already been debited for open positions, so this is not the
+    /// account's mark-to-market value. For that (for example to feed a
+    /// [`RiskMonitor`](crate::risk::RiskMonitor)), use
+    /// [`net_liquidation_value`](Self::net_liquidation_value).
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a position has no price in `prices`.

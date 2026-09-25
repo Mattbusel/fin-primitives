@@ -53,7 +53,7 @@ impl YieldCurve {
     /// Natural cubic spline interpolation at `maturity`.
     ///
     /// Uses a tridiagonal (Thomas) solver to compute the second-derivative
-    /// coefficients with natural boundary conditions (M[0] = M[n-1] = 0).
+    /// coefficients with natural boundary conditions (M\[0\] = M[n-1] = 0).
     /// Clamps to endpoints when outside the data range.
     pub fn cubic_spline(&self, maturity: f64) -> f64 {
         let pts = &self.points;

@@ -1,4 +1,4 @@
-//! # Module: async_signals
+//! Tokio-based streaming signal pipeline: push bars in, receive `SignalUpdate`s out.
 //!
 //! ## Responsibility
 //! Wraps a `SignalPipeline` with Tokio MPSC channels to provide a non-blocking,

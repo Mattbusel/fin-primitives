@@ -19,7 +19,7 @@ use std::collections::VecDeque;
 /// - `-9`: a complete sell setup
 ///
 /// Returns [`SignalValue::Unavailable`] until 5 bars have been accumulated
-/// (requires close[4] for comparison).
+/// (requires close\[4\] for comparison).
 ///
 /// # Example
 /// ```rust

@@ -1,4 +1,4 @@
-//! # Module: greeks
+//! Black-Scholes pricing, the five Greeks, implied volatility and multi-leg spreads.
 //!
 //! ## Responsibility
 //! Black-Scholes option pricing, Greeks computation, implied volatility via bisection,

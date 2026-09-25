@@ -1,4 +1,4 @@
-//! # Module: microstructure
+//! Tick-level microstructure metrics: bid-ask spread, Amihud illiquidity, Kyle's lambda, Roll implied spread.
 //!
 //! ## Responsibility
 //! Tick-level market microstructure metrics: bid-ask spread, Amihud illiquidity,

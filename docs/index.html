@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fin-primitives</title>
+<meta name="description" content="Validated, decimal-precise building blocks for trading and quant systems in Rust: order book, tick-to-OHLCV aggregation, indicators, position ledger, risk rules, Black-Scholes.">
+<meta property="og:title" content="fin-primitives">
+<meta property="og:description" content="Validated, decimal-precise order books, candles, indicators, ledgers and risk rules for Rust.">
+<meta property="og:image" content="https://mattbusel.github.io/fin-primitives/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2316181D'/%3E%3Crect x='4' y='3' width='3' height='8' fill='%233CC48A'/%3E%3Crect x='9' y='6' width='3' height='7' fill='%23F06A4F'/%3E%3C/svg%3E">
+<style>
+:root { --bg:#F4F1E8;--panel:#FBF9F3;--ink:#16181D;--muted:#6F6A5E;--rule:#DDD6C6;--bid:#1E7F57;--ask:#C4432B;--brass:#9C7A22;--grid:#E7E1D3; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0F1115;--panel:#151920;--ink:#ECE8DD;--muted:#8C877B;--rule:#262B33;--bid:#3CC48A;--ask:#F06A4F;--brass:#D9B25A;--grid:#1C2129; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg:#0F1115;--panel:#151920;--ink:#ECE8DD;--muted:#8C877B;--rule:#262B33;--bid:#3CC48A;--ask:#F06A4F;--brass:#D9B25A;--grid:#1C2129; color-scheme: dark; }
+*,*::before,*::after { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.6 Georgia, "Iowan Old Style", ui-serif, serif; }
+code, pre, .mono { font-family:"Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+a { color:inherit; text-decoration-color:var(--rule); text-underline-offset:3px; }
+a:hover { text-decoration-color:var(--ink); }
+:focus-visible { outline:2px solid var(--bid); outline-offset:2px; border-radius:3px; }
+.wrap { max-width:1180px; margin:0 auto; padding:0 24px; }
+header.top { border-bottom:1px solid var(--rule); }
+header.top .wrap { display:flex; align-items:center; justify-content:space-between; height:60px; gap:16px; }
+.brand { font:400 21px/1 Georgia, "Iowan Old Style", ui-serif, serif; text-decoration:none; white-space:nowrap; }
+.brand span { color:var(--ask); }
+nav { display:flex; gap:22px; font:14px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; color:var(--muted); align-items:center; }
+nav a { text-decoration:none; } nav a:hover { color:var(--ink); }
+.theme { background:none; border:1px solid var(--rule); color:var(--muted); border-radius:6px; padding:6px 9px; font:13px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; cursor:pointer; }
+.hero { background-image:repeating-linear-gradient(to bottom, transparent 0 27px, var(--grid) 27px 28px); border-bottom:1px solid var(--rule); }
+.hero .wrap { display:grid; grid-template-columns: minmax(0,5fr) minmax(0,7fr); gap:48px; padding-top:72px; padding-bottom:72px; align-items:center; }
+.eyebrow { font:600 12px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.eyebrow b { color:var(--bid); font-weight:600; }
+h1 { font:400 clamp(44px, 7vw, 68px)/1 Georgia, "Iowan Old Style", ui-serif, serif; letter-spacing:-.02em; margin:18px 0 20px; }
+h1 span { color:var(--ask); }
+.pitch { font-size:21px; line-height:1.45; margin:0 0 28px; }
+.install { display:flex; align-items:center; gap:0; border:1px solid var(--rule); background:var(--panel); border-radius:8px; max-width:420px; }
+.install code { flex:1; padding:12px 14px; font-size:15px; white-space:nowrap; overflow:auto; }
+.install code b { color:var(--bid); font-weight:400; }
+.copy { font:13px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; background:none; border:0; border-left:1px solid var(--rule); color:var(--muted); padding:0 14px; align-self:stretch; cursor:pointer; min-width:64px; }
+.copy:hover { color:var(--ink); }
+.links { margin-top:20px; display:flex; gap:20px; flex-wrap:wrap; font:14px/1.4 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+.card { background:var(--panel); border:1px solid var(--rule); border-radius:12px; padding:18px; display:grid; grid-template-columns:minmax(0,1fr) 228px; gap:20px; }
+.card .head { display:flex; justify-content:space-between; gap:8px; font:12px/1.2 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; color:var(--muted); margin-bottom:10px; }
+.card .head b { color:var(--ink); font-weight:600; }
+.card svg { width:100%; height:auto; display:block; }
+.card .cap { grid-column:1/-1; font:12px/1.5 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; color:var(--muted); border-top:1px solid var(--rule); padding-top:10px; }
+
+.candles .grid { stroke:var(--grid); stroke-width:1; }
+.candles .ax { fill:var(--muted); font:12px "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+.candles .wick { stroke-width:1.4; }
+.candles .up { stroke:var(--bid); fill:var(--bid); }
+.candles .dn { stroke:var(--ask); fill:var(--ask); }
+.candles .ema { fill:none; stroke:var(--brass); stroke-width:2; stroke-dasharray:1 4; stroke-linecap:round; }
+.candles .tag { fill:var(--ink); }
+.candles .tagt { fill:var(--bg); font:600 12px "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+.ladder { font:13px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-variant-numeric:tabular-nums; }
+.ladder .lv { display:grid; grid-template-columns: 78px 44px 1fr; gap:8px; align-items:center; height:21px; }
+.ladder .px { text-align:right; }
+.ladder .qt { text-align:right; color:var(--muted); }
+.ladder .dp { height:13px; position:relative; }
+.ladder .dp i { position:absolute; left:0; top:0; bottom:0; border-radius:1px; }
+.ladder .ask .px { color:var(--ask); } .ladder .ask .dp i { background:var(--ask); opacity:.28; }
+.ladder .bid .px { color:var(--bid); } .ladder .bid .dp i { background:var(--bid); opacity:.28; }
+.ladder .spread { display:flex; justify-content:space-between; margin:5px 0; padding:5px 0; color:var(--muted);
+  border-top:1px dashed var(--rule); border-bottom:1px dashed var(--rule); font-size:12px; }
+
+section { padding:80px 0; border-bottom:1px solid var(--rule); }
+h2 { font:400 36px/1.15 Georgia, "Iowan Old Style", ui-serif, serif; margin:0 0 12px; letter-spacing:-.01em; }
+.lede { color:var(--muted); max-width:720px; margin:0 0 40px; }
+.ex { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; margin-bottom:64px; }
+.ex-copy { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:12px 40px; align-items:end; }
+.ex-copy .acts { display:flex; flex-direction:column; gap:10px; }
+.ex:last-child { margin-bottom:0; }
+.ex h3 { font:400 25px/1.2 Georgia, "Iowan Old Style", ui-serif, serif; margin:4px 0 10px; }
+.ex p { margin:0; max-width:640px; }
+.cmd { display:flex; border:1px solid var(--rule); border-radius:8px; background:var(--panel); }
+.cmd code { flex:1; padding:10px 12px; font-size:13.5px; white-space:nowrap; overflow:auto; }
+.src { display:inline-block; font:13px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; color:var(--muted); }
+
+.term { background:#101318; border:1px solid #252A33; border-radius:10px; overflow:hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -18px rgba(0,0,0,.45); }
+.term-bar { display:flex; align-items:center; gap:10px; padding:10px 16px; background:#171B22;
+  border-bottom:1px solid #252A33; font:500 13px/1 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; color:#7F7A6F; }
+.term-bar .dots { display:flex; gap:6px; }
+.term-bar .dots i { width:10px; height:10px; border-radius:50%; background:#2A2F38; display:block; }
+.term-bar .tcmd { color:#E6E2D6; }
+.term-bar .tcmd b { color:#46C98F; font-weight:500; }
+.term pre { margin:0; padding:14px 18px 18px; color:#E6E2D6; font:14px/1.22 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-variant-ligatures:none; white-space:pre; overflow-x:auto; }
+.term .a { color:#F2735A; } .term .b { color:#46C98F; }
+.term .m { color:#7F7A6F; } .term .y { color:#D9B25A; }
+.term .blk { display:inline-block; height:.95em; vertical-align:-.12em; background:currentColor; border-radius:1px; }
+.term .s { color:#FFFFFF; font-weight:700; }
+
+.term pre { font-size:14.5px; }
+.grid4 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:20px; }
+.g { background:var(--panel); border:1px solid var(--rule); border-radius:12px; padding:24px; }
+.g h3 { font:400 22px/1.25 Georgia, "Iowan Old Style", ui-serif, serif; margin:0 0 14px; }
+.g pre { margin:0 0 14px; padding:12px 14px; border-radius:8px; background:var(--bg); border:1px solid var(--rule); font-size:13px; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+.g pre .in { color:var(--ink); } .g pre .out { color:var(--ask); } .g pre .ok { color:var(--bid); }
+.g p { margin:0; color:var(--muted); font-size:16px; }
+.arch { background:#F7F4EC; border-radius:12px; border:1px solid var(--rule); overflow:hidden; }
+.arch img { display:block; width:100%; height:auto; }
+.mods { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:0; border-top:1px solid var(--rule); border-left:1px solid var(--rule); }
+.mods a { display:block; padding:16px 18px; border-right:1px solid var(--rule); border-bottom:1px solid var(--rule); text-decoration:none; }
+.mods a:hover { background:var(--panel); }
+.mods code { font-size:14px; color:var(--bid); }
+.mods span { display:block; font-size:14.5px; color:var(--muted); line-height:1.4; margin-top:4px; }
+.more { margin-top:18px; color:var(--muted); font-size:16px; }
+.start { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:20px; counter-reset:s; }
+.start > div { border-top:2px solid var(--ink); padding-top:16px; }
+.start h3 { font:400 20px/1.3 Georgia, "Iowan Old Style", ui-serif, serif; margin:0 0 10px; }
+.start h3::before { counter-increment:s; content:counter(s) ". "; color:var(--muted); }
+.start pre { margin:0; padding:12px 14px; background:var(--panel); border:1px solid var(--rule); border-radius:8px; font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.start p { color:var(--muted); font-size:15.5px; margin:10px 0 0; }
+footer { padding:40px 0 60px; color:var(--muted); font:14px/1.6 "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+footer .wrap { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+footer a { margin-right:18px; }
+@media (max-width: 980px) {
+  .hero .wrap { grid-template-columns:minmax(0,1fr); padding-top:48px; padding-bottom:48px; gap:36px; }
+  .ex-copy { grid-template-columns:minmax(0,1fr); }
+  .mods { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .start { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width: 640px) {
+  body { font-size:16px; }
+  .wrap { padding:0 16px; }
+  nav .hide-sm { display:none; }
+  .card { grid-template-columns:minmax(0,1fr); padding:14px; }
+  .grid4 { grid-template-columns:minmax(0,1fr); }
+  .mods { grid-template-columns:minmax(0,1fr); }
+  section { padding:56px 0; }
+  h2 { font-size:30px; }
+  .pitch { font-size:19px; }
+  .term pre { font-size:11.5px; padding:12px; }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#">fin<span>-</span>primitives</a>
+  <nav aria-label="Primary">
+    <a class="hide-sm" href="#examples">Examples</a>
+    <a class="hide-sm" href="#guarantees">Guarantees</a>
+    <a href="https://docs.rs/fin-primitives">docs.rs</a>
+    <a href="https://github.com/Mattbusel/fin-primitives">GitHub</a>
+    <button class="theme" id="theme" aria-label="Toggle color theme">theme</button>
+  </nav>
+</div></header>
+
+<main>
+<div class="hero"><div class="wrap">
+  <div>
+    <div class="eyebrow"><b>Rust</b> &middot; crates.io &middot; MIT</div>
+    <h1>fin<span>-</span>primitives</h1>
+    <p class="pitch">Validated, decimal-precise building blocks for trading and quant systems: an order book, candles, indicators, a ledger and risk rules that refuse bad data instead of carrying it.</p>
+    <div class="install"><code><b>$</b> cargo add fin-primitives</code><button class="copy" data-copy="cargo add fin-primitives" aria-label="Copy install command">Copy</button></div>
+    <div class="links"><a href="#examples">See real output</a><a href="https://docs.rs/fin-primitives">API docs</a><a href="https://crates.io/crates/fin-primitives">crates.io</a></div>
+  </div>
+  <div class="card">
+    <div><div class="head"><span><b>ETH-USD</b> 1m candles &middot; ema9</span><span>337 ticks &rarr; 32 bars</span></div>
+    <svg viewBox="0 0 478 300" width="478" height="300" class="candles" role="img" aria-label="32 one-minute ETH-USD candles with EMA(9), aggregated from ticks by OhlcvAggregator"><line x1="0" x2="410.0" y1="272.0" y2="272.0" class="grid"/><text x="416.0" y="276.0" class="ax">3,180</text><line x1="0" x2="410.0" y1="234.3" y2="234.3" class="grid"/><line x1="0" x2="410.0" y1="196.7" y2="196.7" class="grid"/><text x="416.0" y="200.7" class="ax">3,200</text><line x1="0" x2="410.0" y1="159.1" y2="159.1" class="grid"/><line x1="0" x2="410.0" y1="121.4" y2="121.4" class="grid"/><text x="416.0" y="125.4" class="ax">3,220</text><line x1="0" x2="410.0" y1="83.8" y2="83.8" class="grid"/><line x1="0" x2="410.0" y1="46.2" y2="46.2" class="grid"/><text x="416.0" y="50.2" class="ax">3,240</text><line x1="0" x2="410.0" y1="8.5" y2="8.5" class="grid"/><line x1="6.3" x2="6.3" y1="230.8" y2="263.9" class="wick up"/><rect x="2.4" y="230.8" width="7.8" height="18.0" class="body up"/><text x="0.0" y="294.0" class="ax" text-anchor="start">15:00</text><line x1="18.9" x2="18.9" y1="184.9" y2="226.2" class="wick up"/><rect x="15.0" y="184.9" width="7.8" height="41.3" class="body up"/><line x1="31.6" x2="31.6" y1="170.4" y2="191.6" class="wick up"/><rect x="27.6" y="170.4" width="7.8" height="14.6" class="body up"/><line x1="44.2" x2="44.2" y1="143.3" y2="179.8" class="wick up"/><rect x="40.3" y="143.4" width="7.8" height="32.3" class="body up"/><line x1="56.8" x2="56.8" y1="134.7" y2="162.5" class="wick up"/><rect x="52.9" y="135.5" width="7.8" height="16.9" class="body up"/><line x1="69.4" x2="69.4" y1="103.2" y2="136.4" class="wick up"/><rect x="65.5" y="105.6" width="7.8" height="19.6" class="body up"/><line x1="82.1" x2="82.1" y1="43.8" y2="100.5" class="wick up"/><rect x="78.1" y="53.2" width="7.8" height="47.3" class="body up"/><line x1="94.7" x2="94.7" y1="49.6" y2="67.2" class="wick dn"/><rect x="90.8" y="51.6" width="7.8" height="15.6" class="body dn"/><line x1="107.3" x2="107.3" y1="27.0" y2="65.6" class="wick up"/><rect x="103.4" y="38.4" width="7.8" height="25.1" class="body up"/><text x="107.3" y="294.0" class="ax" text-anchor="middle">15:08</text><line x1="119.9" x2="119.9" y1="48.6" y2="68.7" class="wick dn"/><rect x="116.0" y="48.6" width="7.8" height="7.9" class="body dn"/><line x1="132.6" x2="132.6" y1="64.9" y2="97.2" class="wick dn"/><rect x="128.6" y="64.9" width="7.8" height="32.3" class="body dn"/><line x1="145.2" x2="145.2" y1="93.4" y2="119.0" class="wick up"/><rect x="141.3" y="100.5" width="7.8" height="6.8" class="body up"/><line x1="157.8" x2="157.8" y1="86.7" y2="107.1" class="wick dn"/><rect x="153.9" y="95.4" width="7.8" height="3.2" class="body dn"/><line x1="170.4" x2="170.4" y1="73.8" y2="105.6" class="wick up"/><rect x="166.5" y="84.9" width="7.8" height="18.1" class="body up"/><line x1="183.1" x2="183.1" y1="81.1" y2="98.9" class="wick dn"/><rect x="179.1" y="81.1" width="7.8" height="15.3" class="body dn"/><line x1="195.7" x2="195.7" y1="81.8" y2="114.4" class="wick dn"/><rect x="191.8" y="90.5" width="7.8" height="23.8" class="body dn"/><line x1="208.3" x2="208.3" y1="105.1" y2="123.6" class="wick up"/><rect x="204.4" y="105.1" width="7.8" height="13.9" class="body up"/><text x="208.3" y="294.0" class="ax" text-anchor="middle">15:16</text><line x1="220.9" x2="220.9" y1="51.9" y2="95.4" class="wick up"/><rect x="217.0" y="51.9" width="7.8" height="43.4" class="body up"/><line x1="233.6" x2="233.6" y1="36.6" y2="50.6" class="wick up"/><rect x="229.6" y="43.1" width="7.8" height="7.6" class="body up"/><line x1="246.2" x2="246.2" y1="10.1" y2="41.0" class="wick up"/><rect x="242.3" y="10.8" width="7.8" height="30.2" class="body up"/><line x1="258.8" x2="258.8" y1="13.9" y2="36.7" class="wick dn"/><rect x="254.9" y="13.9" width="7.8" height="14.5" class="body dn"/><line x1="271.4" x2="271.4" y1="17.0" y2="59.1" class="wick dn"/><rect x="267.5" y="25.4" width="7.8" height="33.7" class="body dn"/><line x1="284.1" x2="284.1" y1="53.8" y2="74.1" class="wick dn"/><rect x="280.1" y="61.7" width="7.8" height="7.1" class="body dn"/><line x1="296.7" x2="296.7" y1="57.3" y2="119.0" class="wick dn"/><rect x="292.8" y="66.9" width="7.8" height="52.2" class="body dn"/><line x1="309.3" x2="309.3" y1="112.1" y2="137.5" class="wick up"/><rect x="305.4" y="112.1" width="7.8" height="1.2" class="body up"/><text x="309.3" y="294.0" class="ax" text-anchor="middle">15:24</text><line x1="321.9" x2="321.9" y1="114.9" y2="148.1" class="wick dn"/><rect x="318.0" y="122.3" width="7.8" height="25.9" class="body dn"/><line x1="334.6" x2="334.6" y1="130.0" y2="146.7" class="wick up"/><rect x="330.6" y="131.4" width="7.8" height="13.1" class="body up"/><line x1="347.2" x2="347.2" y1="128.6" y2="157.9" class="wick dn"/><rect x="343.3" y="131.4" width="7.8" height="19.0" class="body dn"/><line x1="359.8" x2="359.8" y1="158.1" y2="195.8" class="wick dn"/><rect x="355.9" y="159.4" width="7.8" height="36.5" class="body dn"/><line x1="372.4" x2="372.4" y1="195.0" y2="206.7" class="wick up"/><rect x="368.5" y="198.8" width="7.8" height="1.2" class="body up"/><line x1="385.1" x2="385.1" y1="182.5" y2="193.7" class="wick up"/><rect x="381.1" y="185.9" width="7.8" height="2.9" class="body up"/><line x1="397.7" x2="397.7" y1="185.6" y2="200.4" class="wick dn"/><rect x="393.8" y="185.6" width="7.8" height="5.1" class="body dn"/><path d="M107.3,125.5 L119.9,111.7 L132.6,108.8 L145.2,107.1 L157.8,105.4 L170.4,101.3 L183.1,100.3 L195.7,103.1 L208.3,103.5 L220.9,93.2 L233.6,83.2 L246.2,68.7 L258.8,60.7 L271.4,60.4 L284.1,62.0 L296.7,73.4 L309.3,81.2 L321.9,94.6 L334.6,101.9 L347.2,111.6 L359.8,128.4 L372.4,142.5 L385.1,151.2 L397.7,159.1" class="ema"/><rect x="410.0" y="180.6" width="68.0" height="20" rx="3" class="tag"/><text x="416.0" y="194.6" class="tagt">3,201.61</text></svg></div>
+    <div><div class="head"><span><b>BTC-USD</b> L2 book</span><span>seq 14</span></div><div class="ladder" role="img" aria-label="BTC-USD level-2 book, 7 levels per side"><div class="lv ask"><span class="px">64,256.00</span><span class="qt">4.900</span><span class="dp"><i style="width:84.9%"></i></span></div><div class="lv ask"><span class="px">64,254.50</span><span class="qt">1.125</span><span class="dp"><i style="width:55.5%"></i></span></div><div class="lv ask"><span class="px">64,253.00</span><span class="qt">3.460</span><span class="dp"><i style="width:48.7%"></i></span></div><div class="lv ask"><span class="px">64,252.00</span><span class="qt">2.077</span><span class="dp"><i style="width:27.9%"></i></span></div><div class="lv ask"><span class="px">64,251.50</span><span class="qt">0.415</span><span class="dp"><i style="width:15.4%"></i></span></div><div class="lv ask"><span class="px">64,251.00</span><span class="qt">1.310</span><span class="dp"><i style="width:12.9%"></i></span></div><div class="lv ask"><span class="px">64,250.50</span><span class="qt">0.842</span><span class="dp"><i style="width:5.1%"></i></span></div><div class="spread"><span>spread 0.50</span><span>mid 64,250.25</span></div><div class="lv bid"><span class="px">64,250.00</span><span class="qt">1.204</span><span class="dp"><i style="width:7.2%"></i></span></div><div class="lv bid"><span class="px">64,249.50</span><span class="qt">0.655</span><span class="dp"><i style="width:11.2%"></i></span></div><div class="lv bid"><span class="px">64,249.00</span><span class="qt">2.380</span><span class="dp"><i style="width:25.5%"></i></span></div><div class="lv bid"><span class="px">64,248.00</span><span class="qt">1.720</span><span class="dp"><i style="width:35.8%"></i></span></div><div class="lv bid"><span class="px">64,247.50</span><span class="qt">3.015</span><span class="dp"><i style="width:53.9%"></i></span></div><div class="lv bid"><span class="px">64,246.00</span><span class="qt">2.260</span><span class="dp"><i style="width:67.5%"></i></span></div><div class="lv bid"><span class="px">64,244.50</span><span class="qt">5.400</span><span class="dp"><i style="width:100.0%"></i></span></div></div></div>
+    <div class="cap">Drawn from the library's own output: the same ticks, bars and book as <code>cargo run --example candles</code> and <code>order_book</code>.</div>
+  </div>
+</div></div>
+
+<section id="examples"><div class="wrap">
+  <h2>Four examples, real output</h2>
+  <p class="lede">Each block below is the captured stdout of an example in the repository, colors included. Clone, run, and you get the same numbers: the inputs are fixed or seeded.</p>
+  <article class="ex" id="ex-order_book">
+  <div class="ex-copy"><div>
+    <h3>Order book</h3>
+    <p>A BTC-USD book from 14 sequenced deltas, printed as a depth ladder with spread, micro-price, imbalance and the VWAP of a 5 BTC market buy. Then a crossing delta is rejected and rolled back, and a sequence gap is refused.</p>
+    </div><div class="acts"><div class="cmd"><code>cargo run --example order_book</code><button class="copy" data-copy="cargo run --example order_book" aria-label="Copy command">Copy</button></div>
+    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/order_book.rs">source: examples/order_book.rs</a></div>
+  </div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example order_book</span></div><pre>  <span class="s">BTC-USD</span>  level-2 book, top 7 levels, seq 14
+
+  <span class="m">side</span>       <span class="m">price</span>     <span class="m">size</span>      <span class="m">cum</span>  <span class="m">depth</span>
+  <span class="a">ask</span>    <span class="a">64,256.00</span>    4.900   14.129  <span class="a"><span class="blk" style="width:22.125ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,254.50</span>    1.125    9.229  <span class="a"><span class="blk" style="width:14.375ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,253.00</span>    3.460    8.104  <span class="a"><span class="blk" style="width:12.625ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,252.00</span>    2.077    4.644  <span class="a"><span class="blk" style="width:7.250ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,251.50</span>    0.415    2.567  <span class="a"><span class="blk" style="width:4.000ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,251.00</span>    1.310    2.152  <span class="a"><span class="blk" style="width:3.375ch"></span></span>
+  <span class="a">ask</span>    <span class="a">64,250.50</span>    0.842    0.842  <span class="a"><span class="blk" style="width:1.375ch"></span></span>
+  <span class="m">---- spread 0.50 (0.08 bps)  mid 64,250.25 ----</span>
+  <span class="b">bid</span>    <span class="b">64,250.00</span>    1.204    1.204  <span class="b"><span class="blk" style="width:1.875ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,249.50</span>    0.655    1.859  <span class="b"><span class="blk" style="width:2.875ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,249.00</span>    2.380    4.239  <span class="b"><span class="blk" style="width:6.625ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,248.00</span>    1.720    5.959  <span class="b"><span class="blk" style="width:9.375ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,247.50</span>    3.015    8.974  <span class="b"><span class="blk" style="width:14.000ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,246.00</span>    2.260   11.234  <span class="b"><span class="blk" style="width:17.500ch"></span></span>
+  <span class="b">bid</span>    <span class="b">64,244.50</span>    5.400   16.634  <span class="b"><span class="blk" style="width:26.000ch"></span></span>
+
+  <span class="m">mid</span>            64,250.25  <span class="m">(best bid + best ask) / 2</span>
+  <span class="m">micro-price</span>    64,250.29  <span class="m">size-weighted mid</span>
+  <span class="m">imbalance</span>         +0.081  <span class="m">bid-heavy</span>
+  <span class="m">buy 5 BTC</span>      <span class="s">64,251.52</span>  <span class="m">VWAP walking the asks, 0.20 bps over mid</span>
+
+  <span class="m">seq 15</span>       bid 64,251.00 x 2.0  <span class="a">rejected</span>     <span class="m">Inverted spread: best_bid 64251.00 &gt;= best_ask 64250.50</span>
+               book unchanged       <span class="b">rolled back</span>  <span class="m">best bid still 64,250.00, seq still 14</span>
+  <span class="m">seq 17</span>       ask 64,250.50 x 0.5  <span class="a">rejected</span>     <span class="m">Order book sequence mismatch: expected 15, got 17</span></pre></div>
+</article><article class="ex" id="ex-candles">
+  <div class="ex-copy"><div>
+    <h3>Ticks to candles</h3>
+    <p>337 ticks from a seeded random walk go through OhlcvAggregator into 32 one-minute bars. EMA(9) is dotted over the candles; RSI(14) reports Unavailable for 14 bars instead of a NaN.</p>
+    </div><div class="acts"><div class="cmd"><code>cargo run --example candles</code><button class="copy" data-copy="cargo run --example candles" aria-label="Copy command">Copy</button></div>
+    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/candles.rs">source: examples/candles.rs</a></div>
+  </div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example candles</span></div><pre>  <span class="s">ETH-USD</span>  337 ticks aggregated into 32 one-minute bars
+
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a">┃</span> <span class="a">│</span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  <span class="m">3,249.57</span>
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b">│</span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a">┃</span> <span class="a">┃</span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">│</span> <span class="a"> </span> <span class="b">┃</span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="a">│</span> <span class="a">┃</span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">┃</span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="a">│</span> <span class="a">│</span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  <span class="m">3,238.34</span>
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">│</span> <span class="a">┃</span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span><span class="y">·</span><span class="a"> </span><span class="y">·</span><span class="a"> </span><span class="y">·</span><span class="a">┃</span><span class="y">·</span><span class="a">┃</span><span class="y">·</span><span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b"> </span> <span class="a">│</span> <span class="b">┃</span> <span class="a">┃</span> <span class="a">│</span> <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span><span class="y">·</span><span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a">│</span> <span class="a">┃</span> <span class="b"> </span><span class="y">·</span><span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">┃</span> <span class="b">┃</span><span class="y">·</span><span class="a">┃</span><span class="y">·</span><span class="a">┃</span> <span class="b"> </span> <span class="b">┃</span><span class="y">·</span><span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b"> </span> <span class="a"> </span><span class="y">·</span><span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  <span class="m">3,227.10</span>
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span><span class="y">·</span><span class="a"> </span><span class="y">·</span><span class="b">┃</span><span class="y">·</span><span class="a">│</span><span class="y">·</span><span class="b">┃</span> <span class="a"> </span> <span class="a">┃</span><span class="y">·</span><span class="b">┃</span><span class="y">·</span><span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">│</span> <span class="b"> </span><span class="y">·</span><span class="a"> </span><span class="y">·</span><span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span><span class="y">·</span><span class="a"> </span> <span class="a"> </span> <span class="b">│</span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b">│</span> <span class="a">┃</span> <span class="b"> </span> <span class="a">│</span> <span class="a"> </span><span class="y">·</span><span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="b">│</span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b">│</span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">┃</span> <span class="a"> </span> <span class="b"> </span><span class="y">·</span><span class="b"> </span> <span class="a"> </span>  <span class="m">3,215.86</span>
+  <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a">┃</span> <span class="b">┃</span> <span class="a">┃</span> <span class="a">│</span> <span class="b"> </span> <span class="b"> </span><span class="y">·</span><span class="a"> </span>  
+  <span class="b"> </span> <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="b">│</span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span><span class="y">·</span> 
+  <span class="b"> </span> <span class="b">┃</span> <span class="b">┃</span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b"> </span> <span class="b">┃</span> <span class="a">┃</span>  <span class="m">3,204.63</span>
+  <span class="b"> </span> <span class="b">┃</span> <span class="b">│</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a">┃</span> <span class="b">┃</span> <span class="b">┃</span> <span class="a">┃</span>  
+  <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b">│</span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b"> </span> <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  <span class="m">3,193.40</span>
+  <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b">┃</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  
+  <span class="b">│</span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="b"> </span> <span class="a"> </span> <span class="a"> </span> <span class="b"> </span> <span class="b"> </span> <span class="a"> </span>  <span class="m">3,182.16</span>
+  <span class="m">15:00           15:08           15:16           15:24</span>
+
+  <span class="b">┃</span> <span class="m">up bar</span>   <span class="a">┃</span> <span class="m">down bar</span>   <span class="y">·</span> <span class="m">ema9</span>
+
+  <span class="m">time</span>       <span class="m">open</span>      <span class="m">high</span>       <span class="m">low</span>     <span class="m">close</span>  <span class="m">volume</span> <span class="m">ticks</span>      <span class="m">ema9</span>   <span class="m">rsi14</span>
+  15:00  3,186.17  3,190.94  3,182.16  <span class="b">3,190.94</span>   10.58    12    <span class="m">warmup</span>  <span class="m">warmup</span>
+  15:01  3,192.16  3,203.13  3,192.16  <span class="b">3,203.13</span>   10.16    11    <span class="m">warmup</span>  <span class="m">warmup</span>
+  15:02  3,203.11  3,206.99  3,201.35  <span class="b">3,206.99</span>    4.26    10    <span class="m">warmup</span>  <span class="m">warmup</span>
+  <span class="m">  ...</span>
+  15:12  3,226.93  3,229.22  3,223.81  <span class="a">3,226.08</span>   11.30     9  3,224.26  <span class="m">warmup</span>
+  15:13  3,224.91  3,232.65  3,224.21  <span class="b">3,229.71</span>   16.59    11  3,225.35  <span class="m">warmup</span>
+  15:14  3,230.73  3,230.73  3,225.99  <span class="a">3,226.66</span>    9.50    12  3,225.61   71.72
+  15:15  3,228.21  3,230.54  3,221.88  <span class="a">3,221.88</span>    8.49    11  3,224.86   67.50
+  <span class="m">  ...</span>
+  15:30  3,202.10  3,203.78  3,200.80  <span class="b">3,202.86</span>    7.10     9  3,212.09   44.40
+  15:31  3,202.96  3,202.96  3,199.02  <span class="a">3,201.61</span>    9.01    10  3,209.99   43.70
+
+  <span class="m">rsi14 returned Unavailable for bars 1-14; first value on bar 15 (15:14). No NaN, no zero-fill.</span></pre></div>
+</article><article class="ex" id="ex-position_risk">
+  <div class="ex-copy"><div>
+    <h3>Ledger and risk</h3>
+    <p>Fills and marks run through a PositionLedger; its net liquidation value feeds a RiskMonitor with a 4% drawdown rule and an equity floor. An unaffordable buy is refused.</p>
+    </div><div class="acts"><div class="cmd"><code>cargo run --example position_risk</code><button class="copy" data-copy="cargo run --example position_risk" aria-label="Copy command">Copy</button></div>
+    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/position_risk.rs">source: examples/position_risk.rs</a></div>
+  </div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example position_risk</span></div><pre>  <span class="s">session</span>  start 100,000.00  rules: drawdown &gt; 4%, equity &lt; 96,600.00
+
+  <span class="m">#</span>   <span class="m">event</span>                        <span class="m">equity</span>  <span class="m">drawdown</span>  <span class="m">risk</span>
+  1   buy  200 AAPL @ 175.00    99,999.00     0.00%  <span class="b">ok</span>
+  2   buy   80 MSFT @ 410.00    99,998.00     0.00%  <span class="b">ok</span>
+  3   mark AAPL 178.40         100,678.00     0.00%  <span class="b">ok</span>
+  4   mark MSFT 415.25         101,098.00     0.00%  <span class="b">ok</span>
+  5   sell 100 AAPL @ 179.10   101,237.00     0.00%  <span class="b">ok</span>
+  6   mark MSFT 398.10          99,865.00     1.36%  <span class="b">ok</span>
+  7   mark AAPL 166.80          98,635.00     2.57%  <span class="b">ok</span>
+  8   mark MSFT 371.50          96,507.00     <span class="a">4.67%</span>  <span class="a">BREACH max_drawdown, min_equity</span>
+      <span class="m">  max_drawdown: drawdown 4.67% &gt; 4.00%</span>
+      <span class="m">  min_equity: equity 96507.00 &lt; floor 96600</span>
+  9   sell  80 MSFT @ 372.00    96,546.00     <span class="a">4.63%</span>  <span class="a">BREACH max_drawdown, min_equity</span>
+      <span class="m">  max_drawdown: drawdown 4.63% &gt; 4.00%</span>
+      <span class="m">  min_equity: equity 96546.00 &lt; floor 96600</span>
+  10  mark AAPL 171.35          97,001.00     <span class="a">4.18%</span>  <span class="a">BREACH max_drawdown</span>
+      <span class="m">  max_drawdown: drawdown 4.18% &gt; 4.00%</span>
+
+  <span class="a">rejected</span>  buy 1000 AAPL  <span class="m">Insufficient funds: need 171351.00, have 79866.00</span>
+
+  <span class="m">symbol</span>    <span class="m">qty</span>   <span class="m">avg cost</span>       <span class="m">mark</span>   <span class="m">unrealized</span>     <span class="m">realized</span>
+  AAPL      100     175.00     171.35      <span class="a">-365.00</span>      <span class="b">+408.00</span>
+  MSFT     flat          -     372.00         0.00    <span class="a">-3,042.00</span>
+
+  <span class="m">cash</span>              79,866.00   <span class="m">peak equity</span>    101,237.00
+  <span class="m">equity</span>            97,001.00   <span class="m">drawdown</span>           4.18%</pre></div>
+</article><article class="ex" id="ex-option_chain">
+  <div class="ex-copy"><div>
+    <h3>Option chain</h3>
+    <p>A Black-Scholes chain with prices and Greeks for eight strikes, then the implied-vol solver recovers the 28% input from a price.</p>
+    </div><div class="acts"><div class="cmd"><code>cargo run --example option_chain</code><button class="copy" data-copy="cargo run --example option_chain" aria-label="Copy command">Copy</button></div>
+    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/option_chain.rs">source: examples/option_chain.rs</a></div>
+  </div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example option_chain</span></div><pre>  <span class="s">chain</span>  spot 212.40  30 days  r 4.50%  vol 28.00%
+
+    <span class="m">theta</span>   <span class="m">delta</span>    <span class="b">call</span>   <span class="s">strike</span>       <span class="a">put</span>   <span class="m">delta</span>   <span class="m">theta</span>    <span class="m">gamma</span>   <span class="m">vega</span>
+   -0.079   0.875   <span class="b">19.21</span>   195.00      <span class="a">1.09</span>  -0.125  -0.055   0.0121  0.125
+   -0.099   0.798   <span class="b">15.14</span>   200.00      <span class="a">2.00</span>  -0.202  -0.074   0.0165  0.171
+   -0.116   0.701   <span class="b">11.53</span>   205.00      <span class="a">3.37</span>  -0.299  -0.090   0.0204  0.211
+   -0.125   0.590    <span class="b">8.46</span>  <span class="s"> 210.00*</span>     <span class="a">5.28</span>  -0.410  -0.099   0.0228  0.237
+   -0.125   0.474    <span class="b">5.96</span>   215.00      <span class="a">7.77</span>  -0.526  -0.098   0.0233  0.242
+   -0.116   0.363    <span class="b">4.04</span>   220.00     <span class="a">10.83</span>  -0.637  -0.089   0.0220  0.228
+   -0.099   0.264    <span class="b">2.62</span>   225.00     <span class="a">14.39</span>  -0.736  -0.072   0.0192  0.199
+   -0.080   0.183    <span class="b">1.63</span>   230.00     <span class="a">18.38</span>  -0.817  -0.052   0.0155  0.161
+
+  <span class="m">* nearest the money. theta is per calendar day, vega per 1 vol point.</span>
+
+  <span class="m">implied vol</span>  210 call priced at 8.4554 recovers vol <span class="s">28.0000</span>%</pre></div>
+</article>
+</div></section>
+
+<section id="guarantees"><div class="wrap">
+  <h2>Guarantees you can lean on</h2>
+  <p class="lede">The crate is small promises kept everywhere. These four come up in almost every trading system.</p>
+  <div class="grid4">
+  <div class="g"><h3>Invalid values do not construct</h3><pre><span class="in">Price::new(dec!(-1))</span>
+<span class="out">&rarr; Err(InvalidPrice(-1))  "Price must be positive, got -1"</span></pre><p>Price rejects zero and negatives, Quantity rejects negatives, Symbol rejects empty or whitespace strings. Code holding one can trust it.</p></div><div class="g"><h3>The book cannot silently drift</h3><pre><span class="in">book.apply_delta(delta_with_seq_17)</span>
+<span class="out">&rarr; "Order book sequence mismatch: expected 15, got 17"</span></pre><p>Each delta must carry exactly the next sequence number. A delta that would cross the book is rolled back and returned as InvertedSpread.</p></div><div class="g"><h3>Indicators say when they are not ready</h3><pre><span class="in">rsi.update(&amp;bar_1)?</span>
+<span class="ok">&rarr; SignalValue::Unavailable   (bars 1 to 14)</span></pre><p>Every Signal returns Unavailable until its warm-up is met, so a chart never plots a fake zero and a strategy never trades on one.</p></div><div class="g"><h3>Money math stays decimal</h3><pre><span class="in">book.vwap_for_qty(Side::Ask, 1 BTC)?</span>
+<span class="ok">&rarr; 64250.579   (0.842 @ 64,250.50 + 0.158 @ 64,251.00)</span></pre><p>Prices, quantities, P&amp;L and book math use rust_decimal. Statistical models compute in f64 and convert at the boundary.</p></div>
+  </div>
+</div></section>
+
+<section id="architecture"><div class="wrap">
+  <h2>Architecture</h2>
+  <p class="lede">Plain data in, a typed value or FinError out. Every stage works on its own: use the book without the ledger, or the indicators without the aggregator.</p>
+  <div class="arch"><img src="assets/architecture.svg" width="960" height="420" alt="Data flow: ticks to TickFilter to OhlcvAggregator to Signal; BookDelta to OrderBook; Fill to PositionLedger to RiskMonitor; OptionSpec to BlackScholes; all sharing validated Price, Quantity, Symbol, NanoTimestamp and Side types"></div>
+</div></section>
+
+<section id="modules"><div class="wrap">
+  <h2>What is inside</h2>
+  <p class="lede">One crate, one error type. The core modules, each linking to its API docs:</p>
+  <div class="mods">
+  <a href="https://docs.rs/fin-primitives/latest/fin_primitives/types/index.html"><code>types</code><span>Price, Quantity, Symbol, NanoTimestamp, Side</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/orderbook/index.html"><code>orderbook</code><span>L2 book, sequence checks, VWAP to fill, imbalance</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/ohlcv/index.html"><code>ohlcv</code><span>OhlcvBar, tick-to-bar aggregation, OhlcvSeries analytics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/signals/index.html"><code>signals</code><span>Signal trait, pipelines, composition, 725+ indicators</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/position/index.html"><code>position</code><span>Fills, positions, PositionLedger, Kelly sizing</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/risk/index.html"><code>risk</code><span>DrawdownTracker, RiskRule, RiskMonitor, VaR, stress</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/greeks/index.html"><code>greeks</code><span>Black-Scholes price, Greeks, implied vol, spreads</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/backtest/index.html"><code>backtest</code><span>Bar-by-bar backtester, walk-forward optimizer</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/regime/index.html"><code>regime</code><span>Hurst, GARCH(1,1), correlation-breakdown regimes</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/async_signals/index.html"><code>async_signals</code><span>Tokio streaming signal pipeline</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/portfolio/index.html"><code>portfolio</code><span>Mean-variance optimizer, Ledoit-Wolf shrinkage</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/fixed_income/index.html"><code>fixed_income</code><span>Bond pricing, duration, convexity, YTM</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/yield_curve/index.html"><code>yield_curve</code><span>Interpolation, forwards, Nelson-Siegel</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/derivatives/index.html"><code>derivatives</code><span>Swaps, forwards, futures, variance swaps, exotics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/microstructure/index.html"><code>microstructure</code><span>Spread, Amihud, Kyle's lambda, Roll</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/montecarlo/index.html"><code>montecarlo</code><span>GBM paths, VaR, CVaR</span></a>
+  </div>
+  <p class="more">Plus credit, factor models, execution cost, pairs trading, tax lots, clustering, funding rates and more. Some newer modules are on <code>main</code> ahead of the crates.io release; see the README for details.</p>
+</div></section>
+
+<section id="start"><div class="wrap">
+  <h2>Start in two minutes</h2>
+  <div class="start">
+    <div><h3>Add it</h3><pre>cargo add fin-primitives rust_decimal_macros</pre><p>crates.io has 2.12.0. For the newest modules use the git dependency shown in the README.</p></div>
+    <div><h3>Run an example</h3><pre>git clone https://github.com/Mattbusel/fin-primitives
+cd fin-primitives
+cargo run --example order_book</pre><p>Four examples ship in <code>examples/</code>.</p></div>
+    <div><h3>Read the docs</h3><pre>cargo doc --no-deps --open</pre><p>Or browse <a href="https://docs.rs/fin-primitives">docs.rs/fin-primitives</a>. The crate-level page opens with a runnable example.</p></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <div><a href="https://github.com/Mattbusel/fin-primitives">GitHub</a><a href="https://docs.rs/fin-primitives">docs.rs</a><a href="https://crates.io/crates/fin-primitives">crates.io</a><a href="https://github.com/Mattbusel/fin-stream">fin-stream</a></div>
+  <div>MIT licensed. Research and engineering library, not financial advice.</div>
+</div></footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var t = b.getAttribute('data-copy');
+    var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1400); };
+    if (navigator.clipboard) { navigator.clipboard.writeText(t).then(done, function () {}); }
+  });
+});
+(function () {
+  var root = document.documentElement, btn = document.getElementById('theme');
+  try { var s = localStorage.getItem('fp-theme'); if (s) root.setAttribute('data-theme', s); } catch (e) {}
+  btn.addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('fp-theme', next); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

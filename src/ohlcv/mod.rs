@@ -1,4 +1,4 @@
-//! # Module: ohlcv
+//! OHLCV bars, tick-to-bar aggregation by timeframe, and `OhlcvSeries` analytics.
 //!
 //! ## Responsibility
 //! Provides OHLCV bar data structures, timeframe definitions, tick-to-bar aggregation,
@@ -7299,7 +7299,7 @@ impl OhlcvSeries {
 
     /// Returns the fraction of last `n + 1` bar-pairs where close > prev_close (win rate).
     ///
-    /// Alias for [`win_rate`] using close-to-close comparisons.
+    /// Alias for `win_rate` using close-to-close comparisons.
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn close_win_rate(&self, n: usize) -> Option<Decimal> {
         if n == 0 || self.bars.len() < n + 1 { return None; }

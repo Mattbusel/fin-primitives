@@ -175,7 +175,7 @@ pub fn stressed_correlation(mat: &CorrelationStressMatrix, i: usize, j: usize) -
 
 /// Portfolio volatility under the stressed correlation matrix.
 ///
-/// Returns √(wᵀ Σ w) where Σ[i][j] = σ_i · σ_j · ρ_stressed(i, j).
+/// Returns √(wᵀ Σ w) where Σ\[i\]\[j\] = σ_i · σ_j · ρ_stressed(i, j).
 pub fn portfolio_var_stressed(
     mat: &CorrelationStressMatrix,
     vols: &[f64],

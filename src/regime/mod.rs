@@ -1,4 +1,5 @@
-//! # Module: regime
+//! Market regime engine: Hurst exponent, GARCH(1,1), cross-asset correlation breakdown,
+//! `RegimeConditionalSignal` (regime-adaptive RSI), and full `RegimeHistory` audit trail.
 //!
 //! ## Responsibility
 //! Market regime classification using multiple quantitative signals.

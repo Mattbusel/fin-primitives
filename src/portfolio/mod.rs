@@ -26,8 +26,6 @@ pub mod attribution;
 /// information ratio, factor contributions, and systematic/idiosyncratic decomposition.
 pub mod factor_model;
 
-/// Portfolio rebalancing strategies: trigger logic, drift analytics, plan generation,
-/// cost estimation, tax-lot optimisation, and minimum-variance rebalancing.
 pub mod rebalancing;
 
 /// CDO tranching, waterfall cashflow distribution, and Monte Carlo CDO pricing

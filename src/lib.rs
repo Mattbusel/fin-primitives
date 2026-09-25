@@ -1,42 +1,147 @@
 //! # fin-primitives
 //!
-//! A zero-panic, decimal-precise foundation for high-frequency trading and
-//! quantitative systems in Rust.
+//! Validated, decimal-precise building blocks for trading and quantitative
+//! systems: price and quantity types that cannot hold invalid values, a
+//! sequence-checked level-2 order book, tick-to-OHLCV aggregation, streaming
+//! indicators with an explicit warm-up contract, a position ledger, risk rules,
+//! Black-Scholes Greeks and a walk-forward backtester. One error type,
+//! [`FinError`], covers all of it.
 //!
-//! ## Features
+//! ## A first look
 //!
-//! | Module | What it provides | Key guarantee |
-//! |--------|-----------------|---------------|
-//! | [`types`] | `Price`, `Quantity`, `Symbol`, `NanoTimestamp`, `Side` newtypes | Validation at construction; no invalid value can exist at runtime |
-//! | [`tick`] | `Tick`, `TickFilter`, `TickReplayer` | Filter is pure; replayer yields ticks in ascending timestamp order |
-//! | [`orderbook`] | L2 `OrderBook` with `apply_delta`, spread, mid-price, VWAP, top-N levels | Sequence validation; inverted spreads are detected and rolled back |
-//! | [`ohlcv`] | `OhlcvBar`, `Timeframe`, `OhlcvAggregator`, `OhlcvSeries` | Bar invariants (`high >= low`, etc.) enforced on every push |
-//! | [`signals`] | `Signal` trait, `SignalPipeline`, `Sma`, `Ema`, `Rsi` | Returns `Unavailable` until warm-up period is satisfied; no silent NaN |
-//! | [`position`] | `Position`, `Fill`, `PositionLedger`, `KellyCriterion` | VWAP average cost; realized and unrealized P&L net of commissions; Kelly Criterion sizing |
-//! | [`portfolio`] | `PortfolioOptimizer`, `CovarianceMatrix`, `OptimizationObjective` | Markowitz mean-variance optimization; Ledoit-Wolf shrinkage; projected gradient descent |
-//! | [`risk`] | `DrawdownTracker`, `RiskRule` trait, `MaxDrawdownRule`, `MinEquityRule`, `RiskMonitor` | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
-//! | [`greeks`] | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
-//! | [`backtest`] | `Backtester`, `Strategy`, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
-//! | [`async_signals`] | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC streaming; pre-allocated output buffers on the hot path |
-//! | [`regime`] | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-conditional RSI adaptation |
+//! Build a book from sequenced deltas, read the top of book, and price a
+//! market order by walking the levels:
 //!
-//! ## Design Principles
+//! ```
+//! use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
+//! use fin_primitives::types::{Price, Quantity, Side, Symbol};
+//! use rust_decimal_macros::dec;
 //!
-//! - **Zero panics.** Every fallible operation returns `Result<_, FinError>`.
-//!   No `unwrap` or `expect` in production code paths.
-//! - **Decimal precision.** All prices and quantities use [`rust_decimal::Decimal`].
-//!   Floating-point drift is structurally impossible.
-//! - **Nanosecond timestamps.** [`types::NanoTimestamp`] is a newtype over `i64`
-//!   nanoseconds since Unix epoch, suitable for microsecond-accurate event ordering.
-//! - **Composable by design.** [`risk::RiskRule`], [`signals::Signal`], and
-//!   [`tick::TickFilter`] are traits; plug in your own implementations without forking.
+//! # fn main() -> Result<(), fin_primitives::FinError> {
+//! let mut book = OrderBook::new(Symbol::new("BTC-USD")?);
+//! let levels = [
+//!     (Side::Ask, dec!(64250.50), dec!(0.842)),
+//!     (Side::Ask, dec!(64251.00), dec!(1.310)),
+//!     (Side::Bid, dec!(64250.00), dec!(1.204)),
+//!     (Side::Bid, dec!(64249.50), dec!(0.655)),
+//! ];
+//! for (seq, (side, price, qty)) in (1..).zip(levels) {
+//!     book.apply_delta(BookDelta {
+//!         side,
+//!         price: Price::new(price)?,
+//!         quantity: Quantity::new(qty)?,
+//!         action: DeltaAction::Set,
+//!         sequence: seq,
+//!     })?;
+//! }
 //!
-//! ## Errors
+//! assert_eq!(book.spread(), Some(dec!(0.50)));
+//! assert_eq!(book.mid_price(), Some(dec!(64250.25)));
 //!
-//! All error variants live in [`FinError`] (re-exported at the crate root).
-//! Every public fallible function documents which variant it may return.
+//! // Buying 1 BTC takes all 0.842 at the best ask and 0.158 at the next level.
+//! let vwap = book.vwap_for_qty(Side::Ask, Quantity::new(dec!(1))?)?;
+//! assert_eq!(vwap, dec!(64250.579));
 //!
-//! All prices and quantities use [`rust_decimal::Decimal`]; never `f64`.
+//! // A delta that would cross the book is rejected and rolled back.
+//! let crossing = BookDelta {
+//!     side: Side::Bid,
+//!     price: Price::new(dec!(64251.00))?,
+//!     quantity: Quantity::new(dec!(2))?,
+//!     action: DeltaAction::Set,
+//!     sequence: 5,
+//! };
+//! assert!(book.apply_delta(crossing).is_err());
+//! assert_eq!(book.sequence(), 4);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Ticks become bars, and bars feed indicators. Indicators return
+//! [`SignalValue::Unavailable`](signals::SignalValue::Unavailable) until they
+//! have enough history, never a NaN or a zero:
+//!
+//! ```
+//! use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
+//! use fin_primitives::signals::indicators::Sma;
+//! use fin_primitives::signals::{BarInput, Signal, SignalValue};
+//! use fin_primitives::tick::Tick;
+//! use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
+//! use rust_decimal_macros::dec;
+//!
+//! # fn main() -> Result<(), fin_primitives::FinError> {
+//! let sym = Symbol::new("ETH-USD")?;
+//! let mut agg = OhlcvAggregator::new(sym.clone(), Timeframe::Minutes(1))?;
+//! let mut sma = Sma::new("sma3", 3)?;
+//!
+//! let mut values = Vec::new();
+//! for (minute, close) in [(0, dec!(3180)), (1, dec!(3190)), (2, dec!(3200)), (3, dec!(3230))] {
+//!     let tick = Tick::new(
+//!         sym.clone(),
+//!         Price::new(close)?,
+//!         Quantity::new(dec!(1))?,
+//!         Side::Bid,
+//!         NanoTimestamp::from_secs(1_767_625_200 + minute * 60),
+//!     );
+//!     for bar in agg.push_tick(&tick)? {
+//!         values.push(sma.update(&BarInput::from(&bar))?);
+//!     }
+//! }
+//! // Three bars have closed; the fourth is still open.
+//! assert_eq!(values[0], SignalValue::Unavailable);
+//! assert_eq!(values[1], SignalValue::Unavailable);
+//! assert_eq!(values[2], SignalValue::Scalar(dec!(3190)));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Runnable examples
+//!
+//! The repository ships examples that print formatted, colored output:
+//!
+//! | Command | Shows |
+//! |---------|-------|
+//! | `cargo run --example order_book` | depth ladder, spread, micro-price, VWAP fill, rejected deltas |
+//! | `cargo run --example candles` | ticks to 1-minute candles, EMA and RSI with warm-up |
+//! | `cargo run --example position_risk` | fills, mark-to-market, drawdown and equity-floor breaches |
+//! | `cargo run --example option_chain` | Black-Scholes chain with Greeks and an implied-vol round trip |
+//!
+//! ## Where things live
+//!
+//! | Module | What it provides |
+//! |--------|------------------|
+//! | [`types`] | [`Price`](types::Price), [`Quantity`](types::Quantity), [`Symbol`](types::Symbol), [`NanoTimestamp`](types::NanoTimestamp), [`Side`](types::Side) |
+//! | [`tick`] | [`Tick`](tick::Tick), `TickFilter`, `TickReplayer` |
+//! | [`orderbook`] | [`OrderBook`](orderbook::OrderBook): L2 book with sequence checks and crossed-book rollback |
+//! | [`ohlcv`] | [`OhlcvBar`](ohlcv::OhlcvBar), [`OhlcvAggregator`](ohlcv::OhlcvAggregator), `OhlcvSeries` analytics |
+//! | [`signals`] | the [`Signal`](signals::Signal) trait, `SignalPipeline`, and several hundred indicators in [`signals::indicators`] |
+//! | [`position`] | [`Fill`](position::Fill), [`Position`](position::Position), [`PositionLedger`](position::PositionLedger), Kelly sizing |
+//! | [`risk`] | `DrawdownTracker`, the [`RiskRule`](risk::RiskRule) trait, [`RiskMonitor`](risk::RiskMonitor), VaR and stress tools |
+//! | [`greeks`] | [`BlackScholes`](greeks::BlackScholes) pricing, Greeks, implied volatility, multi-leg spreads |
+//! | [`backtest`] | bar-by-bar `Backtester`, `Strategy` trait, `WalkForwardOptimizer` |
+//! | [`async_signals`] | Tokio-based `StreamingSignalPipeline` |
+//! | [`regime`] | Hurst exponent, GARCH(1,1), correlation-breakdown regime detection |
+//!
+//! Further modules cover portfolio optimization, factor models, yield curves,
+//! fixed income, credit, derivatives, execution cost, microstructure, Monte
+//! Carlo, pairs trading, tax lots and more; see the module list below.
+//!
+//! ## Design
+//!
+//! - **Validated at construction.** `Price::new` rejects zero and negative
+//!   values; `Quantity::new` rejects negatives; `Symbol::new` rejects empty or
+//!   whitespace strings. Code that holds one of these types can trust it.
+//! - **Decimal where money is.** Prices, quantities, P&L and order-book math
+//!   use [`rust_decimal::Decimal`]. Statistical models (GARCH, optimizers,
+//!   Black-Scholes internals) compute in `f64` and convert at the boundary.
+//! - **Typed errors.** Fallible operations return `Result<_, FinError>`, and
+//!   the crate's Clippy config warns on `unwrap`, `expect` and `panic`.
+//! - **Traits at the seams.** [`risk::RiskRule`], [`signals::Signal`] and
+//!   [`tick::TickFilter`] are traits, so your own rules and indicators plug in
+//!   next to the built-in ones.
+//! - **No unsafe code.** The crate is `#![forbid(unsafe_code)]`.
+//!
+//! Sister crate: [fin-stream](https://github.com/Mattbusel/fin-stream) handles
+//! real-time market data ingestion on top of these types.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
@@ -52,135 +157,42 @@ pub mod risk;
 pub mod signals;
 pub mod tick;
 pub mod types;
-
-/// Streaming P&L attribution: decomposes realized P&L into alpha and cost components.
 pub mod pnl;
-
-/// Streaming Pearson correlation matrix for indicator redundancy detection.
 pub mod correlation;
-
-/// Order latency tracking: measures submit→ack, ack→fill, fill→book-update phases.
 pub mod latency;
-
-/// Risk scenario backtesting: replays historical bars through risk rules.
 pub mod scenario;
-
-/// Tick-level microstructure metrics: bid-ask spread, Amihud illiquidity, Kyle's lambda, Roll implied spread.
 pub mod microstructure;
-
-/// ML feature vector builder: snapshot N indicator outputs, normalize, and serialize for ML pipelines.
 pub mod ml;
-
-/// Market regime engine: Hurst exponent, GARCH(1,1), cross-asset correlation breakdown,
-/// `RegimeConditionalSignal` (regime-adaptive RSI), and full `RegimeHistory` audit trail.
 pub mod regime;
-
-/// Cross-asset rolling correlations and PCA-based dimensionality reduction.
 pub mod cross_asset;
-
-/// Portfolio performance attribution: Brinson-Hood-Beebower decomposition, multi-factor
-/// attribution, marginal risk contribution, and comprehensive performance tearsheet.
 pub mod attribution;
-
-/// Black-Scholes options pricing engine with Greeks and implied volatility solver.
 pub mod options;
-
-/// Realised volatility estimators: Close-to-Close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang.
-/// Also provides `volatility::garch` with GARCH(1,1) MLE fitting, conditional variance,
-/// multi-step forecasting, and volatility term structure.
 pub mod volatility;
-
-/// Almgren-Chriss optimal order execution and market impact model.
 pub mod impact;
-
-/// Portfolio optimization: Markowitz mean-variance (MinVariance, MaxSharpe, RiskParity,
-/// EqualWeight) via projected gradient descent with Ledoit-Wolf covariance shrinkage.
 pub mod portfolio;
 
-/// PyO3 Python bindings (enabled by the `python` feature).
 #[cfg(feature = "python")]
 pub mod python;
-
-/// Fama-French style multi-factor regression, factor exposure decomposition, and portfolio-level aggregation.
 pub mod factor;
-
-/// Execution cost estimation (commission, spread, market impact) and turnover-minimizing optimizer.
 pub mod execution;
-
-/// Monte Carlo price-path simulation: GBM, VaR, CVaR, and percentile paths.
 pub mod montecarlo;
-
-/// Yield curve construction, interpolation (linear and natural cubic spline),
-/// forward rates, Macaulay duration, convexity, curve shape classification,
-/// and Nelson-Siegel parametric model with gradient-descent fitting.
 pub mod yield_curve;
-
-/// Event study framework: abnormal returns, cumulative AR, CAR pre/post,
-/// peak/trough identification, and t-statistic significance testing.
 pub mod events;
-
-/// Crypto-specific financial metrics: funding rates, perpetual basis,
-/// open-interest ratio, liquidation heatmap, and Fear & Greed index.
 pub mod crypto;
-
-/// Interest rate swap pricing: discount curve, par rate, DV01, NPV.
 pub mod derivatives;
-
-/// Technical analysis indicators: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, OBV, Stochastic, candlestick patterns.
 pub mod technical;
-
-/// Fixed income analytics: bond pricing, duration, convexity, YTM solver (Brent's method), DV01.
 pub mod fixed_income;
-
-/// Liquidity measures: bid-ask spread, market depth, composite liquidity scoring,
-/// and Amihud (2002) illiquidity ratio with rolling window averaging.
 pub mod liquidity;
-
-/// Statistical pairs trading: Engle-Granger cointegration, ADF stationarity test,
-/// spread z-score signal generation, and Welford online mean/variance tracking.
 pub mod pairs_trading;
-
-/// ML feature engineering: price features, microstructure features, feature vectors,
-/// z-score normalization, cross-sectional ranking, and lagged feature construction.
 pub mod ml_features;
-
-/// Portfolio performance metrics: Sharpe, Sortino, Calmar, Omega, Information Ratio,
-/// Max Drawdown, and CAGR.
 pub mod performance;
-
-/// Asset clustering using k-means on return correlations: KMeans, CorrelationClusterer,
-/// silhouette scoring, and cluster label extraction.
 pub mod clustering;
-
-/// Tax lot accounting: FIFO, LIFO, SpecificLot, MinTax, and AverageCost disposal methods,
-/// realized gain/loss records, wash-sale detection, and unrealized P&L.
 pub mod tax;
-
-/// Portfolio rebalancing: drift calculation, threshold and calendar triggers,
-/// proportional trade generation, turnover estimation, and tax-aware rebalancing.
 pub mod rebalancing;
-
-/// Funding rate calculations for perpetual futures: premium index, clamped funding rate,
-/// payment computation, annualization, exponentially-weighted rate prediction,
-/// and rolling history with avg/volatility/cumulative-payment aggregation.
 pub mod funding;
-
-/// Alternative data integration: social sentiment, web traffic, satellite imagery,
-/// credit card data, job postings, and patent filings.
-/// Provides `AltDataAggregator` with composite signals, Pearson correlation, z-score anomaly
-/// detection, and staleness checking.
 pub mod alternative_data;
-
-/// Cross-market arbitrage detection: ArbitrageOpportunity, TriangularArb, StatisticalArb,
-/// ArbitrageScanner (scan_cross_market, scan_triangular, filter_by_min_profit, rank_by_confidence).
 pub mod arbitrage;
-
-/// Execution cost models: commission (Fixed, Proportional, Tiered, ZeroCommission),
-/// SpreadCost, MarketImpact (linear, sqrt, Almgren-Chriss), TotalExecutionCost, ExecutionCostBreakdown.
 pub mod execution_cost;
-
-/// Credit analytics: credit default swap (CDS) pricing with hazard rate models,
-/// survival probability curves, par spread, CS01, and bootstrap from market spreads.
 pub mod credit;
 
 pub use error::FinError;

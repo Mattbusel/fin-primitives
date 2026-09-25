@@ -1,4 +1,4 @@
-//! # Module: backtest
+//! Bar-by-bar backtester, the `Strategy` trait, and a walk-forward optimizer.
 //!
 //! ## Responsibility
 //! Provides a bar-by-bar backtester, a `Strategy` trait for signal generation,

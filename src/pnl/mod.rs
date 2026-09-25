@@ -1,4 +1,4 @@
-//! # Module: pnl
+//! Streaming P&L attribution: decomposes realized P&L into alpha and cost components.
 //!
 //! ## Responsibility
 //! Streaming P&L attribution: tracks realized and unrealized P&L per trade and

@@ -147,7 +147,7 @@ impl PermutationEntropy {
         Ok(Self { order, window, buffer: Vec::with_capacity(window + order) })
     }
 
-    /// Push a new price observation. Returns normalised permutation entropy [0,1]
+    /// Push a new price observation. Returns normalised permutation entropy \[0,1\]
     /// once `window + order - 1` observations have been seen.
     pub fn update(&mut self, price: f64) -> Option<f64> {
         self.buffer.push(price);

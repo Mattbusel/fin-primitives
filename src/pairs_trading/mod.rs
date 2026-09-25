@@ -1,4 +1,5 @@
-//! # Module: pairs_trading
+//! Statistical pairs trading: Engle-Granger cointegration, ADF stationarity test,
+//! spread z-score signal generation, and Welford online mean/variance tracking.
 //!
 //! ## Responsibility
 //! Statistical pairs trading primitives: Engle-Granger cointegration test,
@@ -93,7 +94,7 @@ impl CointegrationTest {
     /// Run the Engle-Granger two-step cointegration test.
     ///
     /// # Errors
-    /// - [`FinError::InsufficientData`] if `y` and `x` have fewer than 5 observations.
+    /// - `FinError::InsufficientData` if `y` and `x` have fewer than 5 observations.
     /// - [`FinError::InvalidInput`] if `y` and `x` have different lengths.
     pub fn run(y: &[f64], x: &[f64]) -> Result<Self, FinError> {
         if y.len() != x.len() {
@@ -226,12 +227,14 @@ pub enum PairSignal {
 /// use fin_primitives::pairs_trading::{PairsStrategy, PairSignal};
 ///
 /// let strategy = PairsStrategy::new(1.0, 0.0, 1.0, 2.0).unwrap();
-/// // spread 2 std above mean → short spread (short A, long B)
-/// assert_eq!(strategy.generate_signal(2.0), PairSignal::EnterShortLong);
-/// // spread 2 std below mean → long spread (long A, short B)
-/// assert_eq!(strategy.generate_signal(-2.0), PairSignal::EnterLongShort);
-/// // spread within threshold
-/// assert_eq!(strategy.generate_signal(0.5), PairSignal::Hold);
+/// // z-score strictly above the threshold → short spread (short A, long B)
+/// assert_eq!(strategy.generate_signal(2.5), PairSignal::EnterShortLong);
+/// // z-score strictly below -threshold → long spread (long A, short B)
+/// assert_eq!(strategy.generate_signal(-2.5), PairSignal::EnterLongShort);
+/// // |z| under half the threshold → exit
+/// assert_eq!(strategy.generate_signal(0.5), PairSignal::Exit);
+/// // between the exit band and the entry threshold → hold
+/// assert_eq!(strategy.generate_signal(1.5), PairSignal::Hold);
 /// ```
 #[derive(Debug, Clone)]
 pub struct PairsStrategy {
