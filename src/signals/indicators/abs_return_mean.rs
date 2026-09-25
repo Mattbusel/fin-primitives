@@ -5,7 +5,7 @@ use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Absolute Return Mean -- rolling average of |close[t] - close[t-1]|.
+/// Absolute Return Mean -- rolling average of |close\[t\] - close[t-1]|.
 ///
 /// A volatility proxy that is scale-invariant and intuitive: it represents
 /// the average absolute price move per bar over the period.

@@ -13,7 +13,7 @@ use rust_decimal::Decimal;
 ///   buying pressure as dips get defended at the bottom.
 /// - **0**: current bar has equal or near-equal wicks — streak broken.
 ///
-/// Returns [`SignalValue::Scalar(0)`] when upper wick equals lower wick.
+/// Returns `SignalValue::Scalar(0)` when upper wick equals lower wick.
 /// Returns [`SignalValue::Unavailable`] for the very first bar.
 ///
 /// # Errors

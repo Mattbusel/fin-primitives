@@ -1,4 +1,4 @@
-//! # Module: options
+//! Black-Scholes options pricing engine with Greeks and implied volatility solver.
 //!
 //! ## Responsibility
 //! Black-Scholes European option pricing, Greeks (delta, gamma, theta, vega, rho,

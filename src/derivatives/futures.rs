@@ -207,8 +207,8 @@ mod tests {
 
     #[test]
     fn implied_repo_rate_round_trip() {
-        let spot = 100.0;
-        let r = 0.05;
+        let spot: f64 = 100.0;
+        let r: f64 = 0.05;
         let q = 0.02;
         let u = 0.01;
         let t = 1.0;

@@ -1,4 +1,4 @@
-//! # Module: python
+//! PyO3 Python bindings (enabled by the `python` feature).
 //!
 //! ## Responsibility
 //! PyO3 Python bindings for core fin-primitives types and indicators.

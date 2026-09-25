@@ -1,4 +1,6 @@
-//! # Module: funding
+//! Funding rate calculations for perpetual futures: premium index, clamped funding rate,
+//! payment computation, annualization, exponentially-weighted rate prediction,
+//! and rolling history with avg/volatility/cumulative-payment aggregation.
 //!
 //! Funding rate calculations for perpetual futures contracts.
 //!

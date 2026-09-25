@@ -584,10 +584,10 @@ impl SignalPipeline {
         self.update_bar_input(&crate::signals::BarInput::from(bar))
     }
 
-    /// Update all signals from a [`BarInput`] directly, without requiring an [`OhlcvBar`].
+    /// Update all signals from a `BarInput` directly, without requiring an [`OhlcvBar`].
     ///
     /// Use this variant when working with synthetic or non-OHLCV data sources that
-    /// already produce [`BarInput`] (e.g. custom tick aggregators, external feeds).
+    /// already produce `BarInput` (e.g. custom tick aggregators, external feeds).
     pub fn update_bar_input(&mut self, bar: &crate::signals::BarInput) -> SignalMap {
         let mut values = HashMap::with_capacity(self.signals.len());
         let mut errors = HashMap::new();

@@ -1,4 +1,4 @@
-//! # Module: montecarlo
+//! Monte Carlo price-path simulation: GBM, VaR, CVaR, and percentile paths.
 //!
 //! Geometric Brownian Motion Monte Carlo simulator for price path analysis.
 //!

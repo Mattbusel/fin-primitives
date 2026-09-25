@@ -1,4 +1,4 @@
-//! # Module: tick
+//! Trade ticks, composable tick filters and a timestamp-ordered tick replayer.
 //!
 //! ## Responsibility
 //! Represents a single market trade (tick), provides filtering, and supports

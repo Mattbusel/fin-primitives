@@ -9,8 +9,8 @@ use std::collections::VecDeque;
 ///
 /// Combines three factors per bar into a single momentum score:
 /// 1. **Direction**: +1 bullish, −1 bearish, 0 doji.
-/// 2. **Body size**: body / range (commitment ratio ∈ [0,1]).
-/// 3. **Close position within range**: (close − low) / range ∈ [0,1], scaled to [−1,+1].
+/// 2. **Body size**: body / range (commitment ratio ∈ \[0,1\]).
+/// 3. **Close position within range**: (close − low) / range ∈ \[0,1\], scaled to [−1,+1].
 ///
 /// Per-bar score: `(direction * body_ratio + (2 * close_pos - 1)) / 2`
 ///

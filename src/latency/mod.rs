@@ -1,4 +1,4 @@
-//! # Module: latency
+//! Order latency tracking: measures submit→ack, ack→fill, fill→book-update phases.
 //!
 //! ## Responsibility
 //! Tracks order latency across the three phases of an order lifecycle:

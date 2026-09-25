@@ -13,7 +13,7 @@ use std::collections::VecDeque;
 /// highly oscillatory, noisy market.
 ///
 /// Formula:
-/// - `L1` = Σ |close[i] − close[i−1]|   (path length)
+/// - `L1` = Σ |close\[i\] − close[i−1]|   (path length)
 /// - `L2` = max_close − min_close        (straight-line end-to-end range)
 /// - `FDI = 1 + (ln(L1) − ln(L2)) / ln(period − 1)`
 ///

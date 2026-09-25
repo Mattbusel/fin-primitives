@@ -1,4 +1,4 @@
-//! # Module: signals
+//! The `Signal` trait, signal pipelines, composition, warm-up contracts and the indicator library.
 //!
 //! ## Responsibility
 //! Provides the `Signal` trait, `SignalValue` enum, `BarInput` thin input type, and a

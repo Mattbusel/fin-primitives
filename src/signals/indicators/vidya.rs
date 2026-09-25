@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 /// `VIDYA = close × k × |CMO| + prev_VIDYA × (1 - k × |CMO|)`
 ///
 /// where `k = 2/(period+1)` and `|CMO|` is the absolute value of the
-/// Chande Momentum Oscillator normalized to [0,1].
+/// Chande Momentum Oscillator normalized to \[0,1\].
 ///
 /// High momentum → faster adaptation; low momentum → slower (like SMA).
 ///

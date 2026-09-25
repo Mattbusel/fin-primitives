@@ -18,7 +18,7 @@ use rust_decimal::Decimal;
 /// Use [`ZigZag::last_pivot`] and [`ZigZag::last_pivot_price`] to get the most
 /// recently confirmed pivot type and price.
 ///
-/// Returns [`SignalValue::Scalar(0)`] from the first bar (always ready) while
+/// Returns `SignalValue::Scalar(0)` from the first bar (always ready) while
 /// direction is being established.
 ///
 /// # Example

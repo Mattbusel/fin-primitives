@@ -1,4 +1,4 @@
-//! # Module: ml
+//! ML feature vector builder: snapshot N indicator outputs, normalize, and serialize for ML pipelines.
 //!
 //! ## Responsibility
 //! ML feature vector construction from indicator snapshots.

@@ -1,4 +1,5 @@
-//! # Module: crypto
+//! Crypto-specific financial metrics: funding rates, perpetual basis,
+//! open-interest ratio, liquidation heatmap, and Fear & Greed index.
 //!
 //! ## Responsibility
 //! Crypto-specific financial metrics: funding rates, perpetual futures basis,

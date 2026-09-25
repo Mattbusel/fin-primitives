@@ -1,4 +1,6 @@
-//! # Module: volatility
+//! Realised volatility estimators: Close-to-Close, Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang.
+//! Also provides `volatility::garch` with GARCH(1,1) MLE fitting, conditional variance,
+//! multi-step forecasting, and volatility term structure.
 //!
 //! ## Responsibility
 //! Realised volatility estimators using OHLCV data.

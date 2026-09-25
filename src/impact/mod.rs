@@ -1,4 +1,4 @@
-//! # Module: impact
+//! Almgren-Chriss optimal order execution and market impact model.
 //!
 //! ## Responsibility
 //! Almgren-Chriss optimal execution framework for minimising expected market
@@ -11,7 +11,7 @@
 //! - **Timing risk**: variance of price path × risk-aversion λ
 //!
 //! The optimal trajectory minimises:
-//!   E[cost] + λ · Var[cost]
+//!   E\[cost\] + λ · Var\[cost\]
 //!
 //! Closed-form solution (Almgren-Chriss 2001):
 //!   x(τ) = X · sinh(κ(T-τ)) / sinh(κT)
@@ -52,7 +52,7 @@ pub struct TrajectoryStep {
     pub step: usize,
     /// Remaining inventory at this step (shares not yet traded).
     pub inventory: f64,
-    /// Shares traded during this step (trade_size = inventory[t] - inventory[t+1]).
+    /// Shares traded during this step (trade_size = inventory\[t\] - inventory[t+1]).
     pub trade_size: f64,
     /// Expected instantaneous market impact cost of this step's trade.
     pub impact_cost: f64,
@@ -71,7 +71,7 @@ pub struct OptimalTrajectory {
     pub total_expected_cost: f64,
     /// Variance of the execution cost (before risk-aversion weighting).
     pub cost_variance: f64,
-    /// Efficient frontier objective value: E[cost] + λ·Var[cost].
+    /// Efficient frontier objective value: E\[cost\] + λ·Var\[cost\].
     pub objective: f64,
 }
 

@@ -1,4 +1,4 @@
-//! # Module: cross_asset
+//! Cross-asset rolling correlations and PCA-based dimensionality reduction.
 //!
 //! ## Responsibility
 //! Rolling cross-asset correlation tracking and dimensionality reduction via

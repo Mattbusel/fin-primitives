@@ -11,11 +11,15 @@ readme = "README.md"
 license = "MIT"
 keywords = ["finance", "trading", "hft", "orderbook", "market-data"]
 categories = ["finance", "data-structures", "algorithms"]
-include = ["src/**/*", "benches/**/*", "tests/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
+include = ["src/**/*", "benches/**/*", "tests/**/*", "examples/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [features]
 # python: expose PyO3 bindings; build with `maturin develop --features python`
 python = ["dep:pyo3"]
+
+[package.metadata.docs.rs]
+# Scrape the examples so docs.rs shows real call sites next to the APIs they use.
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
 [lib]
 # When the `python` feature is enabled the crate is also compiled as a cdylib

@@ -49,7 +49,7 @@
 //! #   let p = Price::new(rust_decimal::Decimal::try_from(c).unwrap()).unwrap();
 //! #   OhlcvBar { symbol: sym, open: p, high: p, low: p, close: p,
 //! #     volume: Quantity::new(dec!(100)).unwrap(),
-//! #     ts_open: NanoTimestamp(ts), ts_close: NanoTimestamp(ts+1), tick_count: 1 }
+//! #     ts_open: NanoTimestamp::new(ts), ts_close: NanoTimestamp::new(ts+1), tick_count: 1 }
 //! # }
 //! let bars: Vec<OhlcvBar> = (0..200).map(|i| make_bar(100.0 + i as f64 * 0.1, i)).collect();
 //!

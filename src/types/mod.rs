@@ -1,4 +1,4 @@
-//! # Module: types
+//! Validated newtypes: `Price`, `Quantity`, `Symbol`, `NanoTimestamp` and `Side`.
 //!
 //! ## Responsibility
 //! Provides the core validated newtype wrappers used throughout fin-primitives:

@@ -1,4 +1,5 @@
-//! # Module: attribution
+//! Portfolio performance attribution: Brinson-Hood-Beebower decomposition, multi-factor
+//! attribution, marginal risk contribution, and comprehensive performance tearsheet.
 //!
 //! ## Responsibility
 //! Portfolio performance attribution: decomposes returns into allocation,

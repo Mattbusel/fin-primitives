@@ -192,9 +192,9 @@ impl CorrelationClusterer {
         result
     }
 
-    /// Returns `(symbol, cluster_id)` pairs from the most recent [`cluster`] call.
+    /// Returns `(symbol, cluster_id)` pairs from the most recent `cluster` call.
     ///
-    /// Returns an empty `Vec` if [`cluster`] has not been called yet.
+    /// Returns an empty `Vec` if `cluster` has not been called yet.
     pub fn cluster_labels(&self) -> Vec<(String, usize)> {
         match &self.last_result {
             Some(r) => r

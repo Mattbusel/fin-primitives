@@ -1,4 +1,4 @@
-//! # Module: orderbook
+//! Level-2 order book with sequence-checked deltas and crossed-book rollback.
 //!
 //! ## Responsibility
 //! Maintains a level-2 order book for a single symbol. Processes incremental
