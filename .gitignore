@@ -1,2 +1,3 @@
 /target
 write_r*.py
+__pycache__/

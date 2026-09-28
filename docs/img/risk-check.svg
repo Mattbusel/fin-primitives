@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img" aria-label="Animated diagram of a risk check in fin-primitives, using the real session from the position_risk example. Fills and price marks go into a PositionLedger; its net_liquidation_value (cash plus the market value of open positions) goes into RiskMonitor::update, which runs a MaxDrawdownRule of 4 percent and a MinEquityRule floor of 96,600 and returns a Vec of RiskBreach. Equity peaks at 101,237 after event 5; at event 8, marking MSFT at 371.50, equity is 96,507, drawdown 4.67 percent, and both rules fire.">
+<rect width="960" height="560" rx="14" fill="#F7F4EC"/>
+<text x="32.0" y="44.0" font-family="Georgia,'Iowan Old Style',ui-serif,serif" font-size="24" fill="#16181D" text-anchor="start">How a risk check works</text>
+<text x="32.0" y="70.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">the real session from cargo run --example position_risk, one event at a time</text>
+<rect x="32.0" y="96.0" width="170.0" height="62.0" rx="8" fill="#FFFDF8" stroke="#D9D2C1" stroke-width="1.6"/>
+<text x="117.0" y="123.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="middle" font-weight="bold">Fill / mark</text>
+<text x="117.0" y="145.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="middle">qty, price, fee</text>
+<rect x="232.0" y="96.0" width="190.0" height="62.0" rx="8" fill="#FFFDF8" stroke="#D9D2C1" stroke-width="1.6"/>
+<text x="327.0" y="123.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="middle" font-weight="bold">PositionLedger</text>
+<text x="327.0" y="145.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="middle">cash, avg cost, P&amp;L</text>
+<rect x="452.0" y="96.0" width="200.0" height="62.0" rx="8" fill="#FFFDF8" stroke="#9C7A22" stroke-width="1.6"/>
+<text x="552.0" y="123.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#9C7A22" text-anchor="middle" font-weight="bold">RiskMonitor</text>
+<text x="552.0" y="145.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="middle">::update(equity)</text>
+<rect x="682.0" y="96.0" width="246.0" height="62.0" rx="8" fill="#FFFDF8" stroke="#C4432B" stroke-width="1.6"/>
+<text x="805.0" y="123.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#C4432B" text-anchor="middle" font-weight="bold">Vec&lt;RiskBreach&gt;</text>
+<text x="805.0" y="145.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="middle">empty = all rules pass</text>
+<line x1="202.0" y1="127.0" x2="221.0" y2="127.0" stroke="#6F6A5E" stroke-width="1.6"/>
+<path d="M230.0,127.0 L221.0,132.0 L221.0,122.0 Z" fill="#6F6A5E"/>
+<line x1="422.0" y1="127.0" x2="441.0" y2="127.0" stroke="#6F6A5E" stroke-width="1.6"/>
+<path d="M450.0,127.0 L441.0,132.0 L441.0,122.0 Z" fill="#6F6A5E"/>
+<line x1="652.0" y1="127.0" x2="671.0" y2="127.0" stroke="#6F6A5E" stroke-width="1.6"/>
+<path d="M680.0,127.0 L671.0,132.0 L671.0,122.0 Z" fill="#6F6A5E"/>
+<text x="437.0" y="180.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="middle">net_liquidation_value(&amp;marks) = cash + market value of open positions</text>
+<text x="437.0" y="202.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#9C7A22" text-anchor="middle">rules:  MaxDrawdownRule { threshold_pct: 4 }   MinEquityRule { floor: 96,600 }</text>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.0400;0.0405;0.1000;0.1005;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0400;0.1000;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.1133;0.1138;0.1733;0.1738;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.1133;0.1733;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.1867;0.1872;0.2467;0.2472;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.1867;0.2467;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2600;0.2605;0.3200;0.3205;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2600;0.3200;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3333;0.3338;0.3933;0.3938;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3333;0.3933;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4067;0.4072;0.4667;0.4672;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4067;0.4667;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4800;0.4805;0.5400;0.5405;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4800;0.5400;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.5533;0.5538;0.6133;0.6138;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5533;0.6133;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6267;0.6272;0.6867;0.6872;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6267;0.6867;1" path="M117,127 L567,127 L805,127"/></circle>
+<circle r="7" fill="#2F5E9E" opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.7000;0.7005;0.7600;0.7605;1" dur="15.0s" repeatCount="indefinite"/><animateMotion dur="15.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7000;0.7600;1" path="M117,127 L567,127 L805,127"/></circle>
+<rect x="32.0" y="226.0" width="610.0" height="316.0" rx="8" fill="#FFFDF8" stroke="#D9D2C1" stroke-width="1.2"/>
+<line x1="120" x2="620" y1="455.4" y2="455.4" stroke="#D9D2C1" stroke-width="0.8"/>
+<text x="112.0" y="460.4" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="end">97,000</text>
+<line x1="120" x2="620" y1="366.1" y2="366.1" stroke="#D9D2C1" stroke-width="0.8"/>
+<text x="112.0" y="371.1" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="end">99,000</text>
+<line x1="120" x2="620" y1="276.8" y2="276.8" stroke="#D9D2C1" stroke-width="0.8"/>
+<text x="112.0" y="281.8" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="end">101,000</text>
+<line x1="120" x2="620" y1="266.2" y2="266.2" stroke="#6F6A5E" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="616.0" y="260.2" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="end">peak 101,237</text>
+<line x1="120" x2="620" y1="447.0" y2="447.0" stroke="#9C7A22" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="616.0" y="441.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#9C7A22" text-anchor="end">4% below peak</text>
+<line x1="120" x2="620" y1="473.2" y2="473.2" stroke="#C4432B" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="124.0" y="467.2" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#C4432B" text-anchor="start">floor 96,600</text>
+<text x="145.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">1</text>
+<text x="195.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">2</text>
+<text x="245.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">3</text>
+<text x="295.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">4</text>
+<text x="345.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">5</text>
+<text x="395.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">6</text>
+<text x="445.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">7</text>
+<text x="495.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">8</text>
+<text x="545.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">9</text>
+<text x="595.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="middle">10</text>
+<text x="112.0" y="522.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#6F6A5E" text-anchor="end">event</text>
+<circle cx="145.0" cy="321.5" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.1000;0.1005;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="145.0" y1="321.5" x2="195.0" y2="321.5" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.1733;0.1738;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="195.0" cy="321.5" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.1733;0.1738;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="195.0" y1="321.5" x2="245.0" y2="291.2" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.2467;0.2472;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="245.0" cy="291.2" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.2467;0.2472;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="245.0" y1="291.2" x2="295.0" y2="272.4" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.3200;0.3205;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="295.0" cy="272.4" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.3200;0.3205;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="295.0" y1="272.4" x2="345.0" y2="266.2" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.3933;0.3938;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="345.0" cy="266.2" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.3933;0.3938;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="345.0" y1="266.2" x2="395.0" y2="327.5" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.4667;0.4672;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="395.0" cy="327.5" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.4667;0.4672;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="395.0" y1="327.5" x2="445.0" y2="382.4" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.5400;0.5405;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="445.0" cy="382.4" r="6" fill="#1E7F57" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.5400;0.5405;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="445.0" y1="382.4" x2="495.0" y2="477.4" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.6133;0.6138;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="495.0" cy="477.4" r="6" fill="#C4432B" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.6133;0.6138;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="495.0" y1="477.4" x2="545.0" y2="475.6" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.6867;0.6872;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="545.0" cy="475.6" r="6" fill="#C4432B" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.6867;0.6872;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<line x1="545.0" y1="475.6" x2="595.0" y2="455.3" stroke="#16181D" stroke-width="2" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.7600;0.7605;1" dur="15.0s" repeatCount="indefinite"/></line>
+<circle cx="595.0" cy="455.3" r="6" fill="#C4432B" stroke="#FFFDF8" stroke-width="1.5" opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.7600;0.7605;1" dur="15.0s" repeatCount="indefinite"/></circle>
+<rect x="660.0" y="226.0" width="268.0" height="316.0" rx="8" fill="#FFFDF8" stroke="#D9D2C1" stroke-width="1.2"/>
+<text x="676.0" y="252.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">event</text>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.1000;0.1005;0.1733;0.1738;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#1  buy  200 AAPL @ 175.00</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">99,999.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">0.00%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.1733;0.1738;0.2467;0.2472;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#2  buy   80 MSFT @ 410.00</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">99,998.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">0.00%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.2467;0.2472;0.3200;0.3205;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#3  mark AAPL 178.40</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">100,678.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">0.00%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3200;0.3205;0.3933;0.3938;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#4  mark MSFT 415.25</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">101,098.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">0.00%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.3933;0.3938;0.4667;0.4672;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#5  sell 100 AAPL @ 179.10</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">101,237.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">0.00%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4667;0.4672;0.5400;0.5405;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#6  mark MSFT 398.10</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">99,865.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">1.36%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.5400;0.5405;0.6133;0.6138;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#7  mark AAPL 166.80</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">98,635.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">2.57%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#1E7F57" text-anchor="start" font-weight="bold">ok</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">no rule fired, empty Vec</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6133;0.6138;0.6867;0.6872;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#8  mark MSFT 371.50</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">96,507.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#C4432B" text-anchor="end">4.67%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#C4432B" text-anchor="start" font-weight="bold">BREACH</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#C4432B" text-anchor="start">max_drawdown</text>
+<text x="676.0" y="420.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#16181D" text-anchor="start">drawdown 4.67% &gt; 4.00%</text>
+<text x="676.0" y="446.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#C4432B" text-anchor="start">min_equity</text>
+<text x="676.0" y="464.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#16181D" text-anchor="start">equity 96507.00 &lt; floor 96600</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.6867;0.6872;0.7600;0.7605;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#9  sell  80 MSFT @ 372.00</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">96,546.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#C4432B" text-anchor="end">4.63%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#C4432B" text-anchor="start" font-weight="bold">BREACH</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#C4432B" text-anchor="start">max_drawdown</text>
+<text x="676.0" y="420.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#16181D" text-anchor="start">drawdown 4.63% &gt; 4.00%</text>
+<text x="676.0" y="446.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#C4432B" text-anchor="start">min_equity</text>
+<text x="676.0" y="464.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#16181D" text-anchor="start">equity 96546.00 &lt; floor 96600</text>
+</g>
+<g opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.7600;0.7605;1" dur="15.0s" repeatCount="indefinite"/>
+<text x="676.0" y="278.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="15" fill="#16181D" text-anchor="start">#10  mark AAPL 171.35</text>
+<text x="676.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">equity</text>
+<text x="910.0" y="312.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#16181D" text-anchor="end">97,001.00</text>
+<text x="676.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#6F6A5E" text-anchor="start">drawdown</text>
+<text x="910.0" y="338.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="16" fill="#C4432B" text-anchor="end">4.18%</text>
+<text x="676.0" y="374.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="18" fill="#C4432B" text-anchor="start" font-weight="bold">BREACH</text>
+<text x="676.0" y="402.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="14" fill="#C4432B" text-anchor="start">max_drawdown</text>
+<text x="676.0" y="420.0" font-family="'Cascadia Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace" font-size="13" fill="#16181D" text-anchor="start">drawdown 4.18% &gt; 4.00%</text>
+</g>
+</svg>

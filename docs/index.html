@@ -3,12 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fin-primitives</title>
-<meta name="description" content="Validated, decimal-precise building blocks for trading and quant systems in Rust: order book, tick-to-OHLCV aggregation, indicators, position ledger, risk rules, Black-Scholes.">
-<meta property="og:title" content="fin-primitives">
-<meta property="og:description" content="Validated, decimal-precise order books, candles, indicators, ledgers and risk rules for Rust.">
-<meta property="og:image" content="https://mattbusel.github.io/fin-primitives/assets/og.png">
+<title>fin-primitives: Rust order book, OHLCV and indicators</title>
+<meta name="description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
+<link rel="canonical" href="https://mattbusel.github.io/fin-primitives/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mattbusel.github.io/fin-primitives/">
+<meta property="og:title" content="fin-primitives: Rust order book, OHLCV and indicators">
+<meta property="og:description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
+<meta property="og:image" content="https://mattbusel.github.io/fin-primitives/assets/og-1200x630.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="fin-primitives: order books, candles, indicators, ledgers and risk rules for Rust">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="fin-primitives: Rust order book, OHLCV and indicators">
+<meta name="twitter:description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
+<meta name="twitter:image" content="https://mattbusel.github.io/fin-primitives/assets/og-1200x630.png">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareSourceCode", "name": "fin-primitives", "description": "Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.", "codeRepository": "https://github.com/Mattbusel/fin-primitives", "programmingLanguage": "Rust", "license": "https://opensource.org/licenses/MIT", "author": {"@type": "Person", "name": "Matthew Busel", "url": "https://github.com/Mattbusel"}, "url": "https://mattbusel.github.io/fin-primitives/", "runtimePlatform": "Rust 1.81+", "keywords": "rust, trading, order book, ohlcv, technical indicators, black-scholes, risk management, quant"}</script>
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2316181D'/%3E%3Crect x='4' y='3' width='3' height='8' fill='%233CC48A'/%3E%3Crect x='9' y='6' width='3' height='7' fill='%23F06A4F'/%3E%3C/svg%3E">
 <style>
@@ -158,7 +168,7 @@ footer a { margin-right:18px; }
     <div class="eyebrow"><b>Rust</b> &middot; crates.io &middot; MIT</div>
     <h1>fin<span>-</span>primitives</h1>
     <p class="pitch">Validated, decimal-precise building blocks for trading and quant systems: an order book, candles, indicators, a ledger and risk rules that refuse bad data instead of carrying it.</p>
-    <div class="install"><code><b>$</b> cargo add fin-primitives</code><button class="copy" data-copy="cargo add fin-primitives" aria-label="Copy install command">Copy</button></div>
+    <div class="install"><code><b>$</b> cargo add fin-primitives rust_decimal rust_decimal_macros</code><button class="copy" data-copy="cargo add fin-primitives rust_decimal rust_decimal_macros" aria-label="Copy install command">Copy</button></div>
     <div class="links"><a href="#examples">See real output</a><a href="https://docs.rs/fin-primitives">API docs</a><a href="https://crates.io/crates/fin-primitives">crates.io</a></div>
   </div>
   <div class="card">
@@ -323,6 +333,14 @@ footer a { margin-right:18px; }
   </div>
 </div></section>
 
+<section id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="lede">Trades come in as ticks. <code>OhlcvAggregator::push_tick</code> drops each one into a time bucket and hands back the finished candle when a trade for the next bucket arrives. Candles feed indicators, which say Unavailable until they have enough history.</p>
+  <div class="arch"><img src="img/ticks-to-bars.svg" width="960" height="700" loading="lazy" alt="Animated diagram: 24 real ETH-USD ticks land in one-minute buckets; push_tick returns the finished 15:00 bar when the first 15:01 tick arrives; RSI(14) returns Unavailable for bars 1 to 14 and 71.72 on bar 15"></div>
+  <p class="lede">Fills and price marks go into a <code>PositionLedger</code>; its account value goes into a <code>RiskMonitor</code>, and every broken rule comes back as a <code>RiskBreach</code>.</p>
+  <div class="arch"><img src="img/risk-check.svg" width="960" height="560" loading="lazy" alt="Animated diagram of the position_risk example: equity peaks at 101,237, then a 4.67% drawdown at event 8 trips both the 4% drawdown rule and the 96,600 equity floor"></div>
+</div></section>
+
 <section id="architecture"><div class="wrap">
   <h2>Architecture</h2>
   <p class="lede">Plain data in, a typed value or FinError out. Every stage works on its own: use the book without the ledger, or the indicators without the aggregator.</p>
@@ -333,15 +351,15 @@ footer a { margin-right:18px; }
   <h2>What is inside</h2>
   <p class="lede">One crate, one error type. The core modules, each linking to its API docs:</p>
   <div class="mods">
-  <a href="https://docs.rs/fin-primitives/latest/fin_primitives/types/index.html"><code>types</code><span>Price, Quantity, Symbol, NanoTimestamp, Side</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/orderbook/index.html"><code>orderbook</code><span>L2 book, sequence checks, VWAP to fill, imbalance</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/ohlcv/index.html"><code>ohlcv</code><span>OhlcvBar, tick-to-bar aggregation, OhlcvSeries analytics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/signals/index.html"><code>signals</code><span>Signal trait, pipelines, composition, 725+ indicators</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/position/index.html"><code>position</code><span>Fills, positions, PositionLedger, Kelly sizing</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/risk/index.html"><code>risk</code><span>DrawdownTracker, RiskRule, RiskMonitor, VaR, stress</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/greeks/index.html"><code>greeks</code><span>Black-Scholes price, Greeks, implied vol, spreads</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/backtest/index.html"><code>backtest</code><span>Bar-by-bar backtester, walk-forward optimizer</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/regime/index.html"><code>regime</code><span>Hurst, GARCH(1,1), correlation-breakdown regimes</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/async_signals/index.html"><code>async_signals</code><span>Tokio streaming signal pipeline</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/portfolio/index.html"><code>portfolio</code><span>Mean-variance optimizer, Ledoit-Wolf shrinkage</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/fixed_income/index.html"><code>fixed_income</code><span>Bond pricing, duration, convexity, YTM</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/yield_curve/index.html"><code>yield_curve</code><span>Interpolation, forwards, Nelson-Siegel</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/derivatives/index.html"><code>derivatives</code><span>Swaps, forwards, futures, variance swaps, exotics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/microstructure/index.html"><code>microstructure</code><span>Spread, Amihud, Kyle's lambda, Roll</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/montecarlo/index.html"><code>montecarlo</code><span>GBM paths, VaR, CVaR</span></a>
+  <a href="https://docs.rs/fin-primitives/latest/fin_primitives/types/index.html"><code>types</code><span>Price, Quantity, Symbol, NanoTimestamp, Side</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/orderbook/index.html"><code>orderbook</code><span>L2 book, sequence checks, VWAP to fill, imbalance</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/ohlcv/index.html"><code>ohlcv</code><span>OhlcvBar, tick-to-bar aggregation, OhlcvSeries analytics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/signals/index.html"><code>signals</code><span>Signal trait, pipelines, composition, 700+ indicators</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/position/index.html"><code>position</code><span>Fills, positions, PositionLedger, Kelly sizing</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/risk/index.html"><code>risk</code><span>DrawdownTracker, RiskRule, RiskMonitor, VaR, stress</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/greeks/index.html"><code>greeks</code><span>Black-Scholes price, Greeks, implied vol, spreads</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/backtest/index.html"><code>backtest</code><span>Bar-by-bar backtester, walk-forward optimizer</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/regime/index.html"><code>regime</code><span>Hurst, GARCH(1,1), correlation-breakdown regimes</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/async_signals/index.html"><code>async_signals</code><span>Tokio streaming signal pipeline</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/portfolio/index.html"><code>portfolio</code><span>Mean-variance optimizer, Ledoit-Wolf shrinkage</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/fixed_income/index.html"><code>fixed_income</code><span>Bond pricing, duration, convexity, YTM</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/yield_curve/index.html"><code>yield_curve</code><span>Interpolation, forwards, Nelson-Siegel</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/derivatives/index.html"><code>derivatives</code><span>Swaps, forwards, futures, variance swaps, exotics</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/microstructure/index.html"><code>microstructure</code><span>Spread, Amihud, Kyle's lambda, Roll</span></a><a href="https://docs.rs/fin-primitives/latest/fin_primitives/montecarlo/index.html"><code>montecarlo</code><span>GBM paths, VaR, CVaR</span></a>
   </div>
-  <p class="more">Plus credit, factor models, execution cost, pairs trading, tax lots, clustering, funding rates and more. Some newer modules are on <code>main</code> ahead of the crates.io release; see the README for details.</p>
+  <p class="more">Plus credit, factor models, execution cost, pairs trading, tax lots, clustering, funding rates and more.</p>
 </div></section>
 
 <section id="start"><div class="wrap">
   <h2>Start in two minutes</h2>
   <div class="start">
-    <div><h3>Add it</h3><pre>cargo add fin-primitives rust_decimal_macros</pre><p>crates.io has 2.12.0. For the newest modules use the git dependency shown in the README.</p></div>
+    <div><h3>Add it</h3><pre>cargo add fin-primitives rust_decimal rust_decimal_macros</pre><p>Rust 1.81 or newer. <code>rust_decimal_macros</code> gives you the <code>dec!</code> literal the examples use.</p></div>
     <div><h3>Run an example</h3><pre>git clone https://github.com/Mattbusel/fin-primitives
 cd fin-primitives
 cargo run --example order_book</pre><p>Four examples ship in <code>examples/</code>.</p></div>

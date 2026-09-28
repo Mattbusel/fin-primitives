@@ -68,6 +68,8 @@
 //! # }
 //! ```
 //!
+//! ![Animated diagram: real ticks land in one-minute buckets, push_tick returns the finished bar when the next bucket starts, and RSI(14) returns Unavailable until bar 15](https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/docs/img/ticks-to-bars.svg)
+//!
 //! Ticks become bars, and bars feed indicators. Indicators return
 //! [`SignalValue::Unavailable`](signals::SignalValue::Unavailable) until they
 //! have enough history, never a NaN or a zero:
