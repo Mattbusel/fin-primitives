@@ -7,7 +7,6 @@ For Rust developers writing trading bots, backtesters, market-data tools or quan
 <p align="center">
   <a href="https://crates.io/crates/fin-primitives"><img alt="crates.io version" src="https://img.shields.io/crates/v/fin-primitives.svg"></a>
   <a href="https://docs.rs/fin-primitives"><img alt="docs.rs" src="https://docs.rs/fin-primitives/badge.svg"></a>
-  <a href="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/Mattbusel/fin-primitives/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
@@ -146,7 +145,6 @@ A negative price never gets into your program, the book knows its own spread and
 price, and "what would buying 1 BTC cost" is one call (0.842 BTC fill at the best ask, the
 other 0.158 at the next level up). This exact program was built against fin-primitives
 2.14 from crates.io and run on 2026-09-28.
-
 
 ## Documentation
 
