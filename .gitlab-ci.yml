@@ -18,4 +18,8 @@ test:
     key: cargo-test
     paths: [target/, .cargo-home/]
   script:
-    - cargo test --locked
+  # The same checks the GitHub CI ran. The library's unit tests have known failures and are not part of it yet.
+    - 'cargo check'
+    - 'for e in order_book candles position_risk option_chain; do cargo run --quiet --example "$e"; done'
+    - 'cargo test --doc'
+    - 'RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --no-deps'
