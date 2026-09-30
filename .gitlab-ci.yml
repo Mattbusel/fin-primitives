@@ -1,0 +1,21 @@
+# Runs the tests on pushes to the default branch that change code, and on merge requests.
+stages: [test]
+
+test:
+  stage: test
+  image: rust:1-bookworm
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: ["src/**/*", "tests/**/*", "examples/**/*", "crates/**/*", "Cargo.toml", "Cargo.lock", ".gitlab-ci.yml"]
+  variables:
+    CARGO_HOME: "${CI_PROJECT_DIR}/.cargo-home"
+    CARGO_TARGET_DIR: "${CI_PROJECT_DIR}/target"
+  cache:
+    key: cargo-test
+    paths: [target/, .cargo-home/]
+  script:
+    - cargo test --locked
