@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn bf_differs_from_bhb_when_benchmark_return_nonzero() {
-        // BF removes the benchmark-level effect, so results differ when total benchmark != 0
+        // BF removes the benchmark-level effect, so per-segment results differ when total benchmark != 0
         let segments = vec![
             Segment::new("A", 0.6, 0.5, 0.15, 0.12),
             Segment::new("B", 0.4, 0.5, 0.08, 0.06),
@@ -274,15 +274,24 @@ mod tests {
             .map(|s| s.benchmark_weight * s.benchmark_return)
             .sum();
 
+        // Per segment, BF subtracts (wp - wb) * Rb from the BHB allocation effect,
+        // so the segment effects differ whenever Rb != 0 and wp != wb.
+        for s in &segments {
+            let diff = s.allocation_effect() - s.bf_allocation_effect(benchmark_total);
+            let expected = (s.portfolio_weight - s.benchmark_weight) * benchmark_total;
+            assert!((diff - expected).abs() < 1e-12);
+            assert!(diff.abs() > 1e-6, "BF and BHB segment effects should differ when Rb != 0");
+        }
+
+        // The totals, however, are identical when both weight vectors sum to 1:
+        // sum (wp - wb) * Rb = Rb * (1 - 1) = 0. (The old version of this test
+        // asserted that the totals differ, which is mathematically false.)
         let bhb_alloc: f64 = segments.iter().map(|s| s.allocation_effect()).sum();
         let bf_alloc: f64 = segments
             .iter()
             .map(|s| s.bf_allocation_effect(benchmark_total))
             .sum();
-
-        // BF allocation ≠ BHB allocation when benchmark total return ≠ 0
-        assert!((bhb_alloc - bf_alloc).abs() > 1e-10 || benchmark_total.abs() < 1e-12,
-            "BF and BHB should differ when benchmark return is non-zero");
+        assert!((bhb_alloc - bf_alloc).abs() < 1e-12, "totals must agree when weights sum to 1");
     }
 
     #[test]

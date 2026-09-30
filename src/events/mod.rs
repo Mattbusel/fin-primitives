@@ -148,8 +148,11 @@ impl EventStudy {
     ///
     /// Formula: `t = mean_CAR / (std_CAR / sqrt(N))`
     ///
-    /// The CAR used per event is `car_pre + car_post` (total window CAR).
-    /// Returns `0.0` if fewer than 2 results are provided.
+    /// The CAR used per event is the total window CAR: the cumulative abnormal
+    /// return on the last day of the window, which includes the event day
+    /// (`car_pre + AR(0) + car_post`).
+    /// Returns `0.0` if fewer than 2 results are provided, or if every event has
+    /// the same CAR (zero dispersion leaves the t-statistic undefined).
     pub fn significance(results: &[EventResult]) -> f64 {
         let n = results.len();
         if n < 2 {
@@ -157,7 +160,7 @@ impl EventStudy {
         }
         let cars: Vec<f64> = results
             .iter()
-            .map(|r| r.car_pre + r.car_post)
+            .map(|r| r.abnormal_returns.last().map_or(r.car_pre + r.car_post, |a| a.car))
             .collect();
         let mean = cars.iter().sum::<f64>() / n as f64;
         let variance = cars.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
@@ -352,9 +355,10 @@ mod tests {
     fn test_significance_positive_when_cars_positive() {
         let mut results = Vec::new();
         for i in 0..5 {
-            // Security consistently outperforms benchmark
+            // Security consistently outperforms benchmark, by a different margin per
+            // event (identical events would have zero CAR dispersion and no t-stat).
             let prices: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.01f64).powi(j as i32)))
+                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.01f64 + 0.002 * i as f64).powi(j as i32)))
                 .collect();
             let bench: Vec<(u64, f64)> = (0..20u64)
                 .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.005f64).powi(j as i32)))
@@ -372,9 +376,10 @@ mod tests {
     fn test_significance_negative_when_cars_negative() {
         let mut results = Vec::new();
         for i in 0..5 {
-            // Security consistently underperforms benchmark
+            // Security consistently underperforms benchmark, by a different margin per
+            // event (identical events would have zero CAR dispersion and no t-stat).
             let prices: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (0.99f64).powi(j as i32)))
+                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (0.99f64 - 0.002 * i as f64).powi(j as i32)))
                 .collect();
             let bench: Vec<(u64, f64)> = (0..20u64)
                 .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.005f64).powi(j as i32)))

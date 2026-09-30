@@ -294,8 +294,15 @@ impl CorrelationClusterer {
                 }
             }
 
+            // Rousseeuw's definition: s(i) = 0 for a point alone in its cluster,
+            // and it is undefined (taken as 0) when no other cluster has members.
+            // Without this, b = +inf gives (inf - a) / inf = NaN.
             let denom = a.max(b);
-            let s_i = if denom == 0.0 { 0.0 } else { (b - a) / denom };
+            let s_i = if same_cluster_pts.is_empty() || !b.is_finite() || denom == 0.0 {
+                0.0
+            } else {
+                (b - a) / denom
+            };
             sil_sum += s_i;
             count += 1;
         }

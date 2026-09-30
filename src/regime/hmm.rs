@@ -322,7 +322,11 @@ mod tests {
 
     #[test]
     fn viterbi_all_negative_returns_is_bear() {
-        let returns: Vec<f64> = vec![-0.010; 50];
+        // Under default_financial, -1% is more likely under Bull N(0.001, 0.010)
+        // (log-pdf 3.08) than under Bear N(-0.002, 0.025) (log-pdf 2.72), so a
+        // run of -1% days correctly decodes as Bull. -3% is unambiguous Bear
+        // (log-pdf -1.12 vs 2.14).
+        let returns: Vec<f64> = vec![-0.030; 50];
         let params = HmmParams::default_financial();
         let states = viterbi(&returns, &params);
         assert_eq!(states.len(), returns.len());

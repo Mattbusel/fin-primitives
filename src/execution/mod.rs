@@ -395,13 +395,18 @@ mod tests {
     }
 
     #[test]
-    fn exact_tolerance_boundary_excluded() {
-        // delta = exactly tolerance: should be excluded
+    fn exact_tolerance_boundary_included() {
+        // `tolerance` is documented as the minimum change that warrants a trade and
+        // only `|delta| < tolerance` is skipped, so delta == tolerance trades.
         let current: HashMap<String, f64> = [("X".to_string(), 0.0)].into();
         let target: HashMap<String, f64> = [("X".to_string(), 0.005)].into();
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
-        assert!(trades.is_empty(), "delta exactly = tolerance should be excluded");
+        assert_eq!(trades.len(), 1, "delta exactly = tolerance should trade");
+        // Just inside the band is skipped.
+        let target: HashMap<String, f64> = [("X".to_string(), 0.0049)].into();
+        let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
+        assert!(trades.is_empty(), "delta below tolerance should be skipped");
     }
 
     #[test]

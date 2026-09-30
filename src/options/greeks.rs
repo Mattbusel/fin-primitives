@@ -830,15 +830,18 @@ mod bsm_inputs_tests {
     fn call_delta_near_half_atm() {
         let (inp, ot) = atm_call();
         let d = delta(&inp, ot);
-        // ATM delta is slightly above 0.5 due to r>0
-        assert!((d - 0.5).abs() < 0.1, "ATM call delta should be ~0.5, got {d}");
+        // Spot-ATM (K = S) with r = 5%, sigma = 20%, T = 1: d1 = (r + sigma^2/2) T / (sigma sqrt T)
+        // = 0.35, so delta = N(0.35) = 0.636831, well above 0.5 (the old +-0.1
+        // band around 0.5 was wrong). Tolerance covers the normal-CDF approximation.
+        assert!((d - 0.636_830_651_175_619).abs() < 1e-6, "ATM call delta should be N(0.35), got {d}");
     }
 
     #[test]
     fn put_delta_near_neg_half_atm() {
         let (inp, ot) = atm_put();
         let d = delta(&inp, ot);
-        assert!((d + 0.5).abs() < 0.1, "ATM put delta should be ~-0.5, got {d}");
+        // Put delta = N(d1) - 1 = N(0.35) - 1 (see call_delta_near_half_atm).
+        assert!((d + 0.363_169_348_824_381).abs() < 1e-6, "ATM put delta should be N(0.35) - 1, got {d}");
     }
 
     #[test]

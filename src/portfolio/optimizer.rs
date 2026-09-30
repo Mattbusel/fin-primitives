@@ -655,7 +655,10 @@ mod tests {
         let obj = OptimizationObjective::MaxSharpe { risk_free_rate: 0.02 };
         let ms = PortfolioOptimizer::optimize(&assets, &cov, &obj, &[Constraint::LongOnly]);
         let ew = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
-        assert!(ms.sharpe_ratio >= ew.sharpe_ratio - 1e-4);
+        // `sharpe_ratio` uses rf = 0 for EqualWeight (see OptimizedPortfolio docs)
+        // but rf = 0.02 for MaxSharpe, so compare both at the same rf.
+        let ew_sharpe_rf = (ew.expected_return - 0.02) / ew.expected_variance.sqrt();
+        assert!(ms.sharpe_ratio >= ew_sharpe_rf - 1e-4, "ms={} ew={}", ms.sharpe_ratio, ew_sharpe_rf);
     }
 
     #[test]

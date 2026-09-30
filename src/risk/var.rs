@@ -315,7 +315,9 @@ impl VaRCalculator {
 
     /// Cornish-Fisher VaR: adjusts the normal z-score for skewness and excess kurtosis.
     ///
-    /// Modified z-score: `z_cf = z + (z²-1)*S/6 + (z³-3z)*K/24 - (2z³-5z)*S²/36`
+    /// Modified z-score for the lower tail, `q = -z` with `z > 0` (e.g. 1.645 at 95%):
+    /// `q_cf = q + (q²-1)*S/6 + (q³-3q)*K/24 - (2q³-5q)*S²/36`, and VaR uses `z_cf = -q_cf`
+    /// = `z - (z²-1)*S/6 + (z³-3z)*K/24 - (2z³-5z)*S²/36`.
     pub fn cornish_fisher_var(
         returns: &[f64],
         position_value: f64,
@@ -339,9 +341,12 @@ impl VaRCalculator {
 
         let z = -Self::probit(1.0 - confidence); // ~1.645 for 95%
 
-        // Cornish-Fisher expansion
+        // Cornish-Fisher expansion. The textbook form is written for the
+        // lower-tail quantile q = -z; flipping the sign to work with the positive
+        // z negates the odd-order (skewness) term only, so negative skew raises
+        // VaR as it should.
         let z_cf = z
-            + (z.powi(2) - 1.0) * skew / 6.0
+            - (z.powi(2) - 1.0) * skew / 6.0
             + (z.powi(3) - 3.0 * z) * kurt / 24.0
             - (2.0 * z.powi(3) - 5.0 * z) * skew.powi(2) / 36.0;
 
@@ -481,6 +486,15 @@ mod tests {
         returns.extend_from_slice(&[-0.08, -0.09, -0.10, -0.07, -0.085]);
         let cf_result = VaRCalculator::cornish_fisher_var(&returns, 1_000_000.0, 0.95, 1);
         assert!(cf_result.var_usd > 0.0);
+        let mu = VaRCalculator::mean(&returns);
+        let sigma = VaRCalculator::std_dev(&returns);
+        let p_result = VaRCalculator::parametric_var(mu, sigma, 1_000_000.0, 0.95, 1);
+        assert!(
+            cf_result.var_usd > p_result.var_usd,
+            "negative skew + fat tails must raise CF VaR above normal: cf={} normal={}",
+            cf_result.var_usd,
+            p_result.var_usd
+        );
     }
 
     #[test]

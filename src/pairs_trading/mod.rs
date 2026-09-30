@@ -398,8 +398,8 @@ mod tests {
             statistic: -3.5,
             critical_values: [-3.43, -2.86, -2.57],
         };
-        assert!(!adf.is_stationary_at_1pct()); // -3.5 < -3.43 → true
-        // actually -3.5 < -3.43 is true
+        // -3.5 < -3.43, so the statistic also clears the 1% critical value.
+        // (A leftover `assert!(!adf.is_stationary_at_1pct())` contradicted this.)
         assert!(adf.is_stationary_at_1pct());
         assert!(adf.is_stationary_at_5pct());
         assert!(adf.is_stationary_at_10pct());
@@ -471,8 +471,11 @@ mod tests {
         }
         let mean = t.mean().unwrap();
         assert!((mean - 5.0).abs() < 1e-10);
+        // variance() is documented as the Bessel-corrected sample variance:
+        // sum of squared deviations is 32, so 32 / (8 - 1). (4.0 is the
+        // population variance, which this type does not return.)
         let var = t.variance().unwrap();
-        assert!((var - 4.0).abs() < 0.01);
+        assert!((var - 32.0 / 7.0).abs() < 1e-10);
     }
 
     #[test]

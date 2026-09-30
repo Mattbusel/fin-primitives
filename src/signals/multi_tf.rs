@@ -324,11 +324,13 @@ mod tests {
     fn test_unanimous_bullish_confirmed() {
         let mut mts = make_mts(AgreementPolicy::Unanimous);
         seed(&mut mts, 100.0); // first observation, no direction yet
-        // All rise → all bullish
+        // All rise → all bullish. The update that completes the set returns the
+        // combined result. (Pushing D1 = 101 a second time, as this test used to,
+        // is a flat bar: D1's momentum turns Neutral and unanimity is lost.)
+        let mut result = MultiTfResult::Insufficient { votes: Default::default() };
         for tf in Timeframe::ALL {
-            mts.update_timeframe(tf, 101.0);
+            result = mts.update_timeframe(tf, 101.0);
         }
-        let result = mts.update_timeframe(Timeframe::D1, 101.0);
         assert!(
             matches!(result, MultiTfResult::Confirmed { direction: SignalDirection::Bullish, .. }),
             "expected Confirmed Bullish, got {result:?}"

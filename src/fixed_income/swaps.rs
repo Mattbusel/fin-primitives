@@ -104,38 +104,61 @@ impl DiscountCurve {
     pub fn from_par_rates(tenors: &[f64], par_rates: &[f64]) -> Self {
         assert_eq!(tenors.len(), par_rates.len(), "tenors and par_rates must have equal length");
         let n = tenors.len();
-        let mut dfs: Vec<f64> = Vec::with_capacity(n);
-        let mut zero_rates: Vec<f64> = Vec::with_capacity(n);
+        let mut curve = DiscountCurve {
+            tenors: Vec::with_capacity(n),
+            zero_rates: Vec::with_capacity(n),
+        };
 
         for i in 0..n {
             let t = tenors[i];
             let c = par_rates[i];
-            // Assume annual payments for bootstrap (dcf = t_k - t_{k-1})
-            // Build payment schedule up to tenor i
-            let mut pv_coupons = 0.0;
-            let steps = i; // prior periods
-            for j in 0..steps {
-                let t_prev = if j == 0 { 0.0 } else { tenors[j - 1] };
-                let t_j = tenors[j];
-                let dcf = t_j - t_prev;
-                pv_coupons += c * dcf * dfs[j];
-            }
-            // Last period
-            let t_prev_last = if i == 0 { 0.0 } else { tenors[i - 1] };
-            let dcf_last = t - t_prev_last;
-            // par: pv_coupons + c * dcf_last * df_i + df_i = 1
-            // df_i * (1 + c * dcf_last) = 1 - pv_coupons
-            let df_i = (1.0 - pv_coupons) / (1.0 + c * dcf_last);
-            dfs.push(df_i);
-            // Convert to zero rate: df = exp(-r*t)
-            let r = if t > 0.0 { -df_i.ln() / t } else { 0.0 };
-            zero_rates.push(r);
+            // Annual fixed schedule: 1, 2, ..., up to the tenor (a final stub if the
+            // tenor is fractional). Coupon dates that fall between curve knots are
+            // discounted with the curve's own interpolation, so the new knot's zero
+            // rate is solved for numerically. This makes every input par swap
+            // reprice to zero NPV, including tenors with gaps (e.g. 3y then 5y),
+            // which a one-period-per-knot bootstrap gets wrong.
+            let n_periods = t.ceil().max(1.0) as u32;
+            let times: Vec<f64> = (1..=n_periods).map(|k| (k as f64).min(t)).collect();
+
+            curve.tenors.push(t);
+            curve.zero_rates.push(0.0);
+
+            let par_error = |curve: &mut DiscountCurve, r: f64| -> f64 {
+                *curve.zero_rates.last_mut().expect("pushed above") = r;
+                let mut pv = 0.0;
+                let mut t_prev = 0.0;
+                for &tk in &times {
+                    pv += c * (tk - t_prev) * curve.discount_factor(tk);
+                    t_prev = tk;
+                }
+                pv + curve.discount_factor(t) - 1.0
+            };
+
+            // par_error is decreasing in r: bisect on a wide bracket.
+            let (mut lo, mut hi) = (-1.0f64, 5.0f64);
+            let r = if par_error(&mut curve, lo) < 0.0 || par_error(&mut curve, hi) > 0.0 {
+                // No sign change (degenerate input): fall back to the single-period
+                // continuously compounded rate implied by the par coupon.
+                (1.0 + c).ln()
+            } else {
+                for _ in 0..200 {
+                    let mid = 0.5 * (lo + hi);
+                    if par_error(&mut curve, mid) > 0.0 {
+                        lo = mid;
+                    } else {
+                        hi = mid;
+                    }
+                    if hi - lo < 1e-16 {
+                        break;
+                    }
+                }
+                0.5 * (lo + hi)
+            };
+            *curve.zero_rates.last_mut().expect("pushed above") = r;
         }
 
-        DiscountCurve {
-            tenors: tenors.to_vec(),
-            zero_rates,
-        }
+        curve
     }
 }
 

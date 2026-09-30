@@ -610,7 +610,9 @@ mod tests {
         let f1: Vec<f64> = (0..n).map(|i| i as f64 * 0.01).collect();
         let f2: Vec<f64> = (0..n).map(|i| (i as f64 * 0.1).cos()).collect();
         let f3: Vec<f64> = (0..n).map(|i| (i as f64 * 0.05).sin()).collect();
-        let f4: Vec<f64> = (0..n).map(|i| i as f64 * -0.005).collect();
+        // F4 must not be a linear combination of the others: the original
+        // `i * -0.005` was exactly -0.5 * F1, which makes X'X singular.
+        let f4: Vec<f64> = (0..n).map(|i| (i * i) as f64 * -0.0002).collect();
         let y: Vec<f64> = (0..n)
             .map(|i| 0.005 + 0.8 * f1[i] + 0.4 * f2[i] + 0.2 * f3[i] + 0.1 * f4[i])
             .collect();

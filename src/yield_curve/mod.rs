@@ -594,7 +594,12 @@ mod tests {
         let c = YieldCurve::new(vec![]);
         assert_eq!(c.linear_interp(1.0), 0.0);
         assert_eq!(c.cubic_spline(1.0), 0.0);
-        assert_eq!(c.duration(&[(1.0, 100.0)]), 0.0);
-        assert_eq!(c.convexity(&[(1.0, 100.0)]), 0.0);
+        // An empty curve discounts at 0%, but a single cash flow at t = 1 still has
+        // Macaulay duration 1 and convexity t^2 = 1 at any rate; only an empty
+        // cash-flow list has nothing to weight and returns 0.
+        assert!((c.duration(&[(1.0, 100.0)]) - 1.0).abs() < 1e-12);
+        assert!((c.convexity(&[(1.0, 100.0)]) - 1.0).abs() < 1e-12);
+        assert_eq!(c.duration(&[]), 0.0);
+        assert_eq!(c.convexity(&[]), 0.0);
     }
 }

@@ -2832,9 +2832,15 @@ mod risk_metrics_tests {
 
     #[test]
     fn calmar_positive_rising_equity() {
-        let rets: Vec<f64> = (0..50).map(|i| 0.001 * (i as f64 + 1.0)).collect();
+        // Calmar is documented to return 0.0 when there is no drawdown, so a
+        // strictly rising curve (the old input) cannot test positivity. Use a
+        // rising curve with one 2% dip.
+        let mut rets: Vec<f64> = (0..50).map(|i| 0.001 * (i as f64 + 1.0)).collect();
+        rets[10] = -0.02;
         let c = RiskMetrics::calmar(&rets, 252.0);
         assert!(c > 0.0, "calmar should be positive: {c}");
+        let no_dd: Vec<f64> = (0..50).map(|i| 0.001 * (i as f64 + 1.0)).collect();
+        assert_eq!(RiskMetrics::calmar(&no_dd, 252.0), 0.0, "no drawdown returns 0.0");
     }
 
     #[test]
@@ -2907,7 +2913,9 @@ mod risk_metrics_tests {
 
     #[test]
     fn annualized_volatility_zero_for_constant_returns() {
+        // 0.01 is not exactly representable, so the summed mean differs from each
+        // element by one ulp and the sample variance is ~1e-32, not exactly 0.
         let rets = vec![0.01; 100];
-        assert_eq!(RiskMetrics::annualized_volatility(&rets, 252.0), 0.0);
+        assert!(RiskMetrics::annualized_volatility(&rets, 252.0) < 1e-12);
     }
 }
