@@ -1,0 +1,18 @@
+[package]
+name = "talib-compare"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Runs fin-primitives indicators over a CSV of OHLCV bars for the TA-Lib comparison."
+
+[dependencies]
+fin-primitives = { path = "../.." }
+rust_decimal = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+# Standalone: not a member of any parent workspace.
+[workspace]

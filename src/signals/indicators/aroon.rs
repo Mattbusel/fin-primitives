@@ -72,11 +72,15 @@ impl Aroon {
         if !self.is_ready() {
             return None;
         }
+        // On ties use the most recent low, as `up()` does for highs (Iterator::max_by
+        // returns the last maximum, but min_by returns the *first* minimum, which
+        // made Aroon Down read 0 instead of 100 when the newest bar tied the
+        // window's oldest low).
         let (idx, _) = self
             .lows
             .iter()
             .enumerate()
-            .min_by(|a, b| a.1.cmp(b.1))?;
+            .min_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(&a.0)))?;
         let bars_since = (self.lows.len() - 1) - idx;
         Some(
             (Decimal::from(self.period as u64)
@@ -134,6 +138,20 @@ mod tests {
         let l: Decimal = low.parse().unwrap();
         let mid = (h + l) / Decimal::TWO;
         BarInput::new(mid, h, l, mid, Decimal::ZERO)
+    }
+
+    #[test]
+    fn test_aroon_ties_use_most_recent_extreme_on_both_sides() {
+        // Period 3 keeps 4 bars. The newest bar ties both the oldest high and the
+        // oldest low, so both lines must read 100 (0 bars since the extreme),
+        // matching TA-Lib's AROON.
+        let mut a = Aroon::new("aroon", 3).unwrap();
+        a.update(&bar("110", "90")).unwrap();
+        a.update(&bar("105", "95")).unwrap();
+        a.update(&bar("104", "96")).unwrap();
+        a.update(&bar("110", "90")).unwrap();
+        assert_eq!(a.up(), Some(dec!(100)));
+        assert_eq!(a.down(), Some(dec!(100)));
     }
 
     #[test]

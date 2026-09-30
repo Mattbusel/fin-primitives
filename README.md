@@ -146,6 +146,29 @@ price, and "what would buying 1 BTC cost" is one call (0.842 BTC fill at the bes
 other 0.158 at the next level up). This exact program was built against fin-primitives
 2.14 from crates.io and run on 2026-09-28.
 
+## Compared with TA-Lib
+
+Same 100,000 seeded OHLCV bars through both libraries ([method, script and full tables](bench/talib_compare/README.md);
+i7-13700KF, TA-Lib 0.8.1). Where the definitions match, the values agree to 2e-11 or
+better; fin-primitives works in exact decimals, so it is the float64 side that rounds.
+Two definitions differ on purpose: `Atr` is a simple average of true range (it equals
+TA-Lib's `SMA(TRANGE)`, not Wilder's `ATR`), and `Obv` starts at 0 rather than at the first
+bar's volume. TA-Lib is much faster: its batch functions take 0.2 to 12 ns per bar, about
+100 times less than fin-primitives' exact-decimal `update()`. Use TA-Lib to crunch long
+float64 histories; use fin-primitives for exact values, bar-by-bar state and no C dependency.
+
+| indicator | max difference vs TA-Lib (after bar 1,000) | fin-primitives, ns per bar | TA-Lib batch, ns per bar |
+|---|---|---|---|
+| SMA(20) / EMA(20) | 9.8e-13 / 5.7e-14 | 74 / 149 | 0.8 / 1.3 |
+| RSI(14) | 1.8e-13 | 252 | 2.1 |
+| MACD(12,26,9) histogram | 5.0e-14 (seeded differently: 0.036 in the first bars) | 362 | 1.7 |
+| Bollinger(20, 2) bands | 1.6e-11 | 1023 | 2.7 |
+| ATR(14) | equals TA-Lib `SMA(TRANGE, 14)` to 1.2e-14 | 86 | 0.8 |
+| Stochastic fast %K / %D (14, 3) | 6.7e-13 / 1.3e-12 | 174 / 259 | 7.7 |
+| Williams %R(14) / CCI(20) / MFI(14) | 6.7e-13 / 1.0e-11 / 1.3e-12 | 170 / 1060 / 589 | 1.9 / 12.2 / 5.9 |
+| ADX(14) | 3.7e-13, except near exact up/down ties that float64 splits | 794 | 6.2 |
+| OBV | equals TA-Lib `OBV - volume[0]` exactly | 13 | 2.8 |
+
 ## Documentation
 
 | Read this | For |

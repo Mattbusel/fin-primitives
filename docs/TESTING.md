@@ -11,19 +11,19 @@ cargo bench --bench tick_bench
 cargo doc --no-deps --open
 ```
 
-Status on `main` as of 2026-09-25: all 255 integration tests in `tests/` and all 716
-doc examples pass (one is marked `ignore`). Of 5,540 unit tests inside the modules, 18 currently fail (in
-`clustering`, `events`, `execution`, `factor`, `fixed_income::swaps`, `options::greeks`,
-`pairs_trading`, `portfolio`, `regime::hmm`, `risk`, `signals::multi_tf` and
-`yield_curve`), so `cargo test` exits non-zero until those are fixed. The core types,
-order book, aggregator, ledger and risk monitor have no failing tests.
+Status on `main` as of 2026-09-30 (2.14.3): all 5,541 unit tests, all 255 integration tests
+in `tests/` and all 716 doc examples pass (one doc example is marked `ignore`), on Windows
+locally and on Linux in GitLab CI. The 18 unit tests that failed through 2.14.2 were fixed in
+2.14.3: five of them exposed four real bugs (silhouette score, event-study t-statistic, par-curve bootstrap,
+Cornish-Fisher VaR) and thirteen had wrong expectations; see CHANGELOG.md.
 
-CI (`.github/workflows/ci.yml`) runs `cargo check`, builds and runs the examples, and runs
-the doc tests on every push.
+CI (`.gitlab-ci.yml`) runs `cargo check`, the unit tests (`cargo test --lib`), builds and runs
+the examples, and runs the doc and integration tests on every push to `main`.
 
 Criterion microbenchmarks for tick filtering, order book deltas and indicators live in
 `benches/tick_bench.rs`. No benchmark numbers are published here; run them on your own
-hardware.
+hardware. A reproducible accuracy and speed comparison with TA-Lib lives in
+[`bench/talib_compare/`](../bench/talib_compare/README.md).
 
 ## The crate-level example
 

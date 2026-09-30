@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.3] - 2026-09-30
+
+### Fixed
+- All 5,541 unit tests pass (18 failed in 2.14.2) and CI now runs `cargo test --lib` and the integration tests. Real bugs found along the way:
+  - `CorrelationClusterer::silhouette_score` returned NaN when a point had no other populated cluster; singleton points now score 0 (Rousseeuw's definition).
+  - `EventStudy::significance` left the event-day abnormal return out of each event's CAR; it now uses the full-window CAR.
+  - `DiscountCurve::from_par_rates` did not reprice its own input swaps when tenors had gaps (e.g. 3y then 5y): it now bootstraps each knot against the annual coupon schedule with the curve's own interpolation, so every input par swap has zero NPV.
+  - `VaRCalculator::cornish_fisher_var` had the skewness term with the wrong sign, so negative skew lowered VaR instead of raising it (a fat left tail could give 0 VaR).
+  - `Aroon::down()` broke ties toward the oldest low while `up()` used the newest high, so Aroon Down read 0 instead of 100 when the newest bar tied the window's oldest low. Found by the TA-Lib comparison below.
+- 13 tests had wrong expectations and were corrected, not loosened: tolerance boundary (documented as inclusive), collinear factors in a regression test, ATM delta (N(0.35) = 0.637, not 0.5), a contradictory ADF assertion, sample vs population variance, Brinson-Fachler vs BHB totals (equal when weights sum to 1), Sharpe compared at two different risk-free rates, HMM emission likelihoods, Calmar with no drawdown, exact-zero volatility in floating point, a multi-timeframe test that fed a flat bar, and the duration of a single cash flow.
+
+### Added
+- `bench/talib_compare/`: a reproducible comparison with TA-Lib on 100,000 seeded bars (22 indicators): numerical agreement, definitional differences and per-bar throughput. Summary in the README under "Compared with TA-Lib".
+
+---
+
 ## [2.14.2] - 2026-09-28
 
 ### Changed
