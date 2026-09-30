@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fin-primitives: Rust order book, OHLCV and indicators</title>
 <meta name="description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
-<link rel="canonical" href="https://mattbusel.github.io/fin-primitives/">
+<link rel="canonical" href="https://fin-primitives.vercel.app/">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://mattbusel.github.io/fin-primitives/">
+<meta property="og:url" content="https://fin-primitives.vercel.app/">
 <meta property="og:title" content="fin-primitives: Rust order book, OHLCV and indicators">
 <meta property="og:description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
-<meta property="og:image" content="https://mattbusel.github.io/fin-primitives/assets/og-1200x630.png">
+<meta property="og:image" content="https://fin-primitives.vercel.app/assets/og-1200x630.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="fin-primitives: order books, candles, indicators, ledgers and risk rules for Rust">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="fin-primitives: Rust order book, OHLCV and indicators">
 <meta name="twitter:description" content="Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.">
-<meta name="twitter:image" content="https://mattbusel.github.io/fin-primitives/assets/og-1200x630.png">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareSourceCode", "name": "fin-primitives", "description": "Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.", "codeRepository": "https://github.com/Mattbusel/fin-primitives", "programmingLanguage": "Rust", "license": "https://opensource.org/licenses/MIT", "author": {"@type": "Person", "name": "Matthew Busel", "url": "https://github.com/Mattbusel"}, "url": "https://mattbusel.github.io/fin-primitives/", "runtimePlatform": "Rust 1.81+", "keywords": "rust, trading, order book, ohlcv, technical indicators, black-scholes, risk management, quant"}</script>
+<meta name="twitter:image" content="https://fin-primitives.vercel.app/assets/og-1200x630.png">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareSourceCode", "name": "fin-primitives", "description": "Rust crate for trading code: exact decimal prices, a level-2 order book, ticks to OHLCV candles, 700+ indicators, Black-Scholes Greeks and risk limits.", "codeRepository": "https://gitlab.com/mattbusel/fin-primitives", "programmingLanguage": "Rust", "license": "https://opensource.org/licenses/MIT", "author": {"@type": "Person", "name": "Matthew Busel", "url": "https://gitlab.com/mattbusel"}, "url": "https://fin-primitives.vercel.app/", "runtimePlatform": "Rust 1.81+", "keywords": "rust, trading, order book, ohlcv, technical indicators, black-scholes, risk management, quant"}</script>
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2316181D'/%3E%3Crect x='4' y='3' width='3' height='8' fill='%233CC48A'/%3E%3Crect x='9' y='6' width='3' height='7' fill='%23F06A4F'/%3E%3C/svg%3E">
 <style>
@@ -157,7 +157,7 @@ footer a { margin-right:18px; }
     <a class="hide-sm" href="#examples">Examples</a>
     <a class="hide-sm" href="#guarantees">Guarantees</a>
     <a href="https://docs.rs/fin-primitives">docs.rs</a>
-    <a href="https://github.com/Mattbusel/fin-primitives">GitHub</a>
+    <a href="https://gitlab.com/mattbusel/fin-primitives">GitHub</a>
     <button class="theme" id="theme" aria-label="Toggle color theme">theme</button>
   </nav>
 </div></header>
@@ -187,7 +187,7 @@ footer a { margin-right:18px; }
     <h3>Order book</h3>
     <p>A BTC-USD book from 14 sequenced deltas, printed as a depth ladder with spread, micro-price, imbalance and the VWAP of a 5 BTC market buy. Then a crossing delta is rejected and rolled back, and a sequence gap is refused.</p>
     </div><div class="acts"><div class="cmd"><code>cargo run --example order_book</code><button class="copy" data-copy="cargo run --example order_book" aria-label="Copy command">Copy</button></div>
-    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/order_book.rs">source: examples/order_book.rs</a></div>
+    <a class="src" href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/examples/order_book.rs">source: examples/order_book.rs</a></div>
   </div>
   <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example order_book</span></div><pre>  <span class="s">BTC-USD</span>  level-2 book, top 7 levels, seq 14
 
@@ -221,7 +221,7 @@ footer a { margin-right:18px; }
     <h3>Ticks to candles</h3>
     <p>337 ticks from a seeded random walk go through OhlcvAggregator into 32 one-minute bars. EMA(9) is dotted over the candles; RSI(14) reports Unavailable for 14 bars instead of a NaN.</p>
     </div><div class="acts"><div class="cmd"><code>cargo run --example candles</code><button class="copy" data-copy="cargo run --example candles" aria-label="Copy command">Copy</button></div>
-    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/candles.rs">source: examples/candles.rs</a></div>
+    <a class="src" href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/examples/candles.rs">source: examples/candles.rs</a></div>
   </div>
   <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example candles</span></div><pre>  <span class="s">ETH-USD</span>  337 ticks aggregated into 32 one-minute bars
 
@@ -267,7 +267,7 @@ footer a { margin-right:18px; }
     <h3>Ledger and risk</h3>
     <p>Fills and marks run through a PositionLedger; its net liquidation value feeds a RiskMonitor with a 4% drawdown rule and an equity floor. An unaffordable buy is refused.</p>
     </div><div class="acts"><div class="cmd"><code>cargo run --example position_risk</code><button class="copy" data-copy="cargo run --example position_risk" aria-label="Copy command">Copy</button></div>
-    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/position_risk.rs">source: examples/position_risk.rs</a></div>
+    <a class="src" href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/examples/position_risk.rs">source: examples/position_risk.rs</a></div>
   </div>
   <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example position_risk</span></div><pre>  <span class="s">session</span>  start 100,000.00  rules: drawdown &gt; 4%, equity &lt; 96,600.00
 
@@ -301,7 +301,7 @@ footer a { margin-right:18px; }
     <h3>Option chain</h3>
     <p>A Black-Scholes chain with prices and Greeks for eight strikes, then the implied-vol solver recovers the 28% input from a price.</p>
     </div><div class="acts"><div class="cmd"><code>cargo run --example option_chain</code><button class="copy" data-copy="cargo run --example option_chain" aria-label="Copy command">Copy</button></div>
-    <a class="src" href="https://github.com/Mattbusel/fin-primitives/blob/main/examples/option_chain.rs">source: examples/option_chain.rs</a></div>
+    <a class="src" href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/examples/option_chain.rs">source: examples/option_chain.rs</a></div>
   </div>
   <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="tcmd"><b>$</b> cargo run --example option_chain</span></div><pre>  <span class="s">chain</span>  spot 212.40  30 days  r 4.50%  vol 28.00%
 
@@ -360,7 +360,7 @@ footer a { margin-right:18px; }
   <h2>Start in two minutes</h2>
   <div class="start">
     <div><h3>Add it</h3><pre>cargo add fin-primitives rust_decimal rust_decimal_macros</pre><p>Rust 1.81 or newer. <code>rust_decimal_macros</code> gives you the <code>dec!</code> literal the examples use.</p></div>
-    <div><h3>Run an example</h3><pre>git clone https://github.com/Mattbusel/fin-primitives
+    <div><h3>Run an example</h3><pre>git clone https://gitlab.com/mattbusel/fin-primitives
 cd fin-primitives
 cargo run --example order_book</pre><p>Four examples ship in <code>examples/</code>.</p></div>
     <div><h3>Read the docs</h3><pre>cargo doc --no-deps --open</pre><p>Or browse <a href="https://docs.rs/fin-primitives">docs.rs/fin-primitives</a>. The crate-level page opens with a runnable example.</p></div>
@@ -369,7 +369,7 @@ cargo run --example order_book</pre><p>Four examples ship in <code>examples/</co
 </main>
 
 <footer><div class="wrap">
-  <div><a href="https://github.com/Mattbusel/fin-primitives">GitHub</a><a href="https://docs.rs/fin-primitives">docs.rs</a><a href="https://crates.io/crates/fin-primitives">crates.io</a><a href="https://github.com/Mattbusel/fin-stream">fin-stream</a></div>
+  <div><a href="https://gitlab.com/mattbusel/fin-primitives">GitHub</a><a href="https://docs.rs/fin-primitives">docs.rs</a><a href="https://crates.io/crates/fin-primitives">crates.io</a><a href="https://gitlab.com/mattbusel/fin-stream">fin-stream</a></div>
   <div>MIT licensed. Research and engineering library, not financial advice.</div>
 </div></footer>
 

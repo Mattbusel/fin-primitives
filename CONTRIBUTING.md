@@ -8,7 +8,7 @@ started, run tests, and submit changes.
 1. Install Rust via [rustup](https://rustup.rs/) (stable toolchain, 1.75+).
 2. Clone the repository:
    ```sh
-   git clone https://github.com/Mattbusel/fin-primitives
+   git clone https://gitlab.com/mattbusel/fin-primitives
    cd fin-primitives
    ```
 3. Build the project:

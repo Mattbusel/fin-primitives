@@ -7,7 +7,7 @@ For Rust developers writing trading bots, backtesters, market-data tools or quan
 <p align="center">
   <a href="https://crates.io/crates/fin-primitives"><img alt="crates.io version" src="https://img.shields.io/crates/v/fin-primitives.svg"></a>
   <a href="https://docs.rs/fin-primitives"><img alt="docs.rs" src="https://docs.rs/fin-primitives/badge.svg"></a>
-  <a href="https://github.com/Mattbusel/fin-primitives/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@ cargo add fin-primitives rust_decimal rust_decimal_macros
 
 It is a library, so there is nothing to download or install system-wide (Rust 1.81 or newer).
 `rust_decimal_macros` gives you the `dec!(64250.50)` literal used in every example. Or in
-`Cargo.toml`: `fin-primitives = "2.14"`. Want to see it first? `git clone https://github.com/Mattbusel/fin-primitives && cd fin-primitives && cargo run --example order_book`.
+`Cargo.toml`: `fin-primitives = "2.14"`. Want to see it first? `git clone https://gitlab.com/mattbusel/fin-primitives && cd fin-primitives && cargo run --example order_book`.
 
 ## How it works
 
@@ -155,7 +155,7 @@ other 0.158 at the next level up). This exact program was built against fin-prim
 | [docs/REFERENCE.md](docs/REFERENCE.md) | module guides (indicators, series analytics, ledger, drawdown, attribution, Greeks, regimes, backtester, Monte Carlo, factor models, yield curves and more), math definitions, API listing |
 | [docs/TESTING.md](docs/TESTING.md) | running the tests and benchmarks, current test status |
 | [CHANGELOG.md](CHANGELOG.md) | what changed in each version |
-| [Project site](https://mattbusel.github.io/fin-primitives/) | the same overview as a web page |
+| [Project site](https://fin-primitives.vercel.app/) | the same overview as a web page |
 
 Optional Python bindings are behind the `python` feature (`maturin develop --features python`).
 
@@ -170,6 +170,6 @@ Run `cargo fmt`, `cargo clippy` and `cargo test --doc` before opening a PR. See
 
 ## License and related projects
 
-MIT, see [LICENSE](LICENSE). [fin-stream](https://github.com/Mattbusel/fin-stream) builds on
+MIT, see [LICENSE](LICENSE). [fin-stream](https://gitlab.com/mattbusel/fin-stream) builds on
 this crate: it turns live Binance, Coinbase, Alpaca and Polygon trade messages into ticks,
 bars and order books.

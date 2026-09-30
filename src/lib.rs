@@ -4,7 +4,7 @@
 //! size types that refuse bad values, an order book, candles built from trades,
 //! indicators, option prices and risk limits.
 //!
-//! ![Three bundled examples running in a terminal: an order book ladder, an option chain with Greeks, and a position ledger tripping a drawdown limit](https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/demo.gif)
+//! ![Three bundled examples running in a terminal: an order book ladder, an option chain with Greeks, and a position ledger tripping a drawdown limit](https://gitlab.com/mattbusel/fin-primitives/-/raw/main/assets/demo.gif)
 //!
 //! Add it (the `dec!` macro for decimal literals needs both `rust_decimal` crates):
 //!
@@ -68,7 +68,7 @@
 //! # }
 //! ```
 //!
-//! ![Animated diagram: real ticks land in one-minute buckets, push_tick returns the finished bar when the next bucket starts, and RSI(14) returns Unavailable until bar 15](https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/docs/img/ticks-to-bars.svg)
+//! ![Animated diagram: real ticks land in one-minute buckets, push_tick returns the finished bar when the next bucket starts, and RSI(14) returns Unavailable until bar 15](https://gitlab.com/mattbusel/fin-primitives/-/raw/main/docs/img/ticks-to-bars.svg)
 //!
 //! Ticks become bars, and bars feed indicators. Indicators return
 //! [`SignalValue::Unavailable`](signals::SignalValue::Unavailable) until they
@@ -154,7 +154,7 @@
 //!   next to the built-in ones.
 //! - **No unsafe code.** The crate is `#![forbid(unsafe_code)]`.
 //!
-//! Sister crate: [fin-stream](https://github.com/Mattbusel/fin-stream) handles
+//! Sister crate: [fin-stream](https://gitlab.com/mattbusel/fin-stream) handles
 //! real-time market data ingestion on top of these types.
 
 #![forbid(unsafe_code)]

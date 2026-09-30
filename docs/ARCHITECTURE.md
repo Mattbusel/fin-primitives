@@ -8,14 +8,14 @@ follows. For the API of a specific type, see [docs.rs](https://docs.rs/fin-primi
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-dark.png">
-    <img alt="fin-primitives: validated, decimal-precise building blocks for trading and quant systems. Shows 32 one-minute ETH-USD candles with EMA(9) aggregated from ticks, next to a BTC-USD level-2 order book." src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/hero-light.png" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://gitlab.com/mattbusel/fin-primitives/-/raw/main/assets/hero-dark.png">
+    <img alt="fin-primitives: validated, decimal-precise building blocks for trading and quant systems. Shows 32 one-minute ETH-USD candles with EMA(9) aggregated from ticks, next to a BTC-USD level-2 order book." src="https://gitlab.com/mattbusel/fin-primitives/-/raw/main/assets/hero-light.png" width="100%">
   </picture>
 </p>
 
 ## Architecture
 
-<p align="center"><img alt="Data flow: ticks to TickFilter to OhlcvAggregator to Signal; BookDelta to OrderBook; Fill to PositionLedger to RiskMonitor; OptionSpec to BlackScholes; all sharing validated Price, Quantity, Symbol, NanoTimestamp and Side types" src="https://raw.githubusercontent.com/Mattbusel/fin-primitives/main/assets/architecture.svg" width="100%"></p>
+<p align="center"><img alt="Data flow: ticks to TickFilter to OhlcvAggregator to Signal; BookDelta to OrderBook; Fill to PositionLedger to RiskMonitor; OptionSpec to BlackScholes; all sharing validated Price, Quantity, Symbol, NanoTimestamp and Side types" src="https://gitlab.com/mattbusel/fin-primitives/-/raw/main/assets/architecture.svg" width="100%"></p>
 
 Each stage is plain data in and a typed value or `FinError` out, so every piece works on its
 own: use the order book without the ledger, or the indicators without the aggregator. The
