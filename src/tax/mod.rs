@@ -156,11 +156,7 @@ impl TaxLotManager {
             let earliest_lot = lots.iter().min_by_key(|l| l.acquired_date);
             let (lot_id, holding_period_days) = earliest_lot
                 .map(|l| {
-                    let hp = if date >= l.acquired_date {
-                        date - l.acquired_date
-                    } else {
-                        0
-                    };
+                    let hp = date.saturating_sub(l.acquired_date);
                     (l.lot_id.clone(), hp)
                 })
                 .unwrap_or_default();
@@ -196,11 +192,7 @@ impl TaxLotManager {
             let lot_basis = (lot.cost_basis / lot.quantity) * taken;
             let lot_proceeds = (proceeds / quantity) * taken;
             let gain_val = lot_proceeds - lot_basis;
-            let holding_period_days = if date >= lot.acquired_date {
-                date - lot.acquired_date
-            } else {
-                0
-            };
+            let holding_period_days = date.saturating_sub(lot.acquired_date);
             gains.push(RealizedGain {
                 lot_id: lot.lot_id.clone(),
                 quantity: taken,

@@ -97,7 +97,7 @@ impl Signal for ChandelierExit {
             .iter()
             .map(|b| b.high)
             .fold(Decimal::MIN, Decimal::max);
-        let long_exit = highest_high - self.multiplier * self.atr.unwrap();
+        let long_exit = highest_high - self.multiplier * self.atr.ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar(long_exit))
     }
 

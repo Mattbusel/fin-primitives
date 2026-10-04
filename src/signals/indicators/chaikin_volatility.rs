@@ -43,7 +43,7 @@ impl Signal for ChaikinVolatility {
         if self.bars_seen <= self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let past = *self.history.front().unwrap();
+        let past = *self.history.front().ok_or_else(crate::error::invariant_broken)?;
         if past.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }

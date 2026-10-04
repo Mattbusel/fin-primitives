@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use fin_primitives::risk::{MaxDrawdownRule, MinEquityRule, RiskMonitor, RiskRule};
 use rust_decimal_macros::dec;
 

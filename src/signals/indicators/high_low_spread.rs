@@ -62,8 +62,8 @@ impl Signal for HighLowSpread {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_high = self.highs.iter().copied().max().unwrap();
-        let min_low = self.lows.iter().copied().min().unwrap();
+        let max_high = self.highs.iter().copied().max().ok_or_else(crate::error::invariant_broken)?;
+        let min_low = self.lows.iter().copied().min().ok_or_else(crate::error::invariant_broken)?;
 
         if min_low.is_zero() {
             return Ok(SignalValue::Unavailable);

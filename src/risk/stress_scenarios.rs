@@ -5,7 +5,8 @@
 //! Also provides a `CorrelationStressMatrix` for shocked portfolio VaR.
 
 /// A single market risk factor with a shock expressed in basis points.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RiskFactor {
     /// Human-readable name, e.g. `"rate_usd_10y"` or `"equity_sp500"`.
     pub name: String,
@@ -17,7 +18,8 @@ pub struct RiskFactor {
 
 /// A named stress scenario: a collection of risk-factor shocks plus a
 /// correlation multiplier applied to all off-diagonal entries.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StressScenario {
     /// Scenario identifier, e.g. `"2008 Financial Crisis"`.
     pub name: String,
@@ -30,7 +32,8 @@ pub struct StressScenario {
 }
 
 /// A single portfolio position.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PortfolioPosition {
     /// Unique identifier for the asset.
     pub asset_id: String,
@@ -45,7 +48,8 @@ pub struct PortfolioPosition {
 }
 
 /// Output of a single stress scenario run.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StressResult {
     /// Name of the scenario that produced this result.
     pub scenario_name: String,
@@ -151,7 +155,8 @@ impl StressTester {
 // ─── Correlation stress matrix ────────────────────────────────────────────────
 
 /// An n×n correlation matrix with a uniform off-diagonal shock multiplier.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CorrelationStressMatrix {
     /// Dimension of the matrix.
     pub n: usize,

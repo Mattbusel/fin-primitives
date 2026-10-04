@@ -79,7 +79,7 @@ impl Signal for VolumeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let atr = self.atr.unwrap();
+        let atr = self.atr.ok_or_else(crate::error::invariant_broken)?;
         if atr.is_zero() {
             return Ok(SignalValue::Unavailable);
         }

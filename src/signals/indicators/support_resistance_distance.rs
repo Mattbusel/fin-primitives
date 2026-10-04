@@ -72,8 +72,8 @@ impl Signal for SupportResistanceDistance {
         if self.lows.len() > self.period { self.lows.pop_front(); }
         if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
 
-        let resistance = self.highs.iter().cloned().max().unwrap();
-        let support = self.lows.iter().cloned().min().unwrap();
+        let resistance = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let support = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
         let range = resistance - support;
 
         if range.is_zero() {

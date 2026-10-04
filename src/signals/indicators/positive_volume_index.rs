@@ -55,7 +55,7 @@ impl Signal for PositiveVolumeIndex {
                     let ret = (bar.close - pc)
                         .checked_div(pc)
                         .ok_or(FinError::ArithmeticOverflow)?;
-                    self.pvi = self.pvi * (Decimal::ONE + ret);
+                    self.pvi *= Decimal::ONE + ret;
                 }
                 SignalValue::Scalar(self.pvi)
             }

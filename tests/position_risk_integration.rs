@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: Position ledger + risk monitor working together.
 
 use fin_primitives::position::{Fill, Position, PositionLedger};

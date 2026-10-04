@@ -97,7 +97,7 @@ impl Signal for VolatilityBands {
                 self.ema = Some(sma);
             }
         } else {
-            let e = self.ema.unwrap() * (Decimal::ONE - self.k) + bar.close * self.k;
+            let e = self.ema.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + bar.close * self.k;
             self.ema = Some(e);
         }
 
@@ -105,7 +105,7 @@ impl Signal for VolatilityBands {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ema = self.ema.unwrap();
+        let ema = self.ema.ok_or_else(crate::error::invariant_broken)?;
         let atr = self.trs.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
 
         self.upper = Some(ema + self.multiplier * atr);

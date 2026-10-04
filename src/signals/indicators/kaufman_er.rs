@@ -70,8 +70,8 @@ impl Signal for KaufmanEr {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.history.front().unwrap();
-        let last = *self.history.back().unwrap();
+        let first = *self.history.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.history.back().ok_or_else(crate::error::invariant_broken)?;
         let direction = (last - first).abs();
 
         let volatility: Decimal = self

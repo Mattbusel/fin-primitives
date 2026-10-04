@@ -54,23 +54,9 @@ impl VaRCalculator {
     // Internal helpers
     // -----------------------------------------------------------------------
 
-    /// Probit approximation (inverse normal CDF) for the given probability `p`.
-    /// Uses the Beasley-Springer-Moro approximation.
+    /// Inverse normal CDF ([`crate::normal::inv_cdf`]), with `p` clamped away from 0 and 1.
     fn probit(p: f64) -> f64 {
-        // Rational approximation coefficients (Abramowitz & Stegun 26.2.17)
-        const A: [f64; 4] = [2.515517, 0.802853, 0.010328, 0.0];
-        const B: [f64; 3] = [1.432788, 0.189269, 0.001308];
-
-        let p = p.clamp(1e-10, 1.0 - 1e-10);
-        let sign = if p < 0.5 { -1.0_f64 } else { 1.0_f64 };
-        let t = if p < 0.5 {
-            (-2.0 * p.ln()).sqrt()
-        } else {
-            (-2.0 * (1.0 - p).ln()).sqrt()
-        };
-        let numerator = A[0] + A[1] * t + A[2] * t * t + A[3] * t * t * t;
-        let denominator = 1.0 + B[0] * t + B[1] * t * t + B[2] * t * t * t;
-        sign * (t - numerator / denominator)
+        crate::normal::inv_cdf(p.clamp(1e-10, 1.0 - 1e-10))
     }
 
     /// Computes sample mean of a slice.
@@ -118,9 +104,9 @@ impl VaRCalculator {
             return 0.0;
         }
         let sum4 = data.iter().map(|x| ((x - m) / s).powi(4)).sum::<f64>();
-        let kurt = (n * (n + 1.0) / ((n - 1.0) * (n - 2.0) * (n - 3.0))) * sum4
-            - 3.0 * (n - 1.0).powi(2) / ((n - 2.0) * (n - 3.0));
-        kurt
+        
+        (n * (n + 1.0) / ((n - 1.0) * (n - 2.0) * (n - 3.0))) * sum4
+            - 3.0 * (n - 1.0).powi(2) / ((n - 2.0) * (n - 3.0))
     }
 
     /// Simple LCG pseudo-random number generator yielding values in (0, 1).
@@ -304,9 +290,7 @@ impl VaRCalculator {
             for j in 0..n {
                 let corr = if i < correlation_matrix.len() && j < correlation_matrix[i].len() {
                     correlation_matrix[i][j]
-                } else {
-                    if i == j { 1.0 } else { 0.0 }
-                };
+                } else if i == j { 1.0 } else { 0.0 };
                 variance += individual_vars[i] * individual_vars[j] * corr;
             }
         }

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: L2 order book stress tests — corrupted and out-of-order deltas.
 //
 // Verifies that the order book:
@@ -49,16 +50,6 @@ fn set_ask(p: rust_decimal::Decimal, q: rust_decimal::Decimal, seq: u64) -> Book
 fn remove_bid(p: rust_decimal::Decimal, seq: u64) -> BookDelta {
     BookDelta {
         side: Side::Bid,
-        price: price(p),
-        quantity: Quantity::zero(),
-        action: DeltaAction::Remove,
-        sequence: seq,
-    }
-}
-
-fn remove_ask(p: rust_decimal::Decimal, seq: u64) -> BookDelta {
-    BookDelta {
-        side: Side::Ask,
         price: price(p),
         quantity: Quantity::zero(),
         action: DeltaAction::Remove,
@@ -269,7 +260,6 @@ fn stress_interleaved_updates_no_inversion() {
 
     // Tighten bid up to 199.50 (still valid)
     book.apply_delta(set_bid(dec!(199.5), dec!(3), seq)).unwrap();
-    seq += 1;
 
     let spread = book.spread().unwrap();
     assert!(spread > dec!(0), "spread must remain positive: {spread}");

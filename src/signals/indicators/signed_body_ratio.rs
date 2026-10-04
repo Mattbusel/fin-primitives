@@ -78,7 +78,7 @@ impl Signal for SignedBodyRatio {
         self.sum += sbr;
         self.values.push_back(sbr);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().unwrap();
+            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

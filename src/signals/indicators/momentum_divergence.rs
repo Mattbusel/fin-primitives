@@ -84,9 +84,9 @@ impl Signal for MomentumDivergence {
         }
 
         let past_close = self.closes[0];
-        let curr_close = *self.closes.back().unwrap();
+        let curr_close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let past_vol = self.volumes[0];
-        let curr_vol = *self.volumes.back().unwrap();
+        let curr_vol = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
 
         let Some(price_roc) = Self::roc(curr_close, past_close) else {
             return Ok(SignalValue::Unavailable);

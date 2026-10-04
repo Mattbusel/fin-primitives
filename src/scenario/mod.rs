@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn test_triggers_when_drawdown_exceeds_threshold() {
         // Start at 100, drop to 80 (20% drawdown), threshold is 10%
-        let closes = vec![
+        let closes = [
             dec!(100), dec!(99), dec!(95), dec!(90), dec!(85), dec!(80),
         ];
         let bars: Vec<_> = closes.iter().map(|&c| make_bar(c)).collect();
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_multiple_rules_both_can_fire() {
-        let closes = vec![dec!(100), dec!(50)]; // 50% drawdown
+        let closes = [dec!(100), dec!(50)]; // 50% drawdown
         let bars: Vec<_> = closes.iter().map(|&c| make_bar(c)).collect();
         let rule1 = MaxDrawdownRule { threshold_pct: dec!(10) };
         let rule2 = MaxDrawdownRule { threshold_pct: dec!(20) };
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_max_drawdown_tracked() {
-        let closes = vec![dec!(200), dec!(180), dec!(160), dec!(190), dec!(210)];
+        let closes = [dec!(200), dec!(180), dec!(160), dec!(190), dec!(210)];
         let bars: Vec<_> = closes.iter().map(|&c| make_bar(c)).collect();
         let report = ScenarioBacktester::new(bars).run(|bar| bar.close.value());
         // Peak 200, trough 160: 20% drawdown

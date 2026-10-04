@@ -95,15 +95,15 @@ impl Signal for CusumPriceChange {
         }
 
         let std_dev = variance.sqrt();
-        let current_return = *returns.last().unwrap();
+        let current_return = *returns.last().ok_or_else(crate::error::invariant_broken)?;
         let standardized = (current_return - mean) / std_dev;
 
+        let prev = self.cusum;
         self.cusum += standardized;
 
-        // Reset if crosses zero
-        if (self.cusum > 0.0 && standardized < 0.0 && self.cusum < 0.0)
-            || (self.cusum < 0.0 && standardized > 0.0 && self.cusum > 0.0)
-        {
+        // Reset when the sum crosses zero, so it only tracks the current excursion.
+        // (The old check compared the new sum with itself and could never fire.)
+        if (prev > 0.0 && self.cusum < 0.0) || (prev < 0.0 && self.cusum > 0.0) {
             self.cusum = 0.0;
         }
 
@@ -124,7 +124,6 @@ mod tests {
     use crate::ohlcv::OhlcvBar;
     use crate::signals::Signal;
     use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
-    use rust_decimal_macros::dec;
 
     fn bar(c: &str) -> OhlcvBar {
         let p = Price::new(c.parse().unwrap()).unwrap();
@@ -173,6 +172,30 @@ mod tests {
             }
         }
         assert!(got_scalar, "noisy uptrend should eventually produce a Scalar value");
+    }
+
+    #[test]
+    fn test_cusum_never_jumps_across_zero() {
+        // A zig-zag series makes the running sum change sign often. Every crossing
+        // must land on exactly zero; before the fix the sum flipped sign directly.
+        let mut s = CusumPriceChange::new("cusum", 3).unwrap();
+        let prices = ["100", "104", "101", "108", "99", "103", "97", "110", "95", "112", "90", "115"];
+        let mut prev: Option<Decimal> = None;
+        let mut resets = 0;
+        for p in &prices {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
+                if let Some(pv) = prev {
+                    let flipped = (pv > Decimal::ZERO && v < Decimal::ZERO)
+                        || (pv < Decimal::ZERO && v > Decimal::ZERO);
+                    assert!(!flipped, "jumped from {pv} to {v}");
+                }
+                if v.is_zero() {
+                    resets += 1;
+                }
+                prev = Some(v);
+            }
+        }
+        assert!(resets > 0, "the zig-zag should trigger at least one reset");
     }
 
     #[test]

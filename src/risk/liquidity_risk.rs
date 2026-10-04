@@ -403,8 +403,8 @@ impl LiquidityRiskEngine {
         positions: &[(f64, LiquidityScore)],
         confidence: f64,
     ) -> f64 {
-        // z-score for given confidence (approximate).
-        let z = if confidence >= 0.99 { 2.326 } else { 1.645 };
+        // One-sided normal quantile for the confidence level (1.645 at 95%, 2.326 at 99%).
+        let z = crate::normal::inv_cdf(confidence.clamp(1e-12, 1.0 - 1e-12));
         positions.iter().map(|(value, score)| {
             let haircut = 1.0 - score.composite_score / 100.0;
             value.abs() * haircut * z
@@ -503,6 +503,25 @@ mod tests {
         let volumes = vec![1_000_000.0; 3];
         let score = engine.score_asset("TEST", &returns, &volumes, &d);
         assert!(score.composite_score >= 0.0 && score.composite_score <= 100.0);
+    }
+
+    #[test]
+    fn portfolio_liquidity_var_uses_exact_quantile() {
+        let score = LiquidityScore {
+            asset: "X".into(),
+            bid_ask_spread_bps: 0.0,
+            market_depth_score: 0.0,
+            turnover_ratio: 0.0,
+            amihud_illiquidity: 0.0,
+            composite_score: 50.0,
+            rating: LiquidityRating::from_score(50.0),
+        };
+        let pos = [(1_000.0, score)];
+        // 97.5% is z = 1.959964; the old code fell back to 1.645 for anything below 99%.
+        let v = LiquidityRiskEngine::portfolio_liquidity_var(&pos, 0.975);
+        assert!((v - 500.0 * 1.959_963_984_540_054).abs() < 1e-9, "v={v}");
+        let v = LiquidityRiskEngine::portfolio_liquidity_var(&pos, 0.99);
+        assert!((v - 500.0 * 2.326_347_874_040_841).abs() < 1e-9, "v={v}");
     }
 
     #[test]

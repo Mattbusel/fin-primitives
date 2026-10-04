@@ -5,7 +5,8 @@
 //! with bilinear interpolation, ATM vol, term structure, and smile extraction.
 
 /// A single point on the volatility surface.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VolPoint {
     /// Strike price.
     pub strike: f64,
@@ -16,7 +17,8 @@ pub struct VolPoint {
 }
 
 /// Volatility smile at a fixed expiry: a set of (strike, implied_vol) pairs.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VolSmile {
     /// Time to expiry (years) for this smile.
     pub expiry: f64,
@@ -174,7 +176,7 @@ impl VolSurface {
     }
 
     // Fill NaN cells with the nearest non-NaN value via a simple forward/backward pass.
-    fn fill_gaps(grid: &mut Vec<Vec<f64>>, n_exp: usize, n_str: usize) {
+    fn fill_gaps(grid: &mut [Vec<f64>], n_exp: usize, n_str: usize) {
         // Forward pass over strikes for each expiry row
         for row in grid.iter_mut().take(n_exp) {
             let mut last = f64::NAN;

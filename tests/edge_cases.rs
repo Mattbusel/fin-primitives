@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 /// Edge case tests for fin-primitives.
 ///
 /// Covers:

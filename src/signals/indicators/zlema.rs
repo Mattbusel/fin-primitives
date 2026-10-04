@@ -69,7 +69,7 @@ impl Signal for Zlema {
 
         // Adjusted input: 2*close - close[lag] (or just close if not enough history)
         let lagged = if self.history.len() > self.lag {
-            *self.history.front().unwrap()
+            *self.history.front().ok_or_else(crate::error::invariant_broken)?
         } else {
             bar.close
         };

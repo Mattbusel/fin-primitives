@@ -1,7 +1,7 @@
-# Runs the tests on pushes to the default branch that change code, and on merge requests.
+# Runs on pushes to the default branch that change code, and on merge requests.
 stages: [test]
 
-test:
+.rust:
   stage: test
   image: rust:1-bookworm
   rules:
@@ -10,18 +10,59 @@ test:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes: ["src/**/*", "tests/**/*", "examples/**/*", "crates/**/*", "Cargo.toml", "Cargo.lock", ".gitlab-ci.yml"]
+      changes: ["src/**/*", "tests/**/*", "examples/**/*", "benches/**/*", "python/**/*", "Cargo.toml", "Cargo.lock", "README.md", "clippy.toml", ".gitlab-ci.yml"]
   variables:
     CARGO_HOME: "${CI_PROJECT_DIR}/.cargo-home"
     CARGO_TARGET_DIR: "${CI_PROJECT_DIR}/target"
   cache:
-    key: cargo-test
+    key: "cargo-${CI_JOB_NAME}"
     paths: [target/, .cargo-home/]
+
+# Unit, integration and doc tests (README code blocks included), then every example.
+test:
+  extends: .rust
   script:
-  # The same checks the GitHub CI ran, plus the library's unit tests (all passing since the 2026-09-30 fixes).
-    - 'cargo check'
-    - 'cargo test --lib'
-    - 'for e in order_book candles position_risk option_chain; do cargo run --quiet --example "$e"; done'
-    - 'cargo test --doc'
-    - "cargo test --test '*'"
-    - 'RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --no-deps'
+    - cargo test --all-targets
+    - cargo test --doc
+    - 'for e in order_book candles position_risk option_chain value_at_risk; do cargo run --quiet --example "$e"; done'
+    # Interop features (ta, yata, wickra, arrow): their unit tests, doc examples and the ta example.
+    - cargo test --lib --features ta,yata,wickra,arrow -- interop:: arrow::
+    - cargo test --doc --features ta,yata,wickra,arrow -- interop arrow
+    - cargo run --quiet --example with_ta --features ta
+
+# Lints and docs with warnings as errors.
+lint-docs:
+  extends: .rust
+  script:
+    - rustup component add clippy
+    - cargo clippy --all-targets --features ta,yata,wickra,arrow -- -D warnings
+    - 'RUSTDOCFLAGS="-D warnings" cargo doc --no-deps'
+
+# Every feature combination that users can pick still builds.
+features:
+  extends: .rust
+  script:
+    - cargo check --lib --no-default-features
+    - cargo check --lib --no-default-features --features serde
+    - cargo check --lib --no-default-features --features async
+    - 'command -v python3 || (apt-get update && apt-get install -y --no-install-recommends python3)'
+    - cargo check --lib --features python
+    - rustup target add wasm32-unknown-unknown
+    - cargo check --lib --target wasm32-unknown-unknown --no-default-features --features serde
+
+# The declared minimum Rust version (Cargo.toml rust-version).
+msrv:
+  extends: .rust
+  image: rust:1.81-bookworm
+  script:
+    - cargo check --lib --locked
+    - cargo check --lib --locked --no-default-features
+
+# Build the Python wheel with maturin and run the binding smoke test.
+python:
+  extends: .rust
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends python3-venv python3-pip
+    - python3 -m venv /tmp/venv && /tmp/venv/bin/pip install maturin
+    - cd python && /tmp/venv/bin/maturin build --release --compatibility linux -o /tmp/wheels
+    - /tmp/venv/bin/pip install /tmp/wheels/*.whl && /tmp/venv/bin/python test_smoke.py

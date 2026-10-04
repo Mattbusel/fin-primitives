@@ -100,7 +100,7 @@ impl Signal for BodyToWickRatio {
         self.sum += ratio;
         self.values.push_back(ratio);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().unwrap();
+            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

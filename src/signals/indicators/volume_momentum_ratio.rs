@@ -68,7 +68,7 @@ impl Signal for VolumeMomentumRatio {
         self.sum += v;
         self.volumes.push_back(v);
         if self.volumes.len() > self.slow {
-            let removed = self.volumes.pop_front().unwrap();
+            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.volumes.len() < self.slow {

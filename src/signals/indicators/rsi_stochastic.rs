@@ -101,8 +101,8 @@ impl Signal for RsiStochastic {
         }
 
         let k = Decimal::ONE / Decimal::from(self.rsi_period as u32);
-        let ag = self.avg_gain.unwrap() * (Decimal::ONE - k) + gain * k;
-        let al = self.avg_loss.unwrap() * (Decimal::ONE - k) + loss * k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + gain * k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + loss * k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
 
@@ -118,8 +118,8 @@ impl Signal for RsiStochastic {
         if self.rsi_values.len() > self.stoch_period { self.rsi_values.pop_front(); }
         if self.rsi_values.len() < self.stoch_period { return Ok(SignalValue::Unavailable); }
 
-        let rsi_min = self.rsi_values.iter().cloned().min().unwrap();
-        let rsi_max = self.rsi_values.iter().cloned().max().unwrap();
+        let rsi_min = self.rsi_values.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
+        let rsi_max = self.rsi_values.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
         let range = rsi_max - rsi_min;
 
         if range.is_zero() {

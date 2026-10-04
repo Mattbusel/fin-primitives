@@ -77,8 +77,8 @@ impl Signal for ReturnConcentration {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
-        let total_base = *self.closes.front().unwrap();  // period bars ago
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let total_base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;  // period bars ago
         let recent_base_idx = self.period - self.recent_bars; // index of recent_base
         let recent_base = self.closes[recent_base_idx];
 
@@ -103,7 +103,7 @@ impl Signal for ReturnConcentration {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

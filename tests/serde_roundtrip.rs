@@ -1,3 +1,5 @@
+#![cfg(feature = "serde")]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: JSON serialization round-trips for all public serializable types.
 
 use fin_primitives::ohlcv::{OhlcvBar, Timeframe};
@@ -189,4 +191,24 @@ fn order_book_snapshot_values_survive_serde() {
     let back: Vec<PriceLevel> = serde_json::from_str(&json).unwrap();
     assert_eq!(back.len(), 1);
     assert_eq!(back[0].price.value(), dec!(50000));
+}
+
+// ── Deserialization validates like the constructors ─────────────────────────
+
+#[test]
+fn deserializing_invalid_values_is_an_error() {
+    // Before 2.15 these all deserialized into values `new` would have rejected.
+    assert!(serde_json::from_str::<Price>(r#""-5""#).is_err());
+    assert!(serde_json::from_str::<Price>(r#""0""#).is_err());
+    assert!(serde_json::from_str::<Quantity>(r#""-0.01""#).is_err());
+    assert!(serde_json::from_str::<Symbol>(r#""""#).is_err());
+    assert!(serde_json::from_str::<Symbol>(r#""BTC USD""#).is_err());
+}
+
+#[test]
+fn wire_format_is_unchanged() {
+    // Prices and quantities are exact decimal strings, symbols plain strings.
+    assert_eq!(serde_json::to_string(&price("100.50")).unwrap(), r#""100.50""#);
+    assert_eq!(serde_json::to_string(&qty("0")).unwrap(), r#""0""#);
+    assert_eq!(serde_json::to_string(&sym("ETH-USD")).unwrap(), r#""ETH-USD""#);
 }

@@ -68,7 +68,7 @@ impl Signal for SmaDistancePct {
         self.sum += bar.close;
         self.closes.push_back(bar.close);
         if self.closes.len() > self.period {
-            let removed = self.closes.pop_front().unwrap();
+            let removed = self.closes.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.closes.len() < self.period {

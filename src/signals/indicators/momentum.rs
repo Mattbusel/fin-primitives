@@ -60,7 +60,7 @@ impl Signal for Momentum {
     }
 
     fn is_ready(&self) -> bool {
-        self.history.len() >= self.period + 1
+        self.history.len() > self.period
     }
 
     fn period(&self) -> usize {

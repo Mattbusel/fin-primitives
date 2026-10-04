@@ -72,8 +72,8 @@ impl Signal for TrendConsistency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().unwrap();
-        let last = *self.closes.back().unwrap();
+        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let net = last - first;
 
         if net.is_zero() {

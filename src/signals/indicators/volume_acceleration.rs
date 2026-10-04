@@ -60,7 +60,7 @@ impl Signal for VolumeAcceleration {
             return Ok(SignalValue::Unavailable);
         }
         let old_vol = self.volumes[0];
-        let new_vol = *self.volumes.back().unwrap();
+        let new_vol = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
         if old_vol.is_zero() {
             return Ok(SignalValue::Unavailable);
         }

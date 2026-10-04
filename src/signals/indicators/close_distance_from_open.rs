@@ -74,7 +74,7 @@ impl Signal for CloseDistanceFromOpen {
         self.tr_sum += tr;
         self.trs.push_back(tr);
         if self.trs.len() > self.period {
-            let removed = self.trs.pop_front().unwrap();
+            let removed = self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 
@@ -97,7 +97,7 @@ impl Signal for CloseDistanceFromOpen {
         self.score_sum += score;
         self.scores.push_back(score);
         if self.scores.len() > self.period {
-            let removed = self.scores.pop_front().unwrap();
+            let removed = self.scores.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.score_sum -= removed;
         }
 

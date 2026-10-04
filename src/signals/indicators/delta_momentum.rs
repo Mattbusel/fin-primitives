@@ -68,7 +68,7 @@ impl Signal for DeltaMomentum {
         }
 
         // closes has exactly period+1 elements: [oldest, ..., current]
-        let momentum = *self.closes.back().unwrap() - *self.closes.front().unwrap();
+        let momentum = *self.closes.back().ok_or_else(crate::error::invariant_broken)? - *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
 
         let result = match self.prev_momentum {
             None => {

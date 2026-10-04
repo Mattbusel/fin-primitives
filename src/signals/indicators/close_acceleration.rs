@@ -44,7 +44,7 @@ impl Signal for CloseAcceleration {
         Ok(SignalValue::Scalar(mom_t - mom_t1))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= 2 * self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > 2 * self.period }
     fn period(&self) -> usize { self.period }
     fn reset(&mut self) { self.closes.clear(); }
     fn name(&self) -> &str { "CloseAcceleration" }

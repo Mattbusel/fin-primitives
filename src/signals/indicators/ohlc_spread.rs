@@ -60,7 +60,7 @@ impl Signal for OhlcSpread {
         self.spreads.push_back(spread);
         self.sum += spread;
         if self.spreads.len() > self.period {
-            self.sum -= self.spreads.pop_front().unwrap();
+            self.sum -= self.spreads.pop_front().ok_or_else(crate::error::invariant_broken)?;
         }
         if self.spreads.len() < self.period {
             return Ok(SignalValue::Unavailable);

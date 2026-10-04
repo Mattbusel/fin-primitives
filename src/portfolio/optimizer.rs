@@ -749,7 +749,7 @@ mod tests {
     #[test]
     fn effective_n_concentrated_portfolio() {
         let assets = two_assets();
-        let mut cov = two_asset_cov();
+        let cov = two_asset_cov();
         // Force a concentrated portfolio by extreme constraint.
         let result = PortfolioOptimizer::optimize(
             &assets, &cov, &OptimizationObjective::EqualWeight, &[],

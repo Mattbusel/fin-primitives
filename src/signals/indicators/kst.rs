@@ -78,7 +78,7 @@ impl Signal for Kst {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let max_roc = *self.roc_periods.iter().max().unwrap();
+        let max_roc = *self.roc_periods.iter().max().ok_or_else(crate::error::invariant_broken)?;
         self.closes.push_back(bar.close);
         if self.closes.len() > max_roc + 1 {
             self.closes.pop_front();

@@ -102,7 +102,7 @@ impl DemaCross {
         }
 
         // Update EMA1
-        let e1 = ema1.unwrap() * (Decimal::ONE - k) + value * k;
+        let e1 = (*ema1)? * (Decimal::ONE - k) + value * k;
         *ema1 = Some(e1);
 
         // Stage 2: seed EMA2
@@ -117,7 +117,7 @@ impl DemaCross {
         }
 
         // Update EMA2
-        let e2 = ema2.unwrap() * (Decimal::ONE - k) + e1 * k;
+        let e2 = (*ema2)? * (Decimal::ONE - k) + e1 * k;
         *ema2 = Some(e2);
         Some(Decimal::from(2u32) * e1 - e2)
     }

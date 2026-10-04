@@ -63,7 +63,7 @@ impl Signal for BodySizeRank {
         }
 
         // Rank: fraction of historical bodies strictly less than current
-        let current = *self.bodies.back().unwrap();
+        let current = *self.bodies.back().ok_or_else(crate::error::invariant_broken)?;
         let n = (self.period - 1) as u32; // compare against prior period-1 bodies
 
         // Exclude the current bar from the comparison window

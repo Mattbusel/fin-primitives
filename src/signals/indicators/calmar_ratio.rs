@@ -69,7 +69,7 @@ impl Signal for CalmarRatio {
 
         let prices: Vec<Decimal> = self.window.iter().copied().collect();
         let first = prices[0];
-        let last = *prices.last().unwrap();
+        let last = *prices.last().ok_or_else(crate::error::invariant_broken)?;
 
         if first.is_zero() {
             return Ok(SignalValue::Unavailable);

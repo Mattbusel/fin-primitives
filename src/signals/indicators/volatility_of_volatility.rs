@@ -73,7 +73,7 @@ impl Signal for VolatilityOfVolatility {
         self.tr_sum += tr;
         self.tr_window.push_back(tr);
         if self.tr_window.len() > self.period {
-            let removed = self.tr_window.pop_front().unwrap();
+            let removed = self.tr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 
@@ -91,7 +91,7 @@ impl Signal for VolatilityOfVolatility {
         self.atr_sum_sq += atr * atr;
         self.atr_window.push_back(atr);
         if self.atr_window.len() > self.period {
-            let removed = self.atr_window.pop_front().unwrap();
+            let removed = self.atr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.atr_sum -= removed;
             self.atr_sum_sq -= removed * removed;
         }

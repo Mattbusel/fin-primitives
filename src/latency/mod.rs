@@ -18,7 +18,8 @@ use crate::error::FinError;
 use crate::types::NanoTimestamp;
 
 /// Phase of an order's lifecycle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LatencyPhase {
     /// Time from order submission to exchange acknowledgement (ns).
     SubmitToAck,
@@ -29,7 +30,8 @@ pub enum LatencyPhase {
 }
 
 /// A latency measurement for one phase of a single order.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LatencySample {
     /// Which phase this measurement covers.
     pub phase: LatencyPhase,
@@ -38,7 +40,8 @@ pub struct LatencySample {
 }
 
 /// Per-phase statistics snapshot.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PhaseStats {
     /// Number of samples recorded.
     pub count: usize,
@@ -107,8 +110,7 @@ impl OrderLatencyTracker {
     ///
     /// If a record for `order_id` already exists it is reset.
     pub fn record_submit(&mut self, order_id: impl Into<String>, ts: NanoTimestamp) {
-        let mut ots = OrderTimestamps::default();
-        ots.submit = Some(ts.nanos());
+        let ots = OrderTimestamps { submit: Some(ts.nanos()), ..OrderTimestamps::default() };
         self.pending.insert(order_id.into(), ots);
     }
 

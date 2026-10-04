@@ -367,7 +367,8 @@ impl ExprState {
                         SignalValue::Unavailable => SignalValue::Unavailable,
                     },
                     Direction::Cross => {
-                        let result = match (&v, &*prev) {
+                        
+                        match (&v, &*prev) {
                             (SignalValue::Scalar(curr), SignalValue::Scalar(p)) => {
                                 if *curr > *level && *p <= *level {
                                     SignalValue::Scalar(Decimal::ONE)
@@ -378,8 +379,7 @@ impl ExprState {
                                 }
                             }
                             _ => SignalValue::Unavailable,
-                        };
-                        result
+                        }
                     }
                 };
                 *prev = v;
@@ -658,25 +658,18 @@ impl<S: Signal + 'static> SignalBuilder<S> {
     /// Consumes the builder and produces a [`ComposedSignal`].
     ///
     /// The composed signal name is derived from the inner signal's name.
-    ///
-    /// # Panics
-    ///
-    /// Panics if signal construction fails (which cannot happen here since the
-    /// leaf is already valid).
     pub fn build(self) -> ComposedSignal {
-        let leaf_name = self.signal.name().to_owned();
-        let composed_name = format!("composed({})", leaf_name);
-        let leaves: Vec<Box<dyn Signal>> = vec![Box::new(self.signal)];
-        // Safety: leaves is non-empty by construction.
-        ComposedSignal::new(composed_name, self.expr, leaves)
-            .expect("ComposedSignal construction with a valid leaf signal cannot fail")
+        let composed_name = format!("composed({})", self.signal.name());
+        self.build_named(composed_name)
     }
 
     /// Consumes the builder and produces a [`ComposedSignal`] with an explicit name.
     pub fn build_named(self, name: impl Into<String>) -> ComposedSignal {
+        // One leaf, so the emptiness check in `ComposedSignal::new` cannot fail; build
+        // the value directly instead of unwrapping that `Result`.
         let leaves: Vec<Box<dyn Signal>> = vec![Box::new(self.signal)];
-        ComposedSignal::new(name, self.expr, leaves)
-            .expect("ComposedSignal construction with a valid leaf signal cannot fail")
+        let state = ExprState::from_expr(&self.expr);
+        ComposedSignal { name: name.into(), expr: self.expr, state, leaves, bars_seen: 0 }
     }
 }
 

@@ -55,7 +55,7 @@ impl Signal for UlcerIndex {
         if self.closes.len() > self.period { self.closes.pop_front(); }
         if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
 
-        let period_high = self.closes.iter().cloned().max().unwrap();
+        let period_high = self.closes.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
 
         if period_high.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));

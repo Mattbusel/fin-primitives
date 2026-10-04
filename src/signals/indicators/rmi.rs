@@ -118,8 +118,8 @@ impl Signal for Rmi {
         #[allow(clippy::cast_possible_truncation)]
         let p   = Decimal::from(self.period as u32);
         let pm1 = p - Decimal::ONE;
-        let au  = (self.avg_up.unwrap()   * pm1 + up)   / p;
-        let ad  = (self.avg_down.unwrap() * pm1 + down) / p;
+        let au  = (self.avg_up.ok_or_else(crate::error::invariant_broken)?   * pm1 + up)   / p;
+        let ad  = (self.avg_down.ok_or_else(crate::error::invariant_broken)? * pm1 + down) / p;
         self.avg_up   = Some(au);
         self.avg_down = Some(ad);
 

@@ -72,7 +72,7 @@ impl Signal for BullBearBalance {
         self.window.push_back((bull, bear));
 
         if self.window.len() > self.period {
-            let (ob, od) = self.window.pop_front().unwrap();
+            let (ob, od) = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.bull_sum -= ob;
             self.bear_sum -= od;
         }

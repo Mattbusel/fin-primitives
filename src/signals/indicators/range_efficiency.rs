@@ -75,7 +75,7 @@ impl Signal for RangeEfficiency {
         self.range_sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().unwrap();
+            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.range_sum -= removed;
         }
 
@@ -87,8 +87,8 @@ impl Signal for RangeEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().unwrap();
-        let last = *self.closes.back().unwrap();
+        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
         let efficiency = net_move

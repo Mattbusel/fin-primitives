@@ -79,7 +79,7 @@ impl Signal for WickToAtrRatio {
                 );
             }
         } else {
-            let prev = self.atr.unwrap();
+            let prev = self.atr.ok_or_else(crate::error::invariant_broken)?;
             let p = Decimal::from(self.period as u32);
             self.atr = Some(
                 (prev * (p - Decimal::ONE) + tr)

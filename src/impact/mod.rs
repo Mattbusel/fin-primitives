@@ -27,7 +27,8 @@ use crate::error::FinError;
 // ─── parameters ───────────────────────────────────────────────────────────────
 
 /// Almgren-Chriss model parameters.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AlmgrenChrissParams {
     /// Total shares (or notional units) to execute. Positive = buy, negative = sell.
     pub total_shares: f64,
@@ -46,7 +47,8 @@ pub struct AlmgrenChrissParams {
 // ─── trajectory ───────────────────────────────────────────────────────────────
 
 /// A single step in the optimal execution trajectory.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrajectoryStep {
     /// Time step index (0 = now, N = horizon end).
     pub step: usize,
@@ -59,7 +61,8 @@ pub struct TrajectoryStep {
 }
 
 /// The full optimal execution schedule.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptimalTrajectory {
     /// Ordered sequence of execution steps.
     pub steps: Vec<TrajectoryStep>,

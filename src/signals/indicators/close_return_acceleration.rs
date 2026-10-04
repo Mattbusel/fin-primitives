@@ -65,8 +65,8 @@ impl Signal for CloseReturnAcceleration {
         }
 
         // Current N-bar momentum: (close_now - close_N_bars_ago) / close_N_bars_ago
-        let close_now = *self.closes.back().unwrap();
-        let close_n_ago = *self.closes.front().unwrap();
+        let close_now = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let close_n_ago = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
 
         if close_n_ago.is_zero() {
             return Ok(SignalValue::Unavailable);

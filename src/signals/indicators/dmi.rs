@@ -87,8 +87,8 @@ impl Signal for Dmi {
             self.prev_close = Some(c);
             return Ok(SignalValue::Unavailable);
         };
-        let pl = self.prev_low.unwrap();
-        let pc = self.prev_close.unwrap();
+        let pl = self.prev_low.ok_or_else(crate::error::invariant_broken)?;
+        let pc = self.prev_close.ok_or_else(crate::error::invariant_broken)?;
 
         let up_move = h - ph;
         let down_move = pl - l;

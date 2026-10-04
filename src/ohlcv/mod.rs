@@ -22,7 +22,8 @@ use crate::types::{NanoTimestamp, Price, Quantity, Symbol};
 use rust_decimal::Decimal;
 
 /// A completed OHLCV bar for a single symbol and timeframe bucket.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OhlcvBar {
     /// The instrument.
     pub symbol: Symbol,
@@ -49,7 +50,8 @@ pub struct OhlcvBar {
 /// - `pp`: Pivot Point `(H + L + C) / 3`
 /// - `r1`, `r2`: Resistance levels 1 and 2
 /// - `s1`, `s2`: Support levels 1 and 2
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PivotPoints {
     /// Pivot Point
     pub pp: Decimal,
@@ -459,7 +461,7 @@ impl OhlcvBar {
     /// `gap_pct` cannot be computed (zero previous close).
     pub fn has_gap(&self, prev: &OhlcvBar, pct_threshold: Decimal) -> bool {
         self.gap_pct(prev)
-            .map_or(false, |g| g.abs() >= pct_threshold)
+            .is_some_and(|g| g.abs() >= pct_threshold)
     }
 
     /// Creates a single-tick OHLCV bar from a `Tick`.
@@ -545,7 +547,8 @@ impl OhlcvBar {
 }
 
 /// A timeframe for bar aggregation.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Timeframe {
     /// Aggregation by N seconds.
     Seconds(u32),
@@ -565,27 +568,35 @@ impl Timeframe {
     /// # Errors
     /// Returns [`FinError::InvalidTimeframe`] if the duration is zero.
     pub fn to_nanos(&self) -> Result<i64, FinError> {
-        let secs: u64 = match self {
-            Timeframe::Seconds(n) => u64::from(*n),
-            Timeframe::Minutes(n) => u64::from(*n) * 60,
-            Timeframe::Hours(n) => u64::from(*n) * 3_600,
-            Timeframe::Days(n) => u64::from(*n) * 86_400,
-            Timeframe::Weeks(n) => u64::from(*n) * 7 * 86_400,
+        let secs: i64 = match self {
+            Timeframe::Seconds(n) => i64::from(*n),
+            Timeframe::Minutes(n) => i64::from(*n) * 60,
+            Timeframe::Hours(n) => i64::from(*n) * 3_600,
+            Timeframe::Days(n) => i64::from(*n) * 86_400,
+            Timeframe::Weeks(n) => i64::from(*n) * 7 * 86_400,
         };
         if secs == 0 {
             return Err(FinError::InvalidTimeframe);
         }
-        #[allow(clippy::cast_possible_wrap)]
-        Ok((secs * 1_000_000_000) as i64)
+        // `Weeks(u32::MAX)` does not fit in i64 nanoseconds; that used to wrap silently.
+        secs.checked_mul(1_000_000_000).ok_or(FinError::InvalidTimeframe)
     }
 
     /// Returns the bucket start timestamp for a given tick timestamp.
     ///
+    /// Buckets are aligned to the Unix epoch in UTC, except `Weeks`, which start on
+    /// Monday 00:00 UTC (the epoch itself fell on a Thursday). Timestamps before 1970
+    /// round down to the earlier bucket rather than toward zero.
+    ///
     /// # Errors
-    /// Returns [`FinError::InvalidTimeframe`] if the timeframe duration is zero.
+    /// Returns [`FinError::InvalidTimeframe`] if the timeframe duration is zero or overflows.
     pub fn bucket_start(&self, ts: NanoTimestamp) -> Result<NanoTimestamp, FinError> {
+        /// 1970-01-05, the first Monday after the epoch, in nanoseconds.
+        const FIRST_MONDAY_NANOS: i64 = 4 * 86_400 * 1_000_000_000;
         let nanos = self.to_nanos()?;
-        let bucket = (ts.nanos() / nanos) * nanos;
+        let origin = if matches!(self, Timeframe::Weeks(_)) { FIRST_MONDAY_NANOS } else { 0 };
+        let offset = ts.nanos() - origin;
+        let bucket = offset.div_euclid(nanos) * nanos + origin;
         Ok(NanoTimestamp::new(bucket))
     }
 }
@@ -605,6 +616,8 @@ pub struct OhlcvAggregator {
     last_close: Option<Price>,
     /// Count of fully completed bars emitted (via push_tick or flush).
     bars_emitted: usize,
+    /// Ticks dropped because their bucket was older than the open bar.
+    late_ticks: u64,
 }
 
 impl OhlcvAggregator {
@@ -621,6 +634,7 @@ impl OhlcvAggregator {
             current_bucket_start: None,
             last_close: None,
             bars_emitted: 0,
+            late_ticks: 0,
         })
     }
 
@@ -633,6 +647,8 @@ impl OhlcvAggregator {
     ///   gap-fill bars for any empty intervening buckets
     ///
     /// Ticks for a different symbol are silently ignored and return `Ok(vec![])`.
+    /// A tick whose bucket is older than the open bar (out-of-order delivery) is also
+    /// dropped, and counted by [`late_tick_count`](Self::late_tick_count).
     ///
     /// # Errors
     /// Returns [`FinError::InvalidTimeframe`] if `timeframe.bucket_start` fails.
@@ -641,48 +657,57 @@ impl OhlcvAggregator {
             return Ok(vec![]);
         }
         let bucket = self.timeframe.bucket_start(tick.timestamp)?;
-        match self.current_bucket_start {
-            None => {
-                self.current_bucket_start = Some(bucket);
-                self.current_bar = Some(self.new_bar(tick));
-                Ok(vec![])
-            }
-            Some(current_bucket) if bucket == current_bucket => {
-                self.update_bar(tick);
-                Ok(vec![])
-            }
-            Some(_) => {
-                let completed = self.current_bar.take().expect("current bar must be Some here");
-                self.last_close = Some(completed.close);
-
-                // Emit gap-fill bars for any buckets between the completed bar and the new one.
-                let mut out = vec![completed];
-                let nanos = self.timeframe.to_nanos()?;
-                let prev_bucket = self.current_bucket_start.expect("set above");
-                let mut gap_bucket = NanoTimestamp::new(prev_bucket.nanos() + nanos);
-                while gap_bucket < bucket {
-                    if let Some(close) = self.last_close {
-                        out.push(OhlcvBar {
-                            symbol: self.symbol.clone(),
-                            open: close,
-                            high: close,
-                            low: close,
-                            close,
-                            volume: Quantity::zero(),
-                            ts_open: gap_bucket,
-                            ts_close: gap_bucket,
-                            tick_count: 0,
-                        });
-                    }
-                    gap_bucket = NanoTimestamp::new(gap_bucket.nanos() + nanos);
-                }
-
-                self.bars_emitted += out.len();
-                self.current_bucket_start = Some(bucket);
-                self.current_bar = Some(self.new_bar(tick));
-                Ok(out)
-            }
+        let (Some(current_bucket), Some(current_bar)) =
+            (self.current_bucket_start, self.current_bar.as_ref())
+        else {
+            self.current_bucket_start = Some(bucket);
+            self.current_bar = Some(self.new_bar(tick));
+            return Ok(vec![]);
+        };
+        if bucket == current_bucket {
+            self.update_bar(tick);
+            return Ok(vec![]);
         }
+        if bucket < current_bucket {
+            // A tick for a bucket that is already closed. Starting a new bar for it would
+            // close the open bar early and emit bars out of time order, so drop it.
+            self.late_ticks += 1;
+            return Ok(vec![]);
+        }
+
+        let completed = current_bar.clone();
+        let close = completed.close;
+        self.last_close = Some(close);
+
+        // Emit gap-fill bars for any buckets between the completed bar and the new one.
+        let mut out = vec![completed];
+        let nanos = self.timeframe.to_nanos()?;
+        let mut gap_bucket = NanoTimestamp::new(current_bucket.nanos() + nanos);
+        while gap_bucket < bucket {
+            out.push(OhlcvBar {
+                symbol: self.symbol.clone(),
+                open: close,
+                high: close,
+                low: close,
+                close,
+                volume: Quantity::zero(),
+                ts_open: gap_bucket,
+                ts_close: gap_bucket,
+                tick_count: 0,
+            });
+            gap_bucket = NanoTimestamp::new(gap_bucket.nanos() + nanos);
+        }
+
+        self.bars_emitted += out.len();
+        self.current_bucket_start = Some(bucket);
+        self.current_bar = Some(self.new_bar(tick));
+        Ok(out)
+    }
+
+    /// Number of ticks dropped by [`push_tick`](Self::push_tick) because they belonged to
+    /// a bucket older than the bar currently open (out-of-order delivery).
+    pub fn late_tick_count(&self) -> u64 {
+        self.late_ticks
     }
 
     /// Flushes the current partial bar, returning it if one exists.
@@ -715,6 +740,7 @@ impl OhlcvAggregator {
         self.current_bucket_start = None;
         self.last_close = None;
         self.bars_emitted = 0;
+        self.late_ticks = 0;
     }
 
     /// Returns the number of fully completed bars emitted so far (via `push_tick` or `flush`).
@@ -1584,7 +1610,7 @@ impl OhlcvSeries {
         for bar in &self.bars[period..] {
             ema = bar.close.value() * k + ema * (Decimal::ONE - k);
         }
-        self.bars.last().map_or(false, |b| b.close.value() > ema)
+        self.bars.last().is_some_and(|b| b.close.value() > ema)
     }
 
     /// Returns the count of bullish engulfing patterns in the last `n` bars.
@@ -1794,7 +1820,8 @@ impl OhlcvSeries {
         if self.bars.len() < 2 || multiplier.is_zero() {
             return false;
         }
-        let last_vol = self.bars.last().unwrap().volume.value();
+        let Some(last) = self.bars.last() else { return false };
+        let last_vol = last.volume.value();
         // average of all bars except the last one (up to n bars)
         let prior_count = self.bars.len() - 1;
         let start = prior_count.saturating_sub(n);
@@ -3207,7 +3234,7 @@ impl OhlcvSeries {
         if returns.len() < 2 {
             return None;
         }
-        returns.sort_unstable_by(|a, b| a.cmp(b));
+        returns.sort_unstable();
         let cutoff = ((Decimal::ONE - confidence_pct / Decimal::ONE_HUNDRED)
             .to_f64()
             .unwrap_or(0.05)
@@ -3282,9 +3309,9 @@ impl OhlcvSeries {
             if open == prior_close { continue; }
             gap_count += 1;
             let gap_up = open > prior_close;
-            if gap_up && bar.low.value() <= prior_close {
-                filled += 1;
-            } else if !gap_up && bar.high.value() >= prior_close {
+            if (gap_up && bar.low.value() <= prior_close)
+                || (!gap_up && bar.high.value() >= prior_close)
+            {
                 filled += 1;
             }
         }
@@ -4026,7 +4053,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let net = (self.bars.last().unwrap().close.value()
+        let net = (self.bars.last()?.close.value()
             - self.bars[start].close.value())
             .abs()
             .to_f64()
@@ -4902,7 +4929,7 @@ impl OhlcvSeries {
     pub fn percent_doji(&self, n: usize) -> Option<Decimal> {
         if n == 0 || self.bars.len() < n { return None; }
         let start = self.bars.len() - n;
-        let threshold = rust_decimal_macros::dec!(0.1);
+        let threshold = Decimal::new(1, 1); // 0.1
         let mut doji_count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
@@ -7647,6 +7674,35 @@ mod tests {
     }
 
     #[test]
+    fn test_timeframe_bucket_start_before_epoch_rounds_down() {
+        // One nanosecond before 1970-01-01 belongs to the 23:59 minute of 1969-12-31,
+        // not to the 00:00 minute that integer division toward zero gave.
+        let tf = Timeframe::Minutes(1);
+        let b = tf.bucket_start(NanoTimestamp::new(-1)).unwrap();
+        assert_eq!(b.nanos(), -60_000_000_000);
+        let b = tf.bucket_start(NanoTimestamp::new(-60_000_000_000)).unwrap();
+        assert_eq!(b.nanos(), -60_000_000_000);
+    }
+
+    #[test]
+    fn test_timeframe_weekly_buckets_start_on_monday() {
+        // 2026-10-01 12:00 UTC is a Thursday; its week starts Monday 2026-09-28 00:00 UTC.
+        let thursday = NanoTimestamp::new(1_790_856_000 * 1_000_000_000);
+        let b = Timeframe::Weeks(1).bucket_start(thursday).unwrap();
+        assert_eq!(b.nanos(), 1_790_553_600 * 1_000_000_000);
+        // Sunday 23:59:59 stays in the same week, Monday 00:00 starts the next one.
+        let sunday = NanoTimestamp::new((1_790_553_600 + 7 * 86_400 - 1) * 1_000_000_000);
+        assert_eq!(Timeframe::Weeks(1).bucket_start(sunday).unwrap().nanos(), b.nanos());
+        let monday = NanoTimestamp::new((1_790_553_600 + 7 * 86_400) * 1_000_000_000);
+        assert_eq!(Timeframe::Weeks(1).bucket_start(monday).unwrap(), monday);
+    }
+
+    #[test]
+    fn test_timeframe_huge_weeks_is_an_error_not_a_wrap() {
+        assert!(matches!(Timeframe::Weeks(u32::MAX).to_nanos(), Err(FinError::InvalidTimeframe)));
+    }
+
+    #[test]
     fn test_timeframe_bucket_start() {
         let tf = Timeframe::Seconds(60);
         let nanos_per_min = 60_000_000_000_i64;
@@ -7685,6 +7741,25 @@ mod tests {
         assert_eq!(bar.high.value(), dec!(105));
         assert_eq!(bar.close.value(), dec!(105));
         assert_eq!(bar.tick_count, 2);
+    }
+
+    #[test]
+    fn test_ohlcv_aggregator_drops_late_tick_instead_of_reopening_old_bucket() {
+        let sym = Symbol::new("X").unwrap();
+        let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(60)).unwrap();
+        let m = 60_000_000_000_i64;
+        assert!(agg.push_tick(&make_tick("X", "100", "1", 10)).unwrap().is_empty());
+        let done = agg.push_tick(&make_tick("X", "101", "1", m + 10)).unwrap();
+        assert_eq!(done.len(), 1);
+        // A straggler from minute 0 arrives after minute 1 has opened. It used to close
+        // the minute-1 bar after one tick and open a second minute-0 bar.
+        assert!(agg.push_tick(&make_tick("X", "50", "1", 20)).unwrap().is_empty());
+        assert_eq!(agg.late_tick_count(), 1);
+        assert!(agg.push_tick(&make_tick("X", "102", "1", m + 20)).unwrap().is_empty());
+        let open = agg.current_bar().unwrap();
+        assert_eq!(open.tick_count, 2);
+        assert_eq!(open.low.value(), dec!(101));
+        assert_eq!(agg.current_bar_open_ts().unwrap().nanos(), m);
     }
 
     #[test]
@@ -7932,6 +8007,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_ohlcv_bar_serde_roundtrip() {
         let bar = make_bar("100", "110", "90", "105");
         let json = serde_json::to_string(&bar).unwrap();

@@ -90,7 +90,7 @@ impl DemaRatio {
             return None;
         }
 
-        let e1 = ema1.unwrap() + k * (value - ema1.unwrap());
+        let e1 = (*ema1)? + k * (value - (*ema1)?);
         *ema1 = Some(e1);
 
         if ema2.is_none() {
@@ -102,7 +102,7 @@ impl DemaRatio {
             return None;
         }
 
-        let e2 = ema2.unwrap() + k * (e1 - ema2.unwrap());
+        let e2 = (*ema2)? + k * (e1 - (*ema2)?);
         *ema2 = Some(e2);
         Some(Decimal::from(2u32) * e1 - e2)
     }

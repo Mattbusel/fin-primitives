@@ -72,7 +72,7 @@ impl Signal for Evwma {
                 if self.count >= self.period {
                     return Ok(SignalValue::Scalar(bar.close));
                 }
-                return Ok(SignalValue::Unavailable);
+                Ok(SignalValue::Unavailable)
             }
             Some(prev) => {
                 let new_evwma = if vol_sum.is_zero() {

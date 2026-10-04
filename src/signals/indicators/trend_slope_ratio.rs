@@ -79,9 +79,9 @@ impl Signal for TrendSlopeRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let short_base = self.closes[self.closes.len() - 1 - self.short_period];
-        let long_base = *self.closes.front().unwrap();
+        let long_base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
 
         #[allow(clippy::cast_possible_truncation)]
         let short_slope = (current - short_base)
@@ -101,7 +101,7 @@ impl Signal for TrendSlopeRatio {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.long_period + 1
+        self.closes.len() > self.long_period
     }
 
     fn period(&self) -> usize {

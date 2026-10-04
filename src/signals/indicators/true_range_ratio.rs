@@ -64,7 +64,7 @@ impl Signal for TrueRangeRatio {
         self.trs.push_back(tr);
         self.sum += tr;
         if self.trs.len() > self.period {
-            self.sum -= self.trs.pop_front().unwrap();
+            self.sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
         }
 
         if self.trs.len() < self.period {

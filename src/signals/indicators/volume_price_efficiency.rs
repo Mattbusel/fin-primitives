@@ -70,7 +70,7 @@ impl Signal for VolumePriceEfficiency {
         self.vol_sum += vol;
         self.volumes.push_back(vol);
         if self.volumes.len() > self.period {
-            let removed = self.volumes.pop_front().unwrap();
+            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.vol_sum -= removed;
         }
 
@@ -82,8 +82,8 @@ impl Signal for VolumePriceEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let close_now = *self.closes.back().unwrap();
-        let close_n_ago = *self.closes.front().unwrap();
+        let close_now = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let close_n_ago = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
         let price_change = (close_now - close_n_ago).abs();
 
         let efficiency = price_change

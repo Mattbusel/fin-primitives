@@ -95,7 +95,7 @@ impl Signal for ReturnPercentRank {
         }
 
         // current return is the last element; compare against the previous (period - 1) returns
-        let current = *self.returns.back().unwrap();
+        let current = *self.returns.back().ok_or_else(crate::error::invariant_broken)?;
         let history = self.returns.iter().take(self.period - 1);
         let count_below = history.filter(|&&r| r < current).count();
         let rank = count_below as f64 / (self.period - 1) as f64;

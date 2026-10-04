@@ -334,9 +334,9 @@ pub fn bl_posterior_covariance(input: &BlackLittermanInput) -> Vec<Vec<f64>> {
 
     // Invert A: for diagonal approximation, only use diagonal
     let a_diag: Vec<f64> = (0..n).map(|i| a[i][i]).collect();
-    let a_inv = invert_diagonal(&a_diag);
+    
 
-    a_inv
+    invert_diagonal(&a_diag)
 }
 
 /// Compute optimal portfolio weights from posterior returns and covariance.

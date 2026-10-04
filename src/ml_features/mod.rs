@@ -482,8 +482,8 @@ impl LaggedFeatures {
     fn lag(series: &[f64], n: usize) -> Vec<f64> {
         let len = series.len();
         let mut out = vec![f64::NAN; len];
-        for i in n..len {
-            out[i] = series[i - n];
+        if n < len {
+            out[n..len].copy_from_slice(&series[..len - n]);
         }
         out
     }

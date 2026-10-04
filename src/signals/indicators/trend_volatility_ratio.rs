@@ -66,8 +66,8 @@ impl Signal for TrendVolatilityRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first_close = self.bars.front().unwrap().0;
-        let last_close = self.bars.back().unwrap().0;
+        let first_close = self.bars.front().ok_or_else(crate::error::invariant_broken)?.0;
+        let last_close = self.bars.back().ok_or_else(crate::error::invariant_broken)?.0;
         let net_move = last_close - first_close;
 
         let total_range: Decimal = self.bars.iter().map(|(_, r)| r).copied().sum();

@@ -19,8 +19,10 @@ use crate::error::FinError;
 
 /// Normalization strategy applied to raw feature values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum Normalization {
     /// No normalization; raw values are used as-is.
+    #[default]
     None,
     /// Z-score: `(x - mean) / std_dev`. Zero-variance features become `0.0`.
     ZScore,
@@ -131,11 +133,6 @@ pub struct FeatureVectorBuilder {
     normalization: Normalization,
 }
 
-impl Default for Normalization {
-    fn default() -> Self {
-        Normalization::None
-    }
-}
 
 impl FeatureVectorBuilder {
     /// Creates a new builder with the specified normalization mode.

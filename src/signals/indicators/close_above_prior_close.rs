@@ -60,7 +60,7 @@ impl Signal for CloseAbovePriorClose {
             self.above.push_back(flag);
 
             if self.above.len() > self.period {
-                let removed = self.above.pop_front().unwrap();
+                let removed = self.above.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 self.above_sum -= u32::from(removed);
             }
         }

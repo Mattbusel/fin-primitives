@@ -69,7 +69,7 @@ impl Signal for Smma {
             self.smma = Some(seed);
             return Ok(SignalValue::Scalar(seed));
         }
-        let prev = self.smma.unwrap();
+        let prev = self.smma.ok_or_else(crate::error::invariant_broken)?;
         let new_smma = self.alpha * bar.close + (Decimal::ONE - self.alpha) * prev;
         self.smma = Some(new_smma);
         Ok(SignalValue::Scalar(new_smma))

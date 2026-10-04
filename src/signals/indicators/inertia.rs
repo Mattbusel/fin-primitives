@@ -88,8 +88,8 @@ impl Signal for Inertia {
             return Ok(SignalValue::Unavailable);
         }
 
-        let momentum = self.closes.back().copied().unwrap()
-            - self.closes.front().copied().unwrap();
+        let momentum = self.closes.back().copied().ok_or_else(crate::error::invariant_broken)?
+            - self.closes.front().copied().ok_or_else(crate::error::invariant_broken)?;
 
         self.mom_buf.push_back(momentum);
         if self.mom_buf.len() > self.reg_period {

@@ -97,7 +97,7 @@ impl Signal for ZigZag {
                 // Bootstrap: treat first bar's high as initial extreme upward
                 self.last_was_high = Some(true);
                 self.last_extreme  = Some(high);
-                return Ok(SignalValue::Scalar(Decimal::ZERO));
+                Ok(SignalValue::Scalar(Decimal::ZERO))
             }
             Some(was_high) => {
                 let extreme = self.last_extreme.unwrap_or(high);

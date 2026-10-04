@@ -65,7 +65,7 @@ impl Signal for CloseToOpenReturn {
                     self.returns.push_back(ret);
                     self.sum += ret;
                     if self.returns.len() > self.period {
-                        self.sum -= self.returns.pop_front().unwrap();
+                        self.sum -= self.returns.pop_front().ok_or_else(crate::error::invariant_broken)?;
                     }
                     if self.returns.len() < self.period {
                         SignalValue::Unavailable

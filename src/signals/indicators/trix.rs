@@ -73,13 +73,13 @@ impl Signal for Trix {
         let close = bar.close;
 
         self.ema1 = Some(Self::apply_ema(self.ema1, close, self.k));
-        let e1 = self.ema1.unwrap();
+        let e1 = self.ema1.ok_or_else(crate::error::invariant_broken)?;
 
         self.ema2 = Some(Self::apply_ema(self.ema2, e1, self.k));
-        let e2 = self.ema2.unwrap();
+        let e2 = self.ema2.ok_or_else(crate::error::invariant_broken)?;
 
         self.ema3 = Some(Self::apply_ema(self.ema3, e2, self.k));
-        let e3 = self.ema3.unwrap();
+        let e3 = self.ema3.ok_or_else(crate::error::invariant_broken)?;
 
         // Need prev_ema3 to compute rate of change; that takes 3*(period-1)+2 bars
         let ready_at = 3 * (self.period.saturating_sub(1)) + 2;

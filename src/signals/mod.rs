@@ -30,7 +30,7 @@ use rust_decimal::Decimal;
 ///
 /// Carrying all four price fields and volume allows future indicators (e.g. MACD on
 /// high-low, OBV on volume) without forcing a dependency on `OhlcvBar`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BarInput {
     /// Closing price (used by most indicators).
     pub close: Decimal,
@@ -1073,6 +1073,64 @@ impl std::fmt::Display for SignalValue {
     }
 }
 
+/// A stateful indicator that updates on each new bar input.
+///
+/// # Implementors
+/// - [`indicators::Sma`]: simple moving average
+/// - [`indicators::Ema`]: exponential moving average
+/// - [`indicators::Rsi`]: relative strength index
+pub trait Signal: Send {
+    /// Returns the name of this signal (unique within a pipeline).
+    fn name(&self) -> &str;
+
+    /// Updates the signal with a [`BarInput`] and returns the current value.
+    ///
+    /// Accepting `BarInput` rather than `&OhlcvBar` lets signals be used on any
+    /// price stream, not just OHLCV data.
+    ///
+    /// # Returns
+    /// - `Ok(SignalValue::Scalar(v))` if enough bars have been accumulated
+    /// - `Ok(SignalValue::Unavailable)` if fewer than `period` bars have been seen
+    ///
+    /// # Errors
+    /// Returns [`FinError`] on arithmetic failure.
+    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError>;
+
+    /// Convenience wrapper: converts `bar` to [`BarInput`] and calls [`Self::update`].
+    fn update_bar(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
+        self.update(&BarInput::from(bar))
+    }
+
+    /// Returns `true` if the signal has accumulated enough bars to produce a value.
+    fn is_ready(&self) -> bool;
+
+    /// Returns the number of bars required before the signal produces a value.
+    fn period(&self) -> usize;
+
+    /// Resets the signal to its initial state as if no bars had been seen.
+    ///
+    /// After calling `reset()`, `is_ready()` returns `false` and the next `period`
+    /// bars will warm up the indicator again. Useful for walk-forward backtesting
+    /// without creating a new indicator instance.
+    fn reset(&mut self);
+
+    /// Feed a slice of historical bars to prime the indicator in one call.
+    ///
+    /// Equivalent to calling [`update`](Self::update) for each bar in sequence.
+    /// Returns the value after the final bar, or `Ok(SignalValue::Unavailable)`
+    /// if `bars` is empty.
+    ///
+    /// # Errors
+    /// Propagates the first [`FinError`] returned by [`update`](Self::update).
+    fn warm_up(&mut self, bars: &[BarInput]) -> Result<SignalValue, FinError> {
+        let mut last = SignalValue::Unavailable;
+        for bar in bars {
+            last = self.update(bar)?;
+        }
+        Ok(last)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1186,63 +1244,5 @@ mod tests {
     #[test]
     fn test_signal_value_ceil_integer() {
         assert_eq!(SignalValue::Scalar(dec!(5)).ceil(), SignalValue::Scalar(dec!(5)));
-    }
-}
-
-/// A stateful indicator that updates on each new bar input.
-///
-/// # Implementors
-/// - [`indicators::Sma`]: simple moving average
-/// - [`indicators::Ema`]: exponential moving average
-/// - [`indicators::Rsi`]: relative strength index
-pub trait Signal: Send {
-    /// Returns the name of this signal (unique within a pipeline).
-    fn name(&self) -> &str;
-
-    /// Updates the signal with a [`BarInput`] and returns the current value.
-    ///
-    /// Accepting `BarInput` rather than `&OhlcvBar` lets signals be used on any
-    /// price stream, not just OHLCV data.
-    ///
-    /// # Returns
-    /// - `Ok(SignalValue::Scalar(v))` if enough bars have been accumulated
-    /// - `Ok(SignalValue::Unavailable)` if fewer than `period` bars have been seen
-    ///
-    /// # Errors
-    /// Returns [`FinError`] on arithmetic failure.
-    fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError>;
-
-    /// Convenience wrapper: converts `bar` to [`BarInput`] and calls [`Self::update`].
-    fn update_bar(&mut self, bar: &OhlcvBar) -> Result<SignalValue, FinError> {
-        self.update(&BarInput::from(bar))
-    }
-
-    /// Returns `true` if the signal has accumulated enough bars to produce a value.
-    fn is_ready(&self) -> bool;
-
-    /// Returns the number of bars required before the signal produces a value.
-    fn period(&self) -> usize;
-
-    /// Resets the signal to its initial state as if no bars had been seen.
-    ///
-    /// After calling `reset()`, `is_ready()` returns `false` and the next `period`
-    /// bars will warm up the indicator again. Useful for walk-forward backtesting
-    /// without creating a new indicator instance.
-    fn reset(&mut self);
-
-    /// Feed a slice of historical bars to prime the indicator in one call.
-    ///
-    /// Equivalent to calling [`update`](Self::update) for each bar in sequence.
-    /// Returns the value after the final bar, or `Ok(SignalValue::Unavailable)`
-    /// if `bars` is empty.
-    ///
-    /// # Errors
-    /// Propagates the first [`FinError`] returned by [`update`](Self::update).
-    fn warm_up(&mut self, bars: &[BarInput]) -> Result<SignalValue, FinError> {
-        let mut last = SignalValue::Unavailable;
-        for bar in bars {
-            last = self.update(bar)?;
-        }
-        Ok(last)
     }
 }

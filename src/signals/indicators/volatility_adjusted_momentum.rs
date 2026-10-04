@@ -37,8 +37,8 @@ impl Signal for VolatilityAdjustedMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let base = *self.closes.front().unwrap();
-        let current = *self.closes.back().unwrap();
+        let base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         if base.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
@@ -75,7 +75,7 @@ impl Signal for VolatilityAdjustedMomentum {
         }
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.period }
     fn period(&self) -> usize { self.period }
     fn reset(&mut self) { self.closes.clear(); }
     fn name(&self) -> &str { "VolatilityAdjustedMomentum" }

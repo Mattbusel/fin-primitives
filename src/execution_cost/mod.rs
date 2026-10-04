@@ -46,7 +46,7 @@ impl ExecutionCostModel {
                 let rate_bps = tiers
                     .iter()
                     .filter(|(threshold, _)| notional >= *threshold)
-                    .last()
+                    .next_back()
                     .map(|(_, rate)| *rate)
                     .unwrap_or_else(|| tiers.first().map(|(_, r)| *r).unwrap_or(0.0));
                 notional * rate_bps / 10_000.0

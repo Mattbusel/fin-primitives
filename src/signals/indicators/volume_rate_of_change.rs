@@ -34,15 +34,15 @@ impl Signal for VolumeRateOfChange {
         if self.window.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
-        let base = *self.window.front().unwrap();
+        let base = *self.window.front().ok_or_else(crate::error::invariant_broken)?;
         if base.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let current = *self.window.back().unwrap();
+        let current = *self.window.back().ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar((current - base) / base * Decimal::ONE_HUNDRED))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.window.len() > self.period }
     fn period(&self) -> usize { self.period }
     fn reset(&mut self) { self.window.clear(); }
     fn name(&self) -> &str { "VolumeRateOfChange" }

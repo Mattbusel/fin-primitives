@@ -52,7 +52,7 @@ impl GannHiLo {
 
     /// Returns `true` if the last close was above the activator (long bias).
     pub fn is_bullish(&self) -> bool {
-        self.activator.map_or(false, |a| {
+        self.activator.is_some_and(|a| {
             // We can't access the last close here, so this is just an indicator
             // of whether we have a value; the user should compare close > activator_level()
             let _ = a;

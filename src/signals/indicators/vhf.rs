@@ -69,7 +69,7 @@ impl Signal for Vhf {
         Ok(SignalValue::Scalar((hi - lo) / path))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.period }
 
     fn period(&self) -> usize { self.period }
 

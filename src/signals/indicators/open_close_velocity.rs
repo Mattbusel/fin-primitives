@@ -68,7 +68,7 @@ impl Signal for OpenCloseVelocity {
         self.sum += m;
         self.moves.push_back(m);
         if self.moves.len() > self.period {
-            let removed = self.moves.pop_front().unwrap();
+            let removed = self.moves.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.moves.len() < self.period {

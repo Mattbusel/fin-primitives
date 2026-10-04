@@ -67,7 +67,7 @@ impl Signal for EmaSlope {
         }
 
         self.prev_ema = self.ema;
-        let new_ema = self.ema.unwrap() + k * (bar.close - self.ema.unwrap());
+        let new_ema = self.ema.ok_or_else(crate::error::invariant_broken)? + k * (bar.close - self.ema.ok_or_else(crate::error::invariant_broken)?);
         self.ema = Some(new_ema);
 
         match self.prev_ema {

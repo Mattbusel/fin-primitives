@@ -66,7 +66,7 @@ impl Signal for TrendPurity {
         }
 
         let first = self.closes[0];
-        let last = *self.closes.back().unwrap();
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let overall_diff = last - first;
 
         if overall_diff.is_zero() {

@@ -101,10 +101,10 @@ impl Signal for T3 {
         if self.bar_count < min_bars {
             return Ok(SignalValue::Unavailable);
         }
-        let e3 = self.emas[2].unwrap();
-        let e4 = self.emas[3].unwrap();
-        let e5 = self.emas[4].unwrap();
-        let e6 = self.emas[5].unwrap();
+        let e3 = self.emas[2].ok_or_else(crate::error::invariant_broken)?;
+        let e4 = self.emas[3].ok_or_else(crate::error::invariant_broken)?;
+        let e5 = self.emas[4].ok_or_else(crate::error::invariant_broken)?;
+        let e6 = self.emas[5].ok_or_else(crate::error::invariant_broken)?;
         let t3 = self.c1 * e6 + self.c2 * e5 + self.c3 * e4 + self.c4 * e3;
         Ok(SignalValue::Scalar(t3))
     }

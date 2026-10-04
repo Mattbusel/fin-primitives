@@ -90,7 +90,7 @@ impl Signal for CloseRankMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let rank_prev = *self.ranks.front().unwrap();
+        let rank_prev = *self.ranks.front().ok_or_else(crate::error::invariant_broken)?;
         let momentum = rank_now - rank_prev;
 
         Ok(SignalValue::Scalar(momentum))

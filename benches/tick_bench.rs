@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
 use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};

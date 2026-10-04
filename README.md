@@ -20,9 +20,90 @@ For Rust developers writing trading bots, backtesters, market-data tools or quan
 cargo add fin-primitives rust_decimal rust_decimal_macros
 ```
 
-It is a library, so there is nothing to download or install system-wide (Rust 1.81 or newer).
-`rust_decimal_macros` gives you the `dec!(64250.50)` literal used in every example. Or in
-`Cargo.toml`: `fin-primitives = "2.14"`. Want to see it first? `git clone https://gitlab.com/mattbusel/fin-primitives && cd fin-primitives && cargo run --example order_book`.
+A library, nothing to install system-wide. Rust 1.81 or newer (checked in CI).
+`rust_decimal_macros` gives you the `dec!(64250.50)` literal used in the examples.
+
+## In 15 lines
+
+```rust
+use fin_primitives::signals::{indicators::Rsi, BarInput, Signal, SignalValue};
+use fin_primitives::types::Price;
+use rust_decimal_macros::dec;
+
+fn main() -> Result<(), fin_primitives::FinError> {
+    assert!(Price::new(dec!(-1)).is_err()); // bad values never get in
+
+    let mut rsi = Rsi::new("rsi14", 14)?;
+    let closes = [dec!(44.34), dec!(44.09), dec!(44.15), dec!(43.61), dec!(44.33), dec!(44.83), dec!(45.10), dec!(45.42),
+                  dec!(45.84), dec!(46.08), dec!(45.89), dec!(46.03), dec!(45.61), dec!(46.28), dec!(46.28), dec!(46.00)];
+    for close in closes {
+        if let SignalValue::Scalar(v) = rsi.update(&BarInput::from_close(close))? {
+            println!("RSI(14) = {}", v.round_dp(2)); // 70.46, then 66.25
+        }
+    }
+    Ok(())
+}
+```
+
+Indicators answer `Unavailable` until they have enough bars (here the first 14), never a
+made-up 0 or NaN. This block is compiled and run by `cargo test --doc`.
+
+## Why this crate and not `ta`, `yata` or TA-Lib
+
+Measured on the same 100,000 closes ([bench/competitors](bench/competitors/README.md),
+[bench/talib_compare](bench/talib_compare/README.md)):
+
+- **Exact decimals.** Prices, sizes, bars and indicators are `rust_decimal::Decimal`, so
+  `0.1 + 0.2` is `0.3` and a P&L adds up to the cent. SMA and EMA agree with `ta` and `yata`
+  to 1e-12, and with TA-Lib to 2e-11 or better on the 22 indicators both define the same way.
+- **TA-Lib definitions.** `Rsi` is Wilder's RSI, like TA-Lib. `ta`'s RSI smooths with a
+  different factor and differed by up to 20 RSI points on the same data.
+- **Checked inputs, typed errors.** A zero price, a crossed order book or a skipped
+  sequence number is an `Err`, not a silent wrong number. No `unwrap` in library code.
+- **One crate for the whole loop**: order book, ticks to bars, 700+ indicators, positions,
+  drawdown and VaR limits, Black-Scholes with Greeks.
+- **The cost is speed.** `ta` and `yata` are 40 to 160 times faster per indicator update
+  (f64 against 96-bit decimal arithmetic). fin-primitives still does 4 to 25 million updates
+  per second per core. If you only crunch long float64 histories, use them or TA-Lib.
+
+## Already using `ta`, `yata` or `wickra`?
+
+Keep them. Turn on the matching feature and their indicators read fin-primitives bars
+directly, and their bar types convert into fin-primitives ones:
+
+```toml
+fin-primitives = { version = "2.15", features = ["ta"] }   # or "yata", "wickra", "arrow"
+```
+
+```rust,ignore
+use ta::indicators::MovingAverageConvergenceDivergence;
+use ta::Next;
+
+let mut macd = MovingAverageConvergenceDivergence::new(12, 26, 9)?;
+for bar in aggregator.push_tick(&tick)? {          // fin_primitives::ohlcv::OhlcvBar
+    let m = macd.next(&bar);                        // ta reads the bar through ta::Close
+    let r = rsi.update_bar(&bar)?;                  // fin-primitives Wilder RSI, same bar
+}
+```
+
+`cargo run --example with_ta --features ta` runs the full version. Going the other way,
+`BarInput::try_from(&ta::DataItem)`, `BarInput::try_from(&yata::core::Candle)` and
+`BarInput::try_from(&wickra_core::Candle)` turn their bars into fin-primitives input.
+
+## Feature flags
+
+| feature | default | adds |
+|---|---|---|
+| `serde` | yes | `Serialize`/`Deserialize` on the data types; deserializing re-runs validation |
+| `async` | yes | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+| `ta` | no | interop with the [`ta`](https://crates.io/crates/ta) crate |
+| `yata` | no | interop with the [`yata`](https://crates.io/crates/yata) crate |
+| `wickra` | no | interop with [`wickra-core`](https://crates.io/crates/wickra-core) (Rust 1.86+) |
+| `arrow` | no | bars to and from Apache Arrow `RecordBatch`, prices as exact `Decimal128` (Rust 1.88+) |
+| `python` | no | PyO3 bindings; `cd python && maturin develop --features python` (Rust 1.83+) |
+
+`default-features = false` leaves `rust_decimal`, `chrono`, `thiserror`, `libm` and `statrs`.
+It also builds for `wasm32-unknown-unknown`.
 
 ## How it works
 
@@ -39,7 +120,7 @@ goes into a `RiskMonitor`, and every rule that is broken comes back as a `RiskBr
 
 ## Examples
 
-Four programs ship in [`examples/`](examples/). No network, no API keys, same output every run.
+Six programs ship in [`examples/`](examples/). No network, no API keys, same output every run.
 
 | Run this | You get |
 |---|---|
@@ -47,6 +128,8 @@ Four programs ship in [`examples/`](examples/). No network, no API keys, same ou
 | `cargo run --example candles` | 337 trades rolled into 32 one-minute candles, drawn with EMA(9) and RSI(14) |
 | `cargo run --example position_risk` | a trading session marked to market, with a drawdown rule and an equity floor firing |
 | `cargo run --example option_chain` | a Black-Scholes option chain with Greeks and an implied-volatility round trip |
+| `cargo run --example value_at_risk` | one-day and ten-day VaR for a $1M book: historical, parametric and Monte Carlo at 95%, 97.5% and 99% |
+| `cargo run --example with_ta --features ta` | ticks rolled into bars by fin-primitives, fed to `ta`'s MACD and Bollinger Bands and to fin-primitives' RSI |
 
 **`order_book`**: the book knows its spread and middle price, and refuses updates that would cross it or skip a sequence number.
 
@@ -143,8 +226,8 @@ buy 1 BTC at   64250.58 average
 
 A negative price never gets into your program, the book knows its own spread and middle
 price, and "what would buying 1 BTC cost" is one call (0.842 BTC fill at the best ask, the
-other 0.158 at the next level up). This exact program was built against fin-primitives
-2.14 from crates.io and run on 2026-09-28.
+other 0.158 at the next level up). This exact program is also compiled and run by
+`cargo test --doc` in this repository.
 
 ## Compared with TA-Lib
 
@@ -180,7 +263,8 @@ float64 histories; use fin-primitives for exact values, bar-by-bar state and no 
 | [CHANGELOG.md](CHANGELOG.md) | what changed in each version |
 | [Project site](https://fin-primitives.vercel.app/) | the same overview as a web page |
 
-Optional Python bindings are behind the `python` feature (`maturin develop --features python`).
+Optional Python bindings are behind the `python` feature: `cd python && maturin develop --release`,
+then `python test_smoke.py`.
 
 > Research and engineering library. It does not place orders, and nothing here is financial advice.
 

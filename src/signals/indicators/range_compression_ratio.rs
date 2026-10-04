@@ -68,7 +68,7 @@ impl Signal for RangeCompressionRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current_range = *self.ranges.back().unwrap();
+        let current_range = *self.ranges.back().ok_or_else(crate::error::invariant_broken)?;
         let ratio = current_range
             .checked_div(max_range)
             .ok_or(FinError::ArithmeticOverflow)?;

@@ -38,18 +38,13 @@ use rust_decimal::Decimal;
 /// Standard normal PDF.
 #[inline]
 fn phi(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
-/// Standard normal CDF (Abramowitz & Stegun, max |error| ≈ 7.5e-8).
+/// Standard normal CDF ([`crate::normal::cdf`]).
 #[inline]
 fn big_phi(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t * (0.319_381_530
-        + t * (-0.356_563_782
-            + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let cdf_pos = 1.0 - phi(x) * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 fn to_f64(d: Decimal) -> Result<f64, FinError> {
@@ -66,7 +61,8 @@ fn from_f64(f: f64) -> Result<Decimal, FinError> {
 // ─── public types ─────────────────────────────────────────────────────────────
 
 /// Whether the option grants the right to buy (Call) or sell (Put).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum OptionKind {
     /// Right to buy the underlying at the strike.
     Call,
@@ -75,7 +71,8 @@ pub enum OptionKind {
 }
 
 /// All inputs required to price a European option under Black-Scholes.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionSpec {
     /// Option type: call or put.
     pub kind: OptionKind,
@@ -92,7 +89,8 @@ pub struct OptionSpec {
 }
 
 /// Fair value and all first/second-order Greeks for a European option.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionGreeks {
     /// Theoretical fair value (premium).
     pub price: Decimal,

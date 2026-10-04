@@ -1,0 +1,33 @@
+[package]
+name = "competitors"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Criterion benchmarks and agreement checks: fin-primitives vs ta, yata and black_scholes on the same inputs."
+
+[dependencies]
+fin-primitives = { path = "../..", default-features = false }
+rust_decimal = "1"
+ta = "0.5"
+yata = "0.7"
+black_scholes = "0.11"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "vs"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+# Standalone: not a member of any parent workspace.
+[workspace]

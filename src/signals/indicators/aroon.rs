@@ -113,7 +113,7 @@ impl Signal for Aroon {
     }
 
     fn is_ready(&self) -> bool {
-        self.highs.len() >= self.period + 1
+        self.highs.len() > self.period
     }
 
     fn period(&self) -> usize {

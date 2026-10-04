@@ -61,7 +61,7 @@ impl Signal for PriceAcceleration {
         }
 
         // ROC = close[now] - close[now - period]
-        let oldest = *self.history.front().unwrap();
+        let oldest = *self.history.front().ok_or_else(crate::error::invariant_broken)?;
         let roc = bar.close - oldest;
 
         // Trim to keep exactly period+1 entries (oldest needed for next ROC)
@@ -85,7 +85,7 @@ impl Signal for PriceAcceleration {
     }
 
     fn is_ready(&self) -> bool {
-        self.history.len() >= self.period + 1 && self.prev_roc.is_some()
+        self.history.len() > self.period && self.prev_roc.is_some()
     }
 
     fn period(&self) -> usize {

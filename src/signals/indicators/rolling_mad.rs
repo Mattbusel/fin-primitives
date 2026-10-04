@@ -54,7 +54,7 @@ impl Signal for RollingMAD {
         self.sum += bar.close;
         self.window.push_back(bar.close);
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.window.len() < self.period {

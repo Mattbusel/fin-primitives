@@ -81,7 +81,7 @@ impl Signal for CloseInRangePct {
         self.sum += pct;
         self.values.push_back(pct);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().unwrap();
+            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

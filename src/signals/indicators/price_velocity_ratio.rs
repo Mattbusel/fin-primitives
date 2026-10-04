@@ -74,7 +74,7 @@ impl Signal for PriceVelocityRatio {
             }
             None
         } else {
-            let prev_atr = self.atr.unwrap();
+            let prev_atr = self.atr.ok_or_else(crate::error::invariant_broken)?;
             let period_d = Decimal::from(self.period as u32);
             let new_atr = (prev_atr * (period_d - Decimal::ONE) + tr)
                 .checked_div(period_d)

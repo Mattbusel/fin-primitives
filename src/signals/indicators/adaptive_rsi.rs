@@ -146,8 +146,8 @@ impl Signal for AdaptiveRsi {
         }
 
         let k = Decimal::ONE / Decimal::from(eff_period as u32);
-        let ag = self.avg_gain.unwrap() * (Decimal::ONE - k) + gain * k;
-        let al = self.avg_loss.unwrap() * (Decimal::ONE - k) + loss * k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + gain * k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + loss * k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
 

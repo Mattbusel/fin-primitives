@@ -28,7 +28,8 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 /// A single trade execution event.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Fill {
     /// The instrument traded.
     pub symbol: Symbol,
@@ -92,7 +93,8 @@ impl Fill {
 }
 
 /// Direction of an open position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PositionDirection {
     /// Net quantity is positive.
     Long,
@@ -103,7 +105,8 @@ pub enum PositionDirection {
 }
 
 /// A single-symbol position tracking quantity, average cost, and realized P&L.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Position {
     /// The instrument.
     pub symbol: Symbol,
@@ -114,7 +117,7 @@ pub struct Position {
     /// Cumulative realized P&L for this position (net of commissions).
     pub realized_pnl: Decimal,
     /// Bar index at which the current position leg was opened. Set via [`Position::set_open_bar`].
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     pub open_bar: usize,
 }
 
@@ -434,7 +437,8 @@ impl Position {
 }
 
 /// A multi-symbol ledger tracking positions and a cash balance.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PositionLedger {
     positions: HashMap<Symbol, Position>,
     cash: Decimal,
@@ -1254,7 +1258,7 @@ impl PositionLedger {
             .filter(|p| !p.is_flat())
             .filter(|p| {
                 prices.get(p.symbol.as_str())
-                    .map_or(false, |&price| p.unrealized_pnl(price) > Decimal::ZERO)
+                    .is_some_and(|&price| p.unrealized_pnl(price) > Decimal::ZERO)
             })
             .map(|p| &p.symbol)
             .collect()
@@ -1269,7 +1273,7 @@ impl PositionLedger {
             .filter(|p| !p.is_flat())
             .filter(|p| {
                 prices.get(p.symbol.as_str())
-                    .map_or(false, |&price| p.unrealized_pnl(price) < Decimal::ZERO)
+                    .is_some_and(|&price| p.unrealized_pnl(price) < Decimal::ZERO)
             })
             .map(|p| &p.symbol)
             .collect()

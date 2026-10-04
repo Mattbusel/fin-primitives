@@ -75,7 +75,7 @@ impl Signal for RollingShadowBalance {
         self.sum += imbalance;
         self.values.push_back(imbalance);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().unwrap();
+            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

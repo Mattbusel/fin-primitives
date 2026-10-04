@@ -119,7 +119,7 @@ impl CompositeBuilder {
     ///
     /// In `All` / `Any` / `First` modes the weight is ignored.
     #[must_use]
-    pub fn add(mut self, signal: impl Signal + Send + 'static, weight: Decimal) -> Self {
+    pub fn add(mut self, signal: impl Signal + 'static, weight: Decimal) -> Self {
         self.constituents.push(Constituent {
             signal: Box::new(signal),
             weight,

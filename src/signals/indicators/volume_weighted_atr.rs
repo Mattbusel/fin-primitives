@@ -62,7 +62,7 @@ impl Signal for VolumeWeightedAtr {
     }
 
     fn is_ready(&self) -> bool {
-        self.bars_seen >= self.period + 1
+        self.bars_seen > self.period
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {

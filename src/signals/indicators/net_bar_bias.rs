@@ -66,7 +66,7 @@ impl Signal for NetBarBias {
         self.window.push_back(flag);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.net -= i32::from(removed);
         }
 

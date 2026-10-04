@@ -65,7 +65,7 @@ impl Signal for OpenAbovePrevClose {
             self.gaps.push_back(gap_up);
 
             if self.gaps.len() > self.period {
-                let removed = self.gaps.pop_front().unwrap();
+                let removed = self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 if removed { self.gap_up_count -= 1; }
             }
         }

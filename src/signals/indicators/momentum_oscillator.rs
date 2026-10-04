@@ -87,13 +87,13 @@ impl Signal for MomentumOscillator {
             return Ok(SignalValue::Unavailable);
         }
 
-        let atr = self.atr.unwrap();
+        let atr = self.atr.ok_or_else(crate::error::invariant_broken)?;
         if atr.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
 
         // closes[0] is the close from `period` bars ago
-        let lookback_close = *self.closes.front().unwrap();
+        let lookback_close = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
         let momentum = bar.close - lookback_close;
         let normalized = momentum.checked_div(atr).ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(normalized))

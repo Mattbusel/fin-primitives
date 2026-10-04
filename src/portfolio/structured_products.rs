@@ -159,19 +159,7 @@ fn box_muller(state: &mut u64) -> (f64, f64) {
     (r * theta.cos(), r * theta.sin())
 }
 
-/// Rational approximation of the probit (inverse normal CDF) function.
-/// Abramowitz & Stegun approximation.
+/// Inverse normal CDF ([`crate::normal::inv_cdf`]), with `p` clamped away from 0 and 1.
 fn probit(p: f64) -> f64 {
-    let p = p.clamp(1e-12, 1.0 - 1e-12);
-    let t = if p < 0.5 {
-        (-2.0 * p.ln()).sqrt()
-    } else {
-        (-2.0 * (1.0 - p).ln()).sqrt()
-    };
-    let c = [2.515517, 0.802853, 0.010328];
-    let d = [1.432788, 0.189269, 0.001308];
-    let num = c[0] + c[1] * t + c[2] * t * t;
-    let den = 1.0 + d[0] * t + d[1] * t * t + d[2] * t * t * t;
-    let x = t - num / den;
-    if p < 0.5 { -x } else { x }
+    crate::normal::inv_cdf(p.clamp(1e-12, 1.0 - 1e-12))
 }

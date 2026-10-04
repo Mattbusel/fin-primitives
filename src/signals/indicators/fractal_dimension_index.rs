@@ -65,7 +65,7 @@ impl Signal for FractalDimensionIndex {
         // Path length: sum of absolute consecutive differences
         let mut l1 = 0.0_f64;
         let mut iter = self.closes.iter().peekable();
-        let mut prev = *iter.next().unwrap();
+        let mut prev = *iter.next().ok_or_else(crate::error::invariant_broken)?;
         for &cur in iter {
             l1 += (cur - prev).abs();
             prev = cur;

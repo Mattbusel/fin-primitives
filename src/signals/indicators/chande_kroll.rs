@@ -109,8 +109,8 @@ impl Signal for ChandeKrollStop {
 
         let n = Decimal::from(self.p as u32);
         let atr = self.trs.iter().sum::<Decimal>() / n;
-        let period_high = self.highs.iter().cloned().max().unwrap();
-        let period_low = self.lows.iter().cloned().min().unwrap();
+        let period_high = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let period_low = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
 
         let fhs = period_high - self.factor * atr;
         let fls = period_low + self.factor * atr;
@@ -124,8 +124,8 @@ impl Signal for ChandeKrollStop {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ss = self.first_highs.iter().cloned().max().unwrap();
-        let sl = self.first_lows.iter().cloned().min().unwrap();
+        let ss = self.first_highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let sl = self.first_lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
         self.stop_short = Some(ss);
         self.stop_long = Some(sl);
 

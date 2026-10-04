@@ -425,7 +425,7 @@ mod tests {
     fn shrink_alpha_in_range() {
         let returns = sample_returns();
         let alpha = LedoitWolfShrinkage::optimal_alpha(&returns);
-        assert!(alpha >= 0.0 && alpha <= 1.0);
+        assert!((0.0..=1.0).contains(&alpha));
     }
 
     #[test]
@@ -441,6 +441,6 @@ mod tests {
         let a = vec![0.01, -0.02, 0.03, 0.01];
         let b = vec![0.02, -0.01, 0.02, 0.00];
         let c = DccGarch::ewma_correlation(&a, &b, 0.94);
-        assert!(c >= -1.0 && c <= 1.0);
+        assert!((-1.0..=1.0).contains(&c));
     }
 }

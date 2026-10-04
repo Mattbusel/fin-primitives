@@ -85,7 +85,7 @@ impl TrendFollowingFilter {
             }
             return None;
         }
-        let e = ema.unwrap() * (Decimal::ONE - k) + value * k;
+        let e = (*ema)? * (Decimal::ONE - k) + value * k;
         *ema = Some(e);
         Some(e)
     }

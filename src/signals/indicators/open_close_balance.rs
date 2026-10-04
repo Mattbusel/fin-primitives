@@ -79,8 +79,8 @@ impl Signal for OpenCloseBalance {
         self.abs_bodies.push_back(abs_body);
 
         if self.bodies.len() > self.period {
-            let old_body = self.bodies.pop_front().unwrap();
-            let old_abs = self.abs_bodies.pop_front().unwrap();
+            let old_body = self.bodies.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let old_abs = self.abs_bodies.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum_body -= old_body;
             self.sum_abs -= old_abs;
         }

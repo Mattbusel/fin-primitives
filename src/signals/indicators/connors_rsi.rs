@@ -128,8 +128,8 @@ impl ConnorsRsi {
         }
 
         let k = Decimal::ONE / Decimal::from(period as u32);
-        let ag = avg_gain.unwrap() * (Decimal::ONE - k) + gain * k;
-        let al = avg_loss.unwrap() * (Decimal::ONE - k) + loss * k;
+        let ag = (*avg_gain)? * (Decimal::ONE - k) + gain * k;
+        let al = (*avg_loss)? * (Decimal::ONE - k) + loss * k;
         *avg_gain = Some(ag);
         *avg_loss = Some(al);
         Some(rsi_value(ag, al))

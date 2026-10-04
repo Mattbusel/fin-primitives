@@ -91,7 +91,7 @@ impl HurstExponent {
 impl Signal for HurstExponent {
     fn name(&self) -> &str { &self.name }
     fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.period }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);

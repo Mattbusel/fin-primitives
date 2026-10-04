@@ -66,7 +66,7 @@ impl Signal for BarRangeExpansionPct {
             if expanded { self.count += 1; }
 
             if self.window.len() > self.period {
-                let removed = self.window.pop_front().unwrap();
+                let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 if removed { self.count -= 1; }
             }
         }

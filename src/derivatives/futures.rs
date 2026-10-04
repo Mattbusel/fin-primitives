@@ -4,7 +4,8 @@
 //! calendar-spread analytics for commodity and financial futures.
 
 /// A futures contract with all cost-of-carry components.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FuturesContract {
     /// Price of the underlying asset.
     pub underlying_price: f64,
@@ -70,7 +71,8 @@ pub fn implied_repo_rate(
 // ─── Calendar spread ──────────────────────────────────────────────────────────
 
 /// A futures calendar spread: two contracts with different expiries.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FuturesCalendarSpread {
     /// Price of the near-dated contract.
     pub near_price: f64,
@@ -117,7 +119,8 @@ pub fn carry_trade_pnl(entry_spread: f64, exit_spread: f64, notional: f64) -> f6
 // ─── Roll yield ───────────────────────────────────────────────────────────────
 
 /// Input data for roll-yield calculation.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RollYield {
     /// Near contract price.
     pub near_price: f64,

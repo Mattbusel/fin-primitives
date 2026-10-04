@@ -77,7 +77,7 @@ impl Signal for TrendStrength {
     }
 
     fn is_ready(&self) -> bool {
-        self.history.len() >= self.period + 1
+        self.history.len() > self.period
     }
 
     fn period(&self) -> usize { self.period }

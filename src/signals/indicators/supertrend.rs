@@ -74,8 +74,7 @@ impl SuperTrend {
     fn compute_atr(&self) -> Decimal {
         let n = self.bars.len().min(self.period);
         if n < 2 {
-            let b = self.bars.back().unwrap();
-            return b.high - b.low;
+            return self.bars.back().map_or(Decimal::ZERO, |b| b.high - b.low);
         }
         let len = self.bars.len();
         let start = len.saturating_sub(self.period + 1);

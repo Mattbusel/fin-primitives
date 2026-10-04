@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_run_scenario_gfc() {
-        let engine = ScenarioEngine::default();
+        let engine = ScenarioEngine;
         let scenarios = ScenarioEngine::historical_scenarios();
         let gfc = scenarios.iter().find(|s| s.name == "GFC 2008").expect("GFC scenario");
         let result = engine.run_scenario(gfc, &sample_positions());
@@ -519,21 +519,21 @@ mod tests {
 
     #[test]
     fn test_run_all_count() {
-        let engine = ScenarioEngine::default();
+        let engine = ScenarioEngine;
         let results = engine.run_all(&sample_positions());
         assert_eq!(results.len(), 9); // 6 historical + 3 regulatory
     }
 
     #[test]
     fn test_monte_carlo_len() {
-        let engine = ScenarioEngine::default();
+        let engine = ScenarioEngine;
         let pnls = engine.monte_carlo_scenarios(&sample_positions(), 1000, 0.01, 0.6, 42);
         assert_eq!(pnls.len(), 1000);
     }
 
     #[test]
     fn test_tail_scenarios() {
-        let engine = ScenarioEngine::default();
+        let engine = ScenarioEngine;
         let pnls: Vec<f64> = engine.monte_carlo_scenarios(&sample_positions(), 10_000, 0.01, 0.6, 7);
         let (var, cvar) = engine.tail_scenarios(&pnls, 0.95);
         assert!(var >= 0.0);
@@ -542,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_report_non_empty() {
-        let engine = ScenarioEngine::default();
+        let engine = ScenarioEngine;
         let results = engine.run_all(&sample_positions());
         let report = engine.scenario_report(&results);
         assert!(report.contains("Scenario Analysis Report"));

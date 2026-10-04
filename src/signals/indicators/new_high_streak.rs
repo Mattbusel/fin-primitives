@@ -64,7 +64,7 @@ impl Signal for NewHighStreak {
         }
 
         // Current close is the last; compare against max of prior `lookback` closes
-        let current = *self.closes.back().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let prior_max = self.closes
             .iter()
             .take(self.lookback)

@@ -64,8 +64,8 @@ impl Signal for PricePosition {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_high = self.highs.iter().copied().max().unwrap();
-        let min_low = self.lows.iter().copied().min().unwrap();
+        let max_high = self.highs.iter().copied().max().ok_or_else(crate::error::invariant_broken)?;
+        let min_low = self.lows.iter().copied().min().ok_or_else(crate::error::invariant_broken)?;
         let range = max_high - min_low;
 
         if range.is_zero() {

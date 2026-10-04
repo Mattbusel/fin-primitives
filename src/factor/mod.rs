@@ -695,7 +695,7 @@ mod tests {
     #[test]
     fn factor_name_preserved_in_exposure() {
         let xs: Vec<f64> = (0..10).map(|i| i as f64).collect();
-        let ys: Vec<f64> = xs.iter().map(|&x| x).collect();
+        let ys: Vec<f64> = xs.clone();
         let exp = FactorModel::fit("MY_ASSET", &ys, &[make_factor("MY_FACTOR", xs)]);
         assert_eq!(exp.asset, "MY_ASSET");
     }

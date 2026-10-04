@@ -301,7 +301,7 @@ impl ArbitrageScanner {
     }
 
     /// Sort opportunities descending by confidence score (in-place).
-    pub fn rank_by_confidence(opps: &mut Vec<ArbitrageOpportunity>) {
+    pub fn rank_by_confidence(opps: &mut [ArbitrageOpportunity]) {
         opps.sort_by(|a, b| {
             b.confidence
                 .partial_cmp(&a.confidence)

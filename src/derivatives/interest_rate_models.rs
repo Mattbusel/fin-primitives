@@ -140,7 +140,7 @@ impl HullWhiteModel {
         // Find latest theta <= t
         self.theta_params.iter()
             .filter(|(ti, _)| *ti <= t)
-            .last()
+            .next_back()
             .map(|(_, th)| *th)
             .unwrap_or(self.a * 0.05) // default: calibrated to 5% mean
     }
@@ -148,7 +148,7 @@ impl HullWhiteModel {
     /// Add a theta breakpoint (builder pattern).
     pub fn add_theta(mut self, t: f64, theta: f64) -> Self {
         self.theta_params.push((t, theta));
-        self.theta_params.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        self.theta_params.sort_by(|a, b| a.0.total_cmp(&b.0)); // NaN no longer panics
         self
     }
 
@@ -218,13 +218,5 @@ pub fn vasicek_caplet_price(model: &VasicekModel, strike: f64, t: f64, tau: f64)
 }
 
 fn norm_cdf(x: f64) -> f64 {
-    0.5 * (1.0 + libm_erf(x / std::f64::consts::SQRT_2))
-}
-
-fn libm_erf(x: f64) -> f64 {
-    // Abramowitz & Stegun approximation
-    let t = 1.0 / (1.0 + 0.3275911 * x.abs());
-    let poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
-    let result = 1.0 - poly * (-(x*x)).exp();
-    if x >= 0.0 { result } else { -result }
+    crate::normal::cdf(x)
 }

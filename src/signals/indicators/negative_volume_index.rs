@@ -55,7 +55,7 @@ impl Signal for NegativeVolumeIndex {
                     let ret = (bar.close - pc)
                         .checked_div(pc)
                         .ok_or(FinError::ArithmeticOverflow)?;
-                    self.nvi = self.nvi * (Decimal::ONE + ret);
+                    self.nvi *= Decimal::ONE + ret;
                 }
                 SignalValue::Scalar(self.nvi)
             }

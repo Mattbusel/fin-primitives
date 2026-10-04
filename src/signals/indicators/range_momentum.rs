@@ -60,12 +60,12 @@ impl Signal for RangeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.avg_history.back().unwrap();
-        let base = *self.avg_history.front().unwrap();
+        let current = *self.avg_history.back().ok_or_else(crate::error::invariant_broken)?;
+        let base = *self.avg_history.front().ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar(current - base))
     }
 
-    fn is_ready(&self) -> bool { self.avg_history.len() >= self.mom_period + 1 }
+    fn is_ready(&self) -> bool { self.avg_history.len() > self.mom_period }
     fn period(&self) -> usize { self.avg_period + self.mom_period }
     fn reset(&mut self) {
         self.bar_window.clear();

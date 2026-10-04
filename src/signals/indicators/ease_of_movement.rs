@@ -86,7 +86,7 @@ impl Signal for EaseOfMovement {
         self.raw_window.push_back(raw_emv);
 
         if self.raw_window.len() > self.period {
-            let removed = self.raw_window.pop_front().unwrap();
+            let removed = self.raw_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.raw_sum -= removed;
         }
 

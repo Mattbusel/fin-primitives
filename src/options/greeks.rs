@@ -37,7 +37,8 @@ impl std::error::Error for GreekError {}
 // ─── option type ──────────────────────────────────────────────────────────────
 
 /// Whether the option grants the right to buy (Call) or sell (Put).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum OptionType {
     /// Right to buy the underlying at the strike.
     Call,
@@ -48,7 +49,8 @@ pub enum OptionType {
 // ─── params ───────────────────────────────────────────────────────────────────
 
 /// All inputs required to price and compute Greeks for a European option.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionParams {
     /// Current underlying spot price S (must be > 0).
     pub spot: f64,
@@ -87,7 +89,8 @@ impl OptionParams {
 // ─── greeks output ────────────────────────────────────────────────────────────
 
 /// All first- and second-order BSM Greeks.
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Greeks {
     /// Delta: ∂V/∂S
     pub delta: f64,
@@ -110,19 +113,13 @@ pub struct Greeks {
 /// Standard normal PDF.
 #[inline]
 fn phi(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
-/// Standard normal CDF (Abramowitz & Stegun, max |error| ≈ 7.5e-8).
+/// Standard normal CDF ([`crate::normal::cdf`]).
 #[inline]
 fn big_phi(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t
-        * (0.319_381_530
-            + t * (-0.356_563_782
-                + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let cdf_pos = 1.0 - phi(x) * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 // ─── d1 / d2 ─────────────────────────────────────────────────────────────────
@@ -589,22 +586,14 @@ pub struct BSMInputs {
     pub T: f64,
 }
 
-/// Standard normal CDF (Abramowitz & Stegun polynomial, max |err| ≈ 7.5e-8).
+/// Standard normal CDF; delegates to [`crate::normal::cdf`].
 pub fn norm_cdf(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t * (0.319_381_530
-        + t * (-0.356_563_782
-            + t * (1.781_477_937
-                + t * (-1.821_255_978
-                    + t * 1.330_274_429))));
-    let pdf = (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt();
-    let cdf_pos = 1.0 - pdf * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 /// Standard normal PDF.
 pub fn norm_pdf(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0_f64 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
 /// d1 component of BSM.
@@ -761,7 +750,12 @@ pub fn compute_all(inputs: &BSMInputs, opt_type: OptionType) -> GreeksResult {
     }
 }
 
-/// Implied volatility solver using bisection (100 iterations, bounds [1e-6, 10.0]).
+/// Implied volatility in `[1e-6, 10.0]` by safeguarded Newton-Raphson.
+///
+/// Newton steps on vega, kept inside a shrinking bisection bracket, so it converges
+/// in a handful of iterations where vega is healthy and still cannot diverge for
+/// deep in- or out-of-the-money options (it falls back to bisecting the bracket).
+/// Stops when the bracket or the step is below `1e-12`.
 ///
 /// Returns `None` if the market price is outside the bounds that can be
 /// produced by any vol in the search range.
@@ -770,7 +764,7 @@ pub fn implied_vol(
     inputs: &BSMInputs,
     opt_type: OptionType,
 ) -> Option<f64> {
-    if market_price <= 0.0 {
+    if market_price.is_nan() || market_price <= 0.0 {
         return None;
     }
     let f = |sigma: f64| -> f64 {
@@ -782,23 +776,38 @@ pub fn implied_vol(
     let mut hi = 10.0_f64;
     let flo = f(lo);
     let fhi = f(hi);
-
     // Bracket check
     if flo * fhi > 0.0 {
         return None;
     }
-
+    if flo == 0.0 {
+        return Some(lo);
+    }
+    if fhi == 0.0 {
+        return Some(hi);
+    }
+    // Price increases with vol, so f(lo) < 0 < f(hi).
+    // Start from the Brenner-Subrahmanyam at-the-money estimate, clamped into the bracket.
+    let t = inputs.T.max(1e-12);
+    let mut sigma = (market_price / inputs.S.max(1e-12) * (2.0 * std::f64::consts::PI / t).sqrt()).clamp(0.01, 5.0);
     for _ in 0..100 {
-        let mid = 0.5 * (lo + hi);
-        let fmid = f(mid);
-        if fmid.abs() < 1e-8 || (hi - lo) < 1e-10 {
-            return Some(mid);
+        let fx = f(sigma);
+        if fx == 0.0 {
+            return Some(sigma);
         }
-        if flo * fmid < 0.0 {
-            hi = mid;
+        if fx < 0.0 {
+            lo = sigma;
         } else {
-            lo = mid;
+            hi = sigma;
         }
+        // `vega()` is per 1% vol; the derivative per unit vol is 100x that.
+        let v = vega(&BSMInputs { sigma, ..*inputs }) * 100.0;
+        let newton = sigma - fx / v;
+        let next = if v > 1e-14 && newton > lo && newton < hi { newton } else { 0.5 * (lo + hi) };
+        if (next - sigma).abs() < 1e-12 || (hi - lo) < 1e-12 {
+            return Some(next);
+        }
+        sigma = next;
     }
     Some(0.5 * (lo + hi))
 }
@@ -808,6 +817,29 @@ pub fn implied_vol(
 #[cfg(test)]
 mod bsm_inputs_tests {
     use super::*;
+
+    #[test]
+    fn deep_otm_put_matches_reference_price() {
+        // References computed with mpmath at 30 digits. The old polynomial CDF priced
+        // the K=70 put at 0.00033704 (0.16% low).
+        let cases = [
+            (60.0, 0.30, 0.000_920_079_805_146_957_1),
+            (70.0, 0.20, 0.000_337_584_771_904_171_2),
+            (80.0, 0.15, 0.002_482_333_774_393_376),
+        ];
+        for (k, sigma, want) in cases {
+            let inp = BSMInputs { S: 100.0, K: k, r: 0.01, q: 0.0, sigma, T: 0.25 };
+            let got = bsm_price_q(&inp, OptionType::Put);
+            assert!(((got - want) / want).abs() < 1e-9, "K={k}: got {got}, want {want}");
+        }
+    }
+
+    #[test]
+    fn implied_vol_recovers_cheap_otm_put() {
+        let inp = BSMInputs { S: 100.0, K: 70.0, r: 0.01, q: 0.0, sigma: 0.5, T: 0.25 };
+        let iv = implied_vol(0.000_337_584_771_904_171_2, &inp, OptionType::Put).unwrap();
+        assert!((iv - 0.20).abs() < 1e-8, "iv={iv}");
+    }
 
     fn atm_call() -> (BSMInputs, OptionType) {
         let inp = BSMInputs {

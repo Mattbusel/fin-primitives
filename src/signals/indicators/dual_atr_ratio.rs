@@ -80,7 +80,7 @@ impl DualATRRatio {
                 );
             }
         } else {
-            let prev = atr.unwrap();
+            let prev = atr.ok_or_else(crate::error::invariant_broken)?;
             let period_d = Decimal::from(period as u32);
             *atr = Some(
                 (prev * (period_d - Decimal::ONE) + tr)

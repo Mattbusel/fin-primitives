@@ -62,7 +62,7 @@ impl VolumeSpike {
 
     /// Returns `true` if the last volume ratio exceeded the threshold.
     pub fn is_spike(&self) -> bool {
-        self.last_ratio.map_or(false, |r| r >= self.threshold)
+        self.last_ratio.is_some_and(|r| r >= self.threshold)
     }
 }
 

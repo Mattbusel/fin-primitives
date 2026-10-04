@@ -70,7 +70,7 @@ impl Signal for TrueRangeZScore {
         self.window.push_back(tr);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
             self.sum_sq -= removed * removed;
         }

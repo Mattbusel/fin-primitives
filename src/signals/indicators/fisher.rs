@@ -75,7 +75,7 @@ impl Signal for Fisher {
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let close = *self.closes.back().unwrap();
+        let close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         // x ∈ (-0.999, 0.999)
         let raw_x = Decimal::TWO * (close - lowest) / range - Decimal::ONE;
         let clamp_limit = Decimal::new(999, 3);

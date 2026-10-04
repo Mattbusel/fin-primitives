@@ -69,8 +69,8 @@ impl Signal for DirectionalEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().unwrap();
-        let last = *self.closes.back().unwrap();
+        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
         let total_path: Decimal = self.closes.iter()

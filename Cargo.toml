@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "2.14.3"
+version = "2.15.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -15,35 +15,61 @@ categories = ["finance", "mathematics", "data-structures"]
 include = ["src/**/*", "benches/**/*", "tests/**/*", "examples/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [features]
-# python: expose PyO3 bindings; build with `maturin develop --features python`
+default = ["serde", "async"]
+## Serialize and Deserialize for the data types (prices as exact decimal strings).
+serde = ["dep:serde", "rust_decimal/serde-with-str", "chrono/serde"]
+## `async_signals`: a Tokio task that runs a signal pipeline over a channel of bars.
+async = ["dep:tokio"]
+## Interop: fin-primitives bars implement `ta`'s Open/High/Low/Close/Volume traits.
+ta = ["dep:ta"]
+## Interop: fin-primitives bars implement `yata`'s OHLCV trait.
+yata = ["dep:yata"]
+## Interop: conversions to and from `wickra-core` candles (needs Rust 1.86+).
+wickra = ["dep:wickra-core"]
+## Arrow `RecordBatch` export and import for bars, with exact Decimal128 columns (needs Rust 1.88+).
+arrow = ["dep:arrow-array", "dep:arrow-schema"]
+## PyO3 bindings; build the wheel with `maturin develop --features python` (needs Rust 1.83+).
 python = ["dep:pyo3"]
 
 [package.metadata.docs.rs]
+# Default features (serde, async). `python` is left out: it needs a Python interpreter at build time.
+features = ["serde", "async"]
+rustdoc-args = ["--cfg", "docsrs"]
 # Scrape the examples so docs.rs shows real call sites next to the APIs they use.
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
-[lib]
-# When the `python` feature is enabled the crate is also compiled as a cdylib
-# extension module. Without the feature it remains a normal rlib.
-crate-type = ["rlib", "cdylib"]
-
 [dependencies]
-# serde: serialization framework
-serde = { version = "1", features = ["derive", "rc"] }
-# chrono: datetime handling with serde support
-chrono = { version = "0.4", features = ["serde"] }
+# serde: serialization framework (optional, `serde` feature, on by default)
+serde = { version = "1", features = ["derive", "rc"], optional = true }
+# chrono: datetime handling
+chrono = { version = "0.4.35", default-features = false, features = ["std", "clock"] }
 # rust_decimal: exact decimal arithmetic for financial values; never use f64 for prices
-rust_decimal = { version = "1", features = ["serde-with-str"] }
-# rust_decimal_macros: dec!() macro for decimal literals in tests
-rust_decimal_macros = "1"
-# thiserror: zero-cost error derive, replaces manual Display impls
-thiserror = "1"
+rust_decimal = { version = "1.36", default-features = false, features = ["std"] }
+# thiserror: error derive
+thiserror = "2"
 # pyo3: Python bindings, only when the `python` feature is enabled
-pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
-# tokio: async runtime required for async_signals streaming pipeline
-tokio = { version = "1.40", features = ["rt", "sync", "macros"] }
+pyo3 = { version = "0.29", features = ["extension-module"], optional = true }
+# libm: erfc for the standard normal CDF (about 1e-15 relative error, also in the tails)
+libm = "0.2.11"
+# statrs: inverse error function for the normal quantile (VaR z-scores)
+statrs = { version = "0.18", default-features = false }
+# Interop with other trading crates, each optional and off by default.
+ta = { version = "0.5", optional = true, default-features = false }
+yata = { version = "0.7", optional = true, default-features = false }
+wickra-core = { version = "1", optional = true, default-features = false }
+arrow-array = { version = "60", optional = true, default-features = false }
+arrow-schema = { version = "60", optional = true, default-features = false }
+# tokio: runtime for the async_signals pipeline (optional, `async` feature, on by default)
+tokio = { version = "1.40", features = ["rt", "sync"], optional = true }
+
+# On wasm32-unknown-unknown the clock comes from JavaScript (`Date.now`), so
+# `NanoTimestamp::now()` works in the browser instead of panicking.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+chrono = { version = "0.4.35", default-features = false, features = ["wasmbind"] }
 
 [dev-dependencies]
+# rust_decimal_macros: dec!() literals in tests, examples and doc examples
+rust_decimal_macros = "1"
 # proptest: property-based testing, required for algorithmic correctness guarantees
 proptest = "1"
 tokio = { version = "1.40", features = ["full", "test-util"] }
@@ -72,8 +98,16 @@ unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
 todo = "warn"
+# Index loops read better than iterator chains in the matrix and window maths here.
+needless_range_loop = "allow"
+type_complexity = "allow"
+too_many_arguments = "allow"
+# `x.max(lo).min(hi)` maps NaN to a bound; `clamp` would let NaN through. Keep the former.
+manual_clamp = "allow"
+# `SignalExpr::add`, `SignalValue::mul` etc. are builder methods with non-operator signatures.
+should_implement_trait = "allow"
 # Style
-pedantic = { level = "warn", priority = -1 }
+pedantic = { level = "allow", priority = -1 }
 # Allow common false-positive pedantic lints
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
@@ -99,3 +133,7 @@ semicolon_if_nothing_returned = "allow"
 if_not_else = "allow"
 explicit_iter_loop = "allow"
 manual_let_else = "allow"
+
+[[example]]
+name = "with_ta"
+required-features = ["ta"]

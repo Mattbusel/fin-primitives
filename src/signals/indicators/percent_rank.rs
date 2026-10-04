@@ -77,7 +77,7 @@ impl Signal for PercentRank {
     }
 
     fn is_ready(&self) -> bool {
-        self.values.len() >= self.period + 1
+        self.values.len() > self.period
     }
 
     fn period(&self) -> usize {

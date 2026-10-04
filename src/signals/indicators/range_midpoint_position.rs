@@ -74,7 +74,7 @@ impl Signal for RangeMidpointPosition {
 
         let period_high = self.highs.iter().copied().fold(Decimal::MIN, Decimal::max);
         let period_low = self.lows.iter().copied().fold(Decimal::MAX, Decimal::min);
-        let close = *self.closes.back().unwrap();
+        let close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
 
         let range = period_high - period_low;
         if range.is_zero() {

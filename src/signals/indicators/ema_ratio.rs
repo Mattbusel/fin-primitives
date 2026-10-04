@@ -104,8 +104,8 @@ impl Signal for EmaRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let fast = self.fast_ema.unwrap();
-        let slow = self.slow_ema.unwrap();
+        let fast = self.fast_ema.ok_or_else(crate::error::invariant_broken)?;
+        let slow = self.slow_ema.ok_or_else(crate::error::invariant_broken)?;
 
         if slow.is_zero() {
             return Ok(SignalValue::Unavailable);

@@ -21,20 +21,12 @@ use rust_decimal::Decimal;
 
 /// Standard normal probability density function.
 fn phi(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
-/// Standard normal cumulative distribution function (Abramowitz & Stegun approximation).
-/// Maximum absolute error ≈ 7.5 × 10⁻⁸.
+/// Standard normal cumulative distribution function ([`crate::normal::cdf`]).
 fn big_phi(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t
-        * (0.319_381_530
-            + t * (-0.356_563_782
-                + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let pdf = phi(x);
-    let cdf_pos = 1.0 - pdf * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 /// Convert `Decimal` to `f64`, returning `FinError::ArithmeticOverflow` on failure.
@@ -53,7 +45,8 @@ fn from_f64(f: f64) -> Result<Decimal, FinError> {
 // ─── types ────────────────────────────────────────────────────────────────────
 
 /// Whether the option grants the right to buy (Call) or sell (Put).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum OptionType {
     /// The right to buy the underlying at the strike price.
     Call,
@@ -62,7 +55,8 @@ pub enum OptionType {
 }
 
 /// Complete specification of a European option.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionSpec {
     /// Strike / exercise price (must be positive).
     pub strike: Decimal,
@@ -106,7 +100,8 @@ impl OptionSpec {
 }
 
 /// The five standard Black-Scholes option Greeks.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OptionGreeks {
     /// Rate of change of option price with respect to spot (∂V/∂S).
     pub delta: Decimal,
@@ -743,20 +738,12 @@ impl BSCalculator {
 
 /// Standard normal PDF: φ(x) = exp(-x²/2) / √(2π).
 fn norm_pdf(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
-/// Standard normal CDF via the Horner-form polynomial approximation.
-///
-/// Abramowitz & Stegun 26.2.17 — maximum absolute error ≈ 7.5 × 10⁻⁸.
+/// Standard normal CDF ([`crate::normal::cdf`]).
 fn norm_cdf(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t
-        * (0.319_381_530
-            + t * (-0.356_563_782
-                + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let cdf_pos = 1.0 - norm_pdf(x) * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 // ─── BSCalculator tests ───────────────────────────────────────────────────────

@@ -182,9 +182,8 @@ mod tests {
     fn test_rsi_slope_unavailable_before_warm_up() {
         let mut rs = RsiSlope::new("rs", 3).unwrap();
         for p in &["100", "102", "104", "106"] {
-            let v = rs.update_bar(&bar(p)).unwrap();
             // The 4th bar produces the first RSI, but needs one more for the slope.
-            assert!(!v.is_scalar() || !rs.is_ready() || true); // just consume
+            assert_eq!(rs.update_bar(&bar(p)).unwrap(), SignalValue::Unavailable);
         }
         // After 4 bars (period=3), RSI is ready but prev_rsi is just set — is_ready() = false.
         // 5th bar → slope ready.

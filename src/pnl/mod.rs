@@ -69,7 +69,8 @@ impl OpenTrade {
 ///
 /// ## Decomposition identity
 /// `total_pnl ≈ direction_alpha + timing_alpha - slippage_cost - fee_cost`
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PnlEvent {
     /// Instrument.
     pub symbol: Symbol,

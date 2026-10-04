@@ -66,8 +66,8 @@ impl Signal for BodyAcceleration {
             return Ok(SignalValue::Unavailable);
         }
 
-        let oldest = *self.bodies.front().unwrap();
-        let newest = *self.bodies.back().unwrap();
+        let oldest = *self.bodies.front().ok_or_else(crate::error::invariant_broken)?;
+        let newest = *self.bodies.back().ok_or_else(crate::error::invariant_broken)?;
         let accel = (newest - oldest)
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;

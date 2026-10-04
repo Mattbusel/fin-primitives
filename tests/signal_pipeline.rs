@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use fin_primitives::ohlcv::OhlcvBar;
 use fin_primitives::signals::indicators::{Ema, Rsi, Sma};
 use fin_primitives::signals::pipeline::SignalPipeline;

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fin-primitives"
-version = "2.14.0"
+version = "2.15.0"
 description = "Python bindings for the fin-primitives Rust library"
 readme = "../README.md"
 license = { text = "MIT" }
@@ -26,5 +26,3 @@ manifest-path = "../Cargo.toml"
 features = ["python"]
 # The Python module name (must match the #[pymodule] function name)
 module-name = "_fin_primitives"
-# Only include the extension module source
-python-source = "."

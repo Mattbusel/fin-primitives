@@ -70,7 +70,7 @@ impl Signal for ReturnConsistency {
         }
 
         let prices: Vec<Decimal> = self.closes.iter().copied().collect();
-        let net = *prices.last().unwrap() - prices[0];
+        let net = *prices.last().ok_or_else(crate::error::invariant_broken)? - prices[0];
 
         if net.is_zero() {
             return Ok(SignalValue::Unavailable);

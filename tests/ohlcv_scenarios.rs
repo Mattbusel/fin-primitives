@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: OHLCV aggregation scenarios and bar series operations.
 
 use fin_primitives::ohlcv::{OhlcvAggregator, OhlcvBar, OhlcvSeries, Timeframe};

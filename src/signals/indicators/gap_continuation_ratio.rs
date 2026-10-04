@@ -93,7 +93,7 @@ impl Signal for GapContinuationRatio {
         self.sum += flag;
         self.flags.push_back(flag);
         if self.flags.len() > self.period {
-            let removed = self.flags.pop_front().unwrap();
+            let removed = self.flags.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

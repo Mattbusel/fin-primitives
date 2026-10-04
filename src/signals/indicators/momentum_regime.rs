@@ -82,8 +82,8 @@ impl Signal for MomentumRegime {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
-        let long_base = *self.closes.front().unwrap(); // long_period bars ago
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let long_base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?; // long_period bars ago
         let short_base_idx = self.long_period - self.short_period;
         let short_base = self.closes[short_base_idx];
 
@@ -108,7 +108,7 @@ impl Signal for MomentumRegime {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.long_period + 1
+        self.closes.len() > self.long_period
     }
 
     fn period(&self) -> usize {

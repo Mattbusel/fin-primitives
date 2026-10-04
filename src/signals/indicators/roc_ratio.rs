@@ -63,7 +63,7 @@ impl Signal for RocRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let len = self.closes.len();
 
         let fast_prev = self.closes[len - 1 - self.fast];
@@ -93,7 +93,7 @@ impl Signal for RocRatio {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.slow + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.slow }
     fn period(&self) -> usize { self.slow }
     fn reset(&mut self) { self.closes.clear(); }
 }

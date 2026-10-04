@@ -412,7 +412,7 @@ mod tests {
         let rate = 0.05;
         let pillars = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let curve = flat_curve(rate, &pillars);
-        for (i, &t) in pillars.iter().enumerate() {
+        for &t in &pillars {
             let expected = (-rate * t).exp();
             let got = curve.interpolate(t);
             assert!((got - expected).abs() < 1e-10, "pillar {t}: expected {expected}, got {got}");

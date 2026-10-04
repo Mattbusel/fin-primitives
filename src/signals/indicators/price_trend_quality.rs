@@ -66,8 +66,8 @@ impl Signal for PriceTrendQuality {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().unwrap();
-        let last = *self.closes.back().unwrap();
+        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
         let mut total_path = Decimal::ZERO;
@@ -84,7 +84,7 @@ impl Signal for PriceTrendQuality {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

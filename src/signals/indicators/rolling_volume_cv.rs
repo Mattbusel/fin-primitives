@@ -56,7 +56,7 @@ impl Signal for RollingVolumeCV {
         self.sum += bar.volume;
         self.window.push_back(bar.volume);
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.window.len() < self.period {

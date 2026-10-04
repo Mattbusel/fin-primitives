@@ -62,7 +62,7 @@ impl Signal for PriceVelocityScore {
 
         if self.closes.len() < self.fast + 1 { return Ok(SignalValue::Unavailable); }
 
-        let velocity = *self.closes.back().unwrap() - *self.closes.front().unwrap();
+        let velocity = *self.closes.back().ok_or_else(crate::error::invariant_broken)? - *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
         self.velocities.push_back(velocity.abs());
         if self.velocities.len() > self.slow { self.velocities.pop_front(); }
 

@@ -468,7 +468,7 @@ mod tests {
         let prices: Vec<f64> = (0..30).map(|i| 100.0 + (i as f64).sin() * 5.0).collect();
         let out = rsi(&prices, 14);
         for &v in out.iter().skip(14) {
-            assert!(v >= 0.0 && v <= 100.0, "RSI out of range: {v}");
+            assert!((0.0..=100.0).contains(&v), "RSI out of range: {v}");
         }
     }
 

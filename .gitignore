@@ -1,3 +1,8 @@
 /target
+**/target/
 write_r*.py
 __pycache__/
+*.pdb
+*.log
+*.whl
+/python/.venv/

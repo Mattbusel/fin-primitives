@@ -75,7 +75,7 @@ impl Signal for EmaConvergence {
                 self.fast_ema = Some(sma);
             }
         } else {
-            let fe = self.fast_ema.unwrap() + kf * (bar.close - self.fast_ema.unwrap());
+            let fe = self.fast_ema.ok_or_else(crate::error::invariant_broken)? + kf * (bar.close - self.fast_ema.ok_or_else(crate::error::invariant_broken)?);
             self.fast_ema = Some(fe);
         }
 
@@ -88,7 +88,7 @@ impl Signal for EmaConvergence {
                 self.slow_ema = Some(sma);
             }
         } else {
-            let se = self.slow_ema.unwrap() + ks * (bar.close - self.slow_ema.unwrap());
+            let se = self.slow_ema.ok_or_else(crate::error::invariant_broken)? + ks * (bar.close - self.slow_ema.ok_or_else(crate::error::invariant_broken)?);
             self.slow_ema = Some(se);
         }
 

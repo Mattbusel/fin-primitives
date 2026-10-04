@@ -87,6 +87,14 @@ pub enum FinError {
     InvalidInput(String),
 }
 
+/// The error returned where the library used to `unwrap()` a value that its own
+/// bookkeeping guarantees is present (for example the newest bar of a full window).
+/// Seeing it means a bug in fin-primitives, not bad input; please report it.
+#[cold]
+pub(crate) fn invariant_broken() -> FinError {
+    FinError::InvalidInput("internal invariant broken (please report this as a fin-primitives bug)".to_owned())
+}
+
 impl FinError {
     /// Returns `true` if this error is a period validation error.
     pub fn is_period_error(&self) -> bool {

@@ -125,7 +125,9 @@ impl DiscountCurve {
             curve.zero_rates.push(0.0);
 
             let par_error = |curve: &mut DiscountCurve, r: f64| -> f64 {
-                *curve.zero_rates.last_mut().expect("pushed above") = r;
+                if let Some(z) = curve.zero_rates.last_mut() {
+                    *z = r;
+                }
                 let mut pv = 0.0;
                 let mut t_prev = 0.0;
                 for &tk in &times {
@@ -155,7 +157,9 @@ impl DiscountCurve {
                 }
                 0.5 * (lo + hi)
             };
-            *curve.zero_rates.last_mut().expect("pushed above") = r;
+            if let Some(z) = curve.zero_rates.last_mut() {
+                *z = r;
+            }
         }
 
         curve

@@ -73,8 +73,8 @@ impl Signal for Kama {
         }
 
         // Efficiency ratio
-        let first = *self.closes.front().unwrap();
-        let last = *self.closes.back().unwrap();
+        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let direction = (last - first).abs();
         let path: Decimal = self.closes.make_contiguous().windows(2)
             .map(|w| (w[1] - w[0]).abs())
@@ -106,7 +106,7 @@ impl Signal for Kama {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

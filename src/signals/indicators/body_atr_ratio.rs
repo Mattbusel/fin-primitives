@@ -67,7 +67,7 @@ impl Signal for BodyAtrRatio {
         self.tr_sum += tr;
         self.tr_window.push_back(tr);
         if self.tr_window.len() > self.period {
-            let removed = self.tr_window.pop_front().unwrap();
+            let removed = self.tr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 

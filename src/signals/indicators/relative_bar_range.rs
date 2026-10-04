@@ -68,7 +68,7 @@ impl Signal for RelativeBarRange {
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().unwrap();
+            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ranges.len() < self.period {

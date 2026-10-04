@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
 use fin_primitives::tick::Tick;
 use fin_primitives::types::*;

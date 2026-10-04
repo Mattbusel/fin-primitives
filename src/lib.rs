@@ -139,6 +139,19 @@
 //! fixed income, credit, derivatives, execution cost, microstructure, Monte
 //! Carlo, pairs trading, tax lots and more; see the module list below.
 //!
+//! ## Feature flags
+//!
+//! | feature | default | adds |
+//! |---|---|---|
+//! | `serde` | yes | `Serialize`/`Deserialize` on the data types; deserializing re-runs validation |
+//! | `async` | yes | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+//! | `ta`, `yata`, `wickra` | no | [`interop`] with those crates: their indicators read fin-primitives bars, their bars convert to [`BarInput`](signals::BarInput) |
+//! | `arrow` | no | `arrow`: bars to and from Apache Arrow with exact `Decimal128` columns |
+//! | `python` | no | PyO3 bindings, built with maturin from the repository's `python/` folder |
+//!
+//! [`normal`] has the standard normal CDF, PDF and inverse used by every pricer and
+//! VaR model here (accurate to about 1e-15 relative, including the tails).
+//!
 //! ## Design
 //!
 //! - **Validated at construction.** `Price::new` rejects zero and negative
@@ -159,11 +172,19 @@
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub mod async_signals;
 pub mod backtest;
 pub mod error;
 pub mod greeks;
+pub mod normal;
+pub mod interop;
+#[cfg(feature = "arrow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "arrow")))]
+pub mod arrow;
 pub mod ohlcv;
 pub mod orderbook;
 pub mod position;
@@ -210,3 +231,9 @@ pub mod execution_cost;
 pub mod credit;
 
 pub use error::FinError;
+
+/// Compiles and runs the Rust code blocks in README.md as doc tests, so the README
+/// cannot drift from the API.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;

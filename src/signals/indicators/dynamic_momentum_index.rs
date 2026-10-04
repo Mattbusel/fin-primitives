@@ -128,7 +128,7 @@ impl Signal for DynamicMomentumIndex {
     }
 
     fn is_ready(&self) -> bool {
-        self.history.len() >= self.max_period + 1
+        self.history.len() > self.max_period
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {

@@ -17,7 +17,6 @@
 //! - GIL management beyond pyo3 defaults
 //! - Numpy interop (callers can convert scalars as needed)
 
-#![cfg(feature = "python")]
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -28,6 +27,17 @@ use crate::orderbook::{BookDelta, DeltaAction, OrderBook};
 use crate::signals::indicators::{ema::Ema, rsi::Rsi, sma::Sma};
 use crate::signals::{BarInput, Signal};
 use crate::types::{Price, Quantity, Side, Symbol};
+
+/// Convert a Python float to the decimal it prints as (`0.1` becomes exactly `0.1`).
+///
+/// `Decimal::from_f64_retain`, used before 2.15, kept the binary rounding error, so
+/// `PyPrice(0.1)` held `0.1000000000000000055511151231`.
+fn py_float_to_decimal(value: f64) -> PyResult<Decimal> {
+    if !value.is_finite() {
+        return Err(PyValueError::new_err(format!("cannot convert {value} to Decimal")));
+    }
+    Decimal::from_str(&value.to_string()).map_err(|e| PyValueError::new_err(e.to_string()))
+}
 
 /// Python-visible `Price` newtype.
 ///
@@ -49,8 +59,7 @@ impl PyPrice {
     /// Construct a `PyPrice` from a float or string.
     #[new]
     pub fn new(value: f64) -> PyResult<Self> {
-        let d = Decimal::from_f64_retain(value)
-            .ok_or_else(|| PyValueError::new_err(format!("cannot convert {value} to Decimal")))?;
+        let d = py_float_to_decimal(value)?;
         let p = Price::new(d).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner: p })
     }
@@ -89,14 +98,15 @@ pub struct PyQuantity {
 
 #[pymethods]
 impl PyQuantity {
+    /// Create a new `PyQuantity`; raises `ValueError` on invalid input.
     #[new]
     pub fn new(value: f64) -> PyResult<Self> {
-        let d = Decimal::from_f64_retain(value)
-            .ok_or_else(|| PyValueError::new_err(format!("cannot convert {value} to Decimal")))?;
+        let d = py_float_to_decimal(value)?;
         let q = Quantity::new(d).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner: q })
     }
 
+    /// The `value` value.
     #[getter]
     pub fn value(&self) -> f64 {
         use rust_decimal::prelude::ToPrimitive;
@@ -122,15 +132,21 @@ impl PyQuantity {
 /// ```
 #[pyclass(name = "PyOHLCV")]
 pub struct PyOHLCV {
+    /// Bar open.
     pub open: f64,
+    /// Bar high.
     pub high: f64,
+    /// Bar low.
     pub low: f64,
+    /// Bar close.
     pub close: f64,
+    /// Bar volume.
     pub volume: f64,
 }
 
 #[pymethods]
 impl PyOHLCV {
+    /// Create a new `PyOHLCV`; raises `ValueError` on invalid input.
     #[new]
     #[pyo3(signature = (open, high, low, close, volume))]
     pub fn new(open: f64, high: f64, low: f64, close: f64, volume: f64) -> PyResult<Self> {
@@ -145,14 +161,19 @@ impl PyOHLCV {
         Ok(Self { open, high, low, close, volume })
     }
 
+    /// The `open` value.
     #[getter]
     pub fn open(&self) -> f64 { self.open }
+    /// The `high` value.
     #[getter]
     pub fn high(&self) -> f64 { self.high }
+    /// The `low` value.
     #[getter]
     pub fn low(&self) -> f64 { self.low }
+    /// The `close` value.
     #[getter]
     pub fn close(&self) -> f64 { self.close }
+    /// The `volume` value.
     #[getter]
     pub fn volume(&self) -> f64 { self.volume }
 
@@ -299,6 +320,7 @@ pub struct PySMA {
 
 #[pymethods]
 impl PySMA {
+    /// Create a new `PySMA`; raises `ValueError` on invalid input.
     #[new]
     pub fn new(name: &str, period: usize) -> PyResult<Self> {
         let inner = Sma::new(name, period).map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -308,8 +330,7 @@ impl PySMA {
     /// Feed one bar's close price and return the SMA value, or `None` if not ready.
     pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
         use rust_decimal::prelude::ToPrimitive;
-        let d = Decimal::from_f64_retain(close)
-            .ok_or_else(|| PyValueError::new_err("cannot convert close to Decimal"))?;
+        let d = py_float_to_decimal(close)?;
         let bar = BarInput::from_close(d);
         let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(sv.as_decimal().and_then(|v| v.to_f64()))
@@ -341,6 +362,7 @@ pub struct PyEMA {
 
 #[pymethods]
 impl PyEMA {
+    /// Create a new `PyEMA`; raises `ValueError` on invalid input.
     #[new]
     pub fn new(name: &str, period: usize) -> PyResult<Self> {
         let inner = Ema::new(name, period).map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -350,13 +372,13 @@ impl PyEMA {
     /// Feed one bar's close price and return the EMA value, or `None` if not ready.
     pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
         use rust_decimal::prelude::ToPrimitive;
-        let d = Decimal::from_f64_retain(close)
-            .ok_or_else(|| PyValueError::new_err("cannot convert close to Decimal"))?;
+        let d = py_float_to_decimal(close)?;
         let bar = BarInput::from_close(d);
         let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(sv.as_decimal().and_then(|v| v.to_f64()))
     }
 
+    /// The `name` value.
     #[getter]
     pub fn name(&self) -> &str {
         self.inner.name()
@@ -382,6 +404,7 @@ pub struct PyRSI {
 
 #[pymethods]
 impl PyRSI {
+    /// Create a new `PyRSI`; raises `ValueError` on invalid input.
     #[new]
     pub fn new(name: &str, period: usize) -> PyResult<Self> {
         let inner = Rsi::new(name, period).map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -391,13 +414,13 @@ impl PyRSI {
     /// Feed one bar's close price and return the RSI value (0–100), or `None` if not ready.
     pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
         use rust_decimal::prelude::ToPrimitive;
-        let d = Decimal::from_f64_retain(close)
-            .ok_or_else(|| PyValueError::new_err("cannot convert close to Decimal"))?;
+        let d = py_float_to_decimal(close)?;
         let bar = BarInput::from_close(d);
         let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(sv.as_decimal().and_then(|v| v.to_f64()))
     }
 
+    /// The `name` value.
     #[getter]
     pub fn name(&self) -> &str {
         self.inner.name()

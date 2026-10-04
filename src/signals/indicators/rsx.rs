@@ -84,14 +84,14 @@ impl Signal for Rsx {
         } else {
             #[allow(clippy::cast_possible_truncation)]
             let n = Decimal::from(self.period as u32);
-            let prev_ag = self.avg_gain.unwrap();
-            let prev_al = self.avg_loss.unwrap();
+            let prev_ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)?;
+            let prev_al = self.avg_loss.ok_or_else(crate::error::invariant_broken)?;
             self.avg_gain = Some((prev_ag * (n - Decimal::ONE) + gain) / n);
             self.avg_loss = Some((prev_al * (n - Decimal::ONE) + loss) / n);
         }
 
-        let ag = self.avg_gain.unwrap();
-        let al = self.avg_loss.unwrap();
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)?;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)?;
         let rsx = if al.is_zero() {
             if ag.is_zero() { Decimal::from(50u32) } else { Decimal::ONE_HUNDRED }
         } else {

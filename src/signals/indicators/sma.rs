@@ -20,6 +20,9 @@ pub struct Sma {
     name: String,
     period: usize,
     values: VecDeque<Decimal>,
+    /// Running sum of `values`. Decimal addition and subtraction are exact, so this
+    /// equals summing the window from scratch, in O(1) instead of O(period).
+    sum: Decimal,
 }
 
 impl Sma {
@@ -34,7 +37,8 @@ impl Sma {
         Ok(Self {
             name: name.into(),
             period,
-            values: VecDeque::with_capacity(period),
+            values: VecDeque::with_capacity(period + 1),
+            sum: Decimal::ZERO,
         })
     }
 }
@@ -46,15 +50,18 @@ impl Signal for Sma {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.values.push_back(bar.close);
+        self.sum = self.sum.checked_add(bar.close).ok_or(FinError::ArithmeticOverflow)?;
         if self.values.len() > self.period {
-            self.values.pop_front();
+            if let Some(old) = self.values.pop_front() {
+                self.sum = self.sum.checked_sub(old).ok_or(FinError::ArithmeticOverflow)?;
+            }
         }
         if self.values.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let sum: Decimal = self.values.iter().copied().sum();
         #[allow(clippy::cast_possible_truncation)]
-        let avg = sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(avg))
@@ -70,6 +77,7 @@ impl Signal for Sma {
 
     fn reset(&mut self) {
         self.values.clear();
+        self.sum = Decimal::ZERO;
     }
 }
 

@@ -60,8 +60,8 @@ impl Signal for RateOfChangePct {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
-        let base = *self.closes.front().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
 
         if base.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -76,7 +76,7 @@ impl Signal for RateOfChangePct {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

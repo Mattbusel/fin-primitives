@@ -57,7 +57,7 @@ impl Signal for WilderSmoothedRange {
                 self.warm_up_count += 1;
                 if self.warm_up_count >= self.period {
                     self.smoothed = Some(self.warm_up_sum / Decimal::from(self.period as u32));
-                    Ok(SignalValue::Scalar(self.smoothed.unwrap()))
+                    Ok(SignalValue::Scalar(self.smoothed.ok_or_else(crate::error::invariant_broken)?))
                 } else {
                     Ok(SignalValue::Unavailable)
                 }

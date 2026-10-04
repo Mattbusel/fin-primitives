@@ -37,7 +37,8 @@ use std::collections::HashMap;
 // ─── Config / Result ──────────────────────────────────────────────────────────
 
 /// Configuration for a single backtest run.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BacktestConfig {
     /// Starting cash balance.
     pub initial_capital: Decimal,
@@ -66,7 +67,8 @@ impl BacktestConfig {
 }
 
 /// Summary statistics produced after a completed backtest run.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BacktestResult {
     /// Total return over the period: `(final_equity - initial_capital) / initial_capital`.
     pub total_return: Decimal,

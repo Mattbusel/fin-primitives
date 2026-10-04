@@ -57,7 +57,7 @@ impl Signal for Vpt {
     fn is_ready(&self) -> bool {
         self.prev_close.is_some() && self.vpt != Decimal::ZERO
             || self.prev_close.is_some() && self.vpt == Decimal::ZERO
-                && matches!(self.prev_close, Some(_))
+                && self.prev_close.is_some()
     }
 
     fn period(&self) -> usize {

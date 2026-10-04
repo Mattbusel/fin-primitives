@@ -65,7 +65,7 @@ impl Signal for Coppock {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let long_base = self.closes[0];
         let short_idx = self.closes.len().saturating_sub(self.short_roc + 1);
         let short_base = self.closes[short_idx];

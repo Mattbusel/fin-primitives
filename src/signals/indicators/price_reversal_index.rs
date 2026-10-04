@@ -85,7 +85,7 @@ impl Signal for PriceReversalIndex {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

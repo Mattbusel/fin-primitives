@@ -471,7 +471,7 @@ mod tests {
         let mut clusterer = CorrelationClusterer::from_returns(&assets);
         let result = clusterer.cluster(2, 5);
         let score = clusterer.silhouette_score(&result);
-        assert!(score >= -1.0 && score <= 1.0, "Silhouette must be in [-1, 1]");
+        assert!((-1.0..=1.0).contains(&score), "Silhouette must be in [-1, 1]");
     }
 
     #[test]

@@ -65,9 +65,9 @@ impl Signal for TrendExhaustion {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().unwrap();
+        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let prev = self.closes[self.closes.len() - 2];
-        let period_start = *self.closes.front().unwrap();
+        let period_start = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
 
         let last_move = (current - prev).abs();
         let total_move = (current - period_start).abs();
@@ -85,7 +85,7 @@ impl Signal for TrendExhaustion {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1
+        self.closes.len() > self.period
     }
 
     fn period(&self) -> usize {

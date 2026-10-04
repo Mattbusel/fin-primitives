@@ -461,7 +461,6 @@ impl WarmupReporter {
 mod tests {
     use super::*;
     use crate::signals::indicators::{Ema, Rsi, Sma};
-    use rust_decimal_macros::dec;
 
     fn bar(close: &str) -> BarInput {
         BarInput::from_close(close.parse().unwrap())

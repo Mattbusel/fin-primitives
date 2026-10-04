@@ -63,7 +63,7 @@ impl Signal for BodyFillRatio {
         self.ratios.push_back(ratio);
         self.sum += ratio;
         if self.ratios.len() > self.period {
-            self.sum -= self.ratios.pop_front().unwrap();
+            self.sum -= self.ratios.pop_front().ok_or_else(crate::error::invariant_broken)?;
         }
 
         if self.ratios.len() < self.period {

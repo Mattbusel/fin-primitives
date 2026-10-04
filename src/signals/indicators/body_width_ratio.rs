@@ -74,7 +74,7 @@ impl Signal for BodyWidthRatio {
         self.sum += ratio;
         self.ratios.push_back(ratio);
         if self.ratios.len() > self.period {
-            let removed = self.ratios.pop_front().unwrap();
+            let removed = self.ratios.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ratios.len() < self.period {

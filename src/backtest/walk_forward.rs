@@ -90,7 +90,8 @@ use std::collections::HashMap;
 ///
 /// The grid is `[min, min+step, min+2*step, ..., max]` (inclusive).
 /// At least one value is always produced (when `min == max`).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParamRange {
     /// Name of the parameter (e.g. `"rsi_period"`, `"sma_period"`).
     pub name: String,
@@ -124,7 +125,8 @@ impl ParamRange {
 // ─── WalkForwardConfig ────────────────────────────────────────────────────────
 
 /// Configuration for a walk-forward optimization run.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WalkForwardConfig {
     /// Number of bars in each training (in-sample) window.
     pub train_window: usize,
@@ -169,7 +171,8 @@ impl WalkForwardConfig {
 ///
 /// Each period corresponds to one train/test split. The `best_params`
 /// are the parameter combination that maximized in-sample Sharpe ratio.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WfPeriod {
     /// Bar index of the first bar in the training window.
     pub train_start: usize,
@@ -192,7 +195,8 @@ pub struct WfPeriod {
 // ─── WalkForwardResult ────────────────────────────────────────────────────────
 
 /// Aggregated output of a walk-forward optimization run.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WalkForwardResult {
     /// Per-period details.
     pub periods: Vec<WfPeriod>,

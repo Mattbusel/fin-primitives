@@ -10,6 +10,7 @@ use crate::signals::{BarInput, Signal, SignalValue};
 /// Returns a value from 0 to 1:
 /// - 0.0 = current close is the lowest in the window
 /// - 1.0 = current close is the highest in the window
+///
 /// Useful for identifying overbought/oversold conditions over N bars.
 pub struct PricePositionRank {
     period: usize,

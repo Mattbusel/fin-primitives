@@ -65,7 +65,7 @@ impl Signal for OpenCloseSpread {
                 self.gaps.push_back(gap);
                 self.sum += gap;
                 if self.gaps.len() > self.period {
-                    self.sum -= self.gaps.pop_front().unwrap();
+                    self.sum -= self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 }
                 if self.gaps.len() < self.period {
                     SignalValue::Unavailable

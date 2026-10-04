@@ -62,7 +62,7 @@ impl Signal for VolumeWeightedRange {
         self.window.push_back((rv, bar.volume));
 
         if self.window.len() > self.period {
-            let (orv, ov) = self.window.pop_front().unwrap();
+            let (orv, ov) = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.range_vol_sum -= orv;
             self.vol_sum -= ov;
         }

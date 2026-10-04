@@ -61,8 +61,8 @@ impl Signal for HighLowPct {
         if self.lows.len() > self.period { self.lows.pop_front(); }
         if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
 
-        let high_n = self.highs.iter().cloned().max().unwrap();
-        let low_n = self.lows.iter().cloned().min().unwrap();
+        let high_n = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let low_n = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
 
         if low_n.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));

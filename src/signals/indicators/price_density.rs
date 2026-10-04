@@ -68,8 +68,8 @@ impl Signal for PriceDensity {
             return Ok(SignalValue::Unavailable);
         }
 
-        let range = self.highs.iter().cloned().max().unwrap()
-            - self.lows.iter().cloned().min().unwrap();
+        let range = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?
+            - self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
 
         let path: Decimal = self.closes.iter()
             .collect::<Vec<_>>()
@@ -86,7 +86,7 @@ impl Signal for PriceDensity {
         Ok(SignalValue::Scalar(density))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.period }
     fn period(&self) -> usize { self.period }
 
     fn reset(&mut self) {

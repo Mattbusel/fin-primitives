@@ -185,7 +185,7 @@ impl VixReplication {
             .iter()
             .filter(|&&(k, _, _)| k <= f)
             .map(|&(k, _, _)| k)
-            .last()
+            .next_back()
             .unwrap_or(sorted[0].0);
 
         let mut sum = 0.0;
@@ -274,19 +274,9 @@ fn bsm_call_put(s: f64, k: f64, r: f64, sigma: f64, t: f64) -> (f64, f64) {
     (call.max(0.0), put.max(0.0))
 }
 
-/// Cumulative standard normal distribution (Hart approximation).
+/// Cumulative standard normal distribution ([`crate::normal::cdf`]).
 fn normal_cdf(x: f64) -> f64 {
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t
-        * (0.319_381_530
-            + t * (-0.356_563_782
-                + t * (1.781_477_937 + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let pdf = (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt();
-    if x >= 0.0 {
-        1.0 - pdf * poly
-    } else {
-        pdf * poly
-    }
+    crate::normal::cdf(x)
 }
 
 #[cfg(test)]

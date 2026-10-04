@@ -89,7 +89,7 @@ impl Signal for RangeVolatilityRatio {
         self.sum += current_range;
         self.prior_ranges.push_back(current_range);
         if self.prior_ranges.len() > self.period {
-            let removed = self.prior_ranges.pop_front().unwrap();
+            let removed = self.prior_ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

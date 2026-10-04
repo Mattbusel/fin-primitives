@@ -57,7 +57,7 @@ impl Signal for RelativeVolumeScore {
         self.volumes.push_back(bar.volume);
         self.sum += bar.volume;
         if self.volumes.len() > self.period {
-            self.sum -= self.volumes.pop_front().unwrap();
+            self.sum -= self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
         }
         if self.volumes.len() < self.period {
             return Ok(SignalValue::Unavailable);

@@ -76,8 +76,8 @@ impl Signal for Vam {
             return Ok(SignalValue::Unavailable);
         }
 
-        let momentum = self.closes.back().copied().unwrap()
-            - self.closes.front().copied().unwrap();
+        let momentum = self.closes.back().copied().ok_or_else(crate::error::invariant_broken)?
+            - self.closes.front().copied().ok_or_else(crate::error::invariant_broken)?;
         let atr = self.true_ranges.iter().sum::<Decimal>()
             / Decimal::from(self.period as u32);
 
@@ -93,7 +93,7 @@ impl Signal for Vam {
     }
 
     fn is_ready(&self) -> bool {
-        self.closes.len() >= self.period + 1 && self.true_ranges.len() >= self.period
+        self.closes.len() > self.period && self.true_ranges.len() >= self.period
     }
 
     fn period(&self) -> usize {

@@ -75,7 +75,7 @@ impl Signal for WickToBodyRatio {
         self.sum += ratio;
         self.window.push_back(ratio);
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

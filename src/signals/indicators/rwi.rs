@@ -62,7 +62,7 @@ impl Signal for Rwi {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
 
-        self.bars.push_back(bar.clone());
+        self.bars.push_back(*bar);
         if self.bars.len() > self.period + 1 {
             self.bars.pop_front();
         }

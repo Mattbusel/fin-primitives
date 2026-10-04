@@ -17,6 +17,8 @@ pub struct Ema {
     count: usize,
     /// Multiplier: `2 / (period + 1)`
     multiplier: Decimal,
+    /// `1 - multiplier`, computed once instead of on every bar.
+    one_minus_k: Decimal,
     /// Accumulator for SMA seed phase.
     seed_sum: Decimal,
 }
@@ -41,6 +43,7 @@ impl Ema {
             current: None,
             count: 0,
             multiplier,
+            one_minus_k: Decimal::ONE - multiplier,
             seed_sum: Decimal::ZERO,
         })
     }
@@ -66,6 +69,7 @@ impl Ema {
             current: None,
             count: 0,
             multiplier,
+            one_minus_k: Decimal::ONE - multiplier,
             seed_sum: Decimal::ZERO,
         })
     }
@@ -97,9 +101,7 @@ impl Signal for Ema {
 
         // EMA phase.
         let prev = self.current.unwrap_or(Decimal::ZERO);
-        let one_minus_k = Decimal::ONE
-            .checked_sub(self.multiplier)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let one_minus_k = self.one_minus_k;
         let ema = close
             .checked_mul(self.multiplier)
             .ok_or(FinError::ArithmeticOverflow)?

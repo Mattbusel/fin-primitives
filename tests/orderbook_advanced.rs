@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: Order book advanced scenarios and cross-tick validation.
 
 use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};

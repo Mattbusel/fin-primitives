@@ -78,7 +78,7 @@ impl Signal for CloseReturnZ {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current_return = *returns.last().unwrap();
+        let current_return = *returns.last().ok_or_else(crate::error::invariant_broken)?;
         let mean = returns.iter().sum::<f64>() / n;
         let variance = returns.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>() / n;
         let std_dev = variance.sqrt();

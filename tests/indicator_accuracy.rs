@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // Integration tests: Indicator accuracy and cross-indicator consistency.
 
 use fin_primitives::ohlcv::{OhlcvBar, OhlcvSeries};

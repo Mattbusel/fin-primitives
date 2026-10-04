@@ -62,7 +62,7 @@ impl Signal for UpMomentumPct {
             if up { self.up_count += 1; }
             self.directions.push_back(up);
             if self.directions.len() > self.period {
-                let removed = self.directions.pop_front().unwrap();
+                let removed = self.directions.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 if removed { self.up_count -= 1; }
             }
         }

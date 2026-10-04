@@ -70,8 +70,8 @@ impl Signal for GapMomentum {
             self.ranges.push_back(range);
 
             if self.gaps.len() > self.period {
-                let og = self.gaps.pop_front().unwrap();
-                let or_ = self.ranges.pop_front().unwrap();
+                let og = self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                let or_ = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 self.gap_sum -= og;
                 self.range_sum -= or_;
             }

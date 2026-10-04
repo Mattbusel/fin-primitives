@@ -103,7 +103,7 @@ impl Signal for MedianReturnDeviation {
         }
 
         // Current return is the most recent
-        let current = *self.returns.back().unwrap();
+        let current = *self.returns.back().ok_or_else(crate::error::invariant_broken)?;
         let score = (current - med)
             .checked_div(mad)
             .ok_or(FinError::ArithmeticOverflow)?;

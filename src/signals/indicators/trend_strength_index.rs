@@ -74,7 +74,7 @@ impl Signal for TrendStrengthIndex {
 
         let prices: Vec<Decimal> = self.closes.iter().copied().collect();
         let first = prices[0];
-        let last = *prices.last().unwrap();
+        let last = *prices.last().ok_or_else(crate::error::invariant_broken)?;
 
         let net_move = (last - first).abs();
         let path: Decimal = prices.windows(2)

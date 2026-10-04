@@ -141,7 +141,7 @@ impl Signal for Stc {
             None => k1,
             Some(prev) => prev + self.factor * (k1 - prev),
         });
-        let pct_d = self.pct_d.unwrap();
+        let pct_d = self.pct_d.ok_or_else(crate::error::invariant_broken)?;
 
         // Stochastic 2: %K of %D
         self.d_window.push_back(pct_d);
@@ -157,7 +157,7 @@ impl Signal for Stc {
             Some(prev) => prev + self.factor * (k2 - prev),
         });
 
-        Ok(SignalValue::Scalar(self.stc.unwrap()))
+        Ok(SignalValue::Scalar(self.stc.ok_or_else(crate::error::invariant_broken)?))
     }
 
     fn is_ready(&self) -> bool {

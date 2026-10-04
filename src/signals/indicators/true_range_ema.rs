@@ -68,7 +68,7 @@ impl Signal for TrueRangeEma {
             return Ok(SignalValue::Unavailable);
         }
 
-        let prev = self.ema.unwrap();
+        let prev = self.ema.ok_or_else(crate::error::invariant_broken)?;
         let new_ema = prev + k * (tr - prev);
         self.ema = Some(new_ema);
         Ok(SignalValue::Scalar(new_ema))

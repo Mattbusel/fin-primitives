@@ -47,7 +47,7 @@ impl Signal for CloseRelativeToRange {
         let rolling_low = self.lows.iter().cloned().fold(Decimal::MAX, Decimal::min);
         let channel = rolling_high - rolling_low;
         if channel.is_zero() {
-            return Ok(SignalValue::Scalar(Decimal::from_str_exact("0.5").unwrap()));
+            return Ok(SignalValue::Scalar(Decimal::new(5, 1)));
         }
         Ok(SignalValue::Scalar((bar.close - rolling_low) / channel))
     }

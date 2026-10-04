@@ -65,7 +65,7 @@ impl Signal for Roc {
     }
 
     fn is_ready(&self) -> bool {
-        self.history.len() >= self.period + 1
+        self.history.len() > self.period
     }
 
     fn period(&self) -> usize {

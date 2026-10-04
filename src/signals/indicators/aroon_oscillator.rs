@@ -59,7 +59,7 @@ impl Signal for AroonOscillator {
     }
 
     fn is_ready(&self) -> bool {
-        self.highs.len() >= self.period + 1
+        self.highs.len() > self.period
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {

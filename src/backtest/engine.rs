@@ -637,7 +637,7 @@ mod tests {
         let config = make_config(bars);
         let result = BacktestEngine::run(signals, config);
         // Should have at least 1 completed trade (the long closed by short)
-        assert!(result.trades.len() >= 1);
+        assert!(!result.trades.is_empty());
         assert_eq!(result.trades[0].direction, Direction::Long);
     }
 
@@ -815,6 +815,6 @@ mod tests {
         assert_eq!(t.direction, Direction::Long);
         assert!(t.entry_price > 0.0);
         assert!(t.exit_price > 0.0);
-        assert!(t.exit_ts > t.entry_ts || t.exit_ts == t.entry_ts);
+        assert!(t.exit_ts >= t.entry_ts);
     }
 }

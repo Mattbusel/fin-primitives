@@ -86,7 +86,7 @@ impl Signal for Smi {
     fn name(&self) -> &str { &self.name }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        self.bars.push_back(bar.clone());
+        self.bars.push_back(*bar);
         if self.bars.len() > self.period {
             self.bars.pop_front();
         }

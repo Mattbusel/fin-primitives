@@ -21,7 +21,8 @@ use std::collections::HashMap;
 // ─── timeframes ───────────────────────────────────────────────────────────────
 
 /// Standard trading timeframes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Timeframe {
     /// 1-minute bars.
     M1,
@@ -60,7 +61,8 @@ impl Timeframe {
 // ─── signal direction ─────────────────────────────────────────────────────────
 
 /// The directional opinion emitted by a single-timeframe indicator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SignalDirection {
     /// Indicator suggests buying / going long.
     Bullish,
@@ -92,7 +94,8 @@ pub type BoxedIndicator = Box<dyn TimeframeIndicator>;
 // ─── agreement policy ─────────────────────────────────────────────────────────
 
 /// How many timeframes must agree before a `Confirmed` signal is emitted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AgreementPolicy {
     /// Every active timeframe must agree (and at least one must be active).
     Unanimous,
@@ -105,7 +108,8 @@ pub enum AgreementPolicy {
 // ─── multi-timeframe result ───────────────────────────────────────────────────
 
 /// The outcome from `MultiTimeframeSignal::update_timeframe`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MultiTfResult {
     /// All required timeframes agree on this direction.
     Confirmed {

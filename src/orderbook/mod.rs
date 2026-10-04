@@ -22,7 +22,8 @@ use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 /// A single price level in the order book.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PriceLevel {
     /// The price of this level.
     pub price: Price,
@@ -31,7 +32,8 @@ pub struct PriceLevel {
 }
 
 /// Whether a delta sets or removes a price level.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DeltaAction {
     /// Set the quantity at this price level.
     Set,
@@ -40,7 +42,8 @@ pub enum DeltaAction {
 }
 
 /// An incremental update to an order book.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BookDelta {
     /// Which side of the book this update applies to.
     pub side: Side,
@@ -634,9 +637,8 @@ impl OrderBook {
             .iter()
             .rev()
             .take(n)
-            .map(|(price, qty)| PriceLevel {
-                price: Price::new(*price).unwrap(),
-                quantity: Quantity::new(*qty).unwrap(),
+            .filter_map(|(price, qty)| {
+                Some(PriceLevel { price: Price::new(*price).ok()?, quantity: Quantity::new(*qty).ok()? })
             })
             .collect()
     }
@@ -648,9 +650,8 @@ impl OrderBook {
         self.asks
             .iter()
             .take(n)
-            .map(|(price, qty)| PriceLevel {
-                price: Price::new(*price).unwrap(),
-                quantity: Quantity::new(*qty).unwrap(),
+            .filter_map(|(price, qty)| {
+                Some(PriceLevel { price: Price::new(*price).ok()?, quantity: Quantity::new(*qty).ok()? })
             })
             .collect()
     }

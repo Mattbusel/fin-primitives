@@ -74,7 +74,7 @@ impl Signal for PriceChangeMad {
             self.sum += change;
             self.changes.push_back(change);
             if self.changes.len() > self.period {
-                let removed = self.changes.pop_front().unwrap();
+                let removed = self.changes.pop_front().ok_or_else(crate::error::invariant_broken)?;
                 self.sum -= removed;
             }
         }

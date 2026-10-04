@@ -82,7 +82,7 @@ impl Signal for VolumeFlowRatio {
 
         // Remove oldest bar
         if self.window.len() > self.period {
-            let (old_dir, old_vol) = self.window.pop_front().unwrap();
+            let (old_dir, old_vol) = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
             match old_dir {
                 1  => self.up_vol -= old_vol,
                 -1 => self.down_vol -= old_vol,

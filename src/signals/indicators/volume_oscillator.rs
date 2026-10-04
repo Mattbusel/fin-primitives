@@ -51,11 +51,11 @@ impl Signal for VolumeOscillator {
         if self.bars_seen < self.slow_period {
             return Ok(SignalValue::Unavailable);
         }
-        let slow = self.slow_ema.unwrap();
+        let slow = self.slow_ema.ok_or_else(crate::error::invariant_broken)?;
         if slow.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        let fast = self.fast_ema.unwrap();
+        let fast = self.fast_ema.ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar((fast - slow) / slow * Decimal::ONE_HUNDRED))
     }
 

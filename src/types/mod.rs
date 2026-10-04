@@ -9,7 +9,8 @@
 //! - `Price`: strictly positive (`> 0`)
 //! - `Quantity`: non-negative (`>= 0`)
 //! - `NanoTimestamp`: nanosecond-resolution UTC epoch timestamp; inner field is private
-//! - All types implement `Clone`, `Copy` (where applicable), `serde::{Serialize, Deserialize}`
+//! - All types implement `Clone`, `Copy` (where applicable), and `serde::{Serialize, Deserialize}`
+//!   with the default `serde` feature. Deserializing re-runs the same validation as `new`
 //!
 //! ## NOT Responsible For
 //! - Currency conversion
@@ -30,8 +31,11 @@ use std::sync::Arc;
 /// let sym = Symbol::new("AAPL").unwrap();
 /// assert_eq!(sym.as_str(), "AAPL");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+// Deserialization goes through `Symbol::new`, so an empty or whitespace symbol in
+// JSON is rejected instead of building an invalid value.
+#[cfg_attr(feature = "serde", serde(try_from = "String", into = "String"))]
 pub struct Symbol(Arc<str>);
 
 impl Symbol {
@@ -134,9 +138,26 @@ impl From<Symbol> for Arc<str> {
 /// assert_eq!(p.value(), dec!(100.50));
 /// ```
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+// Deserialization goes through `Price::new`: a zero or negative price is an error.
+#[cfg_attr(feature = "serde", serde(try_from = "Decimal", into = "Decimal"))]
 pub struct Price(Decimal);
+
+impl TryFrom<Decimal> for Price {
+    type Error = FinError;
+
+    fn try_from(d: Decimal) -> Result<Self, Self::Error> {
+        Price::new(d)
+    }
+}
+
+impl From<Price> for Decimal {
+    fn from(p: Price) -> Self {
+        p.0
+    }
+}
 
 impl Price {
     /// Construct a validated `Price`.
@@ -377,9 +398,26 @@ impl std::ops::Mul<Decimal> for Price {
 /// assert_eq!(q.value(), dec!(0));
 /// ```
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+// Deserialization goes through `Quantity::new`: a negative quantity is an error.
+#[cfg_attr(feature = "serde", serde(try_from = "Decimal", into = "Decimal"))]
 pub struct Quantity(Decimal);
+
+impl TryFrom<Decimal> for Quantity {
+    type Error = FinError;
+
+    fn try_from(d: Decimal) -> Result<Self, Self::Error> {
+        Quantity::new(d)
+    }
+}
+
+impl From<Quantity> for Decimal {
+    fn from(q: Quantity) -> Self {
+        q.0
+    }
+}
 
 impl Quantity {
     /// Construct a validated `Quantity`.
@@ -514,7 +552,8 @@ impl std::ops::Mul<Decimal> for Quantity {
 }
 
 /// The side of a market order or book level.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Side {
     /// Buy side (bids).
     Bid,
@@ -546,8 +585,9 @@ impl std::fmt::Display for Side {
 /// Stores nanoseconds since the Unix epoch (UTC). The inner field is private;
 /// use [`NanoTimestamp::new`] to construct and [`NanoTimestamp::nanos`] to read.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NanoTimestamp(i64);
 
 impl NanoTimestamp {
@@ -968,15 +1008,11 @@ impl NanoTimestamp {
 
     /// Snaps this timestamp to the most recent Monday at 00:00:00 UTC (start of ISO week).
     pub fn floor_to_week(self) -> NanoTimestamp {
-        use chrono::{Datelike, Duration, TimeZone};
+        use chrono::{Datelike, Duration};
         let dt = self.to_datetime();
-        let days_since_monday = dt.weekday().num_days_from_monday() as i64;
-        let monday = dt - Duration::days(days_since_monday);
-        let monday_midnight = Utc
-            .with_ymd_and_hms(monday.year(), monday.month(), monday.day(), 0, 0, 0)
-            .single()
-            .expect("valid date");
-        NanoTimestamp::from_datetime(monday_midnight)
+        let days_since_monday = i64::from(dt.weekday().num_days_from_monday());
+        let monday = dt.date_naive() - Duration::days(days_since_monday);
+        NanoTimestamp::from_datetime(monday.and_time(chrono::NaiveTime::MIN).and_utc())
     }
 
     /// Returns `true` if `self` and `other` fall in the same calendar year.

@@ -66,7 +66,7 @@ impl Signal for CloseToLowDistance {
         self.trs.push_back(tr);
         self.tr_sum += tr;
         if self.trs.len() > self.period {
-            self.tr_sum -= self.trs.pop_front().unwrap();
+            self.tr_sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
         }
 
         self.lows.push_back(bar.low);

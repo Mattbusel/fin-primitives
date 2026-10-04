@@ -86,7 +86,7 @@ impl Signal for ForceIndex {
         self.prev_close = Some(close);
 
         if self.bar_count >= self.period {
-            Ok(SignalValue::Scalar(self.ema.unwrap()))
+            Ok(SignalValue::Scalar(self.ema.ok_or_else(crate::error::invariant_broken)?))
         } else {
             Ok(SignalValue::Unavailable)
         }

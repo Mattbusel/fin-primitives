@@ -3,23 +3,9 @@
 //! Provides P&L profiles, breakeven analysis, and common strategy builders
 //! (straddle, strangle, collar, butterfly) on top of BSM pricing.
 
-/// Standard normal CDF via rational approximation (Abramowitz & Stegun 26.2.17).
+/// Standard normal CDF; delegates to [`crate::normal::cdf`].
 pub fn norm_cdf(x: f64) -> f64 {
-    if x < -8.0 {
-        return 0.0;
-    }
-    if x > 8.0 {
-        return 1.0;
-    }
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t * (0.319381530
-        + t * (-0.356563782
-        + t * (1.781477937
-        + t * (-1.821255978
-        + t * 1.330274429))));
-    let pdf = (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt();
-    let cdf_pos = 1.0 - pdf * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 /// Black-Scholes-Merton call price.

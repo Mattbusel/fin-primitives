@@ -10,27 +10,14 @@ use crate::derivatives::option_strategies::OptionType;
 // Core math helpers
 // ---------------------------------------------------------------------------
 
-/// Standard normal CDF via Abramowitz & Stegun approximation (error < 7.5e-8).
+/// Standard normal CDF; delegates to [`crate::normal::cdf`].
 pub fn norm_cdf(x: f64) -> f64 {
-    if x < -8.0 {
-        return 0.0;
-    }
-    if x > 8.0 {
-        return 1.0;
-    }
-    let t = 1.0 / (1.0 + 0.2316419 * x.abs());
-    let poly = t * (0.319_381_530
-        + t * (-0.356_563_782
-            + t * (1.781_477_937
-                + t * (-1.821_255_978 + t * 1.330_274_429))));
-    let pdf = norm_pdf(x);
-    let cdf_pos = 1.0 - pdf * poly;
-    if x >= 0.0 { cdf_pos } else { 1.0 - cdf_pos }
+    crate::normal::cdf(x)
 }
 
 /// Standard normal PDF.
 pub fn norm_pdf(x: f64) -> f64 {
-    (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt()
+    crate::normal::pdf(x)
 }
 
 /// Compute BSM d1 and d2.
@@ -135,7 +122,7 @@ impl BarrierOption {
 
         // mu for the reflection formula.
         let mu = (r - q - 0.5 * sigma * sigma) / (sigma * sigma);
-        let lambda = ((mu * mu + 2.0 * r / (sigma * sigma)) as f64).sqrt();
+        let lambda = (mu * mu + 2.0 * r / (sigma * sigma)).sqrt();
         let sqrt_t = t.sqrt();
 
         let x1 = (s / k).ln() / (sigma * sqrt_t) + (1.0 + mu) * sigma * sqrt_t;

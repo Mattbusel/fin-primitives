@@ -64,7 +64,7 @@ impl Signal for HighVolumeBarRatio {
         self.sum += vol;
         self.volumes.push_back(vol);
         if self.volumes.len() > self.period {
-            let removed = self.volumes.pop_front().unwrap();
+            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 

@@ -122,9 +122,11 @@ impl VarEngine {
         }
     }
 
-    /// Parametric VaR using Cornish-Fisher z-scores scaled by horizon.
+    /// Parametric (normal) VaR and expected shortfall over `horizon_days`.
     ///
-    /// z values: 2.326 for 99%, 1.645 for 95%, 1.282 for 90%, linear interpolation otherwise.
+    /// `z` is the exact normal quantile for `confidence` (1.645 at 95%, 1.960 at 97.5%,
+    /// 2.326 at 99%). The daily mean scales with the horizon and the daily standard
+    /// deviation with its square root: `VaR = z * sigma * sqrt(h) - mean * h`.
     pub fn parametric_var(
         mean: f64,
         std_dev: f64,
@@ -132,9 +134,10 @@ impl VarEngine {
         portfolio_value: f64,
         horizon_days: u32,
     ) -> VarResult {
-        let z = Self::cornish_fisher_z(confidence);
-        let horizon_scale = (horizon_days as f64).sqrt();
-        let var_pct = (z * std_dev - mean) * horizon_scale;
+        let z = Self::normal_z(confidence);
+        let h = f64::from(horizon_days);
+        let horizon_scale = h.sqrt();
+        let var_pct = z * std_dev * horizon_scale - mean * h;
         let var_pct = var_pct.max(0.0);
         let var_abs = var_pct * portfolio_value;
 
@@ -143,7 +146,7 @@ impl VarEngine {
         let cvar_pct = if (1.0 - confidence).abs() < 1e-12 {
             var_pct
         } else {
-            (phi_z / (1.0 - confidence) * std_dev - mean) * horizon_scale
+            phi_z / (1.0 - confidence) * std_dev * horizon_scale - mean * h
         };
         let cvar_pct = cvar_pct.max(var_pct);
         let cvar_abs = cvar_pct * portfolio_value;
@@ -252,25 +255,14 @@ impl VarEngine {
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    /// Cornish-Fisher z-score approximation for common confidence levels.
-    fn cornish_fisher_z(confidence: f64) -> f64 {
-        if confidence >= 0.99 {
-            2.326
-        } else if confidence >= 0.95 {
-            1.645
-        } else if confidence >= 0.90 {
-            1.282
-        } else {
-            // Linear interpolation for other levels
-            let alpha = 1.0 - confidence;
-            // Rough approximation: z ≈ -ln(alpha * sqrt(2*pi)) for small alpha
-            (-2.0 * (alpha * (2.0 * std::f64::consts::PI).sqrt()).ln()).sqrt()
-        }
+    /// One-sided normal quantile for `confidence`, clamped away from 0 and 1.
+    fn normal_z(confidence: f64) -> f64 {
+        crate::normal::inv_cdf(confidence.clamp(1e-12, 1.0 - 1e-12))
     }
 
     /// Standard normal PDF at x: (1/sqrt(2π)) * exp(-x²/2).
     fn standard_normal_pdf(x: f64) -> f64 {
-        (-0.5 * x * x).exp() / (2.0 * std::f64::consts::PI).sqrt()
+        crate::normal::pdf(x)
     }
 }
 
@@ -292,6 +284,30 @@ mod tests {
         let result = VarEngine::parametric_var(0.0, 0.01, 0.99, 1_000_000.0, 1);
         // VaR at 99% with 1% daily vol on $1M should be ~$23,260
         assert!((result.var_abs - 23_260.0).abs() < 1000.0, "var_abs={}", result.var_abs);
+    }
+
+    #[test]
+    fn parametric_var_uses_exact_quantile_between_table_rows() {
+        // 97.5% is z = 1.959964. The old three-row table used 1.645 here (16% too low),
+        // and 99.9% used 2.326 instead of 3.090.
+        let r = VarEngine::parametric_var(0.0, 0.01, 0.975, 1_000_000.0, 1);
+        assert!((r.var_abs - 19_599.64).abs() < 0.01, "var_abs={}", r.var_abs);
+        let r = VarEngine::parametric_var(0.0, 0.01, 0.999, 1_000_000.0, 1);
+        assert!((r.var_abs - 30_902.32).abs() < 0.01, "var_abs={}", r.var_abs);
+        // Below 90% the old fallback formula gave z = 1.40 at 85%; the truth is 1.036.
+        let r = VarEngine::parametric_var(0.0, 0.01, 0.85, 1_000_000.0, 1);
+        assert!((r.var_abs - 10_364.33).abs() < 0.01, "var_abs={}", r.var_abs);
+    }
+
+    #[test]
+    fn parametric_var_scales_mean_by_horizon_not_its_root() {
+        // 10 days, mean 0.1%/day, sigma 1%/day, 99%: z*sigma*sqrt(10) - mean*10.
+        let r = VarEngine::parametric_var(0.001, 0.01, 0.99, 1.0, 10);
+        let want = 2.326_347_874_040_841 * 0.01 * 10f64.sqrt() - 0.001 * 10.0;
+        assert!((r.var_pct - want).abs() < 1e-12, "var_pct={} want={want}", r.var_pct);
+        // Normal expected shortfall: phi(z) / (1 - c) * sigma * sqrt(h) - mean * h.
+        let es = crate::normal::pdf(2.326_347_874_040_841) / 0.01 * 0.01 * 10f64.sqrt() - 0.01;
+        assert!((r.cvar_pct - es).abs() < 1e-9, "cvar_pct={} want={es}", r.cvar_pct);
     }
 
     #[test]

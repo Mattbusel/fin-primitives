@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 //! Additional tests covering public API paths not exercised by the existing test suite.
 //!
 //! Targets:

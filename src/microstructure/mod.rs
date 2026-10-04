@@ -431,7 +431,7 @@ impl RollImpliedSpread {
 
     /// Returns `true` when the window is full.
     pub fn is_ready(&self) -> bool {
-        self.changes.len() >= self.window + 1
+        self.changes.len() > self.window
     }
 
     /// Returns the configured window size.

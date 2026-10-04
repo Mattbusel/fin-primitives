@@ -43,7 +43,8 @@ use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
 /// Tracks peak equity and computes current drawdown percentage.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DrawdownTracker {
     peak_equity: Decimal,
     current_equity: Decimal,
@@ -55,63 +56,63 @@ pub struct DrawdownTracker {
     /// Number of updates where equity was below peak (in drawdown).
     drawdown_update_count: usize,
     /// Cumulative sum of drawdown percentages for computing averages.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     drawdown_pct_sum: Decimal,
     /// Longest consecutive run of updates spent below peak.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     max_drawdown_streak: usize,
     /// Current consecutive run of updates where equity increased from the prior update.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     gain_streak: usize,
     /// Number of times a new equity peak has been set.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     peak_count: usize,
     /// Previous equity value (for computing per-update changes).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     prev_equity: Decimal,
     /// Welford running mean of per-update equity changes.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     equity_change_mean: f64,
     /// Welford running M2 (sum of squared deviations) for sample variance.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     equity_change_m2: f64,
     /// Count of equity changes recorded (= update_count after first update).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     equity_change_count: usize,
     /// Most negative single-step equity change seen (0.0 until first loss).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     min_equity_delta: f64,
     /// Longest run of consecutive updates where equity increased.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     max_gain_streak: usize,
     /// Sum of all positive per-update equity changes.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     total_gain_sum: f64,
     /// Sum of the absolute values of all negative per-update equity changes.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     total_loss_sum: f64,
     /// Number of completed recoveries (drawdown resolved by hitting a new peak).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     completed_recoveries: usize,
     /// Sum of `updates_since_peak` values at the moment each recovery completed.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     total_recovery_updates: usize,
     /// Sum of drawdown percentages at the start of each recovery (for averaging).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     recovery_drawdown_pct_sum: Decimal,
     /// Largest single-step equity gain as a percentage of prior equity.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     max_gain_delta_pct: f64,
     /// Number of distinct drawdown episodes (each time equity drops below peak after being at/above it).
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     drawdown_episodes: usize,
     /// Current consecutive run of updates where equity decreased from the prior update.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     loss_streak_current: usize,
     /// Initial equity (set at construction, unchanged by reset unless re-constructed).
     initial_equity: Decimal,
     /// Current consecutive run of updates where equity was unchanged.
-    #[serde(default)]
+    #[cfg_attr(feature = "serde", serde(default))]
     flat_streak: usize,
 }
 

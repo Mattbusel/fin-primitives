@@ -38,7 +38,7 @@ impl YieldCurve {
         if maturity <= pts[0].maturity_years {
             return pts[0].yield_rate;
         }
-        let last = pts.last().expect("non-empty");
+        let Some(last) = pts.last() else { return 0.0 };
         if maturity >= last.maturity_years {
             return last.yield_rate;
         }
@@ -112,9 +112,7 @@ impl YieldCurve {
 
         // Full M array with boundary zeros
         let mut m = vec![0.0f64; n];
-        for i in 0..m_count {
-            m[i + 1] = m_inner[i];
-        }
+        m[1..=m_count].copy_from_slice(&m_inner[..m_count]);
 
         // Find interval
         let idx = pts.partition_point(|p| p.maturity_years <= maturity);
@@ -337,7 +335,7 @@ fn tridiagonal_solve(lower: &[f64], diag: &[f64], upper: &[f64], rhs: &[f64]) ->
     d_prime[0] = if diag[0].abs() < 1e-15 { 0.0 } else { rhs[0] / diag[0] };
 
     for i in 1..n {
-        let denom = if i <= n - 1 && i - 1 < lower.len() {
+        let denom = if i < n && i - 1 < lower.len() {
             diag[i] - lower[i - 1] * if i - 1 < c_prime.len() { c_prime[i - 1] } else { 0.0 }
         } else {
             diag[i]

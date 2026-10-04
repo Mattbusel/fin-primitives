@@ -18,7 +18,8 @@ use crate::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
 use rust_decimal::Decimal;
 
 /// A single market trade event.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Tick {
     /// The traded instrument.
     pub symbol: Symbol,
@@ -287,7 +288,7 @@ impl Tick {
             return None;
         }
         let mut prices: Vec<Decimal> = ticks.iter().map(|t| t.price.value()).collect();
-        prices.sort_unstable_by(|a, b| a.cmp(b));
+        prices.sort_unstable();
         let mid = prices.len() / 2;
         if prices.len() % 2 == 0 {
             Some((prices[mid - 1] + prices[mid]) / Decimal::TWO)
@@ -649,8 +650,8 @@ impl TickReplayer {
         if self.ticks.len() < 2 {
             return None;
         }
-        let first = self.ticks.first().unwrap().timestamp;
-        let last = self.ticks.last().unwrap().timestamp;
+        let first = self.ticks.first()?.timestamp;
+        let last = self.ticks.last()?.timestamp;
         Some(last.elapsed_since(first))
     }
 
@@ -779,7 +780,7 @@ impl TickReplayer {
         if self.ticks.len() < 2 {
             return None;
         }
-        let total = self.ticks.last().unwrap().timestamp.elapsed_since(self.ticks.first().unwrap().timestamp);
+        let total = self.ticks.last()?.timestamp.elapsed_since(self.ticks.first()?.timestamp);
         Some(total / (self.ticks.len() as i64 - 1))
     }
 
@@ -833,10 +834,9 @@ impl TickReplayer {
         }
         let span_nanos = self
             .ticks
-            .last()
-            .unwrap()
+            .last()?
             .timestamp
-            .elapsed_since(self.ticks.first().unwrap().timestamp);
+            .elapsed_since(self.ticks.first()?.timestamp);
         if span_nanos <= 0 {
             return None;
         }
@@ -1133,6 +1133,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_tick_serde_roundtrip() {
         let tick = make_tick("AAPL", "150.50", "25", Side::Bid, 1_000_000_000);
         let json = serde_json::to_string(&tick).unwrap();
@@ -1264,7 +1265,7 @@ mod tests {
 
     #[test]
     fn test_tick_filter_timestamp_range() {
-        let ticks = vec![
+        let ticks = [
             make_tick("AAPL", "100", "1", Side::Bid, 1),
             make_tick("AAPL", "101", "1", Side::Ask, 5),
             make_tick("AAPL", "102", "1", Side::Bid, 10),

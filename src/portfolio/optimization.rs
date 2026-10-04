@@ -90,7 +90,7 @@ impl MeanVarianceOptimizer {
     /// Uses the gradient of `Var(w) - lambda * (Return(w) - target)` and projects
     /// onto the unit simplex afterwards.
     pub fn gradient_step(
-        weights: &mut Vec<f64>,
+        weights: &mut [f64],
         returns: &[f64],
         cov: &[Vec<f64>],
         target_return: f64,
@@ -115,7 +115,7 @@ impl MeanVarianceOptimizer {
     }
 
     /// Apply constraints to a weight vector (projection onto constraint set).
-    pub fn apply_constraints(weights: &mut Vec<f64>, constraints: &[OptimizationConstraint]) {
+    pub fn apply_constraints(weights: &mut [f64], constraints: &[OptimizationConstraint]) {
         let n = weights.len();
         for c in constraints {
             match c {

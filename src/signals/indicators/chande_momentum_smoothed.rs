@@ -141,7 +141,7 @@ impl Signal for ChandeMomentumSmoothed {
             return Ok(SignalValue::Scalar(seed_avg));
         }
 
-        let prev_ema = self.ema.unwrap();
+        let prev_ema = self.ema.ok_or_else(crate::error::invariant_broken)?;
         let new_ema = raw_cmo * self.smooth_k + prev_ema * (Decimal::ONE - self.smooth_k);
         self.ema = Some(new_ema);
         Ok(SignalValue::Scalar(new_ema))

@@ -125,7 +125,7 @@ mod tests {
             ao.update_bar(&bar("101", "99")).unwrap();
         }
         // All medians equal: fast_sma == slow_sma => AO = 0
-        assert_eq!(ao.is_ready(), true);
+        assert!(ao.is_ready());
         if let SignalValue::Scalar(v) = ao.update_bar(&bar("101", "99")).unwrap() {
             assert_eq!(v, rust_decimal_macros::dec!(0));
         } else {

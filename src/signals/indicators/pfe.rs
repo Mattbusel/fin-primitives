@@ -79,7 +79,7 @@ impl Signal for Pfe {
             .filter_map(|c| c.to_f64())
             .collect();
         let n = closes_vec.len() as f64 - 1.0;
-        let delta = closes_vec.last().unwrap() - closes_vec.first().unwrap();
+        let delta = closes_vec.last().ok_or_else(crate::error::invariant_broken)? - closes_vec.first().ok_or_else(crate::error::invariant_broken)?;
         let direction = if delta > 0.0 { 1.0f64 } else if delta < 0.0 { -1.0f64 } else { 0.0 };
         let distance = (n * n + delta * delta).sqrt();
         let path: f64 = closes_vec.windows(2)

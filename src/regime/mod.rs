@@ -47,7 +47,8 @@ use rust_decimal::Decimal;
 ///
 /// Regimes condition strategy behavior: e.g. RSI(14) in `Trending`,
 /// RSI(21) in `MeanReverting`, flat signal in `Crisis`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MarketRegime {
     /// Persistent, directional market (Hurst > 0.6, ADX elevated).
     Trending,
@@ -429,7 +430,8 @@ fn pearson_r(x: &[f64], y: &[f64]) -> f64 {
 ///
 /// Records when the regime started, its confidence score, and (once the
 /// epoch ends) the duration in bars.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RegimeHistory {
     /// The regime that was active during this period.
     pub regime: MarketRegime,
@@ -1257,7 +1259,7 @@ mod tests {
         }
         // After enough bars, should produce a value in the trending regime
         if let Some(Ok(rsi_val)) = last_val {
-            assert!(rsi_val >= 0.0 && rsi_val <= 100.0);
+            assert!((0.0..=100.0).contains(&rsi_val));
         }
         // (may still be None if all three RSIs aren't warm; that's acceptable)
     }

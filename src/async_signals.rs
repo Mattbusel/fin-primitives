@@ -250,7 +250,7 @@ mod tests {
         drop(tick_tx);
 
         let mut count = 0usize;
-        while let Some(_) = update_rx.recv().await {
+        while update_rx.recv().await.is_some() {
             count += 1;
         }
         assert_eq!(count, 3);

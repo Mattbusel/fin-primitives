@@ -86,7 +86,7 @@ impl Signal for ObvMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let obv_old = self.obv_history.front().copied().unwrap();
+        let obv_old = self.obv_history.front().copied().ok_or_else(crate::error::invariant_broken)?;
         let momentum = if obv_old.is_zero() {
             Decimal::ZERO
         } else {
@@ -97,7 +97,7 @@ impl Signal for ObvMomentum {
     }
 
     fn is_ready(&self) -> bool {
-        self.obv_history.len() >= self.period + 1
+        self.obv_history.len() > self.period
     }
 
     fn period(&self) -> usize {

@@ -57,8 +57,8 @@ impl Signal for HlRatio {
         if self.lows.len() > self.period { self.lows.pop_front(); }
         if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
 
-        let period_high = self.highs.iter().cloned().max().unwrap();
-        let period_low = self.lows.iter().cloned().min().unwrap();
+        let period_high = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let period_low = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
 
         if period_low.is_zero() {
             return Ok(SignalValue::Unavailable);

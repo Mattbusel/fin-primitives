@@ -86,8 +86,8 @@ impl Signal for VolumeRsi {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ag = self.avg_gain.unwrap() * (Decimal::ONE - self.k) + gain * self.k;
-        let al = self.avg_loss.unwrap() * (Decimal::ONE - self.k) + loss * self.k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + gain * self.k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + loss * self.k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
         Ok(SignalValue::Scalar(Self::rsi(ag, al)))

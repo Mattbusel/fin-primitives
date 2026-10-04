@@ -61,11 +61,11 @@ impl Signal for Vroc {
         if self.volumes.len() <= self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let vol_old = *self.volumes.front().unwrap();
+        let vol_old = *self.volumes.front().ok_or_else(crate::error::invariant_broken)?;
         if vol_old.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let vol_now = *self.volumes.back().unwrap();
+        let vol_now = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
         let vroc = (vol_now - vol_old)
             .checked_div(vol_old)
             .ok_or(FinError::ArithmeticOverflow)?

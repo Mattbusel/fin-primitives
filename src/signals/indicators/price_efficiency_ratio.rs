@@ -32,7 +32,7 @@ impl Signal for PriceEfficiencyRatio {
         if self.closes.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
-        let net = (self.closes.back().unwrap() - self.closes.front().unwrap()).abs();
+        let net = (self.closes.back().ok_or_else(crate::error::invariant_broken)? - self.closes.front().ok_or_else(crate::error::invariant_broken)?).abs();
         let path: Decimal = self.closes.iter()
             .zip(self.closes.iter().skip(1))
             .map(|(a, b)| (*b - *a).abs())
@@ -43,7 +43,7 @@ impl Signal for PriceEfficiencyRatio {
         Ok(SignalValue::Scalar(net / path))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period + 1 }
+    fn is_ready(&self) -> bool { self.closes.len() > self.period }
     fn period(&self) -> usize { self.period }
     fn reset(&mut self) { self.closes.clear(); }
     fn name(&self) -> &str { "PriceEfficiencyRatio" }

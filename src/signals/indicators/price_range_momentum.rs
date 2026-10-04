@@ -62,8 +62,8 @@ impl Signal for PriceRangeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.ranges.back().unwrap();
-        let reference = *self.ranges.front().unwrap();
+        let current = *self.ranges.back().ok_or_else(crate::error::invariant_broken)?;
+        let reference = *self.ranges.front().ok_or_else(crate::error::invariant_broken)?;
 
         if reference.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -78,7 +78,7 @@ impl Signal for PriceRangeMomentum {
     }
 
     fn is_ready(&self) -> bool {
-        self.ranges.len() >= self.period + 1
+        self.ranges.len() > self.period
     }
 
     fn period(&self) -> usize {

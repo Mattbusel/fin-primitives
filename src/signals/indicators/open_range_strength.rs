@@ -93,7 +93,7 @@ impl Signal for OpenRangeStrength {
             .checked_div(Decimal::TWO)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let close = *self.closes.back().unwrap();
+        let close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
         let strength = (close - mid)
             .checked_div(range
                 .checked_div(Decimal::TWO)
