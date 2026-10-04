@@ -155,7 +155,7 @@ impl BacktestEngine {
 
         // Sort signals by timestamp
         let mut sorted_signals = signals;
-        sorted_signals.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        sorted_signals.sort_by_key(|a| a.timestamp);
 
         let mut sig_idx = 0;
 

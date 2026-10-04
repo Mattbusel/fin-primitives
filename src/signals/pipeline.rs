@@ -325,7 +325,7 @@ impl SignalMap {
     /// If fewer than `n` scalars exist, returns all available. Returns an empty vec if none.
     pub fn top_n(&self, n: usize) -> Vec<(&str, Decimal)> {
         let mut pairs: Vec<(&str, Decimal)> = self.scalars().collect();
-        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs.sort_by_key(|x| std::cmp::Reverse(x.1));
         pairs.truncate(n);
         pairs
     }
@@ -351,7 +351,7 @@ impl SignalMap {
     /// Returns the bottom `n` scalar signals by value, sorted ascending.
     pub fn bottom_n(&self, n: usize) -> Vec<(&str, Decimal)> {
         let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
-        items.sort_by(|a, b| a.1.cmp(&b.1));
+        items.sort_by_key(|a| a.1);
         items.truncate(n);
         items
     }
@@ -367,7 +367,7 @@ impl SignalMap {
     /// Signal names sorted by scalar value descending.
     pub fn names_sorted_desc(&self) -> Vec<&str> {
         let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
-        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.sort_by_key(|x| std::cmp::Reverse(x.1));
         items.into_iter().map(|(n, _)| n).collect()
     }
 
@@ -398,7 +398,7 @@ impl SignalMap {
     /// Names of the top `n` scalar signals by value (descending).
     pub fn top_n_names(&self, n: usize) -> Vec<&str> {
         let mut items: Vec<(&str, Decimal)> = self.scalars().collect();
-        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.sort_by_key(|x| std::cmp::Reverse(x.1));
         items.truncate(n);
         items.into_iter().map(|(name, _)| name).collect()
     }

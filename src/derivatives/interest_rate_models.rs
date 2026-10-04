@@ -138,9 +138,7 @@ impl HullWhiteModel {
     /// Return the piecewise-constant theta value at time t.
     pub fn theta_at(&self, t: f64) -> f64 {
         // Find latest theta <= t
-        self.theta_params.iter()
-            .filter(|(ti, _)| *ti <= t)
-            .next_back()
+        self.theta_params.iter().rfind(|(ti, _)| *ti <= t)
             .map(|(_, th)| *th)
             .unwrap_or(self.a * 0.05) // default: calibrated to 5% mean
     }

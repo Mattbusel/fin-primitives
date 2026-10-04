@@ -26,7 +26,7 @@ test:
     - cargo test --doc
     - 'for e in order_book candles position_risk option_chain value_at_risk; do cargo run --quiet --example "$e"; done'
     # Interop features (ta, yata, wickra, arrow): their unit tests, doc examples and the ta example.
-    - cargo test --lib --features ta,yata,wickra,arrow -- interop:: arrow::
+    - 'cargo test --lib --features ta,yata,wickra,arrow -- interop:: arrow::'
     - cargo test --doc --features ta,yata,wickra,arrow -- interop arrow
     - cargo run --quiet --example with_ta --features ta
 

@@ -1116,7 +1116,7 @@ impl PositionLedger {
                 if r != Decimal::ZERO { Some((sym.clone(), r)) } else { None }
             })
             .collect();
-        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs.sort_by_key(|x| std::cmp::Reverse(x.1));
         pairs
     }
 
@@ -1532,7 +1532,7 @@ impl PositionLedger {
                 if pos.realized_pnl > threshold { Some((sym.clone(), pos.realized_pnl)) } else { None }
             })
             .collect();
-        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+        pairs.sort_by_key(|x| std::cmp::Reverse(x.1));
         pairs.into_iter().map(|(s, _)| s).collect()
     }
 
@@ -1681,7 +1681,7 @@ impl PositionLedger {
                     .map(|&pr| (sym, (p.quantity * pr.value()).abs()))
             })
             .collect();
-        exposures.sort_by(|a, b| b.1.cmp(&a.1));
+        exposures.sort_by_key(|x| std::cmp::Reverse(x.1));
         exposures.truncate(n);
         exposures
     }
