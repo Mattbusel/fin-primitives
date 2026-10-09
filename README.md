@@ -1,5 +1,7 @@
 # fin-primitives
 
+English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
 **A Rust library of the basic parts every trading program needs: exact prices that refuse bad values, an order book, candles built from trades, 700+ indicators, option pricing and risk limits.**
 
 For Rust developers writing trading bots, backtesters, market-data tools or quant research code who do not want to rebuild (and re-debug) the same pieces.
