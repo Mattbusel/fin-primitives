@@ -10,6 +10,8 @@ For Rust developers writing trading bots, backtesters, market-data tools or quan
   <a href="https://crates.io/crates/fin-primitives"><img alt="crates.io version" src="https://img.shields.io/crates/v/fin-primitives.svg"></a>
   <a href="https://docs.rs/fin-primitives"><img alt="docs.rs" src="https://docs.rs/fin-primitives/badge.svg"></a>
   <a href="https://gitlab.com/mattbusel/fin-primitives/-/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="MSRV 1.81" src="https://img.shields.io/badge/MSRV-1.81-blue.svg">
 </p>
 
 <p align="center">
@@ -279,6 +281,8 @@ Run `cargo fmt`, `cargo clippy` and `cargo test --doc` before opening a PR. See
 
 ## License and related projects
 
-MIT, see [LICENSE](LICENSE). [fin-stream](https://gitlab.com/mattbusel/fin-stream) builds on
+MIT, see [LICENSE](LICENSE). [fin-stream](https://github.com/Mattbusel/fin-stream) builds on
 this crate: it turns live Binance, Coinbase, Alpaca and Polygon trade messages into ticks,
 bars and order books.
+
+Source, issues and stars: [GitHub](https://github.com/Mattbusel/fin-primitives). Mirror and release downloads: [GitLab](https://gitlab.com/mattbusel/fin-primitives). More open-source Rust from the same author: [tensorust.com/open-source](https://tensorust.com/open-source/).

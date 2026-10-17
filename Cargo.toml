@@ -1,11 +1,11 @@
 [package]
 name = "fin-primitives"
-version = "2.15.0"
+version = "2.15.1"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
 authors = ["Matt Busel <matt@busel.dev>"]
-repository = "https://gitlab.com/mattbusel/fin-primitives"
+repository = "https://github.com/Mattbusel/fin-primitives"
 homepage = "https://fin-primitives.vercel.app/"
 documentation = "https://docs.rs/fin-primitives"
 readme = "README.md"
