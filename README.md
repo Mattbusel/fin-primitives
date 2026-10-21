@@ -1,5 +1,13 @@
 # fin-primitives
 
+<!-- outcome-block -->
+**Ship a trading bot without rebuilding the basics: exact decimal prices that reject bad values, an order book, candles from trades, 700+ indicators, option pricing and risk limits in one `cargo add`.**
+
+**Why this over the alternatives:** Hand-rolled `f64` prices drift and accept nonsense; here `Price::new(dec!(-1))` is an error, so a bad price can't get into your system.
+
+**Guarantee:** if it doesn't do what this README says, [open an issue](https://github.com/Mattbusel/fin-primitives/issues) and I'll fix it.
+<!-- outcome-block -->
+
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
 **A Rust library of the basic parts every trading program needs: exact prices that refuse bad values, an order book, candles built from trades, 700+ indicators, option pricing and risk limits.**
