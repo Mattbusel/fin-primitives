@@ -1,18 +1,16 @@
 # fin-primitives
 
 <!-- outcome-block -->
-**Ship a trading bot without rebuilding the basics: exact decimal prices that reject bad values, an order book, candles from trades, 700+ indicators, option pricing and risk limits in one `cargo add`.**
+**The basic parts of a trading program in one `cargo add`: exact prices, an order book, candles, 700+ indicators, option pricing and risk limits.**
 
-**Why this over the alternatives:** Hand-rolled `f64` prices drift and accept nonsense; here `Price::new(dec!(-1))` is an error, so a bad price can't get into your system.
+`f64` prices drift and accept nonsense. Here `Price::new(dec!(-1))` is an error.
 
-**Guarantee:** if it doesn't do what this README says, [open an issue](https://github.com/Mattbusel/fin-primitives/issues) and I'll fix it.
+If it doesn't do what this README says, [open an issue](https://github.com/Mattbusel/fin-primitives/issues) and I'll fix it.
 <!-- outcome-block -->
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**A Rust library of the basic parts every trading program needs: exact prices that refuse bad values, an order book, candles built from trades, 700+ indicators, option pricing and risk limits.**
-
-For Rust developers writing trading bots, backtesters, market-data tools or quant research code who do not want to rebuild (and re-debug) the same pieces.
+For trading bots, backtesters, market data tools and quant research in Rust.
 
 <p align="center">
   <a href="https://crates.io/crates/fin-primitives"><img alt="crates.io version" src="https://img.shields.io/crates/v/fin-primitives.svg"></a>
@@ -32,8 +30,7 @@ For Rust developers writing trading bots, backtesters, market-data tools or quan
 cargo add fin-primitives rust_decimal rust_decimal_macros
 ```
 
-A library, nothing to install system-wide. Rust 1.81 or newer (checked in CI).
-`rust_decimal_macros` gives you the `dec!(64250.50)` literal used in the examples.
+Rust 1.81 or newer (checked in CI). `rust_decimal_macros` gives you the `dec!(64250.50)` literal.
 
 ## In 15 lines
 
@@ -57,31 +54,27 @@ fn main() -> Result<(), fin_primitives::FinError> {
 }
 ```
 
-Indicators answer `Unavailable` until they have enough bars (here the first 14), never a
-made-up 0 or NaN. This block is compiled and run by `cargo test --doc`.
+Indicators return `Unavailable` until they have enough bars (here 14). Never a fake 0 or NaN.
+`cargo test --doc` runs this block.
 
 ## Why this crate and not `ta`, `yata` or TA-Lib
 
 Measured on the same 100,000 closes ([bench/competitors](bench/competitors/README.md),
 [bench/talib_compare](bench/talib_compare/README.md)):
 
-- **Exact decimals.** Prices, sizes, bars and indicators are `rust_decimal::Decimal`, so
-  `0.1 + 0.2` is `0.3` and a P&L adds up to the cent. SMA and EMA agree with `ta` and `yata`
-  to 1e-12, and with TA-Lib to 2e-11 or better on the 22 indicators both define the same way.
-- **TA-Lib definitions.** `Rsi` is Wilder's RSI, like TA-Lib. `ta`'s RSI smooths with a
-  different factor and differed by up to 20 RSI points on the same data.
-- **Checked inputs, typed errors.** A zero price, a crossed order book or a skipped
-  sequence number is an `Err`, not a silent wrong number. No `unwrap` in library code.
-- **One crate for the whole loop**: order book, ticks to bars, 700+ indicators, positions,
-  drawdown and VaR limits, Black-Scholes with Greeks.
-- **The cost is speed.** `ta` and `yata` are 40 to 160 times faster per indicator update
-  (f64 against 96-bit decimal arithmetic). fin-primitives still does 4 to 25 million updates
-  per second per core. If you only crunch long float64 histories, use them or TA-Lib.
+- **Exact decimals.** Everything is `rust_decimal::Decimal`. `0.1 + 0.2` is `0.3`. P&L adds up to the cent.
+  SMA and EMA match `ta` and `yata` to 1e-12, and TA-Lib to 2e-11 or better on 22 shared indicators.
+- **TA-Lib definitions.** `Rsi` is Wilder's RSI. `ta`'s RSI was off by up to 20 points on the same data.
+- **Bad input is an error.** A zero price, a crossed book or a skipped sequence number is an `Err`.
+  No `unwrap` in library code.
+- **One crate**: order book, ticks to bars, 700+ indicators, positions, drawdown and VaR limits,
+  Black-Scholes with Greeks.
+- **Slower.** `ta` and `yata` are 40 to 160 times faster per update (f64 vs 96-bit decimal).
+  This still does 4 to 25 million updates per second per core. For long float64 histories, use them or TA-Lib.
 
 ## Already using `ta`, `yata` or `wickra`?
 
-Keep them. Turn on the matching feature and their indicators read fin-primitives bars
-directly, and their bar types convert into fin-primitives ones:
+Keep them. Turn on the matching feature. Their indicators read these bars, and their bars convert to these:
 
 ```toml
 fin-primitives = { version = "2.15", features = ["ta"] }   # or "yata", "wickra", "arrow"
@@ -98,9 +91,9 @@ for bar in aggregator.push_tick(&tick)? {          // fin_primitives::ohlcv::Ohl
 }
 ```
 
-`cargo run --example with_ta --features ta` runs the full version. Going the other way,
-`BarInput::try_from(&ta::DataItem)`, `BarInput::try_from(&yata::core::Candle)` and
-`BarInput::try_from(&wickra_core::Candle)` turn their bars into fin-primitives input.
+Full version: `cargo run --example with_ta --features ta`. The other way:
+`BarInput::try_from(&ta::DataItem)`, `BarInput::try_from(&yata::core::Candle)`,
+`BarInput::try_from(&wickra_core::Candle)`.
 
 ## Feature flags
 
@@ -115,24 +108,23 @@ for bar in aggregator.push_tick(&tick)? {          // fin_primitives::ohlcv::Ohl
 | `python` | no | PyO3 bindings; `cd python && maturin develop --features python` (Rust 1.83+) |
 
 `default-features = false` leaves `rust_decimal`, `chrono`, `thiserror`, `libm` and `statrs`.
-It also builds for `wasm32-unknown-unknown`.
+Builds for `wasm32-unknown-unknown`.
 
 ## How it works
 
-Trades come in as `Tick`s. `OhlcvAggregator::push_tick` drops each one into a time bucket and
-hands back the finished candle the moment a trade for the next bucket arrives. Candles feed
-indicators, which say `Unavailable` until they have enough history instead of making up a number.
+Trades come in as `Tick`s. `OhlcvAggregator::push_tick` puts each in a time bucket. When a trade
+for the next bucket arrives, you get the finished candle. Candles feed indicators.
 
 <p align="center"><img alt="Animated diagram: 24 real ETH-USD ticks land in one-minute buckets; push_tick returns an empty Vec while a tick stays in the open bucket and returns the finished 15:00 bar (open 3186.17, high 3190.94, low 3182.16, close 3190.94, 12 ticks) when the first 15:01 tick arrives; RSI(14) returns Unavailable for bars 1 to 14 and 71.72 on bar 15" src="docs/img/ticks-to-bars.svg" width="100%"></p>
 
-Money works the same way: fills and price marks go into a `PositionLedger`, its account value
-goes into a `RiskMonitor`, and every rule that is broken comes back as a `RiskBreach` you can act on.
+Money works the same way. Fills and marks go into a `PositionLedger`. Its value goes into a
+`RiskMonitor`. Every broken rule comes back as a `RiskBreach`.
 
 <p align="center"><img alt="Animated diagram of the position_risk example: fills and marks go into PositionLedger, net_liquidation_value goes into RiskMonitor with a 4% max drawdown rule and a 96,600 equity floor; equity peaks at 101,237 and at event 8 (MSFT marked at 371.50) drops to 96,507, a 4.67% drawdown, and both rules fire" src="docs/img/risk-check.svg" width="100%"></p>
 
 ## Examples
 
-Six programs ship in [`examples/`](examples/). No network, no API keys, same output every run.
+Six programs in [`examples/`](examples/). No network, no keys, same output every run.
 
 | Run this | You get |
 |---|---|
@@ -143,7 +135,7 @@ Six programs ship in [`examples/`](examples/). No network, no API keys, same out
 | `cargo run --example value_at_risk` | one-day and ten-day VaR for a $1M book: historical, parametric and Monte Carlo at 95%, 97.5% and 99% |
 | `cargo run --example with_ta --features ta` | ticks rolled into bars by fin-primitives, fed to `ta`'s MACD and Bollinger Bands and to fin-primitives' RSI |
 
-**`order_book`**: the book knows its spread and middle price, and refuses updates that would cross it or skip a sequence number.
+**`order_book`**: knows its spread and mid price. Refuses updates that cross it or skip a sequence number.
 
 <p align="center"><img alt="Terminal output of cargo run --example order_book: a 7-level BTC-USD ladder with depth bars, book statistics, and two rejected deltas" src="assets/term-order_book.png" width="760"></p>
 
@@ -161,7 +153,7 @@ Six programs ship in [`examples/`](examples/). No network, no API keys, same out
   rejected  buy 1000 AAPL  Insufficient funds: need 171351.00, have 79866.00
 ```
 
-(rows 1 to 4 and 9 to 10 cut for length; the diagram above plays the whole session.)
+(rows 1 to 4 and 9 to 10 cut. The diagram above plays the whole session.)
 
 <details>
 <summary><b>candles</b> and <b>option_chain</b> output</summary>
@@ -236,21 +228,16 @@ mid price      64250.25
 buy 1 BTC at   64250.58 average
 ```
 
-A negative price never gets into your program, the book knows its own spread and middle
-price, and "what would buying 1 BTC cost" is one call (0.842 BTC fill at the best ask, the
-other 0.158 at the next level up). This exact program is also compiled and run by
-`cargo test --doc` in this repository.
+"What would 1 BTC cost" is one call (0.842 BTC at the best ask, 0.158 at the next level).
+`cargo test --doc` runs this exact program.
 
 ## Compared with TA-Lib
 
-Same 100,000 seeded OHLCV bars through both libraries ([method, script and full tables](bench/talib_compare/README.md);
-i7-13700KF, TA-Lib 0.8.1). Where the definitions match, the values agree to 2e-11 or
-better; fin-primitives works in exact decimals, so it is the float64 side that rounds.
-Two definitions differ on purpose: `Atr` is a simple average of true range (it equals
-TA-Lib's `SMA(TRANGE)`, not Wilder's `ATR`), and `Obv` starts at 0 rather than at the first
-bar's volume. TA-Lib is much faster: its batch functions take 0.2 to 12 ns per bar, about
-100 times less than fin-primitives' exact-decimal `update()`. Use TA-Lib to crunch long
-float64 histories; use fin-primitives for exact values, bar-by-bar state and no C dependency.
+Same 100,000 seeded OHLCV bars through both ([method, script and full tables](bench/talib_compare/README.md);
+i7-13700KF, TA-Lib 0.8.1). Where definitions match, values agree to 2e-11 or better. The float64 side is the one that rounds.
+Two differ on purpose: `Atr` is a simple average of true range (TA-Lib's `SMA(TRANGE)`, not Wilder's `ATR`),
+and `Obv` starts at 0. TA-Lib is about 100 times faster (0.2 to 12 ns per bar).
+Use TA-Lib for long float64 histories. Use this for exact values, bar-by-bar state and no C dependency.
 
 | indicator | max difference vs TA-Lib (after bar 1,000) | fin-primitives, ns per bar | TA-Lib batch, ns per bar |
 |---|---|---|---|
@@ -275,22 +262,19 @@ float64 histories; use fin-primitives for exact values, bar-by-bar state and no 
 | [CHANGELOG.md](CHANGELOG.md) | what changed in each version |
 | [Project site](https://fin-primitives.vercel.app/) | the same overview as a web page |
 
-Optional Python bindings are behind the `python` feature: `cd python && maturin develop --release`,
-then `python test_smoke.py`.
+Python bindings: `python` feature, `cd python && maturin develop --release`, then `python test_smoke.py`.
 
-> Research and engineering library. It does not place orders, and nothing here is financial advice.
+> It does not place orders. Not financial advice.
 
 ## Contributing
 
-Issues and pull requests are welcome. Public items need `///` docs, fallible code returns
-`Result` (no `unwrap`, `expect` or `panic!` outside tests), and new behavior needs a test.
-Run `cargo fmt`, `cargo clippy` and `cargo test --doc` before opening a PR. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and PRs welcome. Public items need `///` docs. Fallible code returns `Result`
+(no `unwrap`, `expect` or `panic!` outside tests). New behavior needs a test.
+Run `cargo fmt`, `cargo clippy` and `cargo test --doc` first. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License and related projects
 
 MIT, see [LICENSE](LICENSE). [fin-stream](https://github.com/Mattbusel/fin-stream) builds on
-this crate: it turns live Binance, Coinbase, Alpaca and Polygon trade messages into ticks,
-bars and order books.
+this crate. It turns live Binance, Coinbase, Alpaca and Polygon trades into ticks, bars and order books.
 
-Source, issues and stars: [GitHub](https://github.com/Mattbusel/fin-primitives). Mirror and release downloads: [GitLab](https://gitlab.com/mattbusel/fin-primitives). More open-source Rust from the same author: [tensorust.com/open-source](https://tensorust.com/open-source/).
+Source, issues and stars: [GitHub](https://github.com/Mattbusel/fin-primitives). Mirror and release downloads: [GitLab](https://gitlab.com/mattbusel/fin-primitives). More of my Rust: [tensorust.com/open-source](https://tensorust.com/open-source/).
