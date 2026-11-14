@@ -4,6 +4,8 @@
 //! forward rates, Macaulay duration, convexity, curve shape classification, and the
 //! Nelson-Siegel parametric model with gradient-descent fitting.
 
+use crate::error::FinError;
+
 /// A single point on a yield curve.
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldPoint {
@@ -132,11 +134,19 @@ impl YieldCurve {
     /// Compute the instantaneous forward rate between maturities `t1` and `t2`.
     ///
     /// Formula: `f = (r2*t2 - r1*t1) / (t2 - t1)`
-    pub fn forward_rate(&self, t1: f64, t2: f64) -> f64 {
-        assert!(t2 > t1, "t2 must be greater than t1");
+    ///
+    /// # Errors
+    /// [`FinError::InvalidInput`] unless `t2 > t1` (NaN fails too). (Before 3.0 this
+    /// panicked.)
+    pub fn forward_rate(&self, t1: f64, t2: f64) -> Result<f64, FinError> {
+        if t1.is_nan() || t2.is_nan() || t2 <= t1 {
+            return Err(FinError::InvalidInput(format!(
+                "YieldCurve::forward_rate: t2 ({t2}) must be greater than t1 ({t1})"
+            )));
+        }
         let r1 = self.linear_interp(t1);
         let r2 = self.linear_interp(t2);
-        (r2 * t2 - r1 * t1) / (t2 - t1)
+        Ok((r2 * t2 - r1 * t1) / (t2 - t1))
     }
 
     /// Macaulay duration for a stream of cash flows.
@@ -438,7 +448,7 @@ mod tests {
     #[test]
     fn test_forward_rate_simple() {
         let c = sample_curve();
-        let f = c.forward_rate(1.0, 2.0);
+        let f = c.forward_rate(1.0, 2.0).unwrap();
         // r1=0.045, r2=0.048 → (0.048*2 - 0.045*1) / (2-1) = 0.051
         assert!((f - 0.051).abs() < 1e-10);
     }
@@ -446,8 +456,10 @@ mod tests {
     #[test]
     fn test_forward_rate_positive() {
         let c = sample_curve();
-        let f = c.forward_rate(0.5, 5.0);
+        let f = c.forward_rate(0.5, 5.0).unwrap();
         assert!(f > 0.0);
+        assert!(matches!(c.forward_rate(2.0, 1.0), Err(FinError::InvalidInput(_))));
+        assert!(c.forward_rate(1.0, f64::NAN).is_err());
     }
 
     #[test]

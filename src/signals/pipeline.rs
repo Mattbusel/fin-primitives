@@ -788,7 +788,9 @@ impl Default for SignalPipeline {
     }
 }
 
+// These tests drive the built-in indicators, so they need the `indicators` feature.
 #[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::ohlcv::{OhlcvBar, OhlcvSeries};

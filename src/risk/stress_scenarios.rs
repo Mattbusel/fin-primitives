@@ -4,6 +4,8 @@
 //! `StressTester` that applies named scenarios to compute P&L impacts.
 //! Also provides a `CorrelationStressMatrix` for shocked portfolio VaR.
 
+use crate::error::FinError;
+
 /// A single market risk factor with a shock expressed in basis points.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -181,14 +183,30 @@ pub fn stressed_correlation(mat: &CorrelationStressMatrix, i: usize, j: usize) -
 /// Portfolio volatility under the stressed correlation matrix.
 ///
 /// Returns √(wᵀ Σ w) where Σ\[i\]\[j\] = σ_i · σ_j · ρ_stressed(i, j).
+///
+/// # Errors
+/// [`FinError::InvalidInput`] if `vols` or `weights` does not have `mat.n` entries,
+/// or `mat.base_correlations` does not have `mat.n * mat.n`. (Before 3.0 the first
+/// two cases panicked.)
 pub fn portfolio_var_stressed(
     mat: &CorrelationStressMatrix,
     vols: &[f64],
     weights: &[f64],
-) -> f64 {
+) -> Result<f64, FinError> {
     let n = mat.n;
-    assert_eq!(vols.len(), n, "vols length must equal matrix dimension");
-    assert_eq!(weights.len(), n, "weights length must equal matrix dimension");
+    if vols.len() != n || weights.len() != n {
+        return Err(FinError::InvalidInput(format!(
+            "portfolio_var_stressed: matrix dimension is {n} but got {} vols and {} weights",
+            vols.len(),
+            weights.len()
+        )));
+    }
+    if n.checked_mul(n) != Some(mat.base_correlations.len()) {
+        return Err(FinError::InvalidInput(format!(
+            "portfolio_var_stressed: base_correlations has {} entries, expected {n} x {n}",
+            mat.base_correlations.len()
+        )));
+    }
 
     let mut variance = 0.0_f64;
     for i in 0..n {
@@ -197,7 +215,7 @@ pub fn portfolio_var_stressed(
             variance += weights[i] * weights[j] * vols[i] * vols[j] * rho;
         }
     }
-    variance.max(0.0).sqrt()
+    Ok(variance.max(0.0).sqrt())
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -311,7 +329,7 @@ mod tests {
             base_correlations: vec![1.0, 0.1, 0.1, 1.0],
             shock_multiplier: 1.0,
         };
-        let var_low = portfolio_var_stressed(&mat_low, &vols, &weights);
+        let var_low = portfolio_var_stressed(&mat_low, &vols, &weights).unwrap();
 
         // High correlation
         let mat_high = CorrelationStressMatrix {
@@ -319,7 +337,11 @@ mod tests {
             base_correlations: vec![1.0, 0.9, 0.9, 1.0],
             shock_multiplier: 1.0,
         };
-        let var_high = portfolio_var_stressed(&mat_high, &vols, &weights);
+        let var_high = portfolio_var_stressed(&mat_high, &vols, &weights).unwrap();
+        assert!(matches!(
+            portfolio_var_stressed(&mat_high, &vols[..1], &weights),
+            Err(FinError::InvalidInput(_))
+        ));
 
         assert!(var_high > var_low, "higher corr => higher VaR: {var_low} vs {var_high}");
     }

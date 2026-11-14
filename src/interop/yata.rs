@@ -89,6 +89,7 @@ impl TryFrom<&yata::core::Candle> for BarInput {
 }
 
 #[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::signals::indicators::Ema;

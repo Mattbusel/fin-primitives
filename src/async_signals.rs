@@ -181,6 +181,7 @@ async fn run_pipeline(
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::ohlcv::OhlcvBar;

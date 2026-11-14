@@ -3,6 +3,8 @@
 //! Provides swap leg structures, discount curve bootstrapping, NPV, par rate,
 //! DV01, and duration calculations for vanilla interest rate swaps.
 
+use crate::error::FinError;
+
 /// Day count convention for interest accrual.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DayCount {
@@ -101,8 +103,18 @@ impl DiscountCurve {
     ///
     /// For each tenor, solve for the discount factor that reprices the par swap.
     /// The par swap condition: `sum(c * df(t_i) * dcf_i) + df(T) = 1`.
-    pub fn from_par_rates(tenors: &[f64], par_rates: &[f64]) -> Self {
-        assert_eq!(tenors.len(), par_rates.len(), "tenors and par_rates must have equal length");
+    ///
+    /// # Errors
+    /// [`FinError::InvalidInput`] if `tenors` and `par_rates` differ in length.
+    /// (Before 3.0 this panicked.)
+    pub fn from_par_rates(tenors: &[f64], par_rates: &[f64]) -> Result<Self, FinError> {
+        if tenors.len() != par_rates.len() {
+            return Err(FinError::InvalidInput(format!(
+                "DiscountCurve::from_par_rates: {} tenors but {} par rates",
+                tenors.len(),
+                par_rates.len()
+            )));
+        }
         let n = tenors.len();
         let mut curve = DiscountCurve {
             tenors: Vec::with_capacity(n),
@@ -162,7 +174,7 @@ impl DiscountCurve {
             }
         }
 
-        curve
+        Ok(curve)
     }
 }
 
@@ -397,7 +409,11 @@ mod tests {
     fn test_bootstrap_consistent_discount_factors() {
         let tenors = vec![1.0, 2.0, 3.0, 5.0];
         let par_rates = vec![0.04, 0.045, 0.048, 0.052];
-        let curve = DiscountCurve::from_par_rates(&tenors, &par_rates);
+        let curve = DiscountCurve::from_par_rates(&tenors, &par_rates).unwrap();
+        assert!(matches!(
+            DiscountCurve::from_par_rates(&tenors, &par_rates[..2]),
+            Err(FinError::InvalidInput(_))
+        ));
 
         // For each tenor, reprice the par swap using the bootstrapped curve
         for (i, &t) in tenors.iter().enumerate() {

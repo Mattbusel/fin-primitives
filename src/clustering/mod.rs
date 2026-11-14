@@ -4,6 +4,8 @@
 //! which builds an NxN Pearson correlation matrix from asset return series and
 //! clusters assets using the correlation rows as feature vectors.
 
+use crate::error::FinError;
+
 /// A named asset return series.
 #[derive(Debug, Clone)]
 pub struct AssetReturns {
@@ -46,15 +48,30 @@ impl KMeans {
     /// Uses a Linear Congruential Generator seeded with `seed` for reproducible
     /// centroid initialisation.  Runs at most `max_iter` assignment/update cycles.
     ///
-    /// # Panics
-    /// Panics if `data` is empty, `k` is zero, or `k` exceeds `data.len()`.
-    pub fn fit(data: &[Vec<f64>], k: usize, max_iter: u32, seed: u64) -> KMeansResult {
-        assert!(!data.is_empty(), "data must be non-empty");
-        assert!(k > 0, "k must be > 0");
-        assert!(k <= data.len(), "k must not exceed number of data points");
+    /// # Errors
+    /// [`FinError::InvalidInput`] if `data` is empty, the rows differ in length, `k` is
+    /// zero, or `k` exceeds `data.len()`. (Before 3.0 these cases panicked.)
+    pub fn fit(data: &[Vec<f64>], k: usize, max_iter: u32, seed: u64) -> Result<KMeansResult, FinError> {
+        let Some(first) = data.first() else {
+            return Err(FinError::InvalidInput("KMeans::fit: data must be non-empty".to_owned()));
+        };
+        if k == 0 {
+            return Err(FinError::InvalidInput("KMeans::fit: k must be > 0".to_owned()));
+        }
+        if k > data.len() {
+            return Err(FinError::InvalidInput(format!(
+                "KMeans::fit: k = {k} exceeds the number of data points ({})",
+                data.len()
+            )));
+        }
+        let d = first.len();
+        if data.iter().any(|row| row.len() != d) {
+            return Err(FinError::InvalidInput(
+                "KMeans::fit: every feature vector must have the same length".to_owned(),
+            ));
+        }
 
         let n = data.len();
-        let d = data[0].len();
 
         // --- Initialise centroids via LCG ---
         let mut lcg = seed;
@@ -132,12 +149,12 @@ impl KMeans {
             })
             .collect();
 
-        KMeansResult {
+        Ok(KMeansResult {
             assignments: cluster_assignments,
             centroids,
             inertia,
             iterations,
-        }
+        })
     }
 }
 
@@ -180,8 +197,12 @@ impl CorrelationClusterer {
     }
 
     /// Cluster assets into `k` groups using k-means on their correlation rows.
-    pub fn cluster(&mut self, k: usize, seed: u64) -> KMeansResult {
-        let mut result = KMeans::fit(&self.corr_matrix, k, 300, seed);
+    ///
+    /// # Errors
+    /// [`FinError::InvalidInput`] if there are no assets, `k` is zero, or `k` exceeds
+    /// the number of assets (see [`KMeans::fit`]).
+    pub fn cluster(&mut self, k: usize, seed: u64) -> Result<KMeansResult, FinError> {
+        let mut result = KMeans::fit(&self.corr_matrix, k, 300, seed)?;
 
         // Replace numeric placeholder symbols with actual asset symbols.
         for (assign, sym) in result.assignments.iter_mut().zip(self.symbols.iter()) {
@@ -189,7 +210,7 @@ impl CorrelationClusterer {
         }
 
         self.last_result = Some(result.clone());
-        result
+        Ok(result)
     }
 
     /// Returns `(symbol, cluster_id)` pairs from the most recent `cluster` call.
@@ -361,7 +382,7 @@ mod tests {
             vec![0.1], vec![0.2], vec![0.0],
             vec![10.0], vec![10.1], vec![9.9],
         ];
-        let result = KMeans::fit(&data, 2, 100, 42);
+        let result = KMeans::fit(&data, 2, 100, 42).unwrap();
         assert_eq!(result.centroids.len(), 2);
         assert_eq!(result.assignments.len(), 6);
         // Verify the two clusters exist
@@ -373,7 +394,7 @@ mod tests {
     #[test]
     fn test_kmeans_k_equals_n() {
         let data: Vec<Vec<f64>> = vec![vec![1.0], vec![2.0], vec![3.0]];
-        let result = KMeans::fit(&data, 3, 10, 7);
+        let result = KMeans::fit(&data, 3, 10, 7).unwrap();
         assert_eq!(result.centroids.len(), 3);
         assert_eq!(result.assignments.len(), 3);
     }
@@ -381,14 +402,14 @@ mod tests {
     #[test]
     fn test_kmeans_inertia_non_negative() {
         let data: Vec<Vec<f64>> = vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]];
-        let result = KMeans::fit(&data, 2, 50, 1);
+        let result = KMeans::fit(&data, 2, 50, 1).unwrap();
         assert!(result.inertia >= 0.0);
     }
 
     #[test]
     fn test_kmeans_iterations_bounded() {
         let data: Vec<Vec<f64>> = (0..20).map(|i| vec![i as f64]).collect();
-        let result = KMeans::fit(&data, 3, 5, 99);
+        let result = KMeans::fit(&data, 3, 5, 99).unwrap();
         assert!(result.iterations <= 5);
     }
 
@@ -444,7 +465,7 @@ mod tests {
             make_asset("C", vec![-0.01, -0.02, -0.03]),
         ];
         let mut clusterer = CorrelationClusterer::from_returns(&assets);
-        let _result = clusterer.cluster(2, 42);
+        let _result = clusterer.cluster(2, 42).unwrap();
         let labels = clusterer.cluster_labels();
         assert_eq!(labels.len(), 3);
         let symbols: Vec<&str> = labels.iter().map(|(s, _)| s.as_str()).collect();
@@ -469,7 +490,7 @@ mod tests {
             make_asset("D", vec![-0.03, -0.02, -0.01, 0.00]),
         ];
         let mut clusterer = CorrelationClusterer::from_returns(&assets);
-        let result = clusterer.cluster(2, 5);
+        let result = clusterer.cluster(2, 5).unwrap();
         let score = clusterer.silhouette_score(&result);
         assert!((-1.0..=1.0).contains(&score), "Silhouette must be in [-1, 1]");
     }
@@ -481,7 +502,19 @@ mod tests {
             make_asset("B", vec![0.01, 0.02]),
         ];
         let mut clusterer = CorrelationClusterer::from_returns(&assets);
-        let result = clusterer.cluster(1, 1);
+        let result = clusterer.cluster(1, 1).unwrap();
         assert_eq!(clusterer.silhouette_score(&result), 0.0);
+    }
+
+    #[test]
+    fn test_kmeans_rejects_bad_input() {
+        let data: Vec<Vec<f64>> = vec![vec![1.0], vec![2.0]];
+        assert!(matches!(KMeans::fit(&[], 1, 10, 0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(KMeans::fit(&data, 0, 10, 0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(KMeans::fit(&data, 3, 10, 0), Err(FinError::InvalidInput(_))));
+        let ragged: Vec<Vec<f64>> = vec![vec![1.0], vec![2.0, 3.0]];
+        assert!(matches!(KMeans::fit(&ragged, 1, 10, 0), Err(FinError::InvalidInput(_))));
+        let mut empty = CorrelationClusterer::from_returns(&[]);
+        assert!(empty.cluster(1, 0).is_err());
     }
 }

@@ -6,6 +6,88 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.0.0] - Unreleased
+
+The default build no longer pulls in a Tokio runtime, every domain module outside the
+core sits behind its own Cargo feature, and `statrs` is gone. With
+`default-features = false` the crate is now the core types, order book, candles and
+the `Signal` trait on top of four dependencies (chrono, rust_decimal, thiserror, libm).
+Measured `cargo check` times are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#feature-flags-and-compile-time).
+
+### Migrating from 2.x
+
+- **Using `async_signals`?** `async` is no longer a default feature. Add it:
+  `fin-primitives = { version = "3", features = ["async"] }` (or `features = ["full"]`).
+- **Using `default-features = false`?** That now means the core only. Add back the
+  domains you use, for example `features = ["serde", "indicators", "options"]`. The
+  table below maps modules to features.
+- **Default features, no `async_signals`?** Nothing to do for the module layout; check
+  the signature changes below.
+- **Signature changes.** Eleven public `assert!`s became errors, so these now return
+  `Result<_, FinError>` (`FinError::InvalidInput`) instead of panicking: add a `?`.
+  - `clustering::KMeans::fit` (empty data, `k == 0`, `k > data.len()`, and now also
+    ragged rows) and `clustering::CorrelationClusterer::cluster`
+  - `credit::cds::HazardCurve::from_par_spreads` (length mismatch)
+  - `crypto::FundingHistory::new` (`max_size == 0`)
+  - `derivatives::swaps::DiscountCurve::new` (length mismatch)
+  - `fixed_income::swaps::DiscountCurve::from_par_rates` (length mismatch)
+  - `risk::stress_scenarios::portfolio_var_stressed` (vols/weights/correlation sizes)
+  - `signals::composite::CompositeBuilder::build` (no constituents)
+  - `yield_curve::YieldCurve::forward_rate` (`t2 <= t1` or NaN)
+
+### Changed (breaking)
+- `default = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income",
+  "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve",
+  "clustering", "montecarlo"]`: everything except `async`. New alias `full` adds `async`.
+- Module features (all default on):
+
+  | feature | modules |
+  |---|---|
+  | `indicators` | `signals::indicators`, `technical`, `regime`, `correlation`, `volatility` |
+  | `options` | `greeks`, `options` |
+  | `portfolio` | `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance` |
+  | `risk` (implies `portfolio`) | `risk`, `scenario`, `cross_asset`, `liquidity` |
+  | `backtest` (implies `portfolio`) | `backtest`, `execution`, `execution_cost`, `impact`, `latency`, `microstructure` |
+  | `ml` | `ml`, `ml_features`, `alternative_data`, `pairs_trading`, `events` |
+  | `crypto` | `crypto`, `funding`, `arbitrage` |
+  | `fixed-income`, `yield-curve`, `derivatives`, `credit`, `tax`, `clustering`, `montecarlo` | the module of the same name |
+
+  Always compiled: `types`, `tick`, `orderbook`, `ohlcv`, `signals` (the `Signal` trait,
+  `BarInput`, `SignalValue`, pipeline, composition and warm-up tools), `normal`,
+  `interop`, `error`.
+- `python` now turns on `indicators` (the bindings expose SMA, EMA and RSI).
+- docs.rs builds with `full`.
+
+### Removed
+- `statrs` dependency (and with it `approx`; `num-traits` and `arrayvec` stay, via chrono and rust_decimal).
+  `normal::inv_cdf` is now Wichura's AS 241 (`PPND16`), about 1e-16 relative error.
+  New tests: mpmath quantiles down to p = 1e-300, `|inv_cdf(cdf(x)) - x| < 1e-12` for
+  x in [-37, 3] in steps of 0.01, and odd symmetry.
+
+### Fixed
+- `backtest::Backtester` no longer contains an `unreachable!()`; library code outside
+  tests now has no `assert!`, `panic!` or `unreachable!`.
+
+### Added
+- `tests/core_only.rs`: Price/Quantity validation, the order book (sequence gaps,
+  crossed-book rollback, VWAP), ticks to OHLCV and a user-defined `Signal`, run with
+  `cargo test --no-default-features --test core_only`.
+- Examples and integration tests declare `required-features`, and tests and doc
+  examples that use the indicator library are gated on `indicators`, so
+  `cargo test --no-default-features` builds and passes (532 unit, 105 integration,
+  30 doc tests).
+
+---
+
+## [2.15.2] - 2026-10-21
+
+### Changed
+- Version bump only, published to crates.io from a tree whose `src/` is byte-identical
+  to 2.15.1. The bump was not committed at the time; this entry records it. No code
+  changes.
+
+---
+
 ## [2.15.1] - 2026-10-17
 
 ### Changed

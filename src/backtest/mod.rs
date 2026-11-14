@@ -181,7 +181,7 @@ impl Backtester {
                     let side = match sig.direction {
                         SignalDirection::Buy => Side::Bid,
                         SignalDirection::Sell => Side::Ask,
-                        SignalDirection::Hold => unreachable!(),
+                        SignalDirection::Hold => continue,
                     };
 
                     let price = Price::new(bar.close.value())?;

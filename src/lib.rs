@@ -76,12 +76,14 @@
 //!
 //! ```
 //! use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
+//! # #[cfg(feature = "indicators")]
 //! use fin_primitives::signals::indicators::Sma;
 //! use fin_primitives::signals::{BarInput, Signal, SignalValue};
 //! use fin_primitives::tick::Tick;
 //! use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
 //! use rust_decimal_macros::dec;
 //!
+//! # #[cfg(feature = "indicators")]
 //! # fn main() -> Result<(), fin_primitives::FinError> {
 //! let sym = Symbol::new("ETH-USD")?;
 //! let mut agg = OhlcvAggregator::new(sym.clone(), Timeframe::Minutes(1))?;
@@ -106,6 +108,8 @@
 //! assert_eq!(values[2], SignalValue::Scalar(dec!(3190)));
 //! # Ok(())
 //! # }
+//! # #[cfg(not(feature = "indicators"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Runnable examples
@@ -132,7 +136,7 @@
 //! | [`risk`] | `DrawdownTracker`, the [`RiskRule`](risk::RiskRule) trait, [`RiskMonitor`](risk::RiskMonitor), VaR and stress tools |
 //! | [`greeks`] | [`BlackScholes`](greeks::BlackScholes) pricing, Greeks, implied volatility, multi-leg spreads |
 //! | [`backtest`] | bar-by-bar `Backtester`, `Strategy` trait, `WalkForwardOptimizer` |
-//! | [`async_signals`] | Tokio-based `StreamingSignalPipeline` |
+//! | `async_signals` | Tokio-based `StreamingSignalPipeline` (feature `async`) |
 //! | [`regime`] | Hurst exponent, GARCH(1,1), correlation-breakdown regime detection |
 //!
 //! Further modules cover portfolio optimization, factor models, yield curves,
@@ -141,13 +145,41 @@
 //!
 //! ## Feature flags
 //!
+//! Since 3.0 every domain module sits behind its own feature. All of them are on by
+//! default except `async`, so `cargo add fin-primitives` gets everything but no
+//! async runtime. With `default-features = false` you get only the core: [`types`],
+//! [`tick`], [`orderbook`], [`ohlcv`], the [`Signal`](signals::Signal) trait and its
+//! pipeline and composition tools, [`normal`], [`interop`] and [`FinError`], built on
+//! chrono, rust_decimal, thiserror and libm.
+//!
+//! ```toml
+//! # Only the core types, order book and candles:
+//! fin-primitives = { version = "3", default-features = false }
+//! # Core plus the indicator library and serde:
+//! fin-primitives = { version = "3", default-features = false, features = ["serde", "indicators"] }
+//! # Everything, including the Tokio pipeline (3.0 moved `async` out of default):
+//! fin-primitives = { version = "3", features = ["async"] }
+//! ```
+//!
 //! | feature | default | adds |
 //! |---|---|---|
 //! | `serde` | yes | `Serialize`/`Deserialize` on the data types; deserializing re-runs validation |
-//! | `async` | yes | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+//! | `indicators` | yes | `signals::indicators` (700+ indicators), `technical`, `regime`, `correlation`, `volatility` |
+//! | `options` | yes | `greeks` (Black-Scholes, Greeks, implied vol, spreads) and `options` |
+//! | `portfolio` | yes | `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance` |
+//! | `risk` | yes | `risk`, `scenario`, `cross_asset`, `liquidity` (turns on `portfolio`) |
+//! | `backtest` | yes | `backtest`, `execution`, `execution_cost`, `impact`, `latency`, `microstructure` (turns on `portfolio`) |
+//! | `ml` | yes | `ml`, `ml_features`, `alternative_data`, `pairs_trading`, `events` |
+//! | `crypto` | yes | `crypto`, `funding`, `arbitrage` |
+//! | `fixed-income`, `yield-curve`, `derivatives`, `credit` | yes | `fixed_income`, `yield_curve`, `derivatives`, `credit` |
+//! | `tax`, `clustering`, `montecarlo` | yes | `tax`, `clustering`, `montecarlo` |
+//! | `async` | **no** (yes before 3.0) | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+//! | `full` | no | every feature above, including `async` |
 //! | `ta`, `yata`, `wickra` | no | [`interop`] with those crates: their indicators read fin-primitives bars, their bars convert to [`BarInput`](signals::BarInput) |
 //! | `arrow` | no | `arrow`: bars to and from Apache Arrow with exact `Decimal128` columns |
 //! | `python` | no | PyO3 bindings, built with maturin from the repository's `python/` folder |
+//!
+//! The doc examples on this page use the default features.
 //!
 //! [`normal`] has the standard normal CDF, PDF and inverse used by every pricer and
 //! VaR model here (accurate to about 1e-15 relative, including the tails).
@@ -173,67 +205,183 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// The crate and module docs link to feature-gated modules (`position`, `risk`,
+// `greeks`, `signals::indicators`). Those links resolve in the default and docs.rs
+// builds; with some of those features off they have no target, which is expected.
+#![cfg_attr(
+    not(all(feature = "indicators", feature = "options", feature = "portfolio", feature = "risk")),
+    allow(rustdoc::broken_intra_doc_links)
+)]
 
-#[cfg(feature = "async")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-pub mod async_signals;
-pub mod backtest;
+// Core: always compiled. These modules depend only on chrono, rust_decimal,
+// thiserror and libm (plus serde when that feature is on).
 pub mod error;
-pub mod greeks;
-pub mod normal;
 pub mod interop;
-#[cfg(feature = "arrow")]
-#[cfg_attr(docsrs, doc(cfg(feature = "arrow")))]
-pub mod arrow;
+pub mod normal;
 pub mod ohlcv;
 pub mod orderbook;
-pub mod position;
-pub mod risk;
 pub mod signals;
 pub mod tick;
 pub mod types;
-pub mod pnl;
-pub mod correlation;
-pub mod latency;
-pub mod scenario;
-pub mod microstructure;
-pub mod ml;
-pub mod regime;
-pub mod cross_asset;
-pub mod attribution;
-pub mod options;
-pub mod volatility;
-pub mod impact;
-pub mod portfolio;
 
+// Optional integrations.
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_signals;
+#[cfg(feature = "arrow")]
+#[cfg_attr(docsrs, doc(cfg(feature = "arrow")))]
+pub mod arrow;
 #[cfg(feature = "python")]
 pub mod python;
-pub mod factor;
-pub mod execution;
-pub mod montecarlo;
-pub mod yield_curve;
-pub mod events;
-pub mod crypto;
-pub mod derivatives;
+
+// Domain modules, each behind a Cargo feature (all on by default).
+
+// feature = "indicators"
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
+pub mod correlation;
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
+pub mod regime;
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
 pub mod technical;
-pub mod fixed_income;
-pub mod liquidity;
-pub mod pairs_trading;
-pub mod ml_features;
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
+pub mod volatility;
+
+// feature = "options"
+#[cfg(feature = "options")]
+#[cfg_attr(docsrs, doc(cfg(feature = "options")))]
+pub mod greeks;
+#[cfg(feature = "options")]
+#[cfg_attr(docsrs, doc(cfg(feature = "options")))]
+pub mod options;
+
+// feature = "portfolio"
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
+pub mod attribution;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
+pub mod factor;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
 pub mod performance;
-pub mod clustering;
-pub mod tax;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
+pub mod pnl;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
+pub mod portfolio;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
+pub mod position;
+#[cfg(feature = "portfolio")]
+#[cfg_attr(docsrs, doc(cfg(feature = "portfolio")))]
 pub mod rebalancing;
-pub mod funding;
-pub mod alternative_data;
-pub mod arbitrage;
+
+// feature = "risk"
+#[cfg(feature = "risk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "risk")))]
+pub mod cross_asset;
+#[cfg(feature = "risk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "risk")))]
+pub mod liquidity;
+#[cfg(feature = "risk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "risk")))]
+pub mod risk;
+#[cfg(feature = "risk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "risk")))]
+pub mod scenario;
+
+// feature = "backtest"
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
+pub mod backtest;
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
+pub mod execution;
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
 pub mod execution_cost;
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
+pub mod impact;
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
+pub mod latency;
+#[cfg(feature = "backtest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "backtest")))]
+pub mod microstructure;
+
+// feature = "ml"
+#[cfg(feature = "ml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml")))]
+pub mod alternative_data;
+#[cfg(feature = "ml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml")))]
+pub mod events;
+#[cfg(feature = "ml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml")))]
+pub mod ml;
+#[cfg(feature = "ml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml")))]
+pub mod ml_features;
+#[cfg(feature = "ml")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ml")))]
+pub mod pairs_trading;
+
+// feature = "crypto"
+#[cfg(feature = "crypto")]
+#[cfg_attr(docsrs, doc(cfg(feature = "crypto")))]
+pub mod arbitrage;
+#[cfg(feature = "crypto")]
+#[cfg_attr(docsrs, doc(cfg(feature = "crypto")))]
+pub mod crypto;
+#[cfg(feature = "crypto")]
+#[cfg_attr(docsrs, doc(cfg(feature = "crypto")))]
+pub mod funding;
+
+// feature = "fixed-income"
+#[cfg(feature = "fixed-income")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fixed-income")))]
+pub mod fixed_income;
+
+// feature = "derivatives"
+#[cfg(feature = "derivatives")]
+#[cfg_attr(docsrs, doc(cfg(feature = "derivatives")))]
+pub mod derivatives;
+
+// feature = "credit"
+#[cfg(feature = "credit")]
+#[cfg_attr(docsrs, doc(cfg(feature = "credit")))]
 pub mod credit;
+
+// feature = "tax"
+#[cfg(feature = "tax")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tax")))]
+pub mod tax;
+
+// feature = "yield-curve"
+#[cfg(feature = "yield-curve")]
+#[cfg_attr(docsrs, doc(cfg(feature = "yield-curve")))]
+pub mod yield_curve;
+
+// feature = "clustering"
+#[cfg(feature = "clustering")]
+#[cfg_attr(docsrs, doc(cfg(feature = "clustering")))]
+pub mod clustering;
+
+// feature = "montecarlo"
+#[cfg(feature = "montecarlo")]
+#[cfg_attr(docsrs, doc(cfg(feature = "montecarlo")))]
+pub mod montecarlo;
 
 pub use error::FinError;
 
 /// Compiles and runs the Rust code blocks in README.md as doc tests, so the README
 /// cannot drift from the API.
-#[cfg(doctest)]
+#[cfg(all(doctest, feature = "indicators"))]
 #[doc = include_str!("../README.md")]
 pub struct ReadmeDoctests;

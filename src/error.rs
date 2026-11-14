@@ -91,6 +91,7 @@ pub enum FinError {
 /// bookkeeping guarantees is present (for example the newest bar of a full window).
 /// Seeing it means a bug in fin-primitives, not bad input; please report it.
 #[cold]
+#[cfg_attr(not(feature = "indicators"), allow(dead_code))]
 pub(crate) fn invariant_broken() -> FinError {
     FinError::InvalidInput("internal invariant broken (please report this as a fin-primitives bug)".to_owned())
 }

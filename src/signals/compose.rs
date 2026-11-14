@@ -32,6 +32,8 @@
 //! ## Example
 //!
 //! ```rust
+//! # #[cfg(feature = "indicators")]
+//! # {
 //! use fin_primitives::signals::indicators::Rsi;
 //! use fin_primitives::signals::{BarInput, Signal};
 //! use fin_primitives::signals::compose::{SignalBuilder, NormMethod, Direction};
@@ -48,6 +50,7 @@
 //!
 //! let bar = BarInput::from_close(dec!(100));
 //! let _value = composed.update(&bar); // Ok(Unavailable) during warmup
+//! # }
 //! ```
 
 use crate::error::FinError;
@@ -583,6 +586,8 @@ impl Signal for ComposedSignal {
 /// # Example
 ///
 /// ```rust
+/// # #[cfg(feature = "indicators")]
+/// # {
 /// use fin_primitives::signals::indicators::Sma;
 /// use fin_primitives::signals::{BarInput, Signal};
 /// use fin_primitives::signals::compose::{SignalBuilder, NormMethod, Direction};
@@ -596,6 +601,7 @@ impl Signal for ComposedSignal {
 ///
 /// let bar = BarInput::from_close(dec!(100));
 /// let _ = composed.update(&bar);
+/// # }
 /// ```
 pub struct SignalBuilder<S: Signal + 'static> {
     signal: S,
@@ -675,7 +681,9 @@ impl<S: Signal + 'static> SignalBuilder<S> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// These tests drive the built-in indicators, so they need the `indicators` feature.
 #[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::signals::indicators::{Ema, Rsi, Sma};

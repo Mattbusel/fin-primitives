@@ -20,6 +20,8 @@
 //! ## Example
 //!
 //! ```rust
+//! # #[cfg(feature = "indicators")]
+//! # {
 //! use fin_primitives::signals::indicators::Sma;
 //! use fin_primitives::signals::{BarInput, Signal};
 //! use fin_primitives::signals::warmup::{WarmupContract, WarmupGuard};
@@ -39,6 +41,7 @@
 //! let bar = BarInput::from_close(dec!(100));
 //! let result = guard.update_checked(&bar);
 //! assert!(result.is_ok());
+//! # }
 //! ```
 
 use crate::error::FinError;
@@ -129,6 +132,8 @@ pub struct NotReady {
 /// # Example
 ///
 /// ```rust
+/// # #[cfg(feature = "indicators")]
+/// # {
 /// use fin_primitives::signals::indicators::Ema;
 /// use fin_primitives::signals::{BarInput, Signal};
 /// use fin_primitives::signals::warmup::WarmupGuard;
@@ -139,6 +144,7 @@ pub struct NotReady {
 ///
 /// let bar = BarInput::from_close(dec!(50));
 /// assert!(guard.update_checked(&bar).is_err()); // not ready yet
+/// # }
 /// ```
 pub struct WarmupGuard<S: Signal> {
     inner: S,
@@ -269,6 +275,8 @@ impl SignalWarmupStatus {
 /// # Example
 ///
 /// ```rust
+/// # #[cfg(feature = "indicators")]
+/// # {
 /// use fin_primitives::signals::indicators::{Sma, Rsi};
 /// use fin_primitives::signals::warmup::{WarmupContract, WarmupReporter};
 ///
@@ -280,6 +288,7 @@ impl SignalWarmupStatus {
 /// ], vec!["sma10".into(), "rsi14".into()]);
 /// let report = reporter.report(0);
 /// assert!(!report.all_ready());
+/// # }
 /// ```
 #[derive(Debug, Clone)]
 pub struct WarmupReport {
@@ -457,7 +466,9 @@ impl WarmupReporter {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// These tests drive the built-in indicators, so they need the `indicators` feature.
 #[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::signals::indicators::{Ema, Rsi, Sma};

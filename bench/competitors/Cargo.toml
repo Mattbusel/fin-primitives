@@ -6,7 +6,7 @@ publish = false
 description = "Criterion benchmarks and agreement checks: fin-primitives vs ta, yata and black_scholes on the same inputs."
 
 [dependencies]
-fin-primitives = { path = "../..", default-features = false }
+fin-primitives = { path = "../..", default-features = false, features = ["indicators", "options"] }
 rust_decimal = "1"
 ta = "0.5"
 yata = "0.7"

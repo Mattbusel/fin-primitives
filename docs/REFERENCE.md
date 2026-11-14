@@ -1035,7 +1035,7 @@ The `yield_curve` module provides a full yield curve construction and analytics 
 
 | Method | Formula |
 |--------|---------|
-| `forward_rate(t1, t2)` | `f = (r2·t2 − r1·t1) / (t2 − t1)` |
+| `forward_rate(t1, t2)` | `f = (r2·t2 − r1·t1) / (t2 − t1)`; `Err(FinError::InvalidInput)` unless `t2 > t1` |
 | `duration(cash_flows)` | Macaulay: `Σ(t · CF · e^(−r·t)) / Σ(CF · e^(−r·t))` |
 | `convexity(cash_flows)` | `Σ(t² · CF · e^(−r·t)) / PV` |
 | `shape()` | Classifies as `Normal / Inverted / Flat / Humped` |
@@ -1147,7 +1147,8 @@ configurable via [`DetectorConfig`].
 <summary><b>Async Streaming Signals</b></summary>
 
 The `async_signals` module wraps any `SignalPipeline` with Tokio MPSC channels
-for non-blocking, zero-copy signal streaming.
+for non-blocking, zero-copy signal streaming. It needs the `async` feature, which is
+off by default since 3.0: `fin-primitives = { version = "3", features = ["async"] }`.
 
 ```rust
 use fin_primitives::async_signals::{StreamingSignalPipeline, spawn_signal_stream};
@@ -1321,14 +1322,14 @@ let mut blend = CompositeSignal::builder("sma_rsi_blend")
     .add(Sma::new("sma20", 20)?, dec!(0.5))
     .add(Rsi::new("rsi14", 14)?, dec!(0.5))
     .mode(CompositeMode::WeightedSum)
-    .build();
+    .build()?; // Err(FinError::InvalidInput) if no constituents were added
 
 // AND gate: fire only when both are non-zero.
 let mut gate = CompositeSignal::builder("trend_confirm")
     .add(Sma::new("sma50", 50)?, dec!(1))
     .add(Rsi::new("rsi14", 14)?, dec!(1))
     .mode(CompositeMode::All)
-    .build();
+    .build()?;
 ```
 
 </details>

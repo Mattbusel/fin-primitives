@@ -12,6 +12,7 @@
 
 pub mod defi;
 
+use crate::error::FinError;
 use std::collections::VecDeque;
 
 // ─────────────────────────────────────────
@@ -134,15 +135,16 @@ pub struct FundingHistory {
 impl FundingHistory {
     /// Create a new `FundingHistory` with the given maximum capacity.
     ///
-    /// # Panics
-    /// Panics if `max_size` is zero.
-    #[must_use]
-    pub fn new(max_size: usize) -> Self {
-        assert!(max_size > 0, "FundingHistory max_size must be > 0");
-        Self {
+    /// # Errors
+    /// [`FinError::InvalidInput`] if `max_size` is zero. (Before 3.0 this panicked.)
+    pub fn new(max_size: usize) -> Result<Self, FinError> {
+        if max_size == 0 {
+            return Err(FinError::InvalidInput("FundingHistory max_size must be > 0".to_owned()));
+        }
+        Ok(Self {
             data: VecDeque::with_capacity(max_size),
             max_size,
-        }
+        })
     }
 
     /// Push a new funding rate, evicting the oldest if at capacity.
@@ -351,7 +353,7 @@ mod tests {
 
     #[test]
     fn funding_history_average() {
-        let mut hist = FundingHistory::new(10);
+        let mut hist = FundingHistory::new(10).unwrap();
         hist.push(FundingRate::new("X", 0.0002, 0));
         hist.push(FundingRate::new("X", 0.0004, 1));
         assert!((hist.average_rate() - 0.0003).abs() < 1e-10);
@@ -359,7 +361,7 @@ mod tests {
 
     #[test]
     fn funding_history_cumulative() {
-        let mut hist = FundingHistory::new(10);
+        let mut hist = FundingHistory::new(10).unwrap();
         for i in 1..=5_u64 {
             hist.push(FundingRate::new("X", 0.0001, i));
         }
@@ -367,8 +369,13 @@ mod tests {
     }
 
     #[test]
+    fn funding_history_rejects_zero_capacity() {
+        assert!(matches!(FundingHistory::new(0), Err(FinError::InvalidInput(_))));
+    }
+
+    #[test]
     fn funding_history_eviction() {
-        let mut hist = FundingHistory::new(3);
+        let mut hist = FundingHistory::new(3).unwrap();
         for i in 0..5_u64 {
             hist.push(FundingRate::new("X", i as f64 * 0.001, i));
         }
@@ -377,7 +384,7 @@ mod tests {
 
     #[test]
     fn funding_history_trend_increasing() {
-        let mut hist = FundingHistory::new(20);
+        let mut hist = FundingHistory::new(20).unwrap();
         for i in 0..10_u64 {
             hist.push(FundingRate::new("X", i as f64 * 0.0001, i));
         }

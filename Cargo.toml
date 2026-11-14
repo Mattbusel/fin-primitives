@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "2.15.1"
+version = "3.0.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -15,10 +15,43 @@ categories = ["finance", "mathematics", "data-structures"]
 include = ["src/**/*", "benches/**/*", "tests/**/*", "examples/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [features]
-default = ["serde", "async"]
+# Everything except the Tokio runtime is on by default. For only the core types
+# (Price, Quantity, Symbol, Tick, OrderBook, OHLCV, the Signal trait and the normal
+# distribution) use `default-features = false`.
+default = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income", "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve", "clustering", "montecarlo"]
+## Every domain module plus `async` (not the interop crates or `python`).
+full = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income", "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve", "clustering", "montecarlo", "async"]
 ## Serialize and Deserialize for the data types (prices as exact decimal strings).
 serde = ["dep:serde", "rust_decimal/serde-with-str", "chrono/serde"]
-## `async_signals`: a Tokio task that runs a signal pipeline over a channel of bars.
+## `signals::indicators` (700+ streaming indicators), `technical`, `regime`, `correlation`, `volatility`.
+indicators = []
+## `greeks` (Black-Scholes, Greeks, implied volatility) and `options` (chains, spreads, exotics).
+options = []
+## `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance`.
+portfolio = []
+## `risk`, `scenario`, `cross_asset`, `liquidity`.
+risk = ["portfolio"]
+## `fixed_income`: bonds, duration, convexity, swap curves.
+fixed-income = []
+## `derivatives`: swaps, forwards, futures.
+derivatives = []
+## `crypto`, `funding` and `arbitrage`: perpetual funding rates, DeFi maths, cross-venue arbitrage.
+crypto = []
+## `credit`: CDS pricing and hazard curves.
+credit = []
+## `ml`, `ml_features`, `alternative_data`, `pairs_trading`, `events`: statistical models.
+ml = []
+## `backtest`, `execution`, `execution_cost`, `impact`, `latency`, `microstructure`.
+backtest = ["portfolio"]
+## `tax`: tax lots and realized gains.
+tax = []
+## `yield_curve`: yield curve construction and interpolation.
+yield-curve = []
+## `clustering`: k-means and correlation clustering.
+clustering = []
+## `montecarlo`: Monte Carlo path simulation.
+montecarlo = []
+## `async_signals`: a Tokio task that runs a signal pipeline over a channel of bars. Off by default since 3.0.
 async = ["dep:tokio"]
 ## Interop: fin-primitives bars implement `ta`'s Open/High/Low/Close/Volume traits.
 ta = ["dep:ta"]
@@ -29,11 +62,11 @@ wickra = ["dep:wickra-core"]
 ## Arrow `RecordBatch` export and import for bars, with exact Decimal128 columns (needs Rust 1.88+).
 arrow = ["dep:arrow-array", "dep:arrow-schema"]
 ## PyO3 bindings; build the wheel with `maturin develop --features python` (needs Rust 1.83+).
-python = ["dep:pyo3"]
+python = ["dep:pyo3", "indicators"]
 
 [package.metadata.docs.rs]
-# Default features (serde, async). `python` is left out: it needs a Python interpreter at build time.
-features = ["serde", "async"]
+# Every domain module plus `async`. `python` is left out: it needs a Python interpreter at build time.
+features = ["full"]
 rustdoc-args = ["--cfg", "docsrs"]
 # Scrape the examples so docs.rs shows real call sites next to the APIs they use.
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
@@ -51,15 +84,13 @@ thiserror = "2"
 pyo3 = { version = "0.29", features = ["extension-module"], optional = true }
 # libm: erfc for the standard normal CDF (about 1e-15 relative error, also in the tails)
 libm = "0.2.11"
-# statrs: inverse error function for the normal quantile (VaR z-scores)
-statrs = { version = "0.18", default-features = false }
 # Interop with other trading crates, each optional and off by default.
 ta = { version = "0.5", optional = true, default-features = false }
 yata = { version = "0.7", optional = true, default-features = false }
 wickra-core = { version = "1", optional = true, default-features = false }
 arrow-array = { version = "60", optional = true, default-features = false }
 arrow-schema = { version = "60", optional = true, default-features = false }
-# tokio: runtime for the async_signals pipeline (optional, `async` feature, on by default)
+# tokio: runtime for the async_signals pipeline (optional, `async` feature, off by default)
 tokio = { version = "1.40", features = ["rt", "sync"], optional = true }
 
 # On wasm32-unknown-unknown the clock comes from JavaScript (`Date.now`), so
@@ -134,6 +165,60 @@ if_not_else = "allow"
 explicit_iter_loop = "allow"
 manual_let_else = "allow"
 
+# Examples and tests that use a feature-gated module are skipped (not failed) when
+# that feature is off, so `cargo test --no-default-features` runs the core suite.
 [[example]]
 name = "with_ta"
-required-features = ["ta"]
+required-features = ["ta", "indicators"]
+
+[[example]]
+name = "candles"
+required-features = ["indicators"]
+
+[[example]]
+name = "option_chain"
+required-features = ["options"]
+
+[[example]]
+name = "position_risk"
+required-features = ["risk"]
+
+[[example]]
+name = "value_at_risk"
+required-features = ["risk"]
+
+[[test]]
+name = "api_coverage"
+required-features = ["risk"]
+
+[[test]]
+name = "edge_cases"
+required-features = ["indicators", "portfolio"]
+
+[[test]]
+name = "indicator_accuracy"
+required-features = ["indicators"]
+
+[[test]]
+name = "position_lifecycle"
+required-features = ["portfolio"]
+
+[[test]]
+name = "position_risk_integration"
+required-features = ["risk"]
+
+[[test]]
+name = "property_math_book"
+required-features = ["options"]
+
+[[test]]
+name = "property_tests"
+required-features = ["indicators", "risk"]
+
+[[test]]
+name = "risk_monitor"
+required-features = ["risk"]
+
+[[test]]
+name = "signal_pipeline"
+required-features = ["indicators"]

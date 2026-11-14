@@ -3,6 +3,8 @@
 //! Implements survival probability curves, CDS NPV, par spread, and CS01
 //! using piecewise-constant hazard rates bootstrapped from market spreads.
 
+use crate::error::FinError;
+
 /// Piecewise-flat hazard rate curve for credit default modeling.
 #[derive(Debug, Clone)]
 pub struct HazardCurve {
@@ -62,8 +64,18 @@ impl HazardCurve {
     ///
     /// Uses the approximation: `h ≈ spread / (1 - recovery)` for each tenor,
     /// adjusted sequentially for prior-period survival.
-    pub fn from_par_spreads(tenors: &[f64], spreads: &[f64], recovery: f64) -> Self {
-        assert_eq!(tenors.len(), spreads.len());
+    ///
+    /// # Errors
+    /// [`FinError::InvalidInput`] if `tenors` and `spreads` differ in length.
+    /// (Before 3.0 this panicked.)
+    pub fn from_par_spreads(tenors: &[f64], spreads: &[f64], recovery: f64) -> Result<Self, FinError> {
+        if tenors.len() != spreads.len() {
+            return Err(FinError::InvalidInput(format!(
+                "HazardCurve::from_par_spreads: {} tenors but {} spreads",
+                tenors.len(),
+                spreads.len()
+            )));
+        }
         let n = tenors.len();
         let mut hazard_rates = Vec::with_capacity(n);
 
@@ -76,10 +88,10 @@ impl HazardCurve {
             hazard_rates.push(h);
         }
 
-        HazardCurve {
+        Ok(HazardCurve {
             tenors: tenors.to_vec(),
             hazard_rates,
-        }
+        })
     }
 }
 
@@ -318,7 +330,8 @@ mod tests {
             &[1.0, 2.0, 3.0, 5.0],
             &[spread; 4],
             recovery,
-        );
+        )
+        .unwrap();
         let spec = CdsSpec {
             notional: 1_000_000.0,
             premium_rate: spread,
@@ -361,7 +374,11 @@ mod tests {
     fn test_from_par_spreads_bootstrap() {
         let tenors = vec![1.0, 2.0, 3.0, 5.0];
         let spreads = vec![0.01, 0.015, 0.018, 0.022];
-        let hazard = HazardCurve::from_par_spreads(&tenors, &spreads, 0.4);
+        let hazard = HazardCurve::from_par_spreads(&tenors, &spreads, 0.4).unwrap();
+        assert!(matches!(
+            HazardCurve::from_par_spreads(&tenors, &spreads[..3], 0.4),
+            Err(FinError::InvalidInput(_))
+        ));
         assert_eq!(hazard.hazard_rates.len(), 4);
         // All hazard rates should be positive
         for h in &hazard.hazard_rates {

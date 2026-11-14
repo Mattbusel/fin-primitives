@@ -3,6 +3,8 @@
 //! Provides day-count conventions, swap leg representations, discount curve
 //! interpolation, par swap rate, DV01, and NPV calculation.
 
+use crate::error::FinError;
+
 /// Day-count convention used to compute year fractions between dates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DayCountConvention {
@@ -133,19 +135,23 @@ impl DiscountCurve {
     ///
     /// Pairs are sorted by maturity ascending.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `maturities` and `discount_factors` differ in length.
-    pub fn new(maturities: Vec<f64>, discount_factors: Vec<f64>) -> Self {
-        assert_eq!(
-            maturities.len(),
-            discount_factors.len(),
-            "maturities and discount_factors must have the same length"
-        );
-        let mut pairs: Vec<(f64, f64)> = maturities
-            .into_iter()
-            .zip(discount_factors)
-            .collect();
+    /// [`FinError::InvalidInput`] if `maturities` and `discount_factors` differ in
+    /// length. (Before 3.0 this panicked.)
+    pub fn new(maturities: Vec<f64>, discount_factors: Vec<f64>) -> Result<Self, FinError> {
+        if maturities.len() != discount_factors.len() {
+            return Err(FinError::InvalidInput(format!(
+                "DiscountCurve::new: {} maturities but {} discount factors",
+                maturities.len(),
+                discount_factors.len()
+            )));
+        }
+        Ok(Self::from_pairs(maturities.into_iter().zip(discount_factors).collect()))
+    }
+
+    /// Builds the curve from `(maturity, discount factor)` pairs, sorting by maturity.
+    fn from_pairs(mut pairs: Vec<(f64, f64)>) -> Self {
         pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let (mats, dfs): (Vec<f64>, Vec<f64>) = pairs.into_iter().unzip();
         Self {
@@ -381,7 +387,8 @@ pub fn dv01(swap: &InterestRateSwap, curve: &DiscountCurve, valuation_date: u64)
         })
         .collect();
 
-    let shifted_curve = DiscountCurve::new(curve.maturities_years.clone(), shifted_dfs);
+    let shifted_curve =
+        DiscountCurve::from_pairs(curve.maturities_years.iter().copied().zip(shifted_dfs).collect());
     let shifted_npv = npv(swap, &shifted_curve, valuation_date);
     (shifted_npv - base_npv).abs()
 }
@@ -397,7 +404,15 @@ mod tests {
     // Helper: flat discount curve at a constant zero rate.
     fn flat_curve(rate: f64, pillars: &[f64]) -> DiscountCurve {
         let dfs = pillars.iter().map(|&t| (-rate * t).exp()).collect();
-        DiscountCurve::new(pillars.to_vec(), dfs)
+        DiscountCurve::new(pillars.to_vec(), dfs).unwrap()
+    }
+
+    #[test]
+    fn discount_curve_rejects_length_mismatch() {
+        assert!(matches!(
+            DiscountCurve::new(vec![1.0, 2.0], vec![0.99]),
+            Err(FinError::InvalidInput(_))
+        ));
     }
 
     // Helper: build equally-spaced annual payment dates.

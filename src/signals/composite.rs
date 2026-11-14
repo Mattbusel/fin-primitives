@@ -19,18 +19,25 @@
 //! ```rust
 //! use fin_primitives::signals::Signal;
 //! use fin_primitives::signals::composite::{CompositeSignal, CompositeMode};
+//! # #[cfg(feature = "indicators")]
 //! use fin_primitives::signals::indicators::{Sma, Rsi};
 //! use fin_primitives::signals::BarInput;
 //! use rust_decimal_macros::dec;
 //!
+//! # #[cfg(feature = "indicators")]
+//! # fn main() -> Result<(), fin_primitives::FinError> {
 //! let composite = CompositeSignal::builder("sma_rsi_filter")
-//!     .add(Sma::new("sma20", 20).unwrap(), dec!(0.5))
-//!     .add(Rsi::new("rsi14", 14).unwrap(), dec!(0.5))
+//!     .add(Sma::new("sma20", 20)?, dec!(0.5))
+//!     .add(Rsi::new("rsi14", 14)?, dec!(0.5))
 //!     .mode(CompositeMode::WeightedSum)
-//!     .build();
+//!     .build()?;
 //!
 //! // Feed bars to get the blended signal.
 //! let _ = composite; // drives the composite
+//! # Ok(())
+//! # }
+//! # #[cfg(not(feature = "indicators"))]
+//! # fn main() {}
 //! ```
 
 use crate::error::FinError;
@@ -136,20 +143,22 @@ impl CompositeBuilder {
 
     /// Finalise the builder into a [`CompositeSignal`].
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if no constituents have been added.
-    pub fn build(self) -> CompositeSignal {
-        assert!(
-            !self.constituents.is_empty(),
-            "CompositeSignal '{}' must have at least one constituent",
-            self.name
-        );
-        CompositeSignal {
+    /// [`FinError::InvalidInput`] if no constituents have been added.
+    /// (Before 3.0 this panicked.)
+    pub fn build(self) -> Result<CompositeSignal, FinError> {
+        if self.constituents.is_empty() {
+            return Err(FinError::InvalidInput(format!(
+                "CompositeSignal '{}' must have at least one constituent",
+                self.name
+            )));
+        }
+        Ok(CompositeSignal {
             name: self.name,
             constituents: self.constituents,
             mode: self.mode,
-        }
+        })
     }
 }
 
@@ -303,6 +312,20 @@ impl CompositeSignal {
 }
 
 #[cfg(test)]
+mod core_tests {
+    use super::*;
+
+    #[test]
+    fn builder_rejects_no_constituents() {
+        assert!(matches!(
+            CompositeSignal::builder("empty").build(),
+            Err(FinError::InvalidInput(_))
+        ));
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "indicators")]
 mod tests {
     use super::*;
     use crate::signals::indicators::Sma;
@@ -318,6 +341,7 @@ mod tests {
             .add(Sma::new("sma2b", 2).unwrap(), dec!(1))
             .mode(mode)
             .build()
+            .unwrap()
     }
 
     fn warm_up(sig: &mut CompositeSignal, n: usize) {
@@ -347,7 +371,8 @@ mod tests {
             .add(Sma::new("sma2a", 2).unwrap(), dec!(1))
             .add(Sma::new("sma2b", 2).unwrap(), dec!(1))
             .mode(CompositeMode::WeightedSum)
-            .build();
+            .build()
+            .unwrap();
 
         // Feed bars: 10, 20 → both SMA-2s = (10+20)/2 = 15.
         let _ = sig.update(&bar(dec!(10))).unwrap();
@@ -374,15 +399,10 @@ mod tests {
         let mut sig = CompositeSignal::builder("any_test")
             .add(Sma::new("sma1", 1).unwrap(), dec!(1))
             .mode(CompositeMode::Any)
-            .build();
+            .build()
+            .unwrap();
         // SMA-1 on close=10 returns 10 (non-zero) → Any returns 1.0.
         let v = sig.update(&bar(dec!(10))).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
-    }
-
-    #[test]
-    #[should_panic(expected = "must have at least one constituent")]
-    fn builder_panics_with_no_constituents() {
-        CompositeSignal::builder("empty").build();
     }
 }

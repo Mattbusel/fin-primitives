@@ -35,7 +35,7 @@ across threads.
 | `risk` | `DrawdownTracker` (90 methods), `RiskRule` trait, `RiskMonitor`, **`RiskAttributor`** (6-factor), **`BhbAttribution`** | All breaches returned as a typed `Vec<RiskBreach>`; never silently swallowed |
 | `greeks` | `BlackScholes`, `OptionGreeks`, `OptionSpec`, `SpreadGreeks` | All math returns `Result<T, FinError>`; no panics on edge-case inputs |
 | `backtest` | `Backtester`, `Strategy` trait, `BacktestResult`, `WalkForwardOptimizer`, `WfPeriod`, `ParamRange` | Bar-by-bar; no look-ahead; grid-search walk-forward with OOS stability score |
-| `async_signals` | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` | Tokio MPSC; pre-allocated output buffers on the hot path |
+| `async_signals` | `StreamingSignalPipeline`, `SignalUpdate`, `spawn_signal_stream` (feature `async`, off by default) | Tokio MPSC; pre-allocated output buffers on the hot path |
 | `regime` | `RegimeDetector`, `MarketRegime`, `Garch11`, `CorrelationBreakdownDetector`, `RegimeConditionalSignal`, `RegimeHistory` | Hurst + GARCH(1,1) + cross-asset correlation breakdown; regime-adaptive RSI |
 
 Additional modules in `src/` (see [docs.rs](https://docs.rs/fin-primitives) or the source for
@@ -46,6 +46,59 @@ their APIs): `pnl`, `correlation`, `latency`, `scenario`, `ml`, `ml_features`, `
 `performance`, `clustering`, `tax`, `rebalancing`, `funding`, `alternative_data`,
 `arbitrage`. Optional Python bindings are behind the `python` feature
 (`maturin develop --features python`).
+
+## Feature flags and compile time
+
+Since 3.0 only the core is always compiled. Every other domain module sits behind a
+Cargo feature. All of those features are on by default except `async`, so
+`cargo add fin-primitives` still gets every module but no Tokio runtime.
+
+| feature | default | modules | extra dependencies |
+|---|---|---|---|
+| *(always)* | | `types`, `tick`, `orderbook`, `ohlcv`, `signals` (the `Signal` trait, `BarInput`, `SignalValue`, pipeline, composition, warm-up), `normal`, `interop`, `error` | chrono, rust_decimal, thiserror, libm |
+| `serde` | yes | `Serialize`/`Deserialize` on the data types | serde |
+| `indicators` | yes | `signals::indicators` (700+), `technical`, `regime`, `correlation`, `volatility` | |
+| `options` | yes | `greeks`, `options` | |
+| `portfolio` | yes | `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance` | |
+| `risk` | yes | `risk`, `scenario`, `cross_asset`, `liquidity` (turns on `portfolio`) | |
+| `backtest` | yes | `backtest`, `execution`, `execution_cost`, `impact`, `latency`, `microstructure` (turns on `portfolio`) | |
+| `ml` | yes | `ml`, `ml_features`, `alternative_data`, `pairs_trading`, `events` | |
+| `crypto` | yes | `crypto`, `funding`, `arbitrage` | |
+| `fixed-income` | yes | `fixed_income` | |
+| `yield-curve` | yes | `yield_curve` | |
+| `derivatives` | yes | `derivatives` | |
+| `credit` | yes | `credit` | |
+| `tax` | yes | `tax` | |
+| `clustering` | yes | `clustering` | |
+| `montecarlo` | yes | `montecarlo` | |
+| `async` | **no** | `async_signals` | tokio (rt, sync) |
+| `full` | no | all of the above, including `async` | |
+| `ta`, `yata`, `wickra`, `arrow`, `python` | no | `interop::{ta,yata,wickra}`, `arrow`, PyO3 bindings (`python` turns on `indicators`) | the named crate |
+
+```toml
+# Core only: validated Price/Quantity/Symbol, Tick, OrderBook, OHLCV, the Signal trait.
+fin-primitives = { version = "3", default-features = false }
+# Core plus the indicator library:
+fin-primitives = { version = "3", default-features = false, features = ["serde", "indicators"] }
+```
+
+### Measured `cargo check` times
+
+Measured on 2026-11-14 with `cargo +1.99.0 check --lib` (rustc 1.99.0, Windows 11,
+Intel i7-13700KF, 24 logical CPUs), each configuration in its own empty target
+directory. "Cold" builds the dependencies too; "crate only" is
+`cargo clean -p fin-primitives` followed by the same command, so it times this crate
+alone with the dependencies already built (three runs each).
+
+| configuration | cold check | crate-only check | crate-only debug `build` | `cargo tree -e normal` lines |
+|---|---|---|---|---|
+| `--no-default-features` | 3.3 s | 0.91 / 0.94 / 0.91 s | 3.2 / 3.3 s | 18 |
+| default | 8.3 s | 5.0 / 4.8 / 6.1 s | 11.2 / 9.2 s | 26 |
+| `--features full` (default + tokio) | 12.3 s | 7.7 / 6.6 / 6.4 s | not measured | not measured |
+
+The debug `.rlib` is 18.9 MB with no default features and 71.7 MB with the defaults.
+For a dependent that only needs the core types and the order book, that is roughly a
+5x shorter check of this crate and 3x shorter debug build.
 
 ## Design principles
 
