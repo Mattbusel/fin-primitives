@@ -108,6 +108,8 @@ proptest = "1"
 tokio = { version = "1.40", features = ["full", "test-util"] }
 criterion = { version = "0.5", features = ["async_tokio"] }
 serde_json = "1"
+# ta-lib: native Rust port of TA-Lib, the reference for tests/talib_parity.rs (tests only; needs Rust 1.88)
+ta-lib = "0.8"
 
 [[bench]]
 name = "tick_bench"
