@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - These three come from the srfm-lab risk measures (`lib/math/risk_measures.py`) and were
   re-derived from the papers. srfm-lab's `kappa_ratio` divides an annualized excess return
   by a per-period LPM; this version keeps both per period. Tests use hand-computed values.
+- Python: `fin_primitives.validation`, a pure-Python module (numpy) with
+  `CombinatorialPurgedKFold(n_groups, n_test_groups, purge, embargo)`, combinatorial purged
+  cross-validation (Lopez de Prado, 2018, ch. 12) with scikit-learn's cross-validator
+  protocol (`split(X, y=None, groups=None)`, `get_n_splits`), `path_assignment()`, and
+  `walk_forward_paths(cv, X, fit_predict, metric=None)`, which assembles the
+  `C(n_groups - 1, n_test_groups - 1)` out-of-sample backtest paths and a metric per path.
+  Adapted from srfm-lab's `lib/validation/cpcv_walkforward.py` (MIT); the embargo now
+  follows each test block and the lab's simplified "deflated Sharpe" was dropped. Tests
+  enumerate the C(6,2) = 15 splits by hand and, when skfolio is installed, compare every
+  split and path with skfolio's `CombinatorialPurgedCV`. Docs: `docs/python-validation.md`;
+  example: `python/examples/cpcv_sharpe_paths.py`.
 
 ## [3.2.0] - 2026-11-14
 

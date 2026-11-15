@@ -144,6 +144,22 @@ book.mid_price()                  # 64250.25; a delta that would cross the book 
 The 2.15 classes `PySMA`, `PyEMA`, `PyRSI`, `PyPrice`, `PyQuantity`, `PyOHLCV` and
 `PyOrderBook` are still exported (from `fin_primitives` and `fin_primitives._fin_primitives`).
 
+## Backtest validation (CPCV)
+
+`fin_primitives.validation` (pure Python, needs numpy) has `CombinatorialPurgedKFold`, a
+combinatorial purged cross-validation splitter with scikit-learn's `split` / `get_n_splits`
+protocol, and `walk_forward_paths`, which stitches the out-of-sample results into
+`C(n_groups - 1, n_test_groups - 1)` backtest paths. See
+[python-validation.md](https://github.com/Mattbusel/fin-primitives/blob/main/docs/python-validation.md).
+
+```python
+from fin_primitives.validation import CombinatorialPurgedKFold, walk_forward_paths
+
+cv = CombinatorialPurgedKFold(n_groups=6, n_test_groups=2, purge=2, embargo=1)  # 15 splits, 5 paths
+res = walk_forward_paths(cv, returns, fit_predict, metric=sharpe)
+res.metrics   # one Sharpe ratio per out-of-sample path
+```
+
 ## Accuracy
 
 `python/tests/test_reference.py` checks RSI, EMA, SMA, MACD, Bollinger %B and ATR against

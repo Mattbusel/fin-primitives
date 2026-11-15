@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Matt Busel" }]
 requires-python = ">=3.9"
 dependencies = []
-keywords = ["finance", "trading", "technical-analysis", "indicators", "decimal", "rust"]
+keywords = ["finance", "trading", "technical-analysis", "indicators", "decimal", "rust", "backtesting", "cross-validation", "cpcv"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
