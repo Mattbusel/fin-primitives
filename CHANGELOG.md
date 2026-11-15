@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-15
+
 ### Added
+- Test: RSI parity with TA-Lib (`ta-lib` crate, tests only) at periods 2, 14, 30 and 100.
 - `PerformanceCalculator::lower_partial_moment(returns, threshold, n)`: per-period
   lower partial moment `mean(max(threshold - r, 0)^n)`.
 - `PerformanceCalculator::kappa_ratio(returns, threshold, n)`: Kappa-n (Kaplan and
