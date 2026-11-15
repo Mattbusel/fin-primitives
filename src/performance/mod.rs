@@ -164,6 +164,98 @@ impl PerformanceCalculator {
         total.powf(periods_per_year / n) - 1.0
     }
 
+    /// Lower partial moment of order `n` about `threshold`.
+    ///
+    /// `LPM_n(threshold) = mean(max(threshold - r, 0)^n)`, the per-period
+    /// shortfall moment used by the Kappa family (Kaplan and Knowles, 2004).
+    /// `n = 1` is the expected shortfall below the threshold and `n = 2` is the
+    /// squared downside deviation. `n` may be fractional.
+    ///
+    /// Returns `0.0` if `returns` is empty.
+    pub fn lower_partial_moment(returns: &[f64], threshold: f64, n: f64) -> f64 {
+        if returns.is_empty() {
+            return 0.0;
+        }
+        returns
+            .iter()
+            .map(|&r| (threshold - r).max(0.0).powf(n))
+            .sum::<f64>()
+            / returns.len() as f64
+    }
+
+    /// Kappa ratio of order `n` (Kaplan and Knowles, 2004).
+    ///
+    /// `(mean(r) - threshold) / LPM_n(threshold)^(1/n)`, with the numerator and
+    /// the denominator both per period, so the ratio is scale-consistent.
+    /// `n = 1` gives `Omega - 1`, `n = 2` gives the Sortino ratio (not
+    /// annualised) and `n = 3` is the usual "Kappa 3".
+    ///
+    /// Returns `f64::INFINITY` if no return falls below `threshold` and the mean
+    /// excess is positive, `0.0` if `returns` is empty or the mean excess is not
+    /// positive while the lower partial moment is zero, and `f64::NAN` if
+    /// `n <= 0`.
+    pub fn kappa_ratio(returns: &[f64], threshold: f64, n: f64) -> f64 {
+        if n <= 0.0 || n.is_nan() {
+            return f64::NAN;
+        }
+        if returns.is_empty() {
+            return 0.0;
+        }
+        let excess = mean(returns) - threshold;
+        let lpm = Self::lower_partial_moment(returns, threshold, n);
+        if lpm == 0.0 {
+            return if excess > 0.0 { f64::INFINITY } else { 0.0 };
+        }
+        excess / lpm.powf(1.0 / n)
+    }
+
+    /// Conditional Drawdown at Risk at `confidence` (Chekhlov, Uryasev and
+    /// Zabarankin, 2005).
+    ///
+    /// The mean of the worst `(1 - confidence)` share of the drawdown
+    /// observations, i.e. CVaR applied to the drawdown series. Drawdowns are
+    /// measured the same way as in [`max_drawdown`](Self::max_drawdown): a
+    /// positive fraction below the running peak of the compounded equity curve,
+    /// one observation per return. When `(1 - confidence) * n` is not a whole
+    /// number the boundary observation is weighted by its fractional part, so
+    /// the result is continuous in `confidence`.
+    ///
+    /// `confidence = 0` gives the mean drawdown (the pain index) and
+    /// `confidence = 1` gives the maximum drawdown. A typical value is `0.95`.
+    ///
+    /// Returns `0.0` if `returns` is empty and `f64::NAN` if `confidence` is
+    /// outside `[0, 1]`.
+    pub fn conditional_drawdown_at_risk(returns: &[f64], confidence: f64) -> f64 {
+        if !(0.0..=1.0).contains(&confidence) {
+            return f64::NAN;
+        }
+        if returns.is_empty() {
+            return 0.0;
+        }
+        let mut peak = 1.0_f64;
+        let mut cum = 1.0_f64;
+        let mut drawdowns: Vec<f64> = Vec::with_capacity(returns.len());
+        for &r in returns {
+            cum *= 1.0 + r;
+            if cum > peak {
+                peak = cum;
+            }
+            drawdowns.push((peak - cum) / peak);
+        }
+        drawdowns.sort_by(|a, b| b.total_cmp(a));
+
+        let tail = (1.0 - confidence) * drawdowns.len() as f64;
+        if tail <= 0.0 {
+            return drawdowns[0];
+        }
+        let whole = tail.floor() as usize;
+        let mut sum: f64 = drawdowns[..whole].iter().sum();
+        if whole < drawdowns.len() {
+            sum += (tail - whole as f64) * drawdowns[whole];
+        }
+        sum / tail
+    }
+
     /// Compute all performance metrics in one pass.
     ///
     /// If `benchmark` is `None` the information ratio is set to `0.0`.
@@ -368,6 +460,107 @@ mod tests {
         // All positive → max_drawdown = 0 → calmar = 0
         let r = vec![0.01; 252];
         assert_eq!(PerformanceCalculator::calmar_ratio(&r), 0.0);
+    }
+
+    /// +2 %, -1 %, +3 %, -2 %: mean 0.5 %, shortfalls below 0 are 1 % and 2 %.
+    fn kappa_returns() -> Vec<f64> {
+        vec![0.02, -0.01, 0.03, -0.02]
+    }
+
+    #[test]
+    fn test_lower_partial_moment_hand_values() {
+        let r = kappa_returns();
+        let lpm = |n: f64| PerformanceCalculator::lower_partial_moment(&r, 0.0, n);
+        // (0.01 + 0.02) / 4
+        assert!((lpm(1.0) - 0.0075).abs() < 1e-15);
+        // (0.01^2 + 0.02^2) / 4
+        assert!((lpm(2.0) - 0.000125).abs() < 1e-15);
+        // (0.01^3 + 0.02^3) / 4
+        assert!((lpm(3.0) - 2.25e-6).abs() < 1e-15);
+        assert_eq!(
+            PerformanceCalculator::lower_partial_moment(&[], 0.0, 2.0),
+            0.0
+        );
+    }
+
+    #[test]
+    fn test_kappa_hand_values() {
+        let r = kappa_returns();
+        // n = 1: 0.005 / 0.0075 = 2/3, which is Omega - 1 = 0.05 / 0.03 - 1.
+        let k1 = PerformanceCalculator::kappa_ratio(&r, 0.0, 1.0);
+        assert!((k1 - 2.0 / 3.0).abs() < 1e-12);
+        let omega = PerformanceCalculator::omega_ratio(&r, 0.0);
+        assert!((k1 - (omega - 1.0)).abs() < 1e-12);
+        // n = 2: 0.005 / sqrt(0.000125) = 1 / sqrt(5)
+        let k2 = PerformanceCalculator::kappa_ratio(&r, 0.0, 2.0);
+        assert!((k2 - 1.0 / 5.0_f64.sqrt()).abs() < 1e-12);
+        // n = 3: 0.005 / (2.25e-6)^(1/3)
+        let k3 = PerformanceCalculator::kappa_ratio(&r, 0.0, 3.0);
+        assert!((k3 - 0.005 / 2.25e-6_f64.cbrt()).abs() < 1e-12);
+        assert!((k3 - 0.381_571_414_184_443_9).abs() < 1e-12);
+        // Higher orders punish the 2 % loss harder.
+        assert!(k1 > k2 && k2 > k3);
+    }
+
+    #[test]
+    fn test_kappa_edge_cases() {
+        let r = kappa_returns();
+        assert_eq!(
+            PerformanceCalculator::kappa_ratio(&[0.01, 0.02], 0.0, 3.0),
+            f64::INFINITY
+        );
+        assert_eq!(
+            PerformanceCalculator::kappa_ratio(&[0.0, 0.0], 0.0, 3.0),
+            0.0
+        );
+        assert_eq!(PerformanceCalculator::kappa_ratio(&[], 0.0, 3.0), 0.0);
+        assert!(PerformanceCalculator::kappa_ratio(&r, 0.0, 0.0).is_nan());
+        // A threshold above every return makes the excess negative.
+        assert!(PerformanceCalculator::kappa_ratio(&r, 0.05, 2.0) < 0.0);
+    }
+
+    /// Equity 1.10, 0.88, 1.10, 0.99, 0.99 against a peak of 1.10:
+    /// drawdowns 0, 20 %, 0, 10 %, 10 %.
+    fn cdar_returns() -> Vec<f64> {
+        vec![0.10, -0.20, 0.25, -0.10, 0.0]
+    }
+
+    #[test]
+    fn test_cdar_hand_values() {
+        let r = cdar_returns();
+        let cdar = |c: f64| PerformanceCalculator::conditional_drawdown_at_risk(&r, c);
+        // Worst 20 % of 5 observations = the single 20 % drawdown.
+        assert!((cdar(0.8) - 0.20).abs() < 1e-12);
+        // Worst 40 % = 2 observations: (0.20 + 0.10) / 2
+        assert!((cdar(0.6) - 0.15).abs() < 1e-12);
+        // Worst 50 % = 2.5 observations: (0.20 + 0.10 + 0.5 * 0.10) / 2.5
+        assert!((cdar(0.5) - 0.14).abs() < 1e-12);
+        // confidence 0: mean drawdown (pain index) = 0.4 / 5
+        assert!((cdar(0.0) - 0.08).abs() < 1e-12);
+        // confidence 1: maximum drawdown
+        assert!((cdar(1.0) - 0.20).abs() < 1e-12);
+        assert!((cdar(1.0) - PerformanceCalculator::max_drawdown(&r)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_cdar_monotone_and_edge_cases() {
+        let r = sample_returns();
+        let mut prev = 0.0;
+        for i in 0..=20 {
+            let c = PerformanceCalculator::conditional_drawdown_at_risk(&r, f64::from(i) / 20.0);
+            assert!(c + 1e-15 >= prev, "CDaR must not fall as confidence rises");
+            prev = c;
+        }
+        assert_eq!(
+            PerformanceCalculator::conditional_drawdown_at_risk(&[0.01; 10], 0.95),
+            0.0
+        );
+        assert_eq!(
+            PerformanceCalculator::conditional_drawdown_at_risk(&[], 0.95),
+            0.0
+        );
+        assert!(PerformanceCalculator::conditional_drawdown_at_risk(&r, 1.5).is_nan());
+        assert!(PerformanceCalculator::conditional_drawdown_at_risk(&r, -0.1).is_nan());
     }
 
     #[test]

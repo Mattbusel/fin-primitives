@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `PerformanceCalculator::lower_partial_moment(returns, threshold, n)`: per-period
+  lower partial moment `mean(max(threshold - r, 0)^n)`.
+- `PerformanceCalculator::kappa_ratio(returns, threshold, n)`: Kappa-n (Kaplan and
+  Knowles, 2004), `(mean(r) - threshold) / LPM_n^(1/n)` with both sides per period.
+  `n = 1` equals `omega_ratio - 1` and `n = 2` is the per-period Sortino ratio.
+- `PerformanceCalculator::conditional_drawdown_at_risk(returns, confidence)`: CDaR
+  (Chekhlov, Uryasev and Zabarankin, 2005), the mean of the worst `1 - confidence`
+  share of drawdowns with fractional weighting at the boundary. `confidence = 0` is the
+  mean drawdown and `confidence = 1` is `max_drawdown`.
+- These three come from the srfm-lab risk measures (`lib/math/risk_measures.py`) and were
+  re-derived from the papers. srfm-lab's `kappa_ratio` divides an annualized excess return
+  by a per-period LPM; this version keeps both per period. Tests use hand-computed values.
+
 ## [3.2.0] - 2026-11-14
 
 ### Added
