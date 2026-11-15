@@ -1,0 +1,215 @@
+"""Generate ``src/python/registry.rs``, the indicator catalogue behind ``fin_primitives.Indicator``.
+
+The script reads ``src/signals/indicators/mod.rs`` and every module it re-exports, finds each
+type that implements ``Signal`` and has a ``pub fn new(...)`` constructor with parameter types
+the bindings know how to convert, and writes one registry entry per type. Run it from any
+directory after adding or changing an indicator:
+
+    python python/tools/gen_registry.py
+
+The generated file is committed. ``--check`` exits non-zero when it is stale.
+"""
+from __future__ import annotations
+
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+IND = ROOT / "src" / "signals" / "indicators"
+OUT = ROOT / "src" / "python" / "registry.rs"
+
+# Rust parameter type -> (type tag shown in Python, extraction expression).
+TYPES = {
+    "usize": ("int", 'arg_usize(args, {i}, "{p}")?'),
+    "u32": ("int", 'arg_u32(args, {i}, "{p}")?'),
+    "Decimal": ("decimal", 'arg_decimal(args, {i}, "{p}")?'),
+    "impl Into<Decimal>": ("decimal", 'arg_decimal(args, {i}, "{p}")?'),
+    "f64": ("float", 'arg_f64(args, {i}, "{p}")?'),
+    "Option<f64>": ("float|None", 'arg_opt_f64(args, {i}, "{p}")?'),
+    "bool": ("bool", 'arg_bool(args, {i}, "{p}")?'),
+    "&str": ("str", '&arg_string(args, {i}, "{p}")?'),
+    "[usize; 4]": ("int[4]", 'arg_usize4(args, {i}, "{p}")?'),
+}
+
+
+def snake(name: str) -> str:
+    s = re.sub(r"(?<=[a-z0-9])([A-Z])", r"_\1", name)
+    s = re.sub(r"(?<=[A-Z])([A-Z][a-z])", r"_\1", s)
+    return s.lower()
+
+
+def doc_summary(src: str, ty: str) -> str:
+    m = re.search(
+        r"((?:^[ \t]*///[^\n]*\n|^[ \t]*#\[[^\n]*\n)+)[ \t]*pub struct " + re.escape(ty) + r"\b",
+        src,
+        re.M,
+    )
+    if not m:
+        return ""
+    lines = [l.strip()[3:].strip() for l in m.group(1).splitlines() if l.strip().startswith("///")]
+    out: list[str] = []
+    for line in lines:
+        if not line:
+            if out:
+                break
+            continue
+        out.append(line)
+    text = " ".join(out)
+    text = re.sub(r"\[`?([^\]`]+)`?\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"\[`([^`]+)`\]", r"\1", text)
+    return text.replace("\\[", "[").replace("\\]", "]")
+
+
+def rust_str(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def scan():
+    mod = (IND / "mod.rs").read_text(encoding="utf-8")
+    uses = re.findall(r"^pub use (\w+)::\{?([\w, ]+)\}?;", mod, re.M)
+    entries = []
+    skipped = []
+    for module, names in uses:
+        src = (IND / f"{module}.rs").read_text(encoding="utf-8")
+        for ty in [n.strip() for n in names.split(",") if n.strip()]:
+            if not re.search(r"impl\s+(?:[\w:]+::)?Signal\s+for\s+" + re.escape(ty) + r"\b", src):
+                skipped.append((ty, "does not implement Signal"))
+                continue
+            m = re.search(
+                r"impl\s+" + re.escape(ty) + r"\s*\{(?:(?!\nimpl\b).)*?pub fn new\s*\((.*?)\)\s*->\s*([^{]+)\{",
+                src,
+                re.S,
+            )
+            if not m:
+                skipped.append((ty, "no `new` constructor"))
+                continue
+            params = [p.strip() for p in re.sub(r"\s+", " ", m.group(1)).split(",") if p.strip()]
+            has_name = False
+            spec = []
+            ok = True
+            for idx, p in enumerate(params):
+                pname, ptype = (x.strip() for x in p.split(":", 1))
+                if idx == 0 and ptype == "impl Into<String>":
+                    has_name = True
+                    continue
+                if ptype not in TYPES:
+                    ok = False
+                    skipped.append((ty, f"parameter type `{ptype}`"))
+                    break
+                spec.append((pname.lstrip("_"), ptype))
+            if ok:
+                entries.append(
+                    dict(
+                        key=snake(ty),
+                        ty=ty,
+                        module=module,
+                        has_name=has_name,
+                        params=spec,
+                        result="Result" in m.group(2),
+                        doc=doc_summary(src, ty),
+                    )
+                )
+    keys: dict[str, str] = {}
+    for e in entries:
+        if e["key"] in keys:
+            raise SystemExit(f"duplicate key {e['key']}: {keys[e['key']]} and {e['ty']}")
+        keys[e["key"]] = e["ty"]
+    # A module name becomes an alias when the module exports one type and the name is free.
+    per_module: dict[str, list] = {}
+    for e in entries:
+        per_module.setdefault(e["module"], []).append(e)
+    aliases = [
+        (module, es[0]["key"])
+        for module, es in sorted(per_module.items())
+        if len(es) == 1 and module != es[0]["key"] and module not in keys
+    ]
+    entries.sort(key=lambda e: e["key"])
+    return entries, aliases, skipped
+
+
+def render(entries, aliases) -> str:
+    out: list[str] = []
+    w = out.append
+    w("// @generated by python/tools/gen_registry.py. Do not edit by hand; rerun the script.")
+    w("")
+    w("//! Indicator catalogue for the Python bindings: every `Signal` type in")
+    w("//! `signals::indicators` whose constructor takes numeric, boolean or text parameters.")
+    w("")
+    w("use pyo3::prelude::*;")
+    w("")
+    w("use super::args::*;")
+    w("use crate::signals::indicators as ind;")
+    w("use crate::signals::Signal;")
+    w("")
+    w("/// One constructor parameter: Python name and accepted type tag.")
+    w("pub(crate) type Param = (&'static str, &'static str);")
+    w("")
+    w("/// Builds a boxed indicator from the instance name and positional arguments.")
+    w("pub(crate) type Builder = fn(&str, &[Bound<'_, PyAny>]) -> PyResult<Box<dyn Signal>>;")
+    w("")
+    w("/// A catalogue entry.")
+    w("pub(crate) struct Entry {")
+    w("    /// Registry key (snake_case type name).")
+    w("    pub key: &'static str,")
+    w("    /// Rust type name in `signals::indicators`.")
+    w("    pub type_name: &'static str,")
+    w("    /// Constructor parameters after the instance name.")
+    w("    pub params: &'static [Param],")
+    w("    /// First paragraph of the type's rustdoc.")
+    w("    pub doc: &'static str,")
+    w("    /// Constructor.")
+    w("    pub build: Builder,")
+    w("}")
+    w("")
+    w("/// Alternative keys (module names), as `(alias, key)`.")
+    w("pub(crate) const ALIASES: &[(&str, &str)] = &[")
+    for a, k in aliases:
+        w(f"    ({rust_str(a)}, {rust_str(k)}),")
+    w("];")
+    w("")
+    w(f"/// All {len(entries)} entries, sorted by key.")
+    w("pub(crate) const ENTRIES: &[Entry] = &[")
+    for e in entries:
+        call_args = ["name"] if e["has_name"] else []
+        for i, (pname, ptype) in enumerate(e["params"]):
+            call_args.append(TYPES[ptype][1].format(i=i, p=pname))
+        ctor = f"ind::{e['ty']}::new({', '.join(call_args)})"
+        if e["result"]:
+            ctor = f"{ctor}.map_err(fin_err)?"
+        name_var = "name" if e["has_name"] else "_name"
+        params = ", ".join(f"({rust_str(p)}, {rust_str(TYPES[t][0])})" for p, t in e["params"])
+        w("    Entry {")
+        w(f"        key: {rust_str(e['key'])},")
+        w(f"        type_name: {rust_str(e['ty'])},")
+        w(f"        params: &[{params}],")
+        w(f"        doc: {rust_str(e['doc'])},")
+        w(f"        build: |{name_var}, args| {{")
+        w(f"            check_arity(args, {len(e['params'])})?;")
+        w(f"            Ok(Box::new({ctor}))")
+        w("        },")
+        w("    },")
+    w("];")
+    w("")
+    return "\n".join(out)
+
+
+def main() -> int:
+    entries, aliases, skipped = scan()
+    text = render(entries, aliases)
+    if "--check" in sys.argv:
+        current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
+        if current != text:
+            print(f"{OUT} is stale; rerun python/tools/gen_registry.py", file=sys.stderr)
+            return 1
+        print(f"{OUT.relative_to(ROOT)} is up to date ({len(entries)} indicators)")
+        return 0
+    OUT.write_text(text, encoding="utf-8", newline="\n")
+    print(f"wrote {OUT.relative_to(ROOT)}: {len(entries)} indicators, {len(aliases)} aliases")
+    for ty, why in skipped:
+        print(f"  skipped {ty}: {why}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

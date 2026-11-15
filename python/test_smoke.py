@@ -1,8 +1,8 @@
 """Smoke test for the PyO3 bindings. Build and run:
 
-    cd python && maturin develop --release && python test_smoke.py
+    cd python && maturin develop && python test_smoke.py
 """
-import _fin_primitives as fp
+from fin_primitives import _fin_primitives as fp
 
 p = fp.PyPrice(0.1)
 assert str(p) == "0.1", str(p)  # exact decimal, not 0.1000000000000000055...

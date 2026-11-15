@@ -177,7 +177,7 @@
 //! | `full` | no | every feature above, including `async` |
 //! | `ta`, `yata`, `wickra` | no | [`interop`] with those crates: their indicators read fin-primitives bars, their bars convert to [`BarInput`](signals::BarInput) |
 //! | `arrow` | no | `arrow`: bars to and from Apache Arrow with exact `Decimal128` columns |
-//! | `python` | no | PyO3 bindings, built with maturin from the repository's `python/` folder |
+//! | `python` | no | PyO3 bindings for the `fin-primitives` Python package (all indicators, exact `Decimal` or float output, numpy / pandas / polars batches), built with maturin from the repository's `python/` folder |
 //!
 //! The doc examples on this page use the default features.
 //!

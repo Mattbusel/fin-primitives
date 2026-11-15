@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -61,7 +61,7 @@ yata = ["dep:yata"]
 wickra = ["dep:wickra-core"]
 ## Arrow `RecordBatch` export and import for bars, with exact Decimal128 columns (needs Rust 1.88+).
 arrow = ["dep:arrow-array", "dep:arrow-schema"]
-## PyO3 bindings; build the wheel with `maturin develop --features python` (needs Rust 1.83+).
+## PyO3 bindings for the `fin-primitives` Python package; build the wheel from `python/` with `maturin build` (not `--release`, which picks the panic = "abort" profile; needs Rust 1.83+).
 python = ["dep:pyo3", "indicators"]
 
 [package.metadata.docs.rs]
@@ -117,6 +117,12 @@ lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
 panic = "abort"
+
+# Used by the Python wheel (python/pyproject.toml): like release, but a panic unwinds
+# into a Python exception instead of aborting the interpreter.
+[profile.release-python]
+inherits = "release"
+panic = "unwind"
 
 [profile.bench]
 opt-level = 3

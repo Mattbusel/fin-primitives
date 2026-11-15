@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-14
+
+### Added
+- **Python package `fin-primitives`** (PyPI name checked free; built from `python/` with maturin, abi3 wheels for CPython 3.9+). Guide: `docs/python.md`.
+  - `Indicator(kind, *params, mode="exact" | "float", **kwargs)` over the whole indicator library: all 743 `Signal` types in `signals::indicators` (every exported indicator; `IchimokuLines` is a value type, not an indicator). The catalogue (`src/python/registry.rs`) is generated from the Rust sources by `python/tools/gen_registry.py`, so new indicators show up by rerunning it. Keys are snake_case type names (`"bollinger_b"`), module names work as aliases (`"bollinger"`, `"psar"`); `catalogue()`, `aliases()`, `resolve()` and `DEFAULTS` (conventional parameters for 26 common indicators) are exported.
+  - Exact mode takes `str`, `int`, `float` or `decimal.Decimal` and returns `decimal.Decimal`; float mode returns the nearest float to the same exact value (`float(Decimal)`), so the modes never disagree.
+  - Streaming `update(close)` and `update_bar(close, high, low, open, volume)`; `batch(...)` and one-shot `compute()`, `sma`, `ema`, `rsi`, `macd`, `bollinger_b`, `atr` take lists, 1-D numpy arrays, pandas Series or polars Series and return the same type (pandas index kept). numpy, pandas and polars are optional and never imported unless passed in. The float batch path reads float64 buffers and releases the GIL.
+  - Batch input checks: a numpy array that is not 1-D raises `ValueError` in both modes (it is never flattened); pandas columns with different indexes raise `ValueError` (columns are paired by position).
+  - Exact-mode polars results are checked against the computed values: polars infers one `Decimal(38, scale)` for the whole column and turns values that do not fit into null without an error (28 decimal places in one row, 11 integer digits in another), so such results come back as an `Object` Series of `decimal.Decimal` instead. Nothing is ever replaced by null.
+  - A non-zero input that would round to zero in a 28-decimal-place `Decimal` (`1e-30`, `"0.00000000000000000000000000001"`) raises `ValueError` instead of becoming `0`; `"0E-30"` (a zero) is accepted.
+  - `catalogue()` returns independent copies; `Indicator` raises a clear `TypeError` on `pickle`, `copy.copy` and `copy.deepcopy` (it holds native state; rebuild it from `key`, `params` and `mode`).
+  - The wheels ship the MIT license as `.dist-info/licenses/LICENSE` (`python/LICENSE` is a copy of `LICENSE`; CI checks they match). `.venv` and `.pytest_cache` next to `pyproject.toml` are excluded from wheels and the sdist.
+  - Type stubs (`py.typed`, `_fin_primitives.pyi`).
+  - Tests (`python/tests`, pytest): RSI, EMA, SMA, MACD, Bollinger %B and ATR match the Rust crate digit for digit on 120 seeded bars (fixture from the new example `indicator_reference`); every catalogue entry is built and run in both modes; numpy / pandas / polars round trips.
+  - `.github/workflows/python-wheels.yml`: wheels for Linux x86_64 and aarch64, macOS x86_64 and arm64, Windows x86_64, plus an sdist; tests on CPython 3.13 and on the oldest supported version (3.9 on x86_64; 3.10 on the arm64 runners, where setup-python may have no 3.9 build); checks every wheel contains `LICENSE`; publishes to PyPI with trusted publishing on `py-v*` tags (run it once by hand with workflow_dispatch before pushing the tag).
+- Cargo profile `release-python` (release with `panic = "unwind"`), selected by `python/pyproject.toml`, so a Rust panic inside the extension raises a Python exception instead of aborting the interpreter. Build with plain `maturin build` / `maturin develop`: `--release` selects the aborting `release` profile.
+
+### Changed
+- `python` feature: `PyPrice`, `PyQuantity`, `PyOrderBook.apply_delta` and `PySMA`/`PyEMA`/`PyRSI.update` accept `str`, `int`, `float` or `decimal.Decimal` from Python (floats still work); `PyPrice.decimal` and `PyQuantity.decimal` return the exact value. The Rust-side `new(f64)`, `update(f64)` and `apply_delta(.., f64, f64, ..)` methods are unchanged.
+- The extension module is now `fin_primitives._fin_primitives` inside the `fin_primitives` package (it was a top-level `_fin_primitives`, never published). Everything it held is also re-exported from `fin_primitives`.
 ## [3.0.0] - Unreleased
 
 The default build no longer pulls in a Tokio runtime, every domain module outside the

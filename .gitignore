@@ -6,3 +6,5 @@ __pycache__/
 *.log
 *.whl
 /python/.venv/
+.pytest_cache/
+/python/dist/

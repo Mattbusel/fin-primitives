@@ -4,25 +4,74 @@ build-backend = "maturin"
 
 [project]
 name = "fin-primitives"
-version = "2.15.0"
-description = "Python bindings for the fin-primitives Rust library"
-readme = "../README.md"
+# Taken from the Rust crate's Cargo.toml, so the wheel and the crate share one version.
+dynamic = ["version"]
+description = "Exact decimal trading indicators from Rust: 743 streaming indicators (RSI, EMA, MACD, Bollinger, ATR, ...) for Python, numpy, pandas and polars."
+readme = "../docs/python.md"
 license = { text = "MIT" }
+authors = [{ name = "Matt Busel" }]
 requires-python = ">=3.9"
+dependencies = []
+keywords = ["finance", "trading", "technical-analysis", "indicators", "decimal", "rust"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Office/Business :: Financial",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+numpy = ["numpy>=1.21"]
+pandas = ["pandas>=1.3", "numpy>=1.21"]
+polars = ["polars>=0.20"]
+test = ["pytest>=7", "numpy>=1.21", "pandas>=1.3", "polars>=0.20"]
+
+[project.urls]
+Homepage = "https://fin-primitives.vercel.app/"
+Repository = "https://github.com/Mattbusel/fin-primitives"
+Documentation = "https://github.com/Mattbusel/fin-primitives/blob/main/docs/python.md"
+Changelog = "https://github.com/Mattbusel/fin-primitives/blob/main/CHANGELOG.md"
+
 [tool.maturin]
-# Build the Rust crate from the parent directory
+# The Rust crate is the repository root; its `python` feature holds the PyO3 code.
 manifest-path = "../Cargo.toml"
-# Activate the python feature to include PyO3 bindings
-features = ["python"]
-# The Python module name (must match the #[pymodule] function name)
-module-name = "_fin_primitives"
+# abi3-py39: one wheel per platform for CPython 3.9 and every later version.
+features = ["python", "pyo3/abi3-py39"]
+# Mixed project: pure-Python package in src/fin_primitives (a src layout, so running
+# from this folder never imports the source tree instead of the installed wheel).
+python-source = "src"
+module-name = "fin_primitives._fin_primitives"
+exclude = [
+    "src/**/__pycache__/**",
+    "src/**/*.pyc",
+    # A local virtualenv or pytest cache next to this file must never leak into a wheel or
+    # the sdist (no `format`: the pattern applies to both).
+    ".venv/**",
+    ".pytest_cache/**",
+]
+# The wheel's license file: maturin picks up `LICENSE` from this folder and ships it in
+# `.dist-info/licenses/`. It is a copy of the repository's `LICENSE`; CI checks they match.
+
+# The crate's release profile aborts on panic; this one unwinds, so a Rust panic
+# becomes a Python exception instead of killing the interpreter.
+profile = "release-python"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

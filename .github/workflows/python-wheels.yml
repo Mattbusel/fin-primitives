@@ -1,0 +1,143 @@
+# Builds the `fin-primitives` Python wheels (abi3, CPython 3.9+) and publishes them to PyPI.
+#
+# Runs on tags named py-v* (for example py-v2.16.0) and by hand (workflow_dispatch builds and
+# tests without publishing). The publish job needs every wheel job to pass, so run it by hand
+# on a branch first (Actions > Python wheels > Run workflow) and push the tag only once that
+# run is green. Publishing uses PyPI trusted publishing: no token is stored here.
+# One-time setup on pypi.org, under the project's (or your account's pending) publishers:
+#   owner: Mattbusel, repository: fin-primitives, workflow: python-wheels.yml, environment: pypi
+name: Python wheels
+
+on:
+  push:
+    tags: ["py-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheel ${{ matrix.os }} ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # floor: the oldest CPython the wheel is tested on. The abi3 floor is 3.9; it is
+        # tested on the x86_64 runners. CPython 3.9 is past end of life and setup-python may
+        # have no arm64 build of it, so the arm64 runners test 3.10 instead.
+        include:
+          - { os: linux, runner: ubuntu-latest, target: x86_64, test: true, floor: "3.9" }
+          - { os: linux, runner: ubuntu-24.04-arm, target: aarch64, test: true, floor: "3.10" }
+          # Intel macOS runners are being retired: cross-compile x86_64 on Apple Silicon
+          # (the wheel is built and uploaded; its tests run only on native targets).
+          - { os: macos, runner: macos-14, target: x86_64, test: false, floor: "3.10" }
+          - { os: macos, runner: macos-14, target: aarch64, test: true, floor: "3.10" }
+          - { os: windows, runner: windows-latest, target: x64, test: true, floor: "3.9" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.os == 'windows' && 'x64' || null }}
+      - name: Check the indicator catalogue is up to date
+        run: python python/tools/gen_registry.py --check
+      - name: Check the wheel's license file matches the repository's
+        shell: bash
+        run: cmp LICENSE python/LICENSE
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          target: ${{ matrix.target }}
+          # No --release: pyproject.toml selects the crate's release-python profile
+          # (optimised, panics unwind into Python exceptions).
+          args: --out dist
+          manylinux: ${{ matrix.os == 'linux' && 'auto' || null }}
+          sccache: "true"
+      - name: Test the wheel on CPython ${{ matrix.floor }} (oldest tested)
+        if: matrix.test
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.floor }}
+      - name: Install and run the tests (${{ matrix.floor }})
+        if: matrix.test
+        shell: bash
+        run: |
+          python -m venv .venvfloor
+          if [ -f .venvfloor/Scripts/python.exe ]; then PY=.venvfloor/Scripts/python.exe; else PY=.venvfloor/bin/python; fi
+          $PY -m pip install --upgrade pip
+          $PY -m pip install pytest numpy pandas
+          $PY -m pip install --no-index --find-links python/dist fin-primitives
+          cd python && ../$PY -m pytest -q
+      - name: Test the wheel on CPython 3.13
+        if: matrix.test
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install and run the tests (3.13, with polars)
+        if: matrix.test
+        shell: bash
+        run: |
+          python -m venv .venv313
+          if [ -f .venv313/Scripts/python.exe ]; then PY=.venv313/Scripts/python.exe; else PY=.venv313/bin/python; fi
+          $PY -m pip install --upgrade pip
+          $PY -m pip install pytest numpy pandas polars
+          $PY -m pip install --no-index --find-links python/dist fin-primitives
+          cd python && ../$PY -m pytest -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: python/dist/*.whl
+          if-no-files-found: error
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: python/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/py-v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/fin-primitives/
+    permissions:
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Tag matches the crate version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -l dist
+          VERSION="${TAG#py-v}"
+          test "$(ls dist/*.whl | wc -l)" -eq 5 || { echo "expected 5 wheels"; exit 1; }
+          for f in dist/*.whl; do
+            unzip -l "$f" | grep -q "dist-info/licenses/LICENSE" || { echo "$f has no LICENSE"; exit 1; }
+          done
+          for f in dist/*; do
+            case "$(basename "$f")" in
+              fin_primitives-"$VERSION"-*|fin_primitives-"$VERSION".tar.gz) ;;
+              *) echo "$f does not match tag $TAG (version in Cargo.toml?)"; exit 1 ;;
+            esac
+          done
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

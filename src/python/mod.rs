@@ -1,27 +1,51 @@
 //! PyO3 Python bindings (enabled by the `python` feature).
 //!
 //! ## Responsibility
-//! PyO3 Python bindings for core fin-primitives types and indicators.
+//! The native half of the `fin-primitives` Python package. When the feature is active,
+//! this module builds the `fin_primitives._fin_primitives` extension module containing:
+//! - `_Indicator`: any of the 743 indicators in [`crate::signals::indicators`], chosen
+//!   by key (`"rsi"`, `"macd"`, `"bollinger_b"`, ...), with exact (`decimal.Decimal`) and
+//!   float streaming updates and batch updates; the catalogue is generated from the Rust
+//!   sources by `python/tools/gen_registry.py`
+//! - `catalogue()`, `aliases()`, `resolve()`: introspection of that catalogue
+//! - `PyPrice`, `PyQuantity`, `PyOHLCV`: validated value types
+//! - `PyOrderBook`: L2 order book
+//! - `PySMA`, `PyEMA`, `PyRSI`: the original float-returning streaming indicators
 //!
-//! Enabled via the `python` Cargo feature. When the feature is active, this module
-//! exposes a `_fin_primitives` Python extension module containing:
-//! - `PyPrice`, `PyQuantity`, `PyOHLCV` — validated newtype wrappers
-//! - `PyOrderBook` — L2 order book with Python-friendly methods
-//! - `PySMA`, `PyEMA`, `PyRSI` — streaming indicators
+//! Prices and parameters accept `str`, `int`, `float` or `decimal.Decimal`. A float is
+//! read as the shortest decimal that prints as the same float, so `0.1` is exactly `0.1`.
+//!
+//! The pure-Python package in `python/src/fin_primitives/` wraps these with keyword
+//! arguments, `mode="exact" | "float"` and numpy / pandas / polars batch helpers.
+//! See `docs/python.md` for the Python API.
 //!
 //! ## Build
-//! Requires `maturin`. See the `python/` directory for a `pyproject.toml`
-//! and `maturin develop` instructions.
+//! ```text
+//! cd python
+//! maturin build      # abi3 wheel (CPython 3.9+) in ../target/wheels
+//! maturin develop    # or install into the active virtualenv
+//! ```
+//! No `--release`: that flag selects the crate's `release` profile, which has
+//! `panic = "abort"`, so a Rust panic would kill the interpreter. Without it,
+//! `pyproject.toml` selects the `release-python` profile (optimised, `panic = "unwind"`),
+//! and a panic becomes a Python exception. The `pyproject.toml` also enables this feature
+//! and `pyo3/abi3-py39`; the default Rust build does not depend on pyo3.
 //!
 //! ## NOT Responsible For
-//! - GIL management beyond pyo3 defaults
-//! - Numpy interop (callers can convert scalars as needed)
+//! - numpy / pandas / polars types (handled in Python; no hard dependency)
 
+
+mod args;
+mod indicator;
+mod registry;
+
+pub use indicator::PyIndicator;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use rust_decimal::prelude::FromStr;
 use rust_decimal::Decimal;
+
+use args::{decimal_to_py, to_decimal};
 
 use crate::orderbook::{BookDelta, DeltaAction, OrderBook};
 use crate::signals::indicators::{ema::Ema, rsi::Rsi, sma::Sma};
@@ -33,10 +57,7 @@ use crate::types::{Price, Quantity, Side, Symbol};
 /// `Decimal::from_f64_retain`, used before 2.15, kept the binary rounding error, so
 /// `PyPrice(0.1)` held `0.1000000000000000055511151231`.
 fn py_float_to_decimal(value: f64) -> PyResult<Decimal> {
-    if !value.is_finite() {
-        return Err(PyValueError::new_err(format!("cannot convert {value} to Decimal")));
-    }
-    Decimal::from_str(&value.to_string()).map_err(|e| PyValueError::new_err(e.to_string()))
+    args::f64_to_decimal(value)
 }
 
 /// Python-visible `Price` newtype.
@@ -54,14 +75,28 @@ pub struct PyPrice {
     inner: Price,
 }
 
-#[pymethods]
 impl PyPrice {
-    /// Construct a `PyPrice` from a float or string.
-    #[new]
+    /// Construct a `PyPrice` from a float (Rust-side constructor).
     pub fn new(value: f64) -> PyResult<Self> {
         let d = py_float_to_decimal(value)?;
         let p = Price::new(d).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner: p })
+    }
+}
+
+#[pymethods]
+impl PyPrice {
+    /// Construct a `PyPrice` from a `str`, `int`, `float` or `decimal.Decimal`.
+    #[new]
+    fn py_new(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let p = Price::new(to_decimal(value)?).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner: p })
+    }
+
+    /// The exact price as a `decimal.Decimal`.
+    #[getter]
+    fn decimal<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        decimal_to_py(py, self.inner.value())
     }
 
     /// The price as a Python float.
@@ -96,14 +131,29 @@ pub struct PyQuantity {
     inner: Quantity,
 }
 
-#[pymethods]
 impl PyQuantity {
-    /// Create a new `PyQuantity`; raises `ValueError` on invalid input.
-    #[new]
+    /// Create a new `PyQuantity` from a float (Rust-side constructor).
     pub fn new(value: f64) -> PyResult<Self> {
         let d = py_float_to_decimal(value)?;
         let q = Quantity::new(d).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner: q })
+    }
+}
+
+#[pymethods]
+impl PyQuantity {
+    /// Create a new `PyQuantity` from a `str`, `int`, `float` or `decimal.Decimal`;
+    /// raises `ValueError` on a negative quantity.
+    #[new]
+    fn py_new(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let q = Quantity::new(to_decimal(value)?).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner: q })
+    }
+
+    /// The exact quantity as a `decimal.Decimal`.
+    #[getter]
+    fn decimal<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        decimal_to_py(py, self.inner.value())
     }
 
     /// The `value` value.
@@ -257,35 +307,17 @@ impl PyOrderBook {
     /// Apply a delta: `(side, price, qty, action_set, sequence)`.
     ///
     /// `side` must be `"bid"` or `"ask"`. `action_set` is `True` for Set, `False` for Remove.
-    pub fn apply_delta(
+    /// `price` and `qty` accept `str`, `int`, `float` or `decimal.Decimal`.
+    #[pyo3(name = "apply_delta")]
+    fn py_apply_delta(
         &mut self,
         side: &str,
-        price: f64,
-        qty: f64,
+        price: &Bound<'_, PyAny>,
+        qty: &Bound<'_, PyAny>,
         action_set: bool,
         sequence: u64,
     ) -> PyResult<()> {
-        let s = match side.to_lowercase().as_str() {
-            "bid" => Side::Bid,
-            "ask" => Side::Ask,
-            other => {
-                return Err(PyValueError::new_err(format!("side must be 'bid' or 'ask', got '{other}'")));
-            }
-        };
-        let pd = Decimal::from_str(&price.to_string())
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let qd = Decimal::from_str(&qty.to_string())
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let price_t = crate::types::Price::new(pd).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let qty_t = crate::types::Quantity::new(qd).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let delta = BookDelta {
-            side: s,
-            price: price_t,
-            quantity: qty_t,
-            action: if action_set { DeltaAction::Set } else { DeltaAction::Remove },
-            sequence,
-        };
-        self.inner.apply_delta(delta).map_err(|e| PyValueError::new_err(e.to_string()))
+        self.apply_decimal_delta(side, to_decimal(price)?, to_decimal(qty)?, action_set, sequence)
     }
 
     /// Current sequence number.
@@ -301,6 +333,50 @@ impl PyOrderBook {
             self.best_bid(),
             self.best_ask(),
         )
+    }
+}
+
+impl PyOrderBook {
+    /// Apply a delta with float price and quantity (Rust-side API, kept from 2.15).
+    ///
+    /// `side` must be `"bid"` or `"ask"`. `action_set` is `true` for Set, `false` for Remove.
+    pub fn apply_delta(
+        &mut self,
+        side: &str,
+        price: f64,
+        qty: f64,
+        action_set: bool,
+        sequence: u64,
+    ) -> PyResult<()> {
+        let (pd, qd) = (py_float_to_decimal(price)?, py_float_to_decimal(qty)?);
+        self.apply_decimal_delta(side, pd, qd, action_set, sequence)
+    }
+
+    fn apply_decimal_delta(
+        &mut self,
+        side: &str,
+        pd: Decimal,
+        qd: Decimal,
+        action_set: bool,
+        sequence: u64,
+    ) -> PyResult<()> {
+        let s = match side.to_lowercase().as_str() {
+            "bid" => Side::Bid,
+            "ask" => Side::Ask,
+            other => {
+                return Err(PyValueError::new_err(format!("side must be 'bid' or 'ask', got '{other}'")));
+            }
+        };
+        let price_t = crate::types::Price::new(pd).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let qty_t = crate::types::Quantity::new(qd).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let delta = BookDelta {
+            side: s,
+            price: price_t,
+            quantity: qty_t,
+            action: if action_set { DeltaAction::Set } else { DeltaAction::Remove },
+            sequence,
+        };
+        self.inner.apply_delta(delta).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 }
 
@@ -328,12 +404,11 @@ impl PySMA {
     }
 
     /// Feed one bar's close price and return the SMA value, or `None` if not ready.
-    pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
-        use rust_decimal::prelude::ToPrimitive;
-        let d = py_float_to_decimal(close)?;
-        let bar = BarInput::from_close(d);
-        let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(sv.as_decimal().and_then(|v| v.to_f64()))
+    ///
+    /// `close` accepts `str`, `int`, `float` or `decimal.Decimal`.
+    #[pyo3(name = "update")]
+    fn py_update(&mut self, close: &Bound<'_, PyAny>) -> PyResult<Option<f64>> {
+        self.update_decimal(to_decimal(close)?)
     }
 
     /// Name of this indicator.
@@ -370,12 +445,11 @@ impl PyEMA {
     }
 
     /// Feed one bar's close price and return the EMA value, or `None` if not ready.
-    pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
-        use rust_decimal::prelude::ToPrimitive;
-        let d = py_float_to_decimal(close)?;
-        let bar = BarInput::from_close(d);
-        let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(sv.as_decimal().and_then(|v| v.to_f64()))
+    ///
+    /// `close` accepts `str`, `int`, `float` or `decimal.Decimal`.
+    #[pyo3(name = "update")]
+    fn py_update(&mut self, close: &Bound<'_, PyAny>) -> PyResult<Option<f64>> {
+        self.update_decimal(to_decimal(close)?)
     }
 
     /// The `name` value.
@@ -412,12 +486,11 @@ impl PyRSI {
     }
 
     /// Feed one bar's close price and return the RSI value (0–100), or `None` if not ready.
-    pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
-        use rust_decimal::prelude::ToPrimitive;
-        let d = py_float_to_decimal(close)?;
-        let bar = BarInput::from_close(d);
-        let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(sv.as_decimal().and_then(|v| v.to_f64()))
+    ///
+    /// `close` accepts `str`, `int`, `float` or `decimal.Decimal`.
+    #[pyo3(name = "update")]
+    fn py_update(&mut self, close: &Bound<'_, PyAny>) -> PyResult<Option<f64>> {
+        self.update_decimal(to_decimal(close)?)
     }
 
     /// The `name` value.
@@ -431,6 +504,27 @@ impl PyRSI {
     }
 }
 
+macro_rules! float_update {
+    ($($ty:ty),*) => {$(
+        impl $ty {
+            /// Feed one bar's close price and return the value, or `None` if not ready
+            /// (Rust-side API, kept from 2.15).
+            pub fn update(&mut self, close: f64) -> PyResult<Option<f64>> {
+                self.update_decimal(py_float_to_decimal(close)?)
+            }
+
+            fn update_decimal(&mut self, close: Decimal) -> PyResult<Option<f64>> {
+                use rust_decimal::prelude::ToPrimitive;
+                let bar = BarInput::from_close(close);
+                let sv = self.inner.update(&bar).map_err(|e| PyValueError::new_err(e.to_string()))?;
+                Ok(sv.as_decimal().and_then(|v| v.to_f64()))
+            }
+        }
+    )*};
+}
+
+float_update!(PySMA, PyEMA, PyRSI);
+
 /// Registers all Python-visible types and creates the `_fin_primitives` module.
 #[pymodule]
 pub fn _fin_primitives(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -441,5 +535,10 @@ pub fn _fin_primitives(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySMA>()?;
     m.add_class::<PyEMA>()?;
     m.add_class::<PyRSI>()?;
+    m.add_class::<PyIndicator>()?;
+    m.add_function(wrap_pyfunction!(indicator::catalogue, m)?)?;
+    m.add_function(wrap_pyfunction!(indicator::aliases, m)?)?;
+    m.add_function(wrap_pyfunction!(indicator::resolve, m)?)?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }

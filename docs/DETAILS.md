@@ -97,7 +97,7 @@ Full version: `cargo run --example with_ta --features ta`. The other way:
 | `yata` | no | interop with the [`yata`](https://crates.io/crates/yata) crate |
 | `wickra` | no | interop with [`wickra-core`](https://crates.io/crates/wickra-core) (Rust 1.86+) |
 | `arrow` | no | bars to and from Apache Arrow `RecordBatch`, prices as exact `Decimal128` (Rust 1.88+) |
-| `python` | no | PyO3 bindings; `cd python && maturin develop --features python` (Rust 1.83+) |
+| `python` | no | PyO3 bindings for the `fin-primitives` Python package; `cd python && maturin build` (Rust 1.83+), see [docs/python.md](python.md) |
 
 `default-features = false` leaves `rust_decimal`, `chrono`, `thiserror`, `libm` and `statrs`.
 Builds for `wasm32-unknown-unknown`.
@@ -254,7 +254,7 @@ Use TA-Lib for long float64 histories. Use this for exact values, bar-by-bar sta
 | [CHANGELOG.md](../CHANGELOG.md) | what changed in each version |
 | [Project site](https://fin-primitives.vercel.app/) | the same overview as a web page |
 
-Python bindings: `python` feature, `cd python && maturin develop --release`, then `python test_smoke.py`.
+Python: `pip install fin-primitives` gives all 743 indicators with exact `Decimal` or fast float output and numpy / pandas / polars batch helpers. Guide: [docs/python.md](python.md). From source: `cd python && maturin build`, install the wheel, then `pytest`.
 
 > It does not place orders. Not financial advice.
 

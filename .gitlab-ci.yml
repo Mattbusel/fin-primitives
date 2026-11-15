@@ -58,11 +58,13 @@ msrv:
     - cargo check --lib --locked
     - cargo check --lib --locked --no-default-features
 
-# Build the Python wheel with maturin and run the binding smoke test.
+# Build the Python wheel with maturin and run the binding tests.
 python:
   extends: .rust
   script:
     - apt-get update && apt-get install -y --no-install-recommends python3-venv python3-pip
-    - python3 -m venv /tmp/venv && /tmp/venv/bin/pip install maturin
-    - cd python && /tmp/venv/bin/maturin build --release --compatibility linux -o /tmp/wheels
-    - /tmp/venv/bin/pip install /tmp/wheels/*.whl && /tmp/venv/bin/python test_smoke.py
+    - python3 -m venv /tmp/venv && /tmp/venv/bin/pip install "maturin>=1.7,<2" pytest numpy pandas polars
+    - /tmp/venv/bin/python python/tools/gen_registry.py --check
+    - cmp LICENSE python/LICENSE
+    - cd python && /tmp/venv/bin/maturin build --compatibility linux -o /tmp/wheels
+    - /tmp/venv/bin/pip install /tmp/wheels/*.whl && /tmp/venv/bin/python test_smoke.py && /tmp/venv/bin/python -m pytest -q
