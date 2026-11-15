@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-14
+
+### Added
+- **`ta-compat` feature: `fin_primitives::ta_compat`, a drop-in replacement for the
+  unmaintained `ta` crate's API.** Same traits (`Next<T>`, `Reset`, `Period`, `Open`,
+  `High`, `Low`, `Close`, `Volume`), `DataItem` with the same builder checks,
+  `errors::{TaError, Result}`, and the indicator structs with `ta`'s names,
+  constructors, output structs, `Default`s and `Display` strings:
+  `SimpleMovingAverage`, `ExponentialMovingAverage`, `RelativeStrengthIndex`,
+  `MovingAverageConvergenceDivergence`, `PercentagePriceOscillator`, `BollingerBands`,
+  `KeltnerChannel`, `AverageTrueRange`, `TrueRange`, `Maximum`, `Minimum`,
+  `StandardDeviation`, `MeanAbsoluteDeviation`, `FastStochastic`, `SlowStochastic`,
+  `RateOfChange`, `OnBalanceVolume`, `MoneyFlowIndex`, `CommodityChannelIndex`,
+  `EfficiencyRatio`, `ChandelierExit`. Migrating is a dependency swap plus
+  `use fin_primitives::ta_compat as ta;`. Values follow TA-Lib (Wilder RSI and ATR,
+  SMA-seeded EMAs, TA-Lib MACD seeding) and are `NaN` during warm-up; the module docs
+  list every place the numbers differ from `ta` and why. `OhlcvBar` and `BarInput`
+  implement the input traits; with the `ta` feature also on, so does `ta::DataItem`.
+  No new dependencies. Included in `full`.
+- **`f64` fast path, `signals::float`**: native `f64` versions of the main
+  indicators, with constructors on the `Decimal` types so float codebases skip the
+  `Decimal` round trip: `Sma::new_f64`, `Ema::new_f64` / `Ema::wilder_f64`,
+  `Rsi::new_f64`, `Macd::new_f64`, `BollingerB::new_f64` (upper / middle / lower /
+  %B), `Atr::new_f64` / `Atr::wilder_f64`, `StdDev::new_f64`, `StochasticK::new_f64`,
+  `Roc::new_f64`, `Obv::new_f64`, `Mfi::new_f64`, `Cci::new_f64`,
+  `EfficiencyRatio::new_f64`, `Ppo::new_f64`, `RollingMAD::new_f64`. Each runs the same
+  algorithm as its `Decimal` twin (`update` returns `None` during warm-up). Also
+  `TrueRangeF64`, `MaxF64` / `MinF64` (monotonic deque, NaN skipped), and
+  `MacdF64::talib` / `PpoF64::talib` for TA-Lib's MACD seeding and parameter rules.
+- `Atr::wilder` (and `Atr::is_wilder`): Wilder's ATR in exact `Decimal`, matching
+  TA-Lib's `ATR`. `Atr::new` is unchanged (simple average of the true range).
+- Tests against TA-Lib 0.8.3: `tests/talib_reference/gen.py` writes TA-Lib's output for
+  a fixed 120-bar series into `tests/talib_reference/mod.rs`; `tests/ta_compat.rs` and
+  `tests/float_fast_path.rs` check every `ta_compat` indicator, every `f64` type and
+  the `Decimal` RSI and Wilder ATR against it (1e-9 relative), every `f64` type against
+  its `Decimal` twin, and, with the `ta` feature, the indicators documented as
+  unchanged against the `ta` crate itself.
+
 ## [3.1.0] - 2026-11-14
 
 ### Added

@@ -15,6 +15,10 @@ use std::collections::VecDeque;
 ///
 /// ATR is commonly used for volatility measurement, position sizing, and stop-loss placement.
 ///
+/// [`Atr::wilder`] builds Wilder's original ATR instead (TA-Lib's `ATR`): the same
+/// simple average seeds it, and later bars apply
+/// `atr = (prev_atr * (period - 1) + true_range) / period`.
+///
 /// # Example
 /// ```rust
 /// use fin_primitives::signals::indicators::Atr;
@@ -27,6 +31,8 @@ pub struct Atr {
     period: usize,
     prev_close: Option<Decimal>,
     tr_values: VecDeque<Decimal>,
+    /// `Some` for Wilder smoothing: the current smoothed value once seeded.
+    wilder: Option<Option<Decimal>>,
 }
 
 impl Atr {
@@ -43,7 +49,44 @@ impl Atr {
             period,
             prev_close: None,
             tr_values: VecDeque::with_capacity(period),
+            wilder: None,
         })
+    }
+
+    /// Constructs Wilder's ATR, which matches TA-Lib's `ATR`.
+    ///
+    /// The first bar only sets the previous close. The true ranges of the next
+    /// `period` bars are averaged to seed the ATR (so the first value arrives on bar
+    /// `period + 1`, as with [`Atr::new`]), and every later bar applies Wilder
+    /// smoothing: `atr = (prev_atr * (period - 1) + true_range) / period`.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use fin_primitives::signals::indicators::Atr;
+    /// use fin_primitives::signals::{BarInput, Signal};
+    /// use rust_decimal_macros::dec;
+    ///
+    /// let mut atr = Atr::wilder("atr", 2).unwrap();
+    /// let bar = |h, l, c| BarInput::new(c, h, l, c, dec!(0));
+    /// atr.update(&bar(dec!(10), dec!(8), dec!(9))).unwrap();   // sets prev close
+    /// atr.update(&bar(dec!(11), dec!(9), dec!(10))).unwrap();  // TR 2
+    /// let seeded = atr.update(&bar(dec!(12), dec!(8), dec!(11))).unwrap(); // TR 4
+    /// assert_eq!(seeded.as_decimal(), Some(dec!(3)));
+    /// let next = atr.update(&bar(dec!(12), dec!(11), dec!(11))).unwrap(); // TR 1
+    /// assert_eq!(next.as_decimal(), Some(dec!(2)));
+    /// ```
+    pub fn wilder(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
+        let mut atr = Self::new(name, period)?;
+        atr.wilder = Some(None);
+        Ok(atr)
+    }
+
+    /// `true` if this ATR uses Wilder smoothing (built with [`Atr::wilder`]).
+    pub fn is_wilder(&self) -> bool {
+        self.wilder.is_some()
     }
 }
 
@@ -63,6 +106,19 @@ impl Signal for Atr {
         };
 
         self.prev_close = Some(bar.close);
+
+        #[allow(clippy::cast_possible_truncation)]
+        let period_d = Decimal::from(self.period as u32);
+        if let Some(Some(prev_atr)) = self.wilder {
+            let atr = prev_atr
+                .checked_mul(period_d - Decimal::ONE)
+                .and_then(|v| v.checked_add(true_range))
+                .and_then(|v| v.checked_div(period_d))
+                .ok_or(FinError::ArithmeticOverflow)?;
+            self.wilder = Some(Some(atr));
+            return Ok(SignalValue::Scalar(atr));
+        }
+
         self.tr_values.push_back(true_range);
         if self.tr_values.len() > self.period {
             self.tr_values.pop_front();
@@ -75,13 +131,18 @@ impl Signal for Atr {
         let sum: Decimal = self.tr_values.iter().copied().sum();
         #[allow(clippy::cast_possible_truncation)]
         let atr = sum
-            .checked_div(Decimal::from(self.period as u32))
+            .checked_div(period_d)
             .ok_or(FinError::ArithmeticOverflow)?;
+        if self.wilder.is_some() {
+            // Seeded: from here on only the smoothed value is needed.
+            self.wilder = Some(Some(atr));
+            self.tr_values.clear();
+        }
         Ok(SignalValue::Scalar(atr))
     }
 
     fn is_ready(&self) -> bool {
-        self.tr_values.len() >= self.period
+        matches!(self.wilder, Some(Some(_))) || self.tr_values.len() >= self.period
     }
 
     fn period(&self) -> usize {
@@ -91,6 +152,9 @@ impl Signal for Atr {
     fn reset(&mut self) {
         self.prev_close = None;
         self.tr_values.clear();
+        if self.wilder.is_some() {
+            self.wilder = Some(None);
+        }
     }
 }
 

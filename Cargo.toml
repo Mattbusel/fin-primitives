@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -19,8 +19,8 @@ include = ["src/**/*", "benches/**/*", "tests/**/*", "examples/**/*", "Cargo.tom
 # (Price, Quantity, Symbol, Tick, OrderBook, OHLCV, the Signal trait and the normal
 # distribution) use `default-features = false`.
 default = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income", "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve", "clustering", "montecarlo"]
-## Every domain module plus `async` (not the interop crates or `python`).
-full = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income", "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve", "clustering", "montecarlo", "async"]
+## Every domain module plus `async` and `ta-compat` (not the interop crates or `python`).
+full = ["serde", "indicators", "options", "portfolio", "risk", "fixed-income", "derivatives", "crypto", "credit", "ml", "backtest", "tax", "yield-curve", "clustering", "montecarlo", "async", "ta-compat"]
 ## Serialize and Deserialize for the data types (prices as exact decimal strings).
 serde = ["dep:serde", "rust_decimal/serde-with-str", "chrono/serde"]
 ## `signals::indicators` (700+ streaming indicators), `technical`, `regime`, `correlation`, `volatility`.
@@ -53,6 +53,8 @@ clustering = []
 montecarlo = []
 ## `async_signals`: a Tokio task that runs a signal pipeline over a channel of bars. Off by default since 3.0.
 async = ["dep:tokio"]
+## `ta_compat`: a drop-in replacement for the `ta` crate's API (same traits and indicator names), computed with Wilder / TA-Lib-exact maths. No extra dependencies.
+ta-compat = ["indicators"]
 ## Interop: fin-primitives bars implement `ta`'s Open/High/Low/Close/Volume traits.
 ta = ["dep:ta"]
 ## Interop: fin-primitives bars implement `yata`'s OHLCV trait.

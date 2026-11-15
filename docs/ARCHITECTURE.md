@@ -59,7 +59,7 @@ Cargo feature. All of those features are on by default except `async`, so
 |---|---|---|---|
 | *(always)* | | `types`, `tick`, `orderbook`, `ohlcv`, `signals` (the `Signal` trait, `BarInput`, `SignalValue`, pipeline, composition, warm-up), `normal`, `interop`, `error` | chrono, rust_decimal, thiserror, libm |
 | `serde` | yes | `Serialize`/`Deserialize` on the data types | serde |
-| `indicators` | yes | `signals::indicators` (700+), `technical`, `regime`, `correlation`, `volatility` | |
+| `indicators` | yes | `signals::indicators` (700+), `signals::float` (`f64` fast path), `technical`, `regime`, `correlation`, `volatility` | |
 | `options` | yes | `greeks`, `options` | |
 | `portfolio` | yes | `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance` | |
 | `risk` | yes | `risk`, `scenario`, `cross_asset`, `liquidity` (turns on `portfolio`) | |
@@ -74,7 +74,8 @@ Cargo feature. All of those features are on by default except `async`, so
 | `clustering` | yes | `clustering` | |
 | `montecarlo` | yes | `montecarlo` | |
 | `async` | **no** | `async_signals` | tokio (rt, sync) |
-| `full` | no | all of the above, including `async` | |
+| `full` | no | all of the above, including `async` and `ta-compat` | |
+| `ta-compat` | no | `ta_compat`: the `ta` crate's API (`Next`, `Reset`, `DataItem`, its indicator structs) on TA-Lib-exact maths (turns on `indicators`) | |
 | `ta`, `yata`, `wickra`, `arrow`, `python` | no | `interop::{ta,yata,wickra}`, `arrow`, PyO3 bindings (`python` turns on `indicators`) | the named crate |
 
 ```toml

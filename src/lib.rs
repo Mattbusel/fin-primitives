@@ -164,7 +164,7 @@
 //! | feature | default | adds |
 //! |---|---|---|
 //! | `serde` | yes | `Serialize`/`Deserialize` on the data types; deserializing re-runs validation |
-//! | `indicators` | yes | `signals::indicators` (700+ indicators), `technical`, `regime`, `correlation`, `volatility` |
+//! | `indicators` | yes | `signals::indicators` (700+ indicators), `signals::float` (`f64` fast path: `Rsi::new_f64(14)` and friends), `technical`, `regime`, `correlation`, `volatility` |
 //! | `options` | yes | `greeks` (Black-Scholes, Greeks, implied vol, spreads) and `options` |
 //! | `portfolio` | yes | `portfolio`, `position`, `pnl`, `attribution`, `factor`, `rebalancing`, `performance` |
 //! | `risk` | yes | `risk`, `scenario`, `cross_asset`, `liquidity` (turns on `portfolio`) |
@@ -174,7 +174,8 @@
 //! | `fixed-income`, `yield-curve`, `derivatives`, `credit` | yes | `fixed_income`, `yield_curve`, `derivatives`, `credit` |
 //! | `tax`, `clustering`, `montecarlo` | yes | `tax`, `clustering`, `montecarlo` |
 //! | `async` | **no** (yes before 3.0) | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
-//! | `full` | no | every feature above, including `async` |
+//! | `full` | no | every feature above, including `async` and `ta-compat` |
+//! | `ta-compat` | no | `ta_compat`: drop-in replacement for the unmaintained `ta` crate's API (`Next`, `Reset`, `DataItem`, `SimpleMovingAverage`, `RelativeStrengthIndex`, ...), computed with Wilder / TA-Lib-exact maths; no extra dependencies (turns on `indicators`) |
 //! | `ta`, `yata`, `wickra` | no | [`interop`] with those crates: their indicators read fin-primitives bars, their bars convert to [`BarInput`](signals::BarInput) |
 //! | `arrow` | no | `arrow`: bars to and from Apache Arrow with exact `Decimal128` columns |
 //! | `python` | no | PyO3 bindings for the `fin-primitives` Python package (all indicators, exact `Decimal` or float output, numpy / pandas / polars batches), built with maturin from the repository's `python/` folder |
@@ -233,6 +234,9 @@ pub mod async_signals;
 pub mod arrow;
 #[cfg(feature = "python")]
 pub mod python;
+#[cfg(feature = "ta-compat")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ta-compat")))]
+pub mod ta_compat;
 
 // Domain modules, each behind a Cargo feature (all on by default).
 
