@@ -31,8 +31,8 @@ jobs:
           - { os: linux, runner: ubuntu-24.04-arm, target: aarch64, test: true, floor: "3.10" }
           # Intel macOS runners are being retired: cross-compile x86_64 on Apple Silicon
           # (the wheel is built and uploaded; its tests run only on native targets).
-          - { os: macos, runner: macos-14, target: x86_64, test: false, floor: "3.10" }
-          - { os: macos, runner: macos-14, target: aarch64, test: true, floor: "3.10" }
+          - { os: macos, runner: macos-15, target: x86_64, test: false, floor: "3.10" }
+          - { os: macos, runner: macos-15, target: aarch64, test: true, floor: "3.10" }
           - { os: windows, runner: windows-latest, target: x64, test: true, floor: "3.9" }
     steps:
       - uses: actions/checkout@v4
