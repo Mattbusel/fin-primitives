@@ -27,7 +27,7 @@ jobs:
         # tested on the x86_64 runners. CPython 3.9 is past end of life and setup-python may
         # have no arm64 build of it, so the arm64 runners test 3.10 instead.
         include:
-          - { os: linux, runner: ubuntu-latest, target: x86_64, test: true, floor: "3.9" }
+          - { os: linux, runner: ubuntu-24.04, target: x86_64, test: true, floor: "3.9" }
           - { os: linux, runner: ubuntu-24.04-arm, target: aarch64, test: true, floor: "3.10" }
           # Intel macOS runners are being retired: cross-compile x86_64 on Apple Silicon
           # (the wheel is built and uploaded; its tests run only on native targets).
@@ -92,7 +92,7 @@ jobs:
           if-no-files-found: error
 
   sdist:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Build sdist
@@ -111,7 +111,7 @@ jobs:
     name: Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/py-v')
     needs: [wheels, sdist]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/project/fin-primitives/
