@@ -19,6 +19,9 @@ pub mod composite;
 pub mod entropy;
 #[cfg(feature = "indicators")]
 #[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
+pub mod batch_f64;
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
 pub mod float;
 #[cfg(feature = "indicators")]
 #[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]

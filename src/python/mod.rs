@@ -11,6 +11,9 @@
 //! - `PyPrice`, `PyQuantity`, `PyOHLCV`: validated value types
 //! - `PyOrderBook`: L2 order book
 //! - `PySMA`, `PyEMA`, `PyRSI`: the original float-returning streaming indicators
+//! - `fast_sma`, `fast_ema`, `fast_rsi`, `fast_atr`, `fast_macd`, `fast_bbands`, ...:
+//!   whole-series float64 functions over numpy arrays (zero-copy, GIL released), behind
+//!   `fin_primitives.fast`
 //!
 //! Prices and parameters accept `str`, `int`, `float` or `decimal.Decimal`. A float is
 //! read as the shortest decimal that prints as the same float, so `0.1` is exactly `0.1`.
@@ -32,10 +35,12 @@
 //! and `pyo3/abi3-py39`; the default Rust build does not depend on pyo3.
 //!
 //! ## NOT Responsible For
-//! - numpy / pandas / polars types (handled in Python; no hard dependency)
+//! - numpy / pandas / polars types (handled in Python; no hard dependency); the `fast_*`
+//!   functions take numpy arrays, so numpy must be installed to call them
 
 
 mod args;
+mod fast;
 mod indicator;
 mod registry;
 
@@ -539,6 +544,7 @@ pub fn _fin_primitives(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(indicator::catalogue, m)?)?;
     m.add_function(wrap_pyfunction!(indicator::aliases, m)?)?;
     m.add_function(wrap_pyfunction!(indicator::resolve, m)?)?;
+    fast::register(m)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }

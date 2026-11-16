@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "3.3.0"
+version = "3.4.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -64,7 +64,7 @@ wickra = ["dep:wickra-core"]
 ## Arrow `RecordBatch` export and import for bars, with exact Decimal128 columns (needs Rust 1.88+).
 arrow = ["dep:arrow-array", "dep:arrow-schema"]
 ## PyO3 bindings for the `fin-primitives` Python package; build the wheel from `python/` with `maturin build` (not `--release`, which picks the panic = "abort" profile; needs Rust 1.83+).
-python = ["dep:pyo3", "indicators"]
+python = ["dep:pyo3", "dep:numpy", "indicators"]
 
 [package.metadata.docs.rs]
 # Every domain module plus `async`. `python` is left out: it needs a Python interpreter at build time.
@@ -84,6 +84,8 @@ rust_decimal = { version = "1.36", default-features = false, features = ["std"] 
 thiserror = "2"
 # pyo3: Python bindings, only when the `python` feature is enabled
 pyo3 = { version = "0.29", features = ["extension-module"], optional = true }
+# numpy: zero-copy float64 arrays for the Python `fin_primitives.fast` batch API (`python` feature only)
+numpy = { version = "0.29", optional = true }
 # libm: erfc for the standard normal CDF (about 1e-15 relative error, also in the tails)
 libm = "0.2.11"
 # Interop with other trading crates, each optional and off by default.

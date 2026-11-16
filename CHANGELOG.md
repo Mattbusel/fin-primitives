@@ -6,7 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-11-16
+
 ### Added
+- Python: `fin_primitives.fast`, whole-series float64 indicators for backtests. Each
+  function borrows a numpy array without copying it, releases the GIL, runs one O(n) pass
+  in Rust and returns numpy arrays (a pandas Series in gives a Series out): `sma`, `ema`,
+  `rma`, `rsi`, `atr` (TA-Lib seed, or TradingView's with `seed="tradingview"`),
+  `true_range`, `macd` returning `(line, signal, hist)`, `bbands` returning
+  `(lower, mid, upper)`, and one-pass rolling `stdev` and `variance` with `ddof`. The
+  results follow pandas-ta-classic 0.9.0: identical warm-up `NaN`s and seeding, values bit
+  for bit equal for SMA, EMA, RSI, ATR and MACD and within 1e-12 relative for the rolling
+  standard deviation. On 100,000 bars they run 4x (RSI) to 65x (MACD) faster than
+  pandas-ta-classic. The decimal API is unchanged.
+- Rust: `signals::batch_f64`, the slice-in, `Vec<f64>`-out kernels behind it.
 - Python: a WebAssembly wheel for Pyodide on PyPI (PEP 783 platform tag
   `pyemscripten_2026_0_wasm32`, Python 3.14), so `await micropip.install("fin-primitives")`
   works in the browser: JupyterLite, marimo WASM notebooks, PyScript and Stlite. The wheel

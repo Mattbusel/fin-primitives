@@ -109,6 +109,61 @@ An `Indicator` holds native Rust state, so it cannot be pickled or deep-copied. 
 one with `Indicator(ind.key, *ind.params, mode=ind.mode)` and replay the data instead.
 `fp.catalogue()` returns a fresh copy each call.
 
+## Fast whole-series float64: `fin_primitives.fast`
+
+For backtests that compute an indicator over a whole price history at once. Plain float64
+instead of exact decimals: each function borrows the numpy array without copying it,
+releases the GIL, runs one O(n) loop in Rust and returns new numpy arrays. The numbers
+follow pandas-ta-classic 0.9.0, and so TA-Lib's seeding: the same leading `NaN`s, SMA seeds
+and Wilder smoothing, with values identical to pandas-ta's (bit for bit for SMA, EMA, RSI,
+ATR and MACD; within a few units in the last place for the rolling standard deviation).
+Needs numpy.
+
+```python
+from fin_primitives import fast
+
+fast.sma(close, 20)                              # first value at index 19
+fast.ema(close, 20)                              # SMA seed, alpha = 2 / 21
+fast.rsi(close, 14)                              # Wilder, first value at index 14
+fast.atr(high, low, close, 14)                   # Wilder, TA-Lib seed (first value at 14)
+fast.atr(high, low, close, 14, seed="tradingview")   # ta.atr: bar 0 is high - low (first at 13)
+line, signal, hist = fast.macd(close, 12, 26, 9)
+lower, mid, upper = fast.bbands(close, 20, 2.0)  # ddof=0, as pandas-ta and TA-Lib
+fast.stdev(close, 20, ddof=0)                    # one-pass rolling standard deviation
+fast.variance(close, 20), fast.rma(close, 14), fast.true_range(high, low, close)
+```
+
+| function | pandas-ta-classic | first value at |
+|---|---|---|
+| `sma(close, period)` | `ta.sma` | `period - 1` |
+| `ema(close, period)` | `ta.ema` | `period - 1` |
+| `rma(close, period)` | `ta.rma` | `period - 1` |
+| `rsi(close, period)` | `ta.rsi` | `period` |
+| `atr(high, low, close, period, seed="talib")` | `ta.atr` | `period` (`period - 1` with `seed="tradingview"`) |
+| `true_range(high, low, close, seed="talib")` | `ta.true_range` | `1` (`0` with `seed="tradingview"`) |
+| `macd(close, fast, slow, signal)` | `ta.macd` | line `slow - 1`, signal and histogram `slow + signal - 2` |
+| `bbands(close, period, std, ddof=0)` | `ta.bbands` (lower, mid, upper) | `period - 1` |
+| `stdev(close, period, ddof=0)` / `variance(...)` | `ta.stdev` / `ta.variance` | `period - 1` |
+
+Input can be a numpy array, a pandas Series (the result is a Series with the same index) or
+anything `numpy.asarray` accepts. Input shorter than the period gives all `NaN`, as in
+pandas-ta. `NaN` input is handled the way pandas-ta handles it: a leading `NaN` run is
+skipped and the seed starts after it, a window holding a `NaN` reads `NaN` (SMA, standard
+deviation), a missing bar reads `NaN` while the average carries across it (EMA, RSI, ATR),
+and MACD skips non-finite rows.
+
+100,000 bars, median of 7 runs, Python 3.12 on Windows x86_64, against pandas-ta-classic
+0.9.0 (pandas 3.1, numpy 2.5, no numba or TA-Lib):
+
+| indicator | pandas-ta-classic | `fin_primitives.fast` | speed-up |
+|---|---:|---:|---:|
+| sma(20) | 1.4 ms | 0.2 ms | 7x |
+| ema(20) | 1.6 ms | 0.2 ms | 9x |
+| rsi(14) | 5.8 ms | 1.5 ms | 4x |
+| macd(12, 26, 9) | 77.5 ms | 1.2 ms | 65x |
+| bbands(20, 2) | 15.4 ms | 2.1 ms | 7x |
+| atr(14) | 3.3 ms | 0.3 ms | 12x |
+
 ## The catalogue
 
 ```python
@@ -166,6 +221,10 @@ res.metrics   # one Sharpe ratio per out-of-sample path
 values printed by the Rust crate itself (`cargo run --example indicator_reference`) on 120
 seeded bars: exact mode matches digit for digit, float mode equals `float()` of each value.
 Another test builds every catalogue entry and runs 80 bars through it in both modes.
+`python/tests/test_fast.py` checks `fin_primitives.fast` against numpy references and,
+when pandas-ta-classic is installed, against pandas-ta-classic itself on random walks and
+on data with regime changes, jumps, flat runs and missing values: identical `NaN` placement
+and values within 1e-12 relative.
 
 ## Building from source
 

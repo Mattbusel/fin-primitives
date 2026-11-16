@@ -19,6 +19,13 @@ same type (numpy, pandas and polars are optional; nothing imports them unless yo
     >>> fp.compute("atr", df["close"], 14, high=df["high"], low=df["low"])
 
 ``catalogue()`` lists every indicator key with its parameters and a one-line description.
+
+For whole-series backtests in float64, ``fin_primitives.fast`` computes SMA, EMA, RSI, ATR,
+MACD, Bollinger Bands and rolling standard deviation in one Rust pass over a numpy array,
+with pandas-ta-classic's (TA-Lib's) seeding and warm-up::
+
+    >>> from fin_primitives import fast
+    >>> lower, mid, upper = fast.bbands(df["close"], 20, 2.0)
 """
 from __future__ import annotations
 
@@ -465,3 +472,13 @@ def bollinger_b(close: Any, period: int = 20, k: Number = 2, *, mode: str = "aut
 def atr(high: Any, low: Any, close: Any, period: int = 14, *, mode: str = "auto") -> Any:
     """Average true range (simple average of the last ``period`` true ranges)."""
     return compute("atr", close, period, high=high, low=low, mode=mode)
+
+
+def __getattr__(name: str) -> Any:
+    # `fin_primitives.fast` needs numpy, which the rest of the package does not, so it is
+    # imported on first use rather than with the package.
+    if name == "fast":
+        import importlib
+
+        return importlib.import_module(".fast", __name__)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -87,14 +87,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install and run the tests (3.13, with polars)
+      - name: Install and run the tests (3.13, with polars and pandas-ta-classic)
         if: matrix.test
         shell: bash
         run: |
           python -m venv .venv313
           if [ -f .venv313/Scripts/python.exe ]; then PY=.venv313/Scripts/python.exe; else PY=.venv313/bin/python; fi
           $PY -m pip install --upgrade pip
-          $PY -m pip install pytest numpy pandas polars
+          # pandas-ta-classic: the reference tests/test_fast.py checks fin_primitives.fast against
+          $PY -m pip install pytest numpy pandas polars "pandas-ta-classic==0.9.0"
           $PY -m pip install --no-index --find-links python/dist fin-primitives
           cd python && ../$PY -m pytest -q
       - uses: actions/upload-artifact@v4
