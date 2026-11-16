@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Python: a WebAssembly wheel for Pyodide on PyPI (PEP 783 platform tag
+  `pyemscripten_2026_0_wasm32`, Python 3.14), so `await micropip.install("fin-primitives")`
+  works in the browser: JupyterLite, marimo WASM notebooks, PyScript and Stlite. The wheel
+  job builds with the Rust toolchain, Emscripten version and flags that `pyodide-build`
+  reports for Pyodide 314, then runs the Python test suite inside Pyodide before upload.
+  A manual run of the workflow can add that wheel to a release already on PyPI (3.3.0 got
+  it this way).
+- Example: `python/examples/marimo_wasm_rsi.py`, a marimo notebook (RSI with period and
+  seed sliders, float and exact decimal side by side) that runs locally, on molab, or in
+  the browser through `marimo export html-wasm`.
+
 ## [3.3.0] - 2026-11-15
 
 ### Added

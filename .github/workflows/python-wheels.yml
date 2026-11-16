@@ -6,12 +6,24 @@
 # run is green. Publishing uses PyPI trusted publishing: no token is stored here.
 # One-time setup on pypi.org, under the project's (or your account's pending) publishers:
 #   owner: Mattbusel, repository: fin-primitives, workflow: python-wheels.yml, environment: pypi
+#
+# Besides the five native wheels it builds a WebAssembly wheel for Pyodide (PEP 783 platform
+# tag pyemscripten_2026_0_wasm32, Python 3.14), so `micropip.install("fin-primitives")` works
+# in JupyterLite, marimo WASM notebooks, PyScript and Stlite. The wheel is tested inside
+# Pyodide (Node) before upload. To add that wheel to a release that is already on PyPI, run
+# the workflow by hand on main with "publish-pyemscripten" ticked: it uploads only the
+# pyemscripten wheel, and only if the wheel's sources are unchanged since the py-v<version> tag.
 name: Python wheels
 
 on:
   push:
     tags: ["py-v*"]
   workflow_dispatch:
+    inputs:
+      publish-pyemscripten:
+        description: "Upload the pyemscripten wheel to the existing PyPI release of this version"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -91,6 +103,69 @@ jobs:
           path: python/dist/*.whl
           if-no-files-found: error
 
+  wheel-pyemscripten:
+    name: wheel pyemscripten wasm32 (Pyodide ${{ matrix.pyodide }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pyodide 314.x is Python 3.14 and the pyemscripten_2026_0 platform. pyodide-build
+        # reads the Rust toolchain, Emscripten version, ABI version and rustflags from it.
+        include:
+          - { python: "3.14", pyodide: "314.0.7" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pyodide-build and the Pyodide cross-build environment
+        run: |
+          python -m pip install "pyodide-build==0.39.3"
+          pyodide xbuildenv install ${{ matrix.pyodide }}
+      - name: Read the Pyodide platform config
+        id: pyodide
+        run: |
+          {
+            echo "rust-toolchain=$(pyodide config get rust_toolchain)"
+            echo "emscripten-version=$(pyodide config get emscripten_version)"
+            echo "abi-version=$(pyodide config get pyodide_abi_version)"
+            echo "rustflags=$(pyodide config get rustflags)"
+          } >> "$GITHUB_OUTPUT"
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: ${{ steps.pyodide.outputs.emscripten-version }}
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUSTFLAGS: ${{ steps.pyodide.outputs.rustflags }}
+          MATURIN_PYEMSCRIPTEN_PLATFORM_VERSION: ${{ steps.pyodide.outputs.abi-version }}
+        with:
+          working-directory: python
+          maturin-version: v1.16.0
+          target: wasm32-unknown-emscripten
+          rust-toolchain: ${{ steps.pyodide.outputs.rust-toolchain }}
+          args: --out dist --interpreter ${{ matrix.python }}
+      - name: Check the wheel's platform tag and license file
+        run: |
+          ls -l python/dist
+          test "$(ls python/dist/*-pyemscripten_${{ steps.pyodide.outputs.abi-version }}_wasm32.whl | wc -l)" -eq 1
+          unzip -l python/dist/*.whl | grep -q "dist-info/licenses/LICENSE"
+      - name: Install into Pyodide (Node) and run the tests
+        run: |
+          pyodide venv .venv-pyodide
+          . .venv-pyodide/bin/activate
+          pip install pytest numpy pandas
+          pip install --no-index --find-links python/dist fin-primitives
+          cd python && python -m pytest -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-pyemscripten-wasm32
+          path: python/dist/*.whl
+          if-no-files-found: error
+
   sdist:
     runs-on: ubuntu-24.04
     steps:
@@ -110,7 +185,7 @@ jobs:
   publish:
     name: Publish to PyPI
     if: startsWith(github.ref, 'refs/tags/py-v')
-    needs: [wheels, sdist]
+    needs: [wheels, wheel-pyemscripten, sdist]
     runs-on: ubuntu-24.04
     environment:
       name: pypi
@@ -128,7 +203,7 @@ jobs:
         run: |
           ls -l dist
           VERSION="${TAG#py-v}"
-          test "$(ls dist/*.whl | wc -l)" -eq 5 || { echo "expected 5 wheels"; exit 1; }
+          test "$(ls dist/*.whl | wc -l)" -eq 6 || { echo "expected 6 wheels (5 native, 1 pyemscripten)"; exit 1; }
           for f in dist/*.whl; do
             unzip -l "$f" | grep -q "dist-info/licenses/LICENSE" || { echo "$f has no LICENSE"; exit 1; }
           done
@@ -141,3 +216,41 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+
+  publish-pyemscripten:
+    # Adds the pyemscripten wheel to a release that is already on PyPI (for a release made
+    # before this job existed). Run by hand on main with publish-pyemscripten ticked.
+    name: Publish the pyemscripten wheel to an existing PyPI release
+    if: github.event_name == 'workflow_dispatch' && inputs.publish-pyemscripten && github.ref == 'refs/heads/main'
+    needs: [wheel-pyemscripten]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/fin-primitives/
+    permissions:
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-pyemscripten-wasm32
+          path: dist
+      - name: Only backfill a released version built from unchanged sources
+        run: |
+          ls -l dist
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          test "$(ls dist/*.whl | wc -l)" -eq 1
+          case "$(basename dist/*.whl)" in
+            fin_primitives-"$VERSION"-*-pyemscripten_*_wasm32.whl) ;;
+            *) echo "unexpected wheel name for $VERSION"; exit 1 ;;
+          esac
+          curl -fsS "https://pypi.org/pypi/fin-primitives/$VERSION/json" > /dev/null \
+            || { echo "$VERSION is not on PyPI: release it with a py-v$VERSION tag instead"; exit 1; }
+          git diff --quiet "py-v$VERSION" HEAD -- src Cargo.toml Cargo.lock python/src python/pyproject.toml python/LICENSE \
+            || { echo "wheel sources changed since py-v$VERSION: make a new release instead"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
