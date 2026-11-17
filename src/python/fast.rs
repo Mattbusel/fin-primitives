@@ -274,6 +274,16 @@ pub fn fast_adosc_loop<'py>(py: Python<'py>, ad: PyReadonlyArray1<'py, f64>, fas
     Ok(py.detach(|| k::adosc_loop(a, fast, slow)).into_pyarray(py))
 }
 
+/// KAMA recursion over the squared smoothing constant `sc` and `close`.
+#[pyfunction]
+pub fn fast_kama_loop<'py>(py: Python<'py>, sc: PyReadonlyArray1<'py, f64>, close: PyReadonlyArray1<'py, f64>, length: usize) -> PyResult<Arr<'py>> {
+    positive(length, "length")?;
+    let s = slice(&sc, "sc")?;
+    let c = slice(&close, "close")?;
+    same_len(c.len(), s, "sc")?;
+    Ok(py.detach(|| k::kama_loop(s, c, length)).into_pyarray(py))
+}
+
 /// Adds the `fast_*` functions to the extension module.
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_sma, m)?)?;
@@ -296,5 +306,6 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_supertrend_loop, m)?)?;
     m.add_function(wrap_pyfunction!(fast_qqe_loop, m)?)?;
     m.add_function(wrap_pyfunction!(fast_adosc_loop, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_kama_loop, m)?)?;
     Ok(())
 }

@@ -253,6 +253,36 @@ def linreg(close, length=None) -> Out:
     return [(f"LR_{n}", out)]
 
 
+def kama(close, length=None, fast=None, slow=None) -> Out:
+    """Kaufman's Adaptive Moving Average, ``KAMA_{length}_{fast}_{slow}`` (pandas-ta
+    defaults 10, 2, 30). A window with no movement has an efficiency ratio of 1, as in
+    pandas-ta-classic 0.9.0 and TA-Lib. Every row where ``close`` is not finite is skipped
+    and reads NaN (pandas-ta's ``skip_leading_nan(interior=True)``), so one missing bar does
+    not end the recursion."""
+    n = _num(length, 10, "length", integer=True)
+    f = _num(fast, 2, "fast", integer=True)
+    s = _num(slow, 30, "slow", integer=True)
+    name = f"KAMA_{n}_{f}_{s}"
+    out = np.full(close.size, np.nan)
+    finite = np.isfinite(close)
+    rows = np.flatnonzero(finite)
+    # pandas-ta's verify_series(close, max(fast, slow, length)) runs on the finite rows.
+    if rows.size >= max(n, f, s):
+        out[rows] = _kama(np.ascontiguousarray(close[rows], dtype=np.float64), n, f, s)
+    return [(name, out)]
+
+
+def _kama(close: np.ndarray, n: int, f: int, s: int) -> np.ndarray:
+    fr = 2 / (f + 1)
+    sr = 2 / (s + 1)
+    abs_diff = np.abs(close - _shift(close, n))
+    peer_sum = _rsum(np.abs(close - _shift(close, 1)), n)
+    er = _mask(_div(abs_diff, peer_sum), peer_sum == 0, 1.0)
+    x = er * (fr - sr) + sr
+    sc = np.ascontiguousarray(x * x)
+    return _native.fast_kama_loop(sc, close, int(n))
+
+
 def supertrend(high, low, close, length=None, multiplier=None) -> Out:
     n = _num(length, 7, "length", integer=True)
     k = _num(multiplier, 3.0, "multiplier")
@@ -293,6 +323,17 @@ def ichimoku(high, low, close, tenkan=None, kijun=None, senkou=None, include_chi
 def mom(close, length=None) -> Out:
     n = _num(length, 10, "length", integer=True)
     return [(f"MOM_{n}", _diff(close, n))]
+
+
+def eri(high, low, close, length=None) -> Out:
+    """Elder Ray Index: bull power ``BULLP_{length}`` (high less the EMA of close) and bear
+    power ``BEARP_{length}`` (low less the EMA), pandas-ta default length 13."""
+    n = _num(length, 13, "length", integer=True)
+    if close.size < n:
+        nan = np.full(close.size, np.nan)
+        return [(f"BULLP_{n}", nan), (f"BEARP_{n}", nan.copy())]
+    e = _ema(close, n)
+    return [(f"BULLP_{n}", high - e), (f"BEARP_{n}", low - e)]
 
 
 def roc(close, length=None, scalar=None) -> Out:
@@ -755,10 +796,12 @@ SPEC: Dict[str, Tuple[Tuple[str, ...], Callable[..., Out]]] = {
     "midpoint": (C, midpoint),
     "midprice": (HL, midprice),
     "linreg": (C, linreg),
+    "kama": (C, kama),
     "supertrend": (HLC, supertrend),
     "ichimoku": (HLC, ichimoku),
     # momentum
     "mom": (C, mom),
+    "eri": (HLC, eri),
     "roc": (C, roc),
     "cmo": (C, cmo),
     "stoch": (HLC, stoch),
@@ -800,7 +843,7 @@ SPEC: Dict[str, Tuple[Tuple[str, ...], Callable[..., Out]]] = {
 }
 
 # Indicators whose result is a frame of several columns in pandas-ta.
-MULTI = {"supertrend", "ichimoku", "stoch", "stochrsi", "ppo", "trix", "tsi", "qqe", "adx", "aroon", "psar", "vortex", "kc", "donchian"}
+MULTI = {"eri", "supertrend", "ichimoku", "stoch", "stochrsi", "ppo", "trix", "tsi", "qqe", "adx", "aroon", "psar", "vortex", "kc", "donchian"}
 
 
 def run(name: str, columns: Dict[str, np.ndarray], **params: Any) -> Out:

@@ -19,7 +19,7 @@ Methods (pandas-ta defaults): ``sma(10)``, ``ema(10)``, ``rma(10)``, ``rsi(14)``
 ``atr(14)``, ``true_range()``, ``macd(12, 26, 9)``, ``bbands(5, 2.0)``, ``stdev(30)``,
 ``variance(30)``, and from :mod:`fin_primitives._pta`: ``wma``, ``hma``, ``dema``, ``tema``,
 ``t3``, ``trima``, ``zlma``, ``vwma``, ``vwap``, ``midpoint``, ``midprice``, ``linreg``,
-``hl2``, ``hlc3``, ``ohlc4``, ``supertrend``, ``ichimoku``, ``mom``, ``roc``, ``cmo``,
+``kama``, ``hl2``, ``hlc3``, ``ohlc4``, ``supertrend``, ``ichimoku``, ``mom``, ``eri``, ``roc``, ``cmo``,
 ``stoch``, ``stochrsi``, ``willr``, ``cci``, ``ao``, ``apo``, ``ppo``, ``trix``, ``tsi``,
 ``uo``, ``bop``, ``qqe``, ``adx``, ``aroon``, ``psar``, ``vortex``, ``chop``, ``dpo``,
 ``natr``, ``kc``, ``donchian``, ``mad``, ``zscore``, ``log_return``, ``percent_return``,

@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.6.2] - 2026-11-17
+
+### Added
+- Python: `kama` (Kaufman's Adaptive Moving Average, `KAMA_10_2_30`) and `eri` (Elder Ray
+  Index, `BULLP_13` and `BEARP_13`) on `df.fp`, with pandas-ta's names, parameters,
+  defaults and columns. `kama` also runs as a Polars expression
+  (`pl.col("close").fp.kama()`), and both are on the Polars DataFrame namespace. `kama`
+  follows pandas-ta-classic 0.9.0: an efficiency ratio of 1 on a window with no movement,
+  rows where `close` is not finite skipped and read as NaN, all NaN when there are fewer
+  finite closes than `max(length, fast, slow)`. pandas-ta has no `momentum` method (its
+  momentum indicator is `mom`, already on `df.fp`), so there is no alias for it.
+- Rust `signals::batch_f64::kama_loop` and its `fast_kama_loop` binding: the KAMA recursion
+  behind `df.fp.kama`.
+- `python/tests/test_accessors_more.py`: `kama` and `eri` against pandas-ta-classic 0.9.0's
+  `df.ta` at the defaults and at one other setting, with a leading NaN run, with interior
+  NaNs, on short input and on a flat run.
+
 ## [3.6.1] - 2026-11-16
 
 ### Fixed

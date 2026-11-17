@@ -187,8 +187,8 @@ Methods (pandas-ta's defaults throughout):
 
 | group | methods |
 |---|---|
-| overlap | `sma`, `ema`, `rma`, `wma`, `hma`, `dema`, `tema`, `t3`, `trima`, `zlma`, `vwma`, `vwap`, `midpoint`, `midprice`, `linreg`, `hl2`, `hlc3`, `ohlc4`, `supertrend`, `ichimoku` |
-| momentum | `rsi`, `macd`, `mom`, `roc`, `cmo`, `stoch`, `stochrsi`, `willr`, `cci`, `ao`, `apo`, `ppo`, `trix`, `tsi`, `uo`, `bop`, `qqe` |
+| overlap | `sma`, `ema`, `rma`, `wma`, `hma`, `dema`, `tema`, `t3`, `trima`, `zlma`, `vwma`, `vwap`, `midpoint`, `midprice`, `linreg`, `kama`, `hl2`, `hlc3`, `ohlc4`, `supertrend`, `ichimoku` |
+| momentum | `rsi`, `macd`, `mom`, `eri`, `roc`, `cmo`, `stoch`, `stochrsi`, `willr`, `cci`, `ao`, `apo`, `ppo`, `trix`, `tsi`, `uo`, `bop`, `qqe` |
 | trend | `adx`, `aroon`, `psar`, `vortex`, `chop`, `dpo` |
 | volatility | `atr`, `natr`, `true_range`, `bbands`, `kc`, `donchian` |
 | statistics | `stdev`, `variance`, `mad`, `zscore`, `log_return`, `percent_return` |

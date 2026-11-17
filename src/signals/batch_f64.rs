@@ -906,9 +906,38 @@ pub fn adosc_loop(ad: &[f64], fast: usize, slow: usize) -> Vec<f64> {
     out
 }
 
+/// KAMA recursion of pandas-ta-classic's `kama`: seeded with the close at bar `length - 1`,
+/// then `k[i] = sc[i] * close[i] + (1 - sc[i]) * k[i - 1]`, where `sc` is the squared
+/// smoothing constant from the efficiency ratio.
+pub fn kama_loop(sc: &[f64], close: &[f64], length: usize) -> Vec<f64> {
+    let m = close.len().min(sc.len());
+    let mut out = vec![f64::NAN; close.len()];
+    if length == 0 || length > m {
+        return out;
+    }
+    out[length - 1] = close[length - 1];
+    for i in length..m {
+        out[i] = sc[i] * close[i] + (1.0 - sc[i]) * out[i - 1];
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kama_loop_seeds_at_length_and_follows_the_recursion() {
+        let close = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let sc = [0.5; 5];
+        let k = kama_loop(&sc, &close, 3);
+        assert!(k[0].is_nan() && k[1].is_nan());
+        assert_eq!(k[2], 3.0);
+        assert_eq!(k[3], 0.5 * 4.0 + 0.5 * 3.0);
+        assert_eq!(k[4], 0.5 * 5.0 + 0.5 * k[3]);
+        assert!(kama_loop(&sc, &close, 6).iter().all(|v| v.is_nan()));
+        assert!(kama_loop(&sc, &close, 0).iter().all(|v| v.is_nan()));
+    }
 
     fn close_enough(a: f64, b: f64) -> bool {
         (a.is_nan() && b.is_nan()) || (a - b).abs() <= 1e-12 * b.abs().max(1.0)

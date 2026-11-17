@@ -47,9 +47,11 @@ CASES = [
     ("midpoint", {}), ("midpoint", {"length": 14}),
     ("midprice", {}), ("midprice", {"length": 14}),
     ("linreg", {}), ("linreg", {"length": 20}),
+    ("kama", {}), ("kama", {"length": 20, "fast": 3, "slow": 40}),
     ("supertrend", {}), ("supertrend", {"length": 10, "multiplier": 2.5}),
     ("ichimoku", {}), ("ichimoku", {"tenkan": 7, "kijun": 22, "senkou": 44}),
     ("mom", {}), ("mom", {"length": 5}),
+    ("eri", {}), ("eri", {"length": 21}),
     ("roc", {}), ("roc", {"length": 5}),
     ("cmo", {}), ("cmo", {"length": 9}),
     ("stoch", {}), ("stoch", {"k": 5, "d": 3, "smooth_k": 1}),
@@ -162,7 +164,7 @@ def test_positional_append_and_errors():
 def test_leading_nan_is_skipped_like_pandas_ta(ta):
     df = FRAMES["walk"].iloc[:800].copy()
     df.iloc[:25] = np.nan
-    for method in ("supertrend", "psar", "qqe", "aroon", "obv", "mfi", "adosc", "wma", "stoch"):
+    for method in ("supertrend", "psar", "qqe", "aroon", "obv", "mfi", "adosc", "wma", "stoch", "kama", "eri"):
         want = getattr(df.ta, method)(talib=False)
         got = getattr(df.fp, method)()
         g = got if isinstance(got, pd.DataFrame) else got.to_frame()
@@ -171,6 +173,21 @@ def test_leading_nan_is_skipped_like_pandas_ta(ta):
         scale = df["volume"].cumsum().fillna(0).to_numpy() * 1000 + 1000
         for c in w.columns:
             assert_close(g[c], w[c], scale)
+
+
+def test_kama_skips_interior_nan_and_short_input_like_pandas_ta(ta):
+    df = FRAMES["real_like"].iloc[:600].copy()
+    df.loc[df.index[[100, 101, 350]], "close"] = np.nan
+    want = df.ta.kama(talib=False)
+    got = df.fp.kama()
+    assert got.name == want.name == "KAMA_10_2_30"
+    assert_close(got, want, np.full(len(df), 100.0))
+    short = FRAMES["walk"].iloc[:20]
+    want = short.ta.kama(talib=False)
+    got = short.fp.kama()
+    assert got.name == want.name and got.isna().all() and want.isna().all()
+    flat = pd.DataFrame({"close": np.r_[np.linspace(10, 12, 40), np.full(40, 12.0)]})
+    assert_close(flat.fp.kama(), flat.ta.kama(talib=False), np.full(80, 100.0))
 
 
 # ---------------------------------------------------------------------------
