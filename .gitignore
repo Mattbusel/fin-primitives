@@ -8,3 +8,5 @@ __pycache__/
 /python/.venv/
 .pytest_cache/
 /python/dist/
+*.pyd
+*.so
