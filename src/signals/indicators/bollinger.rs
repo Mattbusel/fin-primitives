@@ -154,34 +154,9 @@ impl BollingerB {
     }
 }
 
-/// Newton-Raphson square root for `Decimal`.
-///
-/// Returns `0` for zero input. Converges within ~10 iterations for typical price ranges.
+/// Square root of the variance, accurate at any price magnitude ([`crate::dmath::sqrt`]).
 fn decimal_sqrt(n: Decimal) -> Result<Decimal, FinError> {
-    if n == Decimal::ZERO {
-        return Ok(Decimal::ZERO);
-    }
-    if n < Decimal::ZERO {
-        return Err(FinError::ArithmeticOverflow);
-    }
-    let two = Decimal::TWO;
-    // Initial guess: n / 2
-    let mut x = n
-        .checked_div(two)
-        .ok_or(FinError::ArithmeticOverflow)?
-        .max(Decimal::ONE);
-    for _ in 0..20 {
-        let x_next = (x + n.checked_div(x).ok_or(FinError::ArithmeticOverflow)?)
-            .checked_div(two)
-            .ok_or(FinError::ArithmeticOverflow)?;
-        let diff = (x_next - x).abs();
-        x = x_next;
-        // Converge when change is negligible (< 1e-10)
-        if diff < Decimal::new(1, 10) {
-            break;
-        }
-    }
-    Ok(x)
+    crate::dmath::sqrt(n).ok_or(FinError::ArithmeticOverflow)
 }
 
 #[cfg(test)]
@@ -257,5 +232,24 @@ mod tests {
         bb.reset();
         assert!(!bb.is_ready());
         assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+    }
+    #[test]
+    fn test_bollinger_tiny_prices_keep_a_positive_lower_band() {
+        // Closes near 1e-8 (micro-cap tokens). The old square root started at max(n/2, 1)
+        // and stopped after 20 Newton steps, so the deviation came out near 1e-6 and the
+        // lower band went far below zero.
+        let closes = ["0.00000001", "0.000000011", "0.000000009", "0.00000001", "0.000000012"];
+        let mut bb = BollingerB::new("bb5", 5, 2u32).unwrap();
+        for c in closes {
+            bb.update_bar(&bar(c)).unwrap();
+        }
+        let (upper, mid, lower) = bb.bands().unwrap();
+        let xs: Vec<f64> = closes.iter().map(|c| c.parse().unwrap()).collect();
+        let m = xs.iter().sum::<f64>() / 5.0;
+        let sd = (xs.iter().map(|x| (x - m) * (x - m)).sum::<f64>() / 5.0).sqrt();
+        use rust_decimal::prelude::ToPrimitive;
+        let got_sd = ((upper - mid) / dec!(2)).to_f64().unwrap();
+        assert!(((got_sd - sd) / sd).abs() < 1e-9, "{got_sd} vs {sd}");
+        assert!(lower > Decimal::ZERO, "lower band {lower}");
     }
 }

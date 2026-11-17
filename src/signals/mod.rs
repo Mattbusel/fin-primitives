@@ -556,14 +556,9 @@ impl SignalValue {
     /// }
     /// ```
     pub fn sqrt(self) -> SignalValue {
-        use rust_decimal::prelude::ToPrimitive;
         match self {
             SignalValue::Scalar(v) => {
-                if v < Decimal::ZERO {
-                    return SignalValue::Unavailable;
-                }
-                let f = v.to_f64().unwrap_or(0.0).sqrt();
-                Decimal::try_from(f)
+                crate::dmath::sqrt(v)
                     .map(SignalValue::Scalar)
                     .unwrap_or(SignalValue::Unavailable)
             }

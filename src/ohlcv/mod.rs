@@ -3361,22 +3361,7 @@ impl<'a> IntoIterator for &'a OhlcvSeries {
 }
 
 fn decimal_sqrt(n: Decimal) -> Result<Decimal, FinError> {
-    if n.is_zero() {
-        return Ok(Decimal::ZERO);
-    }
-    if n.is_sign_negative() {
-        return Err(FinError::ArithmeticOverflow);
-    }
-    let mut x = n;
-    for _ in 0..20 {
-        let next = (x + n / x) / Decimal::TWO;
-        let diff = if next > x { next - x } else { x - next };
-        x = next;
-        if diff < Decimal::new(1, 10) {
-            break;
-        }
-    }
-    Ok(x)
+    crate::dmath::sqrt(n).ok_or(FinError::ArithmeticOverflow)
 }
 
 impl OhlcvSeries {

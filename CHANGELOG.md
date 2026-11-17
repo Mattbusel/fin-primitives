@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-11-16
+
+### Fixed
+- Decimal square root (Bollinger Bands `BollingerB`, `StdDev`, the `OhlcvSeries` volatility
+  helpers and `SignalValue::sqrt`). Newton's method started at `max(n / 2, 1)` (or at `n`),
+  ran at most 20 steps and stopped on an absolute change below 1e-10, so for prices near 1e-8
+  the deviation came out around 1e-6 and the lower band went far below zero; very large
+  variances could also stop before converging. One shared `sqrt` now seeds from the `f64`
+  root and iterates Newton to a fixed point, accurate to Decimal precision from 1e-28 to
+  `Decimal::MAX`. `SignalValue::sqrt` no longer rounds through `f64`. Tests at tiny and huge
+  magnitudes, and a Bollinger test on 1e-8 closes. Reported against 3.1.0.
+
 ## [3.6.0] - 2026-11-16
 
 ### Added

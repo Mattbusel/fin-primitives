@@ -216,6 +216,7 @@
 
 // Core: always compiled. These modules depend only on chrono, rust_decimal,
 // thiserror and libm (plus serde when that feature is on).
+mod dmath;
 pub mod error;
 pub mod interop;
 pub mod normal;

@@ -41,19 +41,8 @@ impl StdDev {
 }
 
 fn decimal_sqrt(n: Decimal) -> Decimal {
-    if n.is_zero() {
-        return Decimal::ZERO;
-    }
-    let mut x = n;
-    for _ in 0..20 {
-        let next = (x + n / x) / Decimal::TWO;
-        let diff = if next > x { next - x } else { x - next };
-        x = next;
-        if diff < Decimal::new(1, 10) {
-            break;
-        }
-    }
-    x
+    // A variance is never negative; accurate at any magnitude (crate::dmath::sqrt).
+    crate::dmath::sqrt(n).unwrap_or(Decimal::ZERO)
 }
 
 impl Signal for StdDev {
