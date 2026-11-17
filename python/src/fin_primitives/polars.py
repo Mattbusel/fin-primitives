@@ -22,9 +22,12 @@ from typing import Any, Callable, Optional
 import numpy as np
 import polars as pl
 
+import inspect
+
+from . import _pta
 from . import fast
 
-__all__ = ["FinPrimitivesExpr", "FinPrimitivesFrame"]
+__all__ = ["FinPrimitivesExpr", "FinPrimitivesFrame", "EXPR_METHODS"]
 
 
 def _np(s: pl.Series) -> np.ndarray:
@@ -127,3 +130,66 @@ class FinPrimitivesFrame:
         for f in frames:
             out = out.with_columns(f) if isinstance(f, pl.Series) else out.hstack(f)
         return out
+
+
+# -- the pandas-ta indicators in fin_primitives._pta -------------------------------------
+
+#: Close-only, single-column indicators, available as ``pl.col("close").fp.<name>(...)``.
+EXPR_METHODS = tuple(
+    m for m, (inputs, _) in _pta.SPEC.items() if inputs == ("close",) and m not in _pta.MULTI
+)
+
+
+def _param_names(name: str) -> list:
+    inputs, fn = _pta.SPEC[name]
+    return [p for p in inspect.signature(fn).parameters if p not in inputs and p != "open_"]
+
+
+def _bind(name: str, args: tuple, kwargs: dict) -> dict:
+    params = _param_names(name)
+    if len(args) > len(params):
+        raise TypeError(f"{name}() takes at most {len(params)} positional arguments")
+    given = dict(zip(params, args))
+    for k, v in kwargs.items():
+        if k not in params or k in given:
+            raise TypeError(f"{name}() got an unexpected or repeated argument {k!r}")
+        given[k] = v
+    return given
+
+
+def _make_expr(name: str) -> Any:
+    def method(self: FinPrimitivesExpr, *args: Any, **kwargs: Any) -> pl.Expr:
+        given = _bind(name, args, kwargs)
+        return self._map(lambda a: _pta.SPEC[name][1](np.ascontiguousarray(a), **given)[0][1])
+
+    method.__name__ = name
+    method.__doc__ = f"pandas-ta's ``{name}`` on this column (same defaults and values)."
+    return method
+
+
+def _make_frame(name: str) -> Any:
+    inputs, fn = _pta.SPEC[name]
+
+    def method(self: FinPrimitivesFrame, *args: Any, **kwargs: Any) -> Any:
+        cols = {c: kwargs.pop(c, None) for c in ("open", "high", "low", "close", "volume")}
+        given = _bind(name, args, kwargs)
+        arrays = [np.ascontiguousarray(self._col(c, cols[c])) for c in inputs]
+        out = fn(*arrays, **given)
+        if name in _pta.MULTI:
+            return pl.DataFrame([_series(k, v) for k, v in out])
+        return _series(*out[0])
+
+    method.__name__ = name
+    method.__doc__ = (
+        f"pandas-ta's ``{name}`` (needs {', '.join(inputs)}): a Series, or a DataFrame for "
+        "indicators with several columns, named as pandas-ta names them."
+    )
+    return method
+
+
+for _name in EXPR_METHODS:
+    if not hasattr(FinPrimitivesExpr, _name):
+        setattr(FinPrimitivesExpr, _name, _make_expr(_name))
+for _name in _pta.SPEC:
+    if not hasattr(FinPrimitivesFrame, _name):
+        setattr(FinPrimitivesFrame, _name, _make_frame(_name))

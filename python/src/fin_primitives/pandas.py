@@ -11,24 +11,33 @@ import::
 
 The columns are found the way pandas-ta finds them: ``open``, ``high``, ``low``, ``close``,
 ``volume`` in any case, or set them with ``close=...`` and friends. Every method computes
-with :mod:`fin_primitives.fast` (one Rust pass over float64, GIL released) and gives
+with Rust kernels over float64 (:mod:`fin_primitives.fast`, GIL released) and gives
 pandas-ta-classic 0.9.0's numbers: the same warm-up NaNs and seeds, values equal to within a
 few units in the last place (``tests/test_accessors.py`` checks every method against it).
 
 Methods (pandas-ta defaults): ``sma(10)``, ``ema(10)``, ``rma(10)``, ``rsi(14)``,
 ``atr(14)``, ``true_range()``, ``macd(12, 26, 9)``, ``bbands(5, 2.0)``, ``stdev(30)``,
-``variance(30)``. Any of the 743 decimal-exact indicators runs through
-``df.fp.compute("kind", *params)``.
+``variance(30)``, and from :mod:`fin_primitives._pta`: ``wma``, ``hma``, ``dema``, ``tema``,
+``t3``, ``trima``, ``zlma``, ``vwma``, ``vwap``, ``midpoint``, ``midprice``, ``linreg``,
+``hl2``, ``hlc3``, ``ohlc4``, ``supertrend``, ``ichimoku``, ``mom``, ``roc``, ``cmo``,
+``stoch``, ``stochrsi``, ``willr``, ``cci``, ``ao``, ``apo``, ``ppo``, ``trix``, ``tsi``,
+``uo``, ``bop``, ``qqe``, ``adx``, ``aroon``, ``psar``, ``vortex``, ``chop``, ``dpo``,
+``natr``, ``kc``, ``donchian``, ``mad``, ``zscore``, ``log_return``, ``percent_return``,
+``obv``, ``mfi``, ``ad``, ``adosc``, ``cmf``, ``efi``, ``pvt``. Any of the 743
+decimal-exact indicators runs through ``df.fp.compute("kind", *params)``.
 
 Arguments pandas-ta takes that change the formula (``talib=``, ``mamode=``, ``drift=``,
 ``offset=``, ``scalar=``) are not supported and raise ``TypeError`` rather than being ignored.
 """
 from __future__ import annotations
 
+import inspect
 from typing import Any, Dict, Optional
 
+import numpy as np
 import pandas as pd
 
+from . import _pta
 from . import compute as _compute
 from . import fast
 
@@ -175,6 +184,82 @@ class _Base:
             return True
         except (KeyError, ValueError):
             return False
+
+
+# -- the pandas-ta indicators in fin_primitives._pta, as df.fp methods -------------------
+
+
+def _params(fn: Any) -> list:
+    sig = inspect.signature(fn)
+    inputs = _pta.SPEC[fn.__name__][0]
+    return [p for p in sig.parameters if p not in inputs and p not in ("open_",) and p not in _COLUMNS]
+
+
+def _make(name: str) -> Any:
+    inputs, fn = _pta.SPEC[name]
+    params = _params(fn)
+    optional_close = name == "psar"
+
+    def method(self: "_Base", *args: Any, append: bool = False, **kwargs: Any) -> Any:
+        if len(args) > len(params):
+            raise TypeError(f"{name}() takes at most {len(params)} positional arguments")
+        given = dict(zip(params, args))
+        for k in list(kwargs):
+            if k in params:
+                if k in given:
+                    raise TypeError(f"{name}() got two values for {k!r}")
+                given[k] = kwargs.pop(k)
+        _check(kwargs)
+        cols = {c: self._col(c, kwargs) for c in inputs if not (optional_close and c == "close")}
+        if optional_close and self._has("close", kwargs):
+            cols["close"] = self._col("close", kwargs)
+        ref = next(iter(cols.values()))
+        arrays = {c: np.ascontiguousarray(v.to_numpy(dtype=np.float64, na_value=np.nan)) for c, v in cols.items()}
+        out = _pta.SPEC[name][1](*[arrays.get(c) for c in inputs], **given) if not optional_close else _pta.psar(
+            arrays["high"], arrays["low"], arrays.get("close"), **given
+        )
+        index = ref.index
+        if name in _pta.MULTI:
+            df = pd.DataFrame({k: v for k, v in out}, index=index)
+            df.name = out[0][0]  # type: ignore[attr-defined]
+            return self._out(df, append)
+        col, values = out[0]
+        return self._out(pd.Series(values, index=index, name=col), append)
+
+    method.__name__ = name
+    method.__qualname__ = f"_Base.{name}"
+    shown = ", ".join(f"{p}=None" for p in params)
+    method.__doc__ = (
+        f"pandas-ta's ``{name}({shown})``: same defaults, same column names, same values "
+        f"(needs {', '.join(inputs)}).\n\n" + (inspect.getdoc(fn) or "")
+    )
+    return method
+
+
+for _name in _pta.SPEC:
+    if not hasattr(_Base, _name):
+        setattr(_Base, _name, _make(_name))
+
+
+def _vwap(self: "_Base", anchor: Optional[str] = None, append: bool = False, **kwargs: Any) -> pd.Series:
+    """Volume-weighted average price reset every ``anchor`` period (a pandas period alias,
+    default ``"D"``), ``VWAP_{anchor}``. Needs a sorted DatetimeIndex, as pandas-ta."""
+    _check(kwargs)
+    a = (anchor or "D").upper()
+    high, low, close, volume = (self._col(c, kwargs) for c in ("high", "low", "close", "volume"))
+    if not isinstance(close.index, pd.DatetimeIndex):
+        raise TypeError(f"vwap() needs a DatetimeIndex to anchor by {a!r}, got {type(close.index).__name__}")
+    if not close.index.is_monotonic_increasing:
+        raise ValueError("vwap() index must be in ascending time order; sort it first (df.sort_index())")
+    wp = (high + low + close) / 3.0 * volume
+    clock = wp.index.tz_localize(None) if wp.index.tz is not None else wp.index
+    periods = clock.to_period(a)
+    out = wp.groupby(periods, observed=True).cumsum()
+    out /= volume.groupby(periods, observed=True).cumsum()
+    return self._out(out.rename(f"VWAP_{a}"), append)
+
+
+_Base.vwap = _vwap  # type: ignore[attr-defined]
 
 
 def _fast_macd(close: Any, f: int, s: int, g: int) -> Any:

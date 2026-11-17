@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-11-16
+
+### Added
+- Python: 52 more pandas-ta indicators on `df.fp` (and `series.fp` for the close-only ones),
+  with pandas-ta's names, parameters, defaults, column names and column order: `supertrend`,
+  `vwap`, `qqe`, `stoch`, `stochrsi`, `adx`, `cci`, `willr`, `obv`, `mfi`, `roc`, `mom`, `kc`,
+  `donchian`, `ichimoku`, `psar`, `hma`, `wma`, `dema`, `tema`, `t3`, `trima`, `zlma`, `vwma`,
+  `cmf`, `ao`, `apo`, `aroon`, `cmo`, `trix`, `tsi`, `ppo`, `uo`, `bop`, `natr`, `zscore`,
+  `mad`, `linreg`, `midpoint`, `midprice`, `hl2`, `hlc3`, `ohlc4`, `vortex`, `chop`, `dpo`,
+  `ad`, `adosc`, `efi`, `pvt`, `log_return`, `percent_return`. 62 methods in all.
+- Polars: every one of them on the DataFrame namespace (`df.fp.supertrend()`, except `vwap`),
+  and the close-only, single-column ones as expressions (`pl.col("close").fp.hma(21)`), so they
+  run per symbol with `.over()`.
+- Rust `signals::batch_f64`: `rolling_sum`, `rolling_max`, `rolling_min` (O(n) deque), `wma`,
+  `bars_since_extreme`, `wilder_sum`, and the PSAR, Supertrend, QQE and Chaikin A/D
+  oscillator recursions, each following the pandas / pandas-ta-classic code it replaces, with
+  `fast_*` bindings for Python.
+- `python/tests/test_accessors_more.py`: every new method against pandas-ta-classic 0.9.0's
+  `df.ta` on two fixed series (5,000 and 6,000 bars, with flat runs and jumps), at the defaults
+  and at one other setting: column names, order, NaN positions and values (relative 1e-12, or
+  1e-12 of the price or volume level for values near zero); the Polars namespaces against the
+  pandas accessor; inputs with a leading NaN run.
+
 ## [3.5.0] - 2026-11-16
 
 ### Added

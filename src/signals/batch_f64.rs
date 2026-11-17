@@ -512,6 +512,400 @@ pub fn bbands(x: &[f64], period: usize, k: f64, ddof: usize) -> (Vec<f64>, Vec<f
     (lower, mid, upper)
 }
 
+// ---------------------------------------------------------------------------------------
+// Kernels behind the pandas-ta accessors (fin_primitives.pandas / fin_primitives.polars).
+// Each follows the pandas or pandas-ta-classic 0.9.0 code it replaces, operation for
+// operation, so the accessors give pandas-ta's numbers.
+// ---------------------------------------------------------------------------------------
+
+/// Rolling sum, as `x.rolling(period).sum()` in pandas: the same compensated running sum
+/// as [`sma`], and pandas' rule that a window of one repeated value reads that value times
+/// the count. A window that holds a `NaN` reads `NaN`.
+pub fn rolling_sum(x: &[f64], period: usize) -> Vec<f64> {
+    let n = x.len();
+    let mut out = vec![f64::NAN; n];
+    if period == 0 || n < period {
+        return out;
+    }
+    let mut nobs: usize = 0;
+    let mut sum = 0.0f64;
+    let mut comp_add = 0.0f64;
+    let mut comp_rem = 0.0f64;
+    let mut same: usize = 0;
+    let mut prev = f64::NAN;
+    for i in 0..n {
+        if i >= period {
+            let v = x[i - period];
+            if !v.is_nan() {
+                nobs -= 1;
+                let y = -v - comp_rem;
+                let t = sum + y;
+                comp_rem = t - sum - y;
+                sum = t;
+            }
+        }
+        let v = x[i];
+        if !v.is_nan() {
+            nobs += 1;
+            let y = v - comp_add;
+            let t = sum + y;
+            comp_add = t - sum - y;
+            sum = t;
+            if v == prev {
+                same += 1;
+            } else {
+                same = 1;
+            }
+            prev = v;
+        }
+        if i + 1 >= period && nobs >= period {
+            out[i] = if same >= nobs { prev * nobs as f64 } else { sum };
+        }
+    }
+    out
+}
+
+fn rolling_extreme(x: &[f64], period: usize, want_max: bool) -> Vec<f64> {
+    let n = x.len();
+    let mut out = vec![f64::NAN; n];
+    if period == 0 || n < period {
+        return out;
+    }
+    // Monotonic deque of indices; a window with a NaN in it has no value (pandas counts
+    // only observed values against min_periods = period).
+    let mut dq: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
+    let mut nans = 0usize;
+    for i in 0..n {
+        if i >= period {
+            let old = i - period;
+            if x[old].is_nan() {
+                nans -= 1;
+            }
+            if dq.front() == Some(&old) {
+                dq.pop_front();
+            }
+        }
+        let v = x[i];
+        if v.is_nan() {
+            nans += 1;
+        } else {
+            while let Some(&b) = dq.back() {
+                let keep = if want_max { x[b] > v } else { x[b] < v };
+                if keep {
+                    break;
+                }
+                dq.pop_back();
+            }
+            dq.push_back(i);
+        }
+        if i + 1 >= period && nans == 0 {
+            if let Some(&f) = dq.front() {
+                out[i] = x[f];
+            }
+        }
+    }
+    out
+}
+
+/// Rolling maximum, as `x.rolling(period).max()` in pandas. O(n) with a monotonic deque.
+pub fn rolling_max(x: &[f64], period: usize) -> Vec<f64> {
+    rolling_extreme(x, period, true)
+}
+
+/// Rolling minimum, as `x.rolling(period).min()` in pandas.
+pub fn rolling_min(x: &[f64], period: usize) -> Vec<f64> {
+    rolling_extreme(x, period, false)
+}
+
+/// Linearly weighted moving average, weights `1..=period` with the newest bar heaviest,
+/// as pandas-ta's `wma` (`np.dot` of each window with the weights, over their sum).
+pub fn wma(x: &[f64], period: usize) -> Vec<f64> {
+    let n = x.len();
+    let mut out = vec![f64::NAN; n];
+    if period == 0 || n < period {
+        return out;
+    }
+    let total = 0.5 * period as f64 * (period as f64 + 1.0);
+    for i in period - 1..n {
+        let w = &x[i + 1 - period..=i];
+        if w.iter().any(|v| v.is_nan()) {
+            continue;
+        }
+        let mut dot = 0.0f64;
+        for (j, v) in w.iter().enumerate() {
+            dot += (j + 1) as f64 * v;
+        }
+        out[i] = dot / total;
+    }
+    out
+}
+
+/// Bars since the most recent highest (`want_max`) or lowest value in each window of
+/// `length` bars, as `x.rolling(length).apply(lambda w: np.argmax(w[::-1]))` (pandas-ta's
+/// `aroon`). numpy's rules carry over: ties go to the most recent bar, and a `NaN` in the
+/// window counts as the extreme.
+pub fn bars_since_extreme(x: &[f64], length: usize, want_max: bool) -> Vec<f64> {
+    let n = x.len();
+    let mut out = vec![f64::NAN; n];
+    if length == 0 || n < length {
+        return out;
+    }
+    for i in length - 1..n {
+        let mut best = x[i];
+        let mut best_k = 0usize;
+        if !best.is_nan() {
+            for k in 1..length {
+                let v = x[i - k];
+                if v.is_nan() {
+                    best_k = k;
+                    break;
+                }
+                if (want_max && v > best) || (!want_max && v < best) {
+                    best = v;
+                    best_k = k;
+                }
+            }
+        }
+        out[i] = best_k as f64;
+    }
+    out
+}
+
+/// Wilder's running sum (TA-Lib's smoothing of +DM, -DM and the true range), as
+/// pandas-ta-classic's `wilder_smooth`: seeded with the sum of the first `length - 1`
+/// values after bar 0, then `s = s - s / length + x`. A missing bar carries the sum and
+/// reads `NaN`.
+pub fn wilder_sum(x: &[f64], length: usize) -> Vec<f64> {
+    let n = x.len();
+    let mut out = vec![f64::NAN; n];
+    if length < 2 {
+        return out;
+    }
+    let first = match x.iter().position(|v| v.is_finite()) {
+        Some(p) => p,
+        None => return out,
+    };
+    let start = first.max(1);
+    if start + length - 1 > n {
+        return out;
+    }
+    let filled: Vec<f64> = x[start..start + length - 1].iter().map(|&v| if v.is_nan() { 0.0 } else { v }).collect();
+    let mut value = numpy_sum(&filled);
+    out[start + length - 2] = value;
+    let len_f = length as f64;
+    for i in start + length - 1..n {
+        let raw = x[i];
+        if !raw.is_nan() {
+            value = value - value / len_f + raw;
+        }
+        out[i] = value;
+    }
+    for (i, v) in out.iter_mut().enumerate().skip(start) {
+        if !x[i].is_finite() {
+            *v = f64::NAN;
+        }
+    }
+    out
+}
+
+/// Python's `max(a, b)`: `b` only when `b > a`, so a `NaN` first argument wins.
+fn py_max(a: f64, b: f64) -> f64 {
+    if b > a {
+        b
+    } else {
+        a
+    }
+}
+
+/// Python's `min(a, b)`: `b` only when `b < a`.
+fn py_min(a: f64, b: f64) -> f64 {
+    if b < a {
+        b
+    } else {
+        a
+    }
+}
+
+/// The four outputs of [`psar_loop`] and [`supertrend_loop`].
+pub type Four = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
+
+/// Parabolic SAR recursion of pandas-ta-classic's `psar`, from its initial state:
+/// `(long, short, af, reversal)`.
+pub fn psar_loop(high: &[f64], low: &[f64], falling: bool, sar: f64, ep: f64, af0: f64, max_af: f64) -> Four {
+    let (mut falling, mut sar, mut ep) = (falling, sar, ep);
+    let m = high.len().min(low.len());
+    let mut long = vec![f64::NAN; m];
+    let mut short = vec![f64::NAN; m];
+    let mut af_arr = vec![f64::NAN; m];
+    let mut rev = vec![0.0f64; m];
+    if m == 0 {
+        return (long, short, af_arr, rev);
+    }
+    af_arr[0] = af0;
+    let mut af = af0;
+    for row in 1..m {
+        let h = high[row];
+        let l = low[row];
+        let back2 = row.saturating_sub(2);
+        let mut s = sar + af * (ep - sar);
+        let reverse;
+        if falling {
+            if l < ep {
+                ep = l;
+                af = py_min(af + af0, max_af);
+            }
+            s = py_max(py_max(high[row - 1], high[back2]), s);
+            reverse = h > s;
+        } else {
+            if h > ep {
+                ep = h;
+                af = py_min(af + af0, max_af);
+            }
+            s = py_min(py_min(low[row - 1], low[back2]), s);
+            reverse = l < s;
+        }
+        if reverse {
+            s = ep;
+            af = af0;
+            falling = !falling;
+            ep = if falling { l } else { h };
+        }
+        sar = s;
+        if falling {
+            short[row] = sar;
+        } else {
+            long[row] = sar;
+        }
+        af_arr[row] = af;
+        rev[row] = if reverse { 1.0 } else { 0.0 };
+    }
+    (long, short, af_arr, rev)
+}
+
+/// Supertrend band recursion of pandas-ta-classic's `supertrend`, from the basic bands
+/// `hl2 -+ multiplier * ATR`: `(direction, trend, long, short)`.
+pub fn supertrend_loop(close: &[f64], upper: &[f64], lower: &[f64]) -> Four {
+    let m = close.len().min(upper.len()).min(lower.len());
+    let mut dir = vec![f64::NAN; m];
+    let mut trend = vec![f64::NAN; m];
+    let mut long = vec![f64::NAN; m];
+    let mut short = vec![f64::NAN; m];
+    let mut fub = vec![f64::NAN; m];
+    let mut flb = vec![f64::NAN; m];
+    for i in 1..m {
+        let direction;
+        if fub[i - 1].is_nan() || flb[i - 1].is_nan() {
+            fub[i] = upper[i];
+            flb[i] = lower[i];
+            direction = 1.0;
+        } else {
+            fub[i] = if upper[i] < fub[i - 1] || close[i - 1] > fub[i - 1] { upper[i] } else { fub[i - 1] };
+            flb[i] = if lower[i] > flb[i - 1] || close[i - 1] < flb[i - 1] { lower[i] } else { flb[i - 1] };
+            direction = if close[i] > fub[i - 1] {
+                1.0
+            } else if close[i] < flb[i - 1] {
+                -1.0
+            } else {
+                dir[i - 1]
+            };
+        }
+        if fub[i].is_nan() || flb[i].is_nan() {
+            continue;
+        }
+        dir[i] = direction;
+        if direction > 0.0 {
+            trend[i] = flb[i];
+            long[i] = flb[i];
+        } else {
+            trend[i] = fub[i];
+            short[i] = fub[i];
+        }
+    }
+    (dir, trend, long, short)
+}
+
+/// Output of [`qqe_loop`].
+pub struct Qqe {
+    /// Trailing long band.
+    pub long: Vec<f64>,
+    /// Trailing short band.
+    pub short: Vec<f64>,
+    /// Trend: 1 long, -1 short.
+    pub trend: Vec<f64>,
+    /// The QQE line.
+    pub qqe: Vec<f64>,
+    /// The QQE line while long.
+    pub qqe_long: Vec<f64>,
+    /// The QQE line while short.
+    pub qqe_short: Vec<f64>,
+}
+
+/// Trailing-band recursion of pandas-ta-classic's `qqe` over the smoothed RSI and its
+/// upper and lower bands.
+pub fn qqe_loop(rsi_ma: &[f64], upper: &[f64], lower: &[f64]) -> Qqe {
+    let m = rsi_ma.len().min(upper.len()).min(lower.len());
+    let mut long = vec![f64::NAN; m];
+    let mut short = vec![f64::NAN; m];
+    let mut trend = vec![1.0f64; m];
+    let mut qqe = vec![f64::NAN; m];
+    let mut ql = vec![f64::NAN; m];
+    let mut qs = vec![f64::NAN; m];
+    if m > 0 {
+        qqe[0] = rsi_ma[0];
+    }
+    for i in 1..m {
+        let c_rsi = rsi_ma[i];
+        let p_rsi = rsi_ma[i - 1];
+        let c_long = long[i - 1];
+        let c_short = short[i - 1];
+        let p_long = if i >= 2 { long[i - 2] } else { 0.0 };
+        let p_short = if i >= 2 { short[i - 2] } else { 0.0 };
+        long[i] = if p_rsi > c_long && c_rsi > c_long { py_max(c_long, lower[i]) } else { lower[i] };
+        short[i] = if p_rsi < c_short && c_rsi < c_short { py_min(c_short, upper[i]) } else { upper[i] };
+        if (c_rsi > c_short && p_rsi < p_short) || (c_rsi <= c_short && p_rsi >= p_short) {
+            trend[i] = 1.0;
+            qqe[i] = long[i];
+            ql[i] = long[i];
+        } else if (c_rsi > c_long && p_rsi < p_long) || (c_rsi <= c_long && p_rsi >= p_long) {
+            trend[i] = -1.0;
+            qqe[i] = short[i];
+            qs[i] = short[i];
+        } else {
+            trend[i] = trend[i - 1];
+            if trend[i] == 1.0 {
+                qqe[i] = long[i];
+                ql[i] = long[i];
+            } else {
+                qqe[i] = short[i];
+                qs[i] = short[i];
+            }
+        }
+    }
+    Qqe { long, short, trend, qqe, qqe_long: ql, qqe_short: qs }
+}
+
+/// Chaikin A/D oscillator recursion of pandas-ta-classic's `adosc`: two EMAs of the A/D
+/// line started at its first value, their difference from bar `slow - 1` on.
+pub fn adosc_loop(ad: &[f64], fast: usize, slow: usize) -> Vec<f64> {
+    let m = ad.len();
+    let mut out = vec![f64::NAN; m];
+    if m == 0 || fast == 0 || slow == 0 {
+        return out;
+    }
+    let fk = 2.0 / (fast as f64 + 1.0);
+    let sk = 2.0 / (slow as f64 + 1.0);
+    let mut fe = ad[0];
+    let mut se = ad[0];
+    for i in 1..m {
+        fe = fk * ad[i] + (1.0 - fk) * fe;
+        se = sk * ad[i] + (1.0 - sk) * se;
+        if i + 1 >= slow {
+            out[i] = fe - se;
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -665,5 +1059,56 @@ mod tests {
         assert!(sma(&[], 3).is_empty());
         let (a, b, c) = macd(&x, 12, 26, 9);
         assert!(a.iter().chain(&b).chain(&c).all(|v| v.is_nan()));
+    }
+    #[test]
+    fn rolling_kernels_match_naive_windows() {
+        let mut x = walk(500);
+        x[200] = f64::NAN;
+        for p in [1usize, 3, 14] {
+            let (sum, mx, mn, w) = (rolling_sum(&x, p), rolling_max(&x, p), rolling_min(&x, p), wma(&x, p));
+            for i in 0..x.len() {
+                if i + 1 < p || (i >= 200 && i < 200 + p) {
+                    assert!(sum[i].is_nan() && mx[i].is_nan() && mn[i].is_nan() && w[i].is_nan(), "{p} {i}");
+                    continue;
+                }
+                let win = &x[i + 1 - p..=i];
+                let s: f64 = win.iter().sum();
+                let total = (p * (p + 1)) as f64 / 2.0;
+                let ws: f64 = win.iter().enumerate().map(|(j, v)| (j + 1) as f64 * v).sum::<f64>() / total;
+                assert!(close_enough(sum[i], s), "{p} {i}");
+                assert_eq!(mx[i], win.iter().cloned().fold(f64::MIN, f64::max));
+                assert_eq!(mn[i], win.iter().cloned().fold(f64::MAX, f64::min));
+                assert!(close_enough(w[i], ws), "{p} {i}");
+            }
+        }
+    }
+
+    #[test]
+    fn bars_since_extreme_prefers_the_latest_tie() {
+        let x = [1.0, 3.0, 2.0, 3.0, 0.0];
+        let hi = bars_since_extreme(&x, 3, true);
+        assert!(hi[1].is_nan());
+        assert_eq!(&hi[2..], &[1.0, 0.0, 1.0]);
+        let lo = bars_since_extreme(&x, 3, false);
+        assert_eq!(&lo[2..], &[2.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn recursions_have_the_input_length() {
+        let c = walk(300);
+        let h: Vec<f64> = c.iter().map(|v| v + 0.5).collect();
+        let l: Vec<f64> = c.iter().map(|v| v - 0.5).collect();
+        let (a, b, af, r) = psar_loop(&h, &l, false, l[0], h[1], 0.02, 0.2);
+        assert!(a.len() == 300 && b.len() == 300 && af.len() == 300 && r.len() == 300);
+        assert!(a.iter().zip(&b).skip(1).all(|(x, y)| x.is_nan() != y.is_nan()));
+        assert!(af.iter().all(|v| (0.02..=0.2 + 1e-12).contains(v)));
+        let (d, t, _, _) = supertrend_loop(&c, &h, &l);
+        assert!(d[0].is_nan() && t.len() == 300 && d[1..].iter().all(|v| *v == 1.0 || *v == -1.0));
+        let q = qqe_loop(&c, &h, &l);
+        assert_eq!(q.qqe.len(), 300);
+        let ws = wilder_sum(&c, 14);
+        assert!(ws[12].is_nan() && !ws[13].is_nan());
+        let ad = adosc_loop(&c, 3, 10);
+        assert!(ad[8].is_nan() && !ad[9].is_nan());
     }
 }

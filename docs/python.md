@@ -183,10 +183,25 @@ df["close"].fp.sma(20)                # on a Series
 df.fp.compute("kama", 10)             # any of the 743 exact indicators by key
 ```
 
-Methods and pandas-ta defaults: `sma(10)`, `ema(10)`, `rma(10)`, `rsi(14)`, `atr(14)`,
-`true_range()`, `macd(12, 26, 9)`, `bbands(5, 2.0)`, `stdev(30)`, `variance(30)`. Arguments
-that change pandas-ta's formula (`talib=`, `mamode=`, `offset=`, `drift=`, `scalar=`) raise
-`TypeError` instead of being ignored.
+Methods (pandas-ta's defaults throughout):
+
+| group | methods |
+|---|---|
+| overlap | `sma`, `ema`, `rma`, `wma`, `hma`, `dema`, `tema`, `t3`, `trima`, `zlma`, `vwma`, `vwap`, `midpoint`, `midprice`, `linreg`, `hl2`, `hlc3`, `ohlc4`, `supertrend`, `ichimoku` |
+| momentum | `rsi`, `macd`, `mom`, `roc`, `cmo`, `stoch`, `stochrsi`, `willr`, `cci`, `ao`, `apo`, `ppo`, `trix`, `tsi`, `uo`, `bop`, `qqe` |
+| trend | `adx`, `aroon`, `psar`, `vortex`, `chop`, `dpo` |
+| volatility | `atr`, `natr`, `true_range`, `bbands`, `kc`, `donchian` |
+| statistics | `stdev`, `variance`, `mad`, `zscore`, `log_return`, `percent_return` |
+| volume | `obv`, `mfi`, `ad`, `adosc`, `cmf`, `efi`, `pvt` |
+
+Each takes pandas-ta's parameters by name or position (`df.fp.stoch(14, 3, 3)`,
+`df.fp.supertrend(length=10, multiplier=2.5)`) and returns pandas-ta's columns in
+pandas-ta's order (`SUPERT_7_3.0`, `SUPERTd_7_3.0`, `SUPERTl_7_3.0`, `SUPERTs_7_3.0`).
+`tests/test_accessors_more.py` checks every one against pandas-ta-classic 0.9.0 on two
+fixed 5,000 and 6,000 bar series, at the defaults and at one other setting. Arguments that
+select another formula (`talib=`, `mamode=`, `offset=`, `drift=`) raise `TypeError`
+instead of being ignored. `ichimoku` returns the in-sample frame (pandas-ta's
+`append_span=False`); `vwap` needs a sorted DatetimeIndex, as in pandas-ta.
 
 Polars gets an expression namespace for single-column indicators, so they work per group
 with `.over()`, and a DataFrame namespace for the ones that need several columns or return
@@ -201,7 +216,13 @@ df.with_columns(
     pl.col("close").fp.ema(50).over("symbol").alias("ema50"),
 )
 df.fp.with_indicators(df.fp.atr(14), df.fp.macd(), df.fp.bbands(20, 2.0))
+df.fp.supertrend()                    # every df.fp method above except vwap
 ```
+
+Close-only, single-column indicators (`wma`, `hma`, `dema`, `tema`, `t3`, `trima`, `zlma`,
+`midpoint`, `linreg`, `mom`, `roc`, `cmo`, `mad`, `zscore`, `log_return`,
+`percent_return`, plus the earlier `sma`, `ema`, `rma`, `rsi`, `stdev`, `variance`) are
+also expressions: `pl.col("close").fp.hma(21).over("symbol")`.
 
 ## The catalogue
 
