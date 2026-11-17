@@ -526,3 +526,80 @@ mod against_ta {
         assert!((ours[N - 1] - RSI_14[N - 1]).abs() < 1e-9);
     }
 }
+
+// ── Indicators `ta` 0.5 does not have: ADX, DX, DEMA, WMA, Hull ──────────────
+
+#[test]
+fn adx_dx_and_di_match_talib() {
+    assert_series("ADX(14)", &on_bars(AverageDirectionalIndex::new(14).unwrap()), &ADX_14);
+    assert_series("ADX(5)", &on_bars(AverageDirectionalIndex::new(5).unwrap()), &ADX_5);
+    let mut dx = DirectionalIndex::new(14).unwrap();
+    let out: Vec<DirectionalIndexOutput> = items().iter().map(|b| dx.next(b)).collect();
+    assert_series("DX(14)", &out.iter().map(|o| o.dx).collect::<Vec<_>>(), &DX_14);
+    assert_series("PLUS_DI(14)", &out.iter().map(|o| o.plus_di).collect::<Vec<_>>(), &PLUS_DI_14);
+    assert_series("MINUS_DI(14)", &out.iter().map(|o| o.minus_di).collect::<Vec<_>>(), &MINUS_DI_14);
+}
+
+#[test]
+fn dema_wma_hull_match_talib() {
+    assert_series("DEMA(10)", &on_closes(|| DoubleExponentialMovingAverage::new(10).unwrap()), &DEMA_10);
+    assert_series("DEMA(3)", &on_closes(|| DoubleExponentialMovingAverage::new(3).unwrap()), &DEMA_3);
+    assert_series("WMA(10)", &on_closes(|| WeightedMovingAverage::new(10).unwrap()), &WMA_10);
+    // HMA from TA-Lib's WMA: WMA(2 WMA(n/2) - WMA(n), floor(sqrt(n))).
+    assert_series("HMA(16)", &on_closes(|| HullMovingAverage::new(16).unwrap()), &HMA_16);
+    assert_series("HMA(9)", &on_closes(|| HullMovingAverage::new(9).unwrap()), &HMA_9);
+}
+
+#[test]
+fn new_indicators_reset_period_default_display() {
+    let bars = items();
+    let mut adx = AverageDirectionalIndex::new(5).unwrap();
+    let first: Vec<f64> = bars.iter().map(|b| adx.next(b)).collect();
+    adx.reset();
+    let second: Vec<f64> = bars.iter().map(|b| adx.next(b)).collect();
+    assert_eq!(format!("{first:?}"), format!("{second:?}"));
+    for (mut ind, name) in [
+        (Box::new(DoubleExponentialMovingAverage::new(4).unwrap()) as Box<dyn ResetNext>, "DEMA"),
+        (Box::new(HullMovingAverage::new(6).unwrap()), "HMA"),
+        (Box::new(WeightedMovingAverage::new(4).unwrap()), "WMA"),
+    ] {
+        let a: Vec<f64> = CLOSE.iter().map(|&c| ind.step(c)).collect();
+        ind.clear();
+        let b: Vec<f64> = CLOSE.iter().map(|&c| ind.step(c)).collect();
+        assert_eq!(format!("{a:?}"), format!("{b:?}"), "{name}");
+    }
+    assert_eq!(AverageDirectionalIndex::default().to_string(), "ADX(14)");
+    assert_eq!(DirectionalIndex::default().to_string(), "DX(14)");
+    assert_eq!(DoubleExponentialMovingAverage::default().to_string(), "DEMA(9)");
+    assert_eq!(HullMovingAverage::default().to_string(), "HMA(9)");
+    assert_eq!(WeightedMovingAverage::default().to_string(), "WMA(9)");
+    assert_eq!(AverageDirectionalIndex::new(7).unwrap().period(), 7);
+    assert_eq!(HullMovingAverage::new(16).unwrap().period(), 16);
+    assert!(AverageDirectionalIndex::new(0).is_err());
+    assert!(DirectionalIndex::new(0).is_err());
+    assert!(DoubleExponentialMovingAverage::new(0).is_err());
+    assert!(HullMovingAverage::new(1).is_err());
+    assert!(WeightedMovingAverage::new(0).is_err());
+    // Defaults behave like new(default period).
+    let a: Vec<f64> = bars.iter().map(|b| AverageDirectionalIndex::default().next(b)).collect();
+    assert!(a.iter().all(|v| v.is_nan()));
+    let mut d1 = HullMovingAverage::default();
+    let mut d2 = HullMovingAverage::new(9).unwrap();
+    for &c in &CLOSE {
+        assert_eq!(format!("{:?}", d1.next(c)), format!("{:?}", d2.next(c)));
+    }
+}
+
+trait ResetNext {
+    fn step(&mut self, x: f64) -> f64;
+    fn clear(&mut self);
+}
+
+impl<T: Next<f64, Output = f64> + Reset> ResetNext for T {
+    fn step(&mut self, x: f64) -> f64 {
+        self.next(x)
+    }
+    fn clear(&mut self) {
+        self.reset();
+    }
+}

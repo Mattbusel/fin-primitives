@@ -80,6 +80,18 @@ series["ATR_20"] = talib.ATR(H, L, C, 20)
 series["ATR_22"] = talib.ATR(H, L, C, 22)
 series["MAX_HIGH_22"] = talib.MAX(H, 22)
 series["MIN_LOW_22"] = talib.MIN(L, 22)
+series["ADX_14"] = talib.ADX(H, L, C, 14)
+series["DX_14"] = talib.DX(H, L, C, 14)
+series["PLUS_DI_14"] = talib.PLUS_DI(H, L, C, 14)
+series["MINUS_DI_14"] = talib.MINUS_DI(H, L, C, 14)
+series["ADX_5"] = talib.ADX(H, L, C, 5)
+series["DEMA_10"] = talib.DEMA(C, 10)
+series["DEMA_3"] = talib.DEMA(C, 3)
+series["WMA_10"] = talib.WMA(C, 10)
+# Hull moving average (Alan Hull) from TA-Lib's WMA: WMA(2 WMA(n/2) - WMA(n), sqrt(n)), with
+# n/2 and sqrt(n) rounded down. The wrapper starts each WMA at its input's first non-NaN.
+series["HMA_16"] = talib.WMA(2.0 * talib.WMA(C, 8) - talib.WMA(C, 16), 4)
+series["HMA_9"] = talib.WMA(2.0 * talib.WMA(C, 4) - talib.WMA(C, 9), 3)
 # Not in TA-Lib: plain numpy definitions.
 series["ER_10"] = er(C, 10)
 series["MAD_20"] = mad(C, 20)

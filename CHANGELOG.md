@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-11-16
+
+### Added
+- `ta_compat` (feature `ta-compat`): the indicators `ta` users asked for and `ta` 0.5 never
+  shipped, in the same shape as the rest of the module (`new(period)`, `Next`, `Reset`,
+  `Period`, `Default`, `Display`, `NaN` during warm-up):
+  `AverageDirectionalIndex` (TA-Lib `ADX`), `DirectionalIndex` with
+  `DirectionalIndexOutput { plus_di, minus_di, dx }` (TA-Lib `PLUS_DI`, `MINUS_DI`, `DX`),
+  `DoubleExponentialMovingAverage` (TA-Lib `DEMA`), `WeightedMovingAverage` (TA-Lib `WMA`)
+  and `HullMovingAverage` (`WMA(2 WMA(n/2) - WMA(n), floor(sqrt n))`). They match TA-Lib to
+  1e-9: on the 120 reference bars against TA-Lib's Python wrapper (`tests/ta_compat.rs`) and
+  on 20,000 bars with flat stretches against the `ta-lib` crate, periods 2 to 50
+  (`tests/ta_compat_talib_long.rs`). A zero true-range sum is tested exactly, as current
+  TA-Lib does (TA-Lib issue 253).
+- Example: `examples/ta_migration.rs` (`cargo run --example ta_migration --features ta-compat`),
+  code written for `ta` running on `ta_compat` after one `use` line, with the new indicators.
+
 ## [3.4.0] - 2026-11-16
 
 ### Added

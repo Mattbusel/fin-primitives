@@ -63,6 +63,25 @@
 //! [`BarInput`](crate::signals::BarInput)) implement the input traits too, so
 //! `indicator.next(&bar)` works on them directly.
 //!
+//! # Indicators `ta` does not have
+//!
+//! `ta` users asked for these and `ta` never shipped them (greyblake/ta-rs issues 36, 64 and
+//! 74). They have the same shape as the rest of the module and TA-Lib's numbers:
+//!
+//! | indicator | TA-Lib | first value at bar (0-based) |
+//! |---|---|---|
+//! | [`AverageDirectionalIndex`](indicators::AverageDirectionalIndex) | `ADX` | `2 * period - 1` |
+//! | [`DirectionalIndex`](indicators::DirectionalIndex) (+DI, -DI, DX) | `PLUS_DI`, `MINUS_DI`, `DX` | `period` |
+//! | [`DoubleExponentialMovingAverage`](indicators::DoubleExponentialMovingAverage) | `DEMA` | `2 * (period - 1)` |
+//! | [`WeightedMovingAverage`](indicators::WeightedMovingAverage) | `WMA` | `period - 1` |
+//! | [`HullMovingAverage`](indicators::HullMovingAverage) | `WMA(2 WMA(n/2) - WMA(n), sqrt n)` | `n + floor(sqrt n) - 2` |
+//!
+//! `tests/ta_compat.rs` checks them against TA-Lib's Python wrapper on the reference bars and
+//! `tests/ta_compat_talib_long.rs` against the `ta-lib` crate (a native port of the C library)
+//! on 20,000 bars, both to 1e-9. A zero true-range sum is tested exactly, as current TA-Lib
+//! does (TA-Lib issue 253), not against the old fixed `TA_IS_ZERO` band. `examples/ta_migration.rs`
+//! shows the migration end to end.
+//!
 //! # Where results intentionally differ from `ta`
 //!
 //! | indicator | `ta` 0.5 | here (TA-Lib) |
