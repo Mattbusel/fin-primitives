@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-11-17
+
+### Added
+- Python: `df.fp.strategy(...)`, pandas-ta's `df.ta.strategy` over the `df.fp` methods.
+  Runs `"all"` (the default), a pandas-ta category (`momentum`, `overlap`, `performance`,
+  `statistics`, `trend`, `volatility`, `volume`) or a `Strategy` (`name`, `ta` list of
+  `{"kind": ..., **params}` entries with pandas-ta's `params`, `prefix`, `suffix`,
+  `delimiter` and `col_names`), appending every result under pandas-ta's column names.
+  `Strategy`, `AllStrategy`, `CommonStrategy` and `CATEGORIES` are in
+  `fin_primitives.pandas`; `df.fp.study` is the older alias, `df.fp.categories` and
+  `df.fp.indicators()` list what runs, `exclude=`, `returns=`, `timed=`, `verbose=` and
+  `cores=` behave as in pandas-ta-classic 0.9.0 (cores is accepted; the kernels run
+  serially). `vwap` is left out without a DatetimeIndex and indicators needing a missing
+  column are skipped, as in pandas-ta.
+- `python/tests/test_strategy.py`: a custom Strategy, `CommonStrategy` and every category
+  against pandas-ta-classic 0.9.0's `df.ta.strategy` (same columns, order and values), and
+  `"all"` adding only pandas-ta's columns with pandas-ta's values.
+
 ## [3.6.2] - 2026-11-17
 
 ### Added

@@ -26,13 +26,22 @@ Methods (pandas-ta defaults): ``sma(10)``, ``ema(10)``, ``rma(10)``, ``rsi(14)``
 ``obv``, ``mfi``, ``ad``, ``adosc``, ``cmf``, ``efi``, ``pvt``. Any of the 743
 decimal-exact indicators runs through ``df.fp.compute("kind", *params)``.
 
+Several at once, as pandas-ta's ``df.ta.strategy``: ``df.fp.strategy()`` runs them all,
+``df.fp.strategy("momentum")`` one category, and ``df.fp.strategy(Strategy(...))`` your own
+list (:class:`Strategy`, :data:`CommonStrategy`, :data:`AllStrategy`), appending every column.
+
 Arguments pandas-ta takes that change the formula (``talib=``, ``mamode=``, ``drift=``,
 ``offset=``, ``scalar=``) are not supported and raise ``TypeError`` rather than being ignored.
 """
 from __future__ import annotations
 
 import inspect
-from typing import Any, Dict, Optional
+import logging
+import time
+import warnings
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -41,7 +50,9 @@ from . import _pta
 from . import compute as _compute
 from . import fast
 
-__all__ = ["FinPrimitivesAccessor", "FinPrimitivesSeriesAccessor"]
+__all__ = ["AllStrategy", "CATEGORIES", "CommonStrategy", "FinPrimitivesAccessor", "FinPrimitivesSeriesAccessor", "Strategy"]
+
+_log = logging.getLogger(__name__)
 
 _COLUMNS = ("open", "high", "low", "close", "volume")
 _UNSUPPORTED = ("talib", "mamode", "drift", "offset", "scalar", "asc")
@@ -260,6 +271,203 @@ def _vwap(self: "_Base", anchor: Optional[str] = None, append: bool = False, **k
 
 
 _Base.vwap = _vwap  # type: ignore[attr-defined]
+
+
+# -- strategy(): pandas-ta's df.ta.strategy over the df.fp methods ---------------------------
+
+
+@dataclass
+class Strategy:
+    """A named list of indicator calls, as pandas-ta's ``Strategy``: each entry of ``ta`` is a
+    dict with ``kind`` (the method name) and its keyword arguments, plus optional ``params``
+    (a tuple of positional arguments), ``prefix``, ``suffix``, ``delimiter`` (default ``_``)
+    and ``col_names`` (new names for the result's columns). ``ta=None`` runs every
+    indicator, like ``df.fp.strategy("all")``.
+
+    >>> MyStrategy = Strategy(name="Momo", ta=[{"kind": "rsi"}, {"kind": "macd", "fast": 8, "slow": 21}])
+    """
+
+    name: str
+    ta: Optional[List[Dict[str, Any]]] = field(default_factory=list)
+    description: str = "TA Description"
+    created: Optional[datetime] = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str):
+            raise TypeError("Strategy name must be a string, for example 'My TA'")
+        if self.ta is not None:
+            if not isinstance(self.ta, list) or not all(isinstance(t, dict) and isinstance(t.get("kind"), str) for t in self.ta):
+                raise TypeError("Strategy ta must be a list of dicts with a 'kind', for example [{'kind': 'sma', 'length': 10}]")
+
+
+AllStrategy = Strategy(name="All", description="All the indicators with their default settings.", ta=None)
+
+CommonStrategy = Strategy(
+    name="Common Price and Volume SMAs",
+    description="Common Price SMAs: 10, 20, 50, 200 and Volume SMA: 20.",
+    ta=[
+        {"kind": "sma", "length": 10},
+        {"kind": "sma", "length": 20},
+        {"kind": "sma", "length": 50},
+        {"kind": "sma", "length": 200},
+        {"kind": "sma", "close": "volume", "length": 20, "prefix": "VOL"},
+    ],
+)
+
+#: pandas-ta's categories, restricted to the indicators df.fp has.
+CATEGORIES: Dict[str, List[str]] = {
+    "momentum": ["ao", "apo", "bop", "cci", "cmo", "eri", "macd", "mom", "ppo", "qqe", "roc", "rsi", "stoch", "stochrsi", "trix", "tsi", "uo", "willr"],
+    "overlap": [
+        "dema", "ema", "hl2", "hlc3", "hma", "ichimoku", "kama", "linreg", "midpoint", "midprice", "ohlc4", "rma", "sma",
+        "supertrend", "t3", "tema", "trima", "vwap", "vwma", "wma", "zlma",
+    ],
+    "performance": ["log_return", "percent_return"],
+    "statistics": ["mad", "stdev", "variance", "zscore"],
+    "trend": ["adx", "aroon", "chop", "dpo", "psar", "vortex"],
+    "volatility": ["atr", "bbands", "donchian", "kc", "natr", "true_range"],
+    "volume": ["ad", "adosc", "cmf", "efi", "mfi", "obv", "pvt"],
+}
+
+_BUILTIN_INPUTS = {"atr": ("high", "low", "close"), "true_range": ("high", "low", "close"), "vwap": ("high", "low", "close", "volume")}
+_ENTRY_KEYS = ("kind", "params", "prefix", "suffix", "delimiter", "col_names")
+
+
+def _inputs(kind: str) -> Tuple[str, ...]:
+    if kind in _pta.SPEC:
+        return tuple("open" if c == "open_" else c for c in _pta.SPEC[kind][0])
+    return _BUILTIN_INPUTS.get(kind, ("close",))
+
+
+def _rename(result: Any, entry: Dict[str, Any]) -> Any:
+    delimiter = entry.get("delimiter", "_")
+    prefix = f"{entry['prefix']}{delimiter}" if "prefix" in entry else ""
+    suffix = f"{delimiter}{entry['suffix']}" if "suffix" in entry else ""
+    names = entry.get("col_names")
+    if names is not None and not isinstance(names, tuple):
+        names = (names,)
+    if isinstance(result, pd.DataFrame):
+        result = result.rename(columns=lambda c: prefix + c + suffix)
+        if names is not None:
+            if len(names) != len(result.columns):
+                raise ValueError(f"col_names has {len(names)} name(s) for {len(result.columns)} column(s): {list(result.columns)}")
+            result.columns = list(names)
+        return result
+    result = result.rename(prefix + str(result.name) + suffix)
+    if names is not None:
+        if len(names) != 1:
+            raise ValueError(f"col_names has {len(names)} names for one column ({result.name})")
+        result = result.rename(names[0])
+    return result
+
+
+def _indicators(self: "_Base", as_list: bool = True, exclude: Optional[Sequence[str]] = None) -> Any:
+    """The indicator names ``strategy("all")`` runs, sorted, without ``exclude``."""
+    names = sorted({n for names in CATEGORIES.values() for n in names} - set(exclude or ()))
+    return names if as_list else ", ".join(names)
+
+
+def _run(self: "_Base", entries: List[Dict[str, Any]], kwargs: Dict[str, Any], name: str, verbose: bool) -> None:
+    for e in entries:
+        call = {k: v for k, v in e.items() if k not in _ENTRY_KEYS}
+        params = e.get("params", ())
+        if not isinstance(params, tuple):
+            raise TypeError(f"Strategy entry {e['kind']!r}: params must be a tuple, got {type(params).__name__} {params!r}")
+        for k, v in kwargs.items():
+            call.setdefault(k, v)
+        result = getattr(self, e["kind"])(*params, **call)
+        self._out(_rename(result, e), True)
+        if verbose:
+            _log.info("strategy %s: %s", name, e["kind"])
+
+
+def _strategy(self: "_Base", *args: Any, **kwargs: Any) -> Any:
+    """pandas-ta's ``df.ta.strategy``: runs ``"all"`` (the default), a category
+    (``"momentum"``, ``"overlap"``, ``"performance"``, ``"statistics"``, ``"trend"``,
+    ``"volatility"``, ``"volume"``) or a :class:`Strategy`, appending every result to the
+    DataFrame under pandas-ta's column names.
+
+    Keywords: ``exclude`` (indicator names to leave out of ``"all"`` or a category),
+    ``returns`` (return the DataFrame), ``timed`` and ``verbose`` (log progress), ``cores``
+    (accepted for compatibility; the Rust kernels run serially, which is faster than
+    pandas-ta's process pool at any frame size), and column names such as ``close="adj"``,
+    passed to every indicator. ``vwap`` is left out without a DatetimeIndex, and indicators
+    needing a column the frame lacks (``volume``) are skipped, as in pandas-ta.
+
+    >>> df.fp.strategy(CommonStrategy)          # SMA_10, SMA_20, SMA_50, SMA_200, VOL_SMA_20
+    >>> df.fp.strategy("momentum", exclude=["qqe"])
+    """
+    if not isinstance(self._obj, pd.DataFrame):
+        raise ValueError("strategy() needs a DataFrame")
+    returns = bool(kwargs.pop("returns", False))
+    timed = bool(kwargs.pop("timed", False))
+    verbose = bool(kwargs.pop("verbose", False))
+    cores = kwargs.pop("cores", None)
+    if cores is not None and (not isinstance(cores, int) or cores < 0):
+        raise TypeError(f"strategy() cores must be a non-negative int, got {cores!r}")
+    kwargs.pop("append", None)
+    exclude = kwargs.pop("exclude", None)
+    _check(kwargs)
+    if len(args) > 1:
+        raise TypeError("strategy() takes one strategy: 'all', a category name or a Strategy")
+    arg = args[0] if args else "all"
+    known = set(_indicators(self))
+    custom = False
+    if isinstance(arg, Strategy):
+        if arg.ta is None:
+            arg = "all"
+        else:
+            custom = True
+    if custom:
+        if exclude is not None:
+            raise ValueError(f"strategy() exclude does not apply to the custom Strategy {arg.name!r}; leave the entries out of its 'ta' list instead")
+        entries = [dict(e) for e in arg.ta]
+        for position, e in enumerate(entries):
+            if not hasattr(_Base, e["kind"]) or e["kind"] in ("compute", "strategy", "study", "indicators"):
+                raise ValueError(f"Strategy {arg.name!r} entry {position}: {e['kind']!r} is not an indicator df.fp has")
+            if not isinstance(e.get("params", ()), tuple):
+                raise TypeError(f"Strategy entry {e['kind']!r}: params must be a tuple, got {type(e['params']).__name__} {e['params']!r}")
+        name = arg.name
+    elif isinstance(arg, str):
+        key = arg.lower()
+        if key == "all":
+            kinds = _indicators(self)
+        elif key in CATEGORIES:
+            kinds = list(CATEGORIES[key])
+        else:
+            raise ValueError(f"strategy() got {arg!r}, which is neither 'all' nor a category ({', '.join(sorted(CATEGORIES))}). Pass a Strategy to run a named one.")
+        if exclude is not None:
+            if not isinstance(exclude, (list, tuple, set)) or not all(isinstance(x, str) for x in exclude):
+                raise TypeError(f"strategy() exclude must be a list of indicator names, got {exclude!r}")
+            unknown = sorted(set(exclude) - known)
+            if unknown:
+                raise ValueError(f"strategy() exclude has unknown indicator name(s): {unknown}")
+            kinds = [k for k in kinds if k not in set(exclude)]
+        if not isinstance(self._obj.index, pd.DatetimeIndex):
+            kinds = [k for k in kinds if k != "vwap"]
+        kinds = [k for k in kinds if all(self._has(c, kwargs) for c in _inputs(k) if not (k == "psar" and c == "close"))]
+        entries = [{"kind": k} for k in kinds]
+        name = arg
+    else:
+        raise TypeError(f"strategy() expected a category name or a Strategy, got {type(arg).__name__}")
+
+    start = time.perf_counter()
+    before = len(self._obj.columns)
+    # Appending column by column fragments the frame; pandas warns past 100 blocks.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", pd.errors.PerformanceWarning)
+        _run(self, entries, kwargs, name, verbose)
+    if verbose:
+        _log.info("strategy %s: %d indicators, %d columns added", name, len(entries), len(self._obj.columns) - before)
+    if timed:
+        _log.info("strategy %s: %.1f ms", name, (time.perf_counter() - start) * 1000)
+    return self._obj if returns else None
+
+
+_Base.strategy = _strategy  # type: ignore[attr-defined]
+_Base.study = _strategy  # type: ignore[attr-defined]  # pandas-ta's older name
+_Base.indicators = _indicators  # type: ignore[attr-defined]
+_Base.categories = property(lambda self: sorted(CATEGORIES))  # type: ignore[attr-defined]
+_Base.cores = 0  # type: ignore[attr-defined]  # df.fp.cores = n is accepted, as df.ta.cores
 
 
 def _fast_macd(close: Any, f: int, s: int, g: int) -> Any:

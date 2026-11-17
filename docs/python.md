@@ -203,6 +203,30 @@ select another formula (`talib=`, `mamode=`, `offset=`, `drift=`) raise `TypeErr
 instead of being ignored. `ichimoku` returns the in-sample frame (pandas-ta's
 `append_span=False`); `vwap` needs a sorted DatetimeIndex, as in pandas-ta.
 
+Several at once, as pandas-ta's `df.ta.strategy` (3.7.0):
+
+```python
+from fin_primitives.pandas import Strategy, CommonStrategy
+
+df.fp.strategy()                                  # every method above, appended to df
+df.fp.strategy("momentum", exclude=["qqe"])       # one pandas-ta category
+df.fp.strategy(CommonStrategy)                    # SMA_10, SMA_20, SMA_50, SMA_200, VOL_SMA_20
+df.fp.strategy(Strategy(name="mine", ta=[
+    {"kind": "rsi", "length": 7},
+    {"kind": "macd", "fast": 8, "slow": 21},
+    {"kind": "sma", "close": "volume", "length": 20, "prefix": "VOL"},
+]))
+```
+
+Entries take pandas-ta's `params`, `prefix`, `suffix`, `delimiter` and `col_names`;
+`df.fp.study` is the older name, `df.fp.categories` and `df.fp.indicators()` list what runs,
+and `cores=` / `df.fp.cores` are accepted (the Rust kernels run serially). `vwap` is left out
+without a DatetimeIndex and indicators needing a missing column (`volume`) are skipped, as in
+pandas-ta. `tests/test_strategy.py` checks a custom Strategy, `CommonStrategy` and every
+category against pandas-ta-classic 0.9.0's `df.ta.strategy`: the same columns in the same
+order with the same values. `"all"` covers the 70 methods above, so it adds about a quarter
+of the columns pandas-ta's `"all"` does (no candles, cycles or the less common indicators).
+
 Polars gets an expression namespace for single-column indicators, so they work per group
 with `.over()`, and a DataFrame namespace for the ones that need several columns or return
 several:
