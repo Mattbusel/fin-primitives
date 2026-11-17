@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-11-16
+
+### Added
+- Python: `fin_primitives.pandas` registers `df.fp` and `series.fp`, a pandas accessor with
+  pandas-ta's method names, defaults and output column names, so `df.ta.rsi()` code moves
+  over by changing `ta` to `fp`: `sma`, `ema`, `rma`, `rsi`, `atr`, `true_range`, `macd`
+  (`MACD_12_26_9`, `MACDh_...`, `MACDs_...`), `bbands` (`BBL`, `BBM`, `BBU`, `BBB`, `BBP`),
+  `stdev` and `variance`, with `append=True`, column lookup in any case and `close=` /
+  `high=` / `low=` overrides. Arguments that change pandas-ta's formula (`talib`, `mamode`,
+  `offset`, `drift`, `scalar`) raise `TypeError`. `df.fp.compute(kind, *params)` runs any
+  of the 743 exact indicators.
+- Python: `fin_primitives.polars` registers `pl.col(...).fp` (sma, ema, rma, rsi, stdev,
+  variance, macd_line; per group with `.over()`) and `df.fp` (atr, true_range, macd,
+  bbands, with_indicators).
+- `tests/test_accessors.py`: every accessor method against pandas-ta-classic 0.9.0's `df.ta`
+  on fixed series (names and values), and the Polars namespaces against the pandas accessor.
+  On a zero-width band (a flat window) `BBP` is NaN, where pandas-ta's float residue gives an
+  arbitrary number.
+- `docs/benchmarks.md` and `bench/python/bench_fast.py`: `fin_primitives.fast` against TA-Lib,
+  kand, pandas-ta-classic, polars-talib and talipp on 100,000 bars, timings and agreement
+  with TA-Lib, with the command, machine and versions. TA-Lib is 2 to 5 times faster than
+  `fast`; `fast` is 5 to 54 times faster than pandas-ta-classic.
+
+The Rust crate has no change in this release beyond the version (the Python package takes
+its version from the crate).
+
 ## [3.4.1] - 2026-11-16
 
 ### Added

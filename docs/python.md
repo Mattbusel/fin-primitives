@@ -164,6 +164,45 @@ and MACD skips non-finite rows.
 | bbands(20, 2) | 15.4 ms | 2.1 ms | 7x |
 | atr(14) | 3.3 ms | 0.3 ms | 12x |
 
+## pandas-ta style: `df.fp` and Polars `.fp`
+
+Code written for pandas-ta's `df.ta` moves over by importing one module and changing `ta`
+to `fp`. Method names, defaults and output column names are pandas-ta's; the numbers come
+from `fin_primitives.fast` and match pandas-ta-classic 0.9.0 (`tests/test_accessors.py`
+compares every method with `df.ta`):
+
+```python
+import fin_primitives.pandas          # registers df.fp and series.fp
+
+df.fp.rsi()                           # Series "RSI_14"
+df.fp.ema(50, append=True)            # adds column "EMA_50"
+df.fp.macd()                          # MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
+df.fp.bbands(length=20, std=2)        # BBL_20_2.0, BBM_20_2.0, BBU_20_2.0, BBB_20_2.0, BBP_20_2.0
+df.fp.atr()                           # ATRr_14 (high, low, close found in any case)
+df["close"].fp.sma(20)                # on a Series
+df.fp.compute("kama", 10)             # any of the 743 exact indicators by key
+```
+
+Methods and pandas-ta defaults: `sma(10)`, `ema(10)`, `rma(10)`, `rsi(14)`, `atr(14)`,
+`true_range()`, `macd(12, 26, 9)`, `bbands(5, 2.0)`, `stdev(30)`, `variance(30)`. Arguments
+that change pandas-ta's formula (`talib=`, `mamode=`, `offset=`, `drift=`, `scalar=`) raise
+`TypeError` instead of being ignored.
+
+Polars gets an expression namespace for single-column indicators, so they work per group
+with `.over()`, and a DataFrame namespace for the ones that need several columns or return
+several:
+
+```python
+import polars as pl
+import fin_primitives.polars          # registers pl.col(...).fp and df.fp
+
+df.with_columns(
+    pl.col("close").fp.rsi(14).over("symbol").alias("rsi"),
+    pl.col("close").fp.ema(50).over("symbol").alias("ema50"),
+)
+df.fp.with_indicators(df.fp.atr(14), df.fp.macd(), df.fp.bbands(20, 2.0))
+```
+
 ## The catalogue
 
 ```python
