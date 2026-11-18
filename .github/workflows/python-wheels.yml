@@ -235,6 +235,9 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          # PEP 740 provenance attestations, signed with this workflow's OIDC identity
+          # (the action's default under trusted publishing; stated here so it stays on).
+          attestations: true
 
   publish-pyemscripten:
     # Adds the pyemscripten wheel to a release that is already on PyPI (for a release made
@@ -272,4 +275,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          # PEP 740 provenance attestations, signed with this workflow's OIDC identity
+          # (the action's default under trusted publishing; stated here so it stays on).
+          attestations: true
           skip-existing: true

@@ -30,6 +30,10 @@ cargo bench
 
 All tests must pass before submitting a pull request.
 
+Every pull request that adds functionality must add tests for it, and every bug fix must add a
+test that fails without the fix. A new indicator needs a test against a published reference
+value or an established implementation (the Python tests compare against pandas-ta-classic).
+
 ## Coding Standards
 
 - Format code with `cargo fmt` before committing.
@@ -55,6 +59,8 @@ All tests must pass before submitting a pull request.
 6. Squash or rebase commits to keep history clean.
 
 ## Reporting Bugs
+
+Security problems go through private reporting, not issues: see [SECURITY.md](SECURITY.md).
 
 Please open an issue on GitHub with:
 
