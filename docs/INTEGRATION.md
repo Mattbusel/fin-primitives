@@ -123,7 +123,8 @@ script, and builds for `wasm32-unknown-unknown`.
   `catalogue()` are the public Python API; modules starting with `_` are not.
 * CI runs `cargo clippy -D warnings`, the Rust tests, the MSRV build, and the Python test
   suite (including the comparison with pandas-ta-classic) on every push and pull request.
-* The public typed surface is checked: CI runs `mypy --strict` on `fin_primitives.ta`.
+* The typed surface is checked: CI runs `mypy --strict` on a file that calls
+  `fin_primitives.ta` (`python/tests/typing/ta_usage.py`) against the installed wheel.
 
 ## Maintenance and provenance
 

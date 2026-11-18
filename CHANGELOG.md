@@ -22,7 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `df.fp` indicator.
 - Tests against pandas-ta-classic 0.9.0 for the new functions: default and one other
   setting, every `bias` `mamode`, positional calls, leading and interior NaNs, flat ranges.
-- CI: `mypy --strict` on `fin_primitives.ta`.
+- CI: `mypy --strict` on a caller of `fin_primitives.ta` (`python/tests/typing/ta_usage.py`)
+  against the installed wheel.
 - `SECURITY.md` (GitHub private vulnerability reporting is on) and a "Maintenance and
   provenance" section in `docs/INTEGRATION.md`: release history, how the wheels are built and
   attested, the reference data behind the tests, and how to remove the dependency.
