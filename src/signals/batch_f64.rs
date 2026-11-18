@@ -920,6 +920,28 @@ pub fn kama_loop(sc: &[f64], close: &[f64], length: usize) -> Vec<f64> {
     out
 }
 
+/// Fisher Transform recursion of pandas-ta-classic's `fisher`: from bar `length` on,
+/// `v = 0.66 * pos[i] + 0.67 * v` clamped to +-0.999 past +-0.99, then
+/// `f[i] = 0.5 * (ln((1 + v) / (1 - v)) + f[i - 1])`, with `v` and the previous value
+/// seeded at 0. A NaN in `pos` carries through every later value, as in the source.
+pub fn fisher_loop(pos: &[f64], length: usize) -> Vec<f64> {
+    let m = pos.len();
+    let mut out = vec![f64::NAN; m];
+    let mut v = 0.0_f64;
+    let mut previous = 0.0_f64;
+    for i in length.min(m)..m {
+        v = 0.66 * pos[i] + 0.67 * v;
+        if v < -0.99 {
+            v = -0.999;
+        } else if v > 0.99 {
+            v = 0.999;
+        }
+        previous = 0.5 * (((1.0 + v) / (1.0 - v)).ln() + previous);
+        out[i] = previous;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -935,6 +957,23 @@ mod tests {
         assert_eq!(k[4], 0.5 * 5.0 + 0.5 * k[3]);
         assert!(kama_loop(&sc, &close, 6).iter().all(|v| v.is_nan()));
         assert!(kama_loop(&sc, &close, 0).iter().all(|v| v.is_nan()));
+    }
+
+    #[test]
+    fn fisher_loop_starts_at_length_clamps_and_carries_nan() {
+        let pos = [0.1, 0.2, 0.3, 0.45, 0.45, f64::NAN, 0.1];
+        let f = fisher_loop(&pos, 2);
+        assert!(f[0].is_nan() && f[1].is_nan());
+        let v2: f64 = 0.66 * 0.3;
+        let f2 = 0.5 * ((1.0 + v2) / (1.0 - v2)).ln();
+        assert!((f[2] - f2).abs() < 1e-15);
+        let v3: f64 = 0.66 * 0.45 + 0.67 * v2;
+        assert!((f[3] - 0.5 * (((1.0 + v3) / (1.0 - v3)).ln() + f2)).abs() < 1e-15);
+        assert!(f[5].is_nan() && f[6].is_nan());
+        let big = fisher_loop(&[2.0; 4], 0);
+        let clamped = 0.5 * (1.999_f64 / 0.001).ln();
+        assert!((big[0] - clamped).abs() < 1e-12);
+        assert!(fisher_loop(&pos, 9).iter().all(|v| v.is_nan()));
     }
 
     fn close_enough(a: f64, b: f64) -> bool {

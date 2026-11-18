@@ -67,3 +67,7 @@ jobs:
           .venv/bin/python -m pip install pytest numpy pandas polars "pandas-ta-classic==0.9.0"
           .venv/bin/python -m pip install --no-index --find-links python/dist fin-primitives
           cd python && ../.venv/bin/python -m pytest -q
+      - name: Type-check the public pandas-ta function API
+        run: |
+          .venv/bin/python -m pip install "mypy==2.4.1" "pandas-stubs==3.1.0.261029"
+          .venv/bin/python -m mypy --strict python/src/fin_primitives/ta.py

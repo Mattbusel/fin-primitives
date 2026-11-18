@@ -22,10 +22,11 @@ bands = ta.bbands(df["close"], length=20, std=2)
 atr = ta.atr(df["high"], df["low"], df["close"], length=14)
 ```
 
-65 functions: `sma ema rma wma hma dema tema t3 trima zlma vwma vwap midpoint midprice linreg
-kama hl2 hlc3 ohlc4 supertrend rsi macd mom eri roc cmo stoch stochrsi willr cci ao apo ppo
-trix tsi uo bop qqe adx aroon psar vortex chop dpo atr natr true_range bbands kc donchian
-stdev variance mad zscore log_return percent_return obv mfi ad adosc cmf efi pvt`.
+68 functions: `sma ema rma wma hma dema tema t3 trima zlma vwma vwap midpoint midprice linreg
+kama hl2 hlc3 ohlc4 supertrend ichimoku rsi macd mom eri kdj fisher bias slope roc cmo stoch
+stochrsi willr cci ao apo ppo trix tsi uo bop qqe adx aroon psar vortex chop dpo atr natr
+true_range bbands kc donchian stdev variance mad zscore log_return percent_return obv mfi ad
+adosc cmf efi pvt`.
 
 Every function is typed (the package ships `py.typed`), so mypy and pyright check the
 arguments. Where it differs from pandas-ta:
@@ -33,9 +34,9 @@ arguments. Where it differs from pandas-ta:
 | pandas-ta | `fin_primitives.ta` |
 |---|---|
 | input shorter than the period returns `None` | returns a result of `NaN` |
-| `talib=`, `mamode=`, `offset=`, `drift=`, `fillna=` change or post-process the result | raise `TypeError` (only the default formula is computed) |
+| `talib=`, `mamode=`, `offset=`, `drift=`, `fillna=` change or post-process the result | raise `TypeError` (only the default formula is computed; `bias` takes `mamode` `"sma"`, `"ema"`, `"rma"` or `"wma"`) |
 | input series with different indexes are aligned | raise `ValueError`; take them from one DataFrame |
-| `ichimoku` returns `(frame, span_frame)` | not in `ta`; `df.fp.ichimoku()` returns the frame |
+| `ichimoku(..., append_span=True)` appends the forward span rows | raises `TypeError`; the in-sample frame is returned, as pandas-ta-classic 0.9.0 does by default |
 | Bollinger %B on a window with zero width is `0` | `NaN` (the deviation is exactly zero) |
 
 The DataFrame accessor (`import fin_primitives.pandas`, then `df.fp.rsi()`) and the
@@ -50,7 +51,7 @@ pandas-ta as the fallback, so nothing changes for users who do not install it:
 ```toml
 # pyproject.toml
 [project.optional-dependencies]
-fast-ta = ["fin-primitives>=3.8"]
+fast-ta = ["fin-primitives>=3.9"]
 ```
 
 ```python
@@ -74,7 +75,7 @@ the rest off:
 
 ```toml
 [dependencies]
-fin-primitives = { version = "3.8", default-features = false, features = ["indicators"] }
+fin-primitives = { version = "3.9", default-features = false, features = ["indicators"] }
 rust_decimal = "1"
 ```
 
@@ -122,3 +123,23 @@ script, and builds for `wasm32-unknown-unknown`.
   `catalogue()` are the public Python API; modules starting with `_` are not.
 * CI runs `cargo clippy -D warnings`, the Rust tests, the MSRV build, and the Python test
   suite (including the comparison with pandas-ta-classic) on every push and pull request.
+* The public typed surface is checked: CI runs `mypy --strict` on `fin_primitives.ta`.
+
+## Maintenance and provenance
+
+What a reviewer can check before taking the dependency:
+
+* Release history: 28 crates.io releases since 0.1.0 on 2026-03-07, and the PyPI package
+  since 3.3.0 on 2026-11-15, every one listed in the [CHANGELOG](../CHANGELOG.md). Each
+  version has a `v<version>` tag (Rust) and a `py-v<version>` tag (Python) on GitHub.
+* Builds: the PyPI wheels and sdist are built and uploaded by
+  [`python-wheels.yml`](../.github/workflows/python-wheels.yml) with PyPI trusted publishing
+  (no stored token), and carry PyPI provenance attestations that link each file to the
+  workflow run that built it.
+* Reference data for the tests: pandas-ta-classic 0.9.0 for `fin_primitives.ta`, `df.fp`
+  and the Polars namespaces (`python/tests/test_ta.py`, `test_accessors.py`,
+  `test_accessors_more.py`, `test_strategy.py`), and TA-Lib through the `ta-lib` crate
+  for the Rust indicators in `tests/talib_parity.rs`. Both run in CI.
+* Security reports: see [SECURITY.md](../SECURITY.md).
+* Removing it: behind the optional extra above, removal is deleting the extra and the
+  `try`/`except` import; the fallback path is the code the project already had.

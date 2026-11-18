@@ -336,6 +336,86 @@ def eri(high, low, close, length=None) -> Out:
     return [(f"BULLP_{n}", high - e), (f"BEARP_{n}", low - e)]
 
 
+def kdj(high, low, close, length=None, signal=None) -> Out:
+    """KDJ: the stochastic %K of the last ``length`` bars smoothed twice with Wilder's
+    average of ``signal`` bars, ``K_{length}_{signal}``, ``D_...`` and ``J = 3K - 2D``
+    (pandas-ta defaults 9, 3). A window with no range reads 0, as in pandas-ta-classic 0.9.0."""
+    n = _num(length, 9, "length", integer=True)
+    s = _num(signal, 3, "signal", integer=True)
+    p = f"_{n}_{s}"
+    if close.size < max(n, s):
+        nan = np.full(close.size, np.nan)
+        return [(f"K{p}", nan), (f"D{p}", nan.copy()), (f"J{p}", nan.copy())]
+    ll, hh = _rmin(low, n), _rmax(high, n)
+    rng = hh - ll
+    fastk = _mask(_div(100 * (close - ll), rng), rng == 0, 0.0)
+    k = _rma(fastk, s)
+    d = _rma(k, s)
+    return [(f"K{p}", k), (f"D{p}", d), (f"J{p}", 3 * k - 2 * d)]
+
+
+def fisher(high, low, length=None, signal=None) -> Out:
+    """Fisher Transform of the median price's position in its ``length``-bar range,
+    ``FISHERT_{length}_{signal}``, and the same series ``signal`` bars back,
+    ``FISHERTs_...`` (pandas-ta defaults 9, 1). The recursion runs in Rust and follows
+    pandas-ta-classic 0.9.0: values from bar ``length``, the range floored at 0.001. Every
+    row where ``high`` or ``low`` is not finite is skipped and reads NaN (pandas-ta's
+    ``skip_leading_nan(interior=True)``), so one missing bar does not end the recursion."""
+    n = _num(length, 9, "length", integer=True)
+    s = _num(signal, 1, "signal", integer=True)
+    p = f"_{n}_{s}"
+    fish, sig = np.full(high.size, np.nan), np.full(high.size, np.nan)
+    rows = np.flatnonzero(np.isfinite(high) & np.isfinite(low))
+    if rows.size >= max(n, s):
+        f, g = _fisher(high[rows], low[rows], n, s)
+        fish[rows], sig[rows] = f, g
+    return [(f"FISHERT{p}", fish), (f"FISHERTs{p}", sig)]
+
+
+def _fisher(high: np.ndarray, low: np.ndarray, n: int, s: int) -> Tuple[np.ndarray, np.ndarray]:
+    mid = 0.5 * (high + low)
+    hi, lo = _rmax(mid, n), _rmin(mid, n)
+    rng = hi - lo
+    rng = np.where(rng < 0.001, 0.001, rng)
+    pos = np.ascontiguousarray(_div(mid - lo, rng) - 0.5, dtype=np.float64)
+    out = _native.fast_fisher_loop(pos, int(n))
+    return out, _shift(out, s)
+
+
+_BIAS_MA = {"sma": _sma, "ema": _ema, "rma": _rma, "wma": _wma}
+
+
+def bias(close, length=None, mamode=None) -> Out:
+    """Bias: how far ``close`` sits from its moving average, ``close / MA - 1``,
+    ``BIAS_SMA_{length}`` (pandas-ta defaults 26, ``"sma"``). ``mamode`` takes ``"sma"``,
+    ``"ema"``, ``"rma"`` or ``"wma"``."""
+    n = _num(length, 26, "length", integer=True)
+    mode = "sma" if mamode is None else mamode
+    if not isinstance(mode, str) or mode.lower() not in _BIAS_MA:
+        raise ValueError(f"mamode must be one of {', '.join(sorted(_BIAS_MA))}, got {mamode!r}")
+    mode = mode.lower()
+    name = f"BIAS_{mode.upper()}_{n}"
+    if close.size < n:
+        return [(name, np.full(close.size, np.nan))]
+    return [(name, _div(close, _BIAS_MA[mode](close, n)) - 1)]
+
+
+def slope(close, length=None, as_angle=None, to_degrees=None) -> Out:
+    """Slope ``close.diff(length) / length``, ``SLOPE_{length}`` (pandas-ta default 1);
+    ``as_angle=True`` gives its arctangent in radians (``ANGLEr_{length}``), and with
+    ``to_degrees=True`` in degrees (``ANGLEd_{length}``)."""
+    n = _num(length, 1, "length", integer=True)
+    angle = bool(as_angle) if as_angle is not None else False
+    degrees = bool(to_degrees) if to_degrees is not None else False
+    out = _diff(close, n) / n
+    if angle:
+        out = np.arctan(out)
+        if degrees:
+            out = out * (180 / np.pi)
+        return [(f"ANGLE{'d' if degrees else 'r'}_{n}", out)]
+    return [(f"SLOPE_{n}", out)]
+
+
 def roc(close, length=None, scalar=None) -> Out:
     n = _num(length, 10, "length", integer=True)
     s = _num(scalar, 100, "scalar")
@@ -802,6 +882,10 @@ SPEC: Dict[str, Tuple[Tuple[str, ...], Callable[..., Out]]] = {
     # momentum
     "mom": (C, mom),
     "eri": (HLC, eri),
+    "kdj": (HLC, kdj),
+    "fisher": (HL, fisher),
+    "bias": (C, bias),
+    "slope": (C, slope),
     "roc": (C, roc),
     "cmo": (C, cmo),
     "stoch": (HLC, stoch),
@@ -843,7 +927,7 @@ SPEC: Dict[str, Tuple[Tuple[str, ...], Callable[..., Out]]] = {
 }
 
 # Indicators whose result is a frame of several columns in pandas-ta.
-MULTI = {"eri", "supertrend", "ichimoku", "stoch", "stochrsi", "ppo", "trix", "tsi", "qqe", "adx", "aroon", "psar", "vortex", "kc", "donchian"}
+MULTI = {"eri", "kdj", "fisher", "supertrend", "ichimoku", "stoch", "stochrsi", "ppo", "trix", "tsi", "qqe", "adx", "aroon", "psar", "vortex", "kc", "donchian"}
 
 
 def run(name: str, columns: Dict[str, np.ndarray], **params: Any) -> Out:

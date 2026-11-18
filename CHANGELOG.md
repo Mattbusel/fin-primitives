@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-11-18
+
+### Added
+- Python: `kdj`, `fisher`, `bias` and `slope` on `df.fp`, the Polars `.fp` namespaces and
+  `fin_primitives.ta`, with pandas-ta's names, parameters, defaults and columns
+  (`K_9_3`/`D_9_3`/`J_9_3`, `FISHERT_9_1`/`FISHERTs_9_1`, `BIAS_SMA_26`, `SLOPE_1`,
+  `ANGLEr_1`/`ANGLEd_1`), matching pandas-ta-classic 0.9.0. `bias` takes `mamode` `"sma"`
+  (the default), `"ema"`, `"rma"` or `"wma"`. `fisher` skips rows where `high` or `low` is
+  not finite, as pandas-ta-classic does, and its recursion runs in Rust
+  (`signals::batch_f64::fisher_loop`, `fast_fisher_loop`). `df.fp.strategy("momentum")`
+  includes the four.
+- `fin_primitives.ta.ichimoku`: returns one DataFrame, as pandas-ta-classic 0.9.0 does
+  (`append_span=True` raises `TypeError`). `fin_primitives.ta` now has 68 functions, every
+  `df.fp` indicator.
+- Tests against pandas-ta-classic 0.9.0 for the new functions: default and one other
+  setting, every `bias` `mamode`, positional calls, leading and interior NaNs, flat ranges.
+- CI: `mypy --strict` on `fin_primitives.ta`.
+- `SECURITY.md` (GitHub private vulnerability reporting is on) and a "Maintenance and
+  provenance" section in `docs/INTEGRATION.md`: release history, how the wheels are built and
+  attested, the reference data behind the tests, and how to remove the dependency.
+
+### Fixed
+- `docs/INTEGRATION.md`, `docs/python.md` and the 3.8.0 notes said `fin_primitives.ta` had
+  65 functions; it had 63. The ichimoku note described the original pandas-ta's tuple
+  return, which pandas-ta-classic 0.9.0 no longer has.
+
 ## [3.8.0] - 2026-11-17
 
 ### Added

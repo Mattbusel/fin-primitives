@@ -23,8 +23,10 @@ Differences from pandas-ta:
 * Input series must share one index (take them from one DataFrame); otherwise
   ``ValueError`` is raised instead of aligning them. numpy arrays and lists are accepted
   and give a result with a ``RangeIndex``.
-* ``ichimoku`` is not here (pandas-ta returns a tuple with a forward span frame); use
-  ``df.fp.ichimoku()``.
+* ``ichimoku`` returns one DataFrame, as pandas-ta-classic 0.9.0 does (the original
+  pandas-ta 0.3.14b returned a tuple with a forward span frame); ``append_span`` is not
+  supported.
+* ``bias`` takes ``mamode`` ``"sma"`` (the default), ``"ema"``, ``"rma"`` or ``"wma"``.
 
 Needs pandas and numpy (``pip install "fin-primitives[pandas]"``).
 
@@ -77,6 +79,7 @@ __all__ = [
     "aroon",
     "atr",
     "bbands",
+    "bias",
     "bop",
     "cci",
     "chop",
@@ -88,11 +91,14 @@ __all__ = [
     "efi",
     "ema",
     "eri",
+    "fisher",
     "hl2",
     "hlc3",
     "hma",
+    "ichimoku",
     "kama",
     "kc",
+    "kdj",
     "linreg",
     "log_return",
     "macd",
@@ -112,6 +118,7 @@ __all__ = [
     "rma",
     "roc",
     "rsi",
+    "slope",
     "sma",
     "stdev",
     "stoch",
@@ -250,6 +257,19 @@ def bbands(
     Same defaults, column names and values as ``df.fp.bbands``.
     """
     return cast("pd.DataFrame", _call('bbands', {"close": close}, {"length": length, "std": std, "ddof": ddof}, kwargs))
+
+
+def bias(
+    close: SeriesLike,
+    length: Optional[int] = None,
+    mamode: Optional[str] = None,
+    **kwargs: Any,
+) -> pd.Series:
+    """pandas-ta's ``bias(close, length=None, mamode=None)``.
+
+    Same defaults, column names and values as ``df.fp.bias``.
+    """
+    return cast("pd.Series", _call('bias', {"close": close}, {"length": length, "mamode": mamode}, kwargs))
 
 
 def bop(
@@ -400,6 +420,20 @@ def eri(
     return cast("pd.DataFrame", _call('eri', {"high": high, "low": low, "close": close}, {"length": length}, kwargs))
 
 
+def fisher(
+    high: SeriesLike,
+    low: SeriesLike,
+    length: Optional[int] = None,
+    signal: Optional[int] = None,
+    **kwargs: Any,
+) -> pd.DataFrame:
+    """pandas-ta's ``fisher(high, low, length=None, signal=None)``.
+
+    Same defaults, column names and values as ``df.fp.fisher``.
+    """
+    return cast("pd.DataFrame", _call('fisher', {"high": high, "low": low}, {"length": length, "signal": signal}, kwargs))
+
+
 def hl2(high: SeriesLike, low: SeriesLike, **kwargs: Any) -> pd.Series:
     """pandas-ta's ``hl2(high, low)``.
 
@@ -422,6 +456,23 @@ def hma(close: SeriesLike, length: Optional[int] = None, **kwargs: Any) -> pd.Se
     Same defaults, column names and values as ``df.fp.hma``.
     """
     return cast("pd.Series", _call('hma', {"close": close}, {"length": length}, kwargs))
+
+
+def ichimoku(
+    high: SeriesLike,
+    low: SeriesLike,
+    close: SeriesLike,
+    tenkan: Optional[float] = None,
+    kijun: Optional[float] = None,
+    senkou: Optional[float] = None,
+    include_chikou: Optional[bool] = None,
+    **kwargs: Any,
+) -> pd.DataFrame:
+    """pandas-ta's ``ichimoku(high, low, close, tenkan=None, kijun=None, senkou=None, include_chikou=None)``.
+
+    Same defaults, column names and values as ``df.fp.ichimoku``.
+    """
+    return cast("pd.DataFrame", _call('ichimoku', {"high": high, "low": low, "close": close}, {"tenkan": tenkan, "kijun": kijun, "senkou": senkou, "include_chikou": include_chikou}, kwargs))
 
 
 def kama(
@@ -453,6 +504,21 @@ def kc(
     Same defaults, column names and values as ``df.fp.kc``.
     """
     return cast("pd.DataFrame", _call('kc', {"high": high, "low": low, "close": close}, {"length": length, "scalar": scalar, "tr": tr}, kwargs))
+
+
+def kdj(
+    high: SeriesLike,
+    low: SeriesLike,
+    close: SeriesLike,
+    length: Optional[int] = None,
+    signal: Optional[int] = None,
+    **kwargs: Any,
+) -> pd.DataFrame:
+    """pandas-ta's ``kdj(high, low, close, length=None, signal=None)``.
+
+    Same defaults, column names and values as ``df.fp.kdj``.
+    """
+    return cast("pd.DataFrame", _call('kdj', {"high": high, "low": low, "close": close}, {"length": length, "signal": signal}, kwargs))
 
 
 def linreg(close: SeriesLike, length: Optional[int] = None, **kwargs: Any) -> pd.Series:
@@ -672,6 +738,20 @@ def rsi(close: SeriesLike, length: Optional[int] = None, **kwargs: Any) -> pd.Se
     Same defaults, column names and values as ``df.fp.rsi``.
     """
     return cast("pd.Series", _call('rsi', {"close": close}, {"length": length}, kwargs))
+
+
+def slope(
+    close: SeriesLike,
+    length: Optional[int] = None,
+    as_angle: Optional[bool] = None,
+    to_degrees: Optional[bool] = None,
+    **kwargs: Any,
+) -> pd.Series:
+    """pandas-ta's ``slope(close, length=None, as_angle=None, to_degrees=None)``.
+
+    Same defaults, column names and values as ``df.fp.slope``.
+    """
+    return cast("pd.Series", _call('slope', {"close": close}, {"length": length, "as_angle": as_angle, "to_degrees": to_degrees}, kwargs))
 
 
 def sma(close: SeriesLike, length: Optional[int] = None, **kwargs: Any) -> pd.Series:

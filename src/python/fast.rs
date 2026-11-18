@@ -284,6 +284,14 @@ pub fn fast_kama_loop<'py>(py: Python<'py>, sc: PyReadonlyArray1<'py, f64>, clos
     Ok(py.detach(|| k::kama_loop(s, c, length)).into_pyarray(py))
 }
 
+/// Fisher Transform recursion over the normalized position `pos`, from bar `length` on.
+#[pyfunction]
+pub fn fast_fisher_loop<'py>(py: Python<'py>, pos: PyReadonlyArray1<'py, f64>, length: usize) -> PyResult<Arr<'py>> {
+    positive(length, "length")?;
+    let p = slice(&pos, "pos")?;
+    Ok(py.detach(|| k::fisher_loop(p, length)).into_pyarray(py))
+}
+
 /// Adds the `fast_*` functions to the extension module.
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_sma, m)?)?;
@@ -307,5 +315,6 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_qqe_loop, m)?)?;
     m.add_function(wrap_pyfunction!(fast_adosc_loop, m)?)?;
     m.add_function(wrap_pyfunction!(fast_kama_loop, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_fisher_loop, m)?)?;
     Ok(())
 }

@@ -1,4 +1,4 @@
-"""``fin_primitives.ta`` (3.8.0), pandas-ta's function API: the same values and column
+"""``fin_primitives.ta`` (3.8.0; kdj, fisher, bias, slope and ichimoku in 3.9.0), pandas-ta's function API: the same values and column
 names as ``df.fp``, signatures that line up with pandas-ta-classic 0.9.0's functions, and
 (when pandas-ta-classic is installed) the same results as calling those functions."""
 import inspect
@@ -56,13 +56,13 @@ def test_matches_df_fp_exactly(name):
         assert_equal(got, want)
 
 
-def test_covers_every_df_fp_indicator_but_ichimoku():
-    assert set(ta.__all__) == (set(_pta.SPEC) - {"ichimoku"}) | {
+def test_covers_every_df_fp_indicator():
+    assert set(ta.__all__) == set(_pta.SPEC) | {
         "sma", "ema", "rma", "rsi", "atr", "true_range", "macd", "bbands", "stdev", "variance", "vwap",
     }
 
 
-@pytest.mark.parametrize("name", sorted(_pta.SPEC.keys() - {"ichimoku"}))
+@pytest.mark.parametrize("name", sorted(_pta.SPEC.keys()))
 def test_signature_follows_pta(name):
     fn = getattr(ta, name)
     ref = inspect.signature(_pta.SPEC[name][1])
@@ -206,3 +206,28 @@ def test_same_result_as_pandas_ta_function(pta, name):
             g, w, scale = g[~flat], w[~flat], scale[~flat]
         for c in w.columns:
             assert_close(g[c], w[c], scale)
+
+
+def test_new_in_3_9_by_position_match_pandas_ta_classic():
+    pta = pytest.importorskip("pandas_ta_classic")
+    h, l, c = DF["high"], DF["low"], DF["close"]
+    pairs = [
+        (ta.kdj(h, l, c, 14, 5), pta.kdj(h, l, c, 14, 5)),
+        (ta.fisher(h, l, 20, 3), pta.fisher(h, l, 20, 3)),
+        (ta.bias(c, 10, "ema"), pta.bias(c, 10, "ema")),
+        (ta.slope(c, 3, True, True), pta.slope(c, 3, True, True)),
+        (ta.ichimoku(h, l, c, 7, 22, 44, False), pta.ichimoku(h, l, c, 7, 22, 44, False)),
+    ]
+    for got, want in pairs:
+        g = got if isinstance(got, pd.DataFrame) else got.to_frame()
+        w = want if isinstance(want, pd.DataFrame) else want.to_frame()
+        assert list(g.columns) == list(w.columns)
+        for col in w:
+            assert_close(g[col], w[col], np.maximum(np.abs(w[col].to_numpy(float)), 1.0))
+
+
+def test_bias_rejects_an_unknown_mamode_and_ichimoku_append_span():
+    with pytest.raises(ValueError, match="mamode"):
+        ta.bias(DF["close"], mamode="jma")
+    with pytest.raises(TypeError):
+        ta.ichimoku(DF["high"], DF["low"], DF["close"], append_span=True)

@@ -52,6 +52,12 @@ CASES = [
     ("ichimoku", {}), ("ichimoku", {"tenkan": 7, "kijun": 22, "senkou": 44}),
     ("mom", {}), ("mom", {"length": 5}),
     ("eri", {}), ("eri", {"length": 21}),
+    ("kdj", {}), ("kdj", {"length": 14, "signal": 5}),
+    ("fisher", {}), ("fisher", {"length": 20, "signal": 3}),
+    ("bias", {}), ("bias", {"length": 10}), ("bias", {"mamode": "ema"}), ("bias", {"mamode": "rma", "length": 12}),
+    ("bias", {"mamode": "wma"}),
+    ("slope", {}), ("slope", {"length": 5}), ("slope", {"length": 3, "as_angle": True}),
+    ("slope", {"length": 3, "as_angle": True, "to_degrees": True}),
     ("roc", {}), ("roc", {"length": 5}),
     ("cmo", {}), ("cmo", {"length": 9}),
     ("stoch", {}), ("stoch", {"k": 5, "d": 3, "smooth_k": 1}),
@@ -164,7 +170,7 @@ def test_positional_append_and_errors():
 def test_leading_nan_is_skipped_like_pandas_ta(ta):
     df = FRAMES["walk"].iloc[:800].copy()
     df.iloc[:25] = np.nan
-    for method in ("supertrend", "psar", "qqe", "aroon", "obv", "mfi", "adosc", "wma", "stoch", "kama", "eri"):
+    for method in ("supertrend", "psar", "qqe", "aroon", "obv", "mfi", "adosc", "wma", "stoch", "kama", "eri", "kdj", "fisher", "bias", "slope"):
         want = getattr(df.ta, method)(talib=False)
         got = getattr(df.fp, method)()
         g = got if isinstance(got, pd.DataFrame) else got.to_frame()
@@ -173,6 +179,24 @@ def test_leading_nan_is_skipped_like_pandas_ta(ta):
         scale = df["volume"].cumsum().fillna(0).to_numpy() * 1000 + 1000
         for c in w.columns:
             assert_close(g[c], w[c], scale)
+
+
+def test_fisher_skips_interior_nan_and_flat_ranges_like_pandas_ta(ta):
+    df = FRAMES["real_like"].iloc[:600].copy()
+    df.loc[df.index[[100, 101, 350]], ["high", "low"]] = np.nan
+    want = df.ta.fisher(talib=False)
+    got = df.fp.fisher()
+    assert list(got.columns) == list(want.columns) == ["FISHERT_9_1", "FISHERTs_9_1"]
+    for c in want:
+        assert_close(got[c], want[c], np.full(len(df), 1.0))
+    flat = pd.DataFrame({"high": np.r_[np.linspace(10, 12, 40), np.full(40, 12.0)]})
+    flat["low"] = flat["high"]
+    flat["close"] = flat["high"]
+    for method in ("fisher", "kdj"):
+        want = getattr(flat.ta, method)(talib=False)
+        got = getattr(flat.fp, method)()
+        for c in want:
+            assert_close(got[c], want[c], np.full(80, 100.0))
 
 
 def test_kama_skips_interior_nan_and_short_input_like_pandas_ta(ta):

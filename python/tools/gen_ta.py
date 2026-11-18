@@ -38,15 +38,15 @@ BUILTIN = {
     "vwap": (("high", "low", "close", "volume"), [("anchor", None)], False),
 }
 
-# pandas-ta returns a tuple (frame, forward span frame) from ichimoku; df.fp.ichimoku covers it.
-SKIP = {"ichimoku"}
+# Indicators left out of the function API (none at present).
+SKIP: set = set()
 
 INTS = {
     "length", "fast", "slow", "signal", "k", "d", "smooth_k", "lensig", "atr_length", "rsi_length",
     "lower_length", "upper_length", "medium", "smooth", "ddof",
 }
-BOOLS = {"include_chikou", "centered", "cumulative", "tr"}
-STRS = {"anchor"}
+BOOLS = {"include_chikou", "centered", "cumulative", "tr", "as_angle", "to_degrees"}
+STRS = {"anchor", "mamode"}
 
 # Where pandas-ta-classic 0.9.0's signatures differ from _pta's, so that positional calls
 # bind the way they do in pandas-ta. NOT_SUPPORTED: parameters pandas-ta takes positionally
@@ -115,8 +115,10 @@ Differences from pandas-ta:
 * Input series must share one index (take them from one DataFrame); otherwise
   ``ValueError`` is raised instead of aligning them. numpy arrays and lists are accepted
   and give a result with a ``RangeIndex``.
-* ``ichimoku`` is not here (pandas-ta returns a tuple with a forward span frame); use
-  ``df.fp.ichimoku()``.
+* ``ichimoku`` returns one DataFrame, as pandas-ta-classic 0.9.0 does (the original
+  pandas-ta 0.3.14b returned a tuple with a forward span frame); ``append_span`` is not
+  supported.
+* ``bias`` takes ``mamode`` ``"sma"`` (the default), ``"ema"``, ``"rma"`` or ``"wma"``.
 
 Needs pandas and numpy (``pip install "fin-primitives[pandas]"``).
 

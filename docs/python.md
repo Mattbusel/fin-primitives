@@ -182,8 +182,9 @@ st = ta.supertrend(df["high"], df["low"], df["close"], length=10, multiplier=3)
 obv = ta.obv(df["close"], df["volume"])
 ```
 
-It has the 65 indicators of `df.fp` below except `ichimoku`, whose pandas-ta function
-returns a tuple with a forward span frame (use `df.fp.ichimoku()`). Every function is typed,
+It has all 68 indicators of `df.fp` below. `ichimoku` returns one DataFrame, as
+pandas-ta-classic 0.9.0 does (the original pandas-ta 0.3.14b returned a tuple with a
+forward span frame; `append_span=True` is not supported). Every function is typed,
 so mypy and pyright check the calls. The values are `df.fp`'s, and
 `tests/test_ta.py` compares every function with the pandas-ta-classic 0.9.0 function of the
 same name on two fixed 5,000 and 6,000 bar series. On 100,000 bars, RSI, MACD, Bollinger
@@ -191,8 +192,8 @@ Bands, ATR, ADX and MFI together take about 60 ms against about 880 ms for
 pandas-ta-classic (`python/examples/pandas_ta_dropin.py`, Windows x86_64, Python 3.12).
 
 Where it differs from pandas-ta: input shorter than the period gives `NaN` rather than
-`None`; `talib=`, `mamode=`, `offset=`, `drift=` and `fillna=` raise `TypeError` instead of
-changing the formula; series with different indexes raise `ValueError` instead of being
+`None`; `talib=`, `mamode=` (except `bias`'s `"sma"`, `"ema"`, `"rma"` or `"wma"`),
+`offset=`, `drift=` and `fillna=` raise `TypeError` instead of changing the formula; series with different indexes raise `ValueError` instead of being
 aligned; and Bollinger %B on a window of zero width is `NaN`, not `0`. numpy arrays and lists
 are accepted too and give a result with a `RangeIndex`.
 
@@ -229,7 +230,7 @@ Methods (pandas-ta's defaults throughout):
 | group | methods |
 |---|---|
 | overlap | `sma`, `ema`, `rma`, `wma`, `hma`, `dema`, `tema`, `t3`, `trima`, `zlma`, `vwma`, `vwap`, `midpoint`, `midprice`, `linreg`, `kama`, `hl2`, `hlc3`, `ohlc4`, `supertrend`, `ichimoku` |
-| momentum | `rsi`, `macd`, `mom`, `eri`, `roc`, `cmo`, `stoch`, `stochrsi`, `willr`, `cci`, `ao`, `apo`, `ppo`, `trix`, `tsi`, `uo`, `bop`, `qqe` |
+| momentum | `rsi`, `macd`, `mom`, `eri`, `kdj`, `fisher`, `bias`, `slope`, `roc`, `cmo`, `stoch`, `stochrsi`, `willr`, `cci`, `ao`, `apo`, `ppo`, `trix`, `tsi`, `uo`, `bop`, `qqe` |
 | trend | `adx`, `aroon`, `psar`, `vortex`, `chop`, `dpo` |
 | volatility | `atr`, `natr`, `true_range`, `bbands`, `kc`, `donchian` |
 | statistics | `stdev`, `variance`, `mad`, `zscore`, `log_return`, `percent_return` |
