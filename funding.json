@@ -1,0 +1,101 @@
+{
+  "$schema": "https://fundingjson.org/schema/v1.1.0.json",
+  "version": "v1.1.0",
+  "entity": {
+    "type": "organisation",
+    "role": "owner",
+    "name": "Matthew Busel / Tensorust LLC",
+    "email": "mattbusel@tensorust.com",
+    "description": "Tensorust LLC is a New York company owned and run by Matthew Busel, who writes and maintains its open source libraries: fin-primitives (exact-decimal trading indicators for Rust and Python), llm-prices (a dated, source-cited LLM API price table), us-restricted-parties (US restricted-party lists as daily machine-readable releases) and sbom-attest (build-time SBOMs and provenance for Rust and C/C++). Funding pays for maintainer time: releases, bug fixes, security work, documentation and keeping data current. More at https://tensorust.com",
+    "webpageUrl": {
+      "url": "https://github.com/Mattbusel"
+    }
+  },
+  "projects": [
+    {
+      "guid": "fin-primitives",
+      "name": "fin-primitives",
+      "description": "Checked building blocks for trading code in Rust, with Python bindings: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators that match TA-Lib to 2e-11 or better on the shared set, Black-Scholes Greeks, a position ledger and risk limits. Bad values, such as a negative price, are rejected at construction instead of flowing into results.\n\nPublished on crates.io and PyPI (wheels for Linux, macOS, Windows and WebAssembly) through trusted publishing with PEP 740 attestations. Used as the RSI and technical-indicator dependency of ZhuLinsen/daily_stock_analysis.",
+      "webpageUrl": {
+        "url": "https://github.com/Mattbusel/fin-primitives"
+      },
+      "repositoryUrl": {
+        "url": "https://github.com/Mattbusel/fin-primitives"
+      },
+      "licenses": [
+        "spdx:MIT"
+      ],
+      "tags": [
+        "finance",
+        "trading",
+        "technical-analysis",
+        "rust",
+        "python",
+        "decimal",
+        "indicators",
+        "quantitative-finance"
+      ]
+    }
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "github-sponsors",
+        "type": "payment-provider",
+        "address": "https://github.com/sponsors/Mattbusel",
+        "description": "One-time or monthly sponsorship through GitHub Sponsors."
+      },
+      {
+        "guid": "bank-transfer",
+        "type": "bank",
+        "address": "",
+        "description": "Direct bank transfer to Tensorust LLC (US business account). Email mattbusel@tensorust.com for wire details and an invoice."
+      },
+      {
+        "guid": "tensorust-shop",
+        "type": "other",
+        "address": "https://shop.tensorust.com",
+        "description": "Buy Tensorust data products and support. Revenue from the shop funds maintenance of these open source projects."
+      }
+    ],
+    "plans": [
+      {
+        "guid": "maintenance-grant",
+        "status": "active",
+        "name": "Maintenance grant",
+        "description": "One-time grant for a year of maintainer time on fin-primitives: keep the TA-Lib parity suite passing on every release as indicators are added, fix numeric edge cases that users report, keep wheels building for Linux, macOS, Windows and WebAssembly as Python and Rust toolchains move, handle issues and security reports within the response times in SECURITY.md, and extend the pandas-ta-compatible fin_primitives.ta API and its integration guides.",
+        "amount": 10000,
+        "currency": "USD",
+        "frequency": "one-time",
+        "channels": [
+          "bank-transfer"
+        ]
+      },
+      {
+        "guid": "sponsor",
+        "status": "active",
+        "name": "Sponsor the maintainer",
+        "description": "Any amount, one-time or monthly, through GitHub Sponsors. Pays for maintainer time on releases, bug fixes and issue triage.",
+        "amount": 0,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": [
+          "github-sponsors"
+        ]
+      },
+      {
+        "guid": "company-support",
+        "status": "active",
+        "name": "Company support",
+        "description": "For companies that depend on fin-primitives: fund a specific indicator, fix or integration, or get priority support. Pay by invoice or through the Tensorust shop.",
+        "amount": 0,
+        "currency": "USD",
+        "frequency": "one-time",
+        "channels": [
+          "bank-transfer",
+          "tensorust-shop"
+        ]
+      }
+    ]
+  }
+}
