@@ -5,10 +5,10 @@ started, run tests, and submit changes.
 
 ## Development Environment Setup
 
-1. Install Rust via [rustup](https://rustup.rs/) (stable toolchain, 1.75+).
+1. Install Rust via [rustup](https://rustup.rs/) (stable toolchain; the crate's minimum is 1.81).
 2. Clone the repository:
    ```sh
-   git clone https://gitlab.com/mattbusel/fin-primitives
+   git clone https://github.com/Mattbusel/fin-primitives
    cd fin-primitives
    ```
 3. Build the project:

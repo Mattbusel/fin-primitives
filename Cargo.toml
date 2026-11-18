@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "3.7.0"
+version = "3.8.0"
 edition = "2021"
 rust-version = "1.81"
 description = "Checked building blocks for Rust trading code: exact decimal price and quantity types, a level-2 order book, ticks to OHLCV candles, 700+ streaming indicators, Black-Scholes Greeks, a position ledger and risk limits."
@@ -189,6 +189,10 @@ required-features = ["ta-compat"]
 
 [[example]]
 name = "candles"
+required-features = ["indicators"]
+
+[[example]]
+name = "indicators_only"
 required-features = ["indicators"]
 
 [[example]]

@@ -69,7 +69,7 @@ Measured on the same 100,000 closes ([bench/competitors](../bench/competitors/RE
 Keep them. Turn on the matching feature. Their indicators read these bars, and their bars convert to these:
 
 ```toml
-fin-primitives = { version = "2.15", features = ["ta"] }   # or "yata", "wickra", "arrow"
+fin-primitives = { version = "3", features = ["ta"] }   # or "yata", "wickra", "arrow"
 ```
 
 ```rust,ignore
@@ -92,15 +92,25 @@ Full version: `cargo run --example with_ta --features ta`. The other way:
 | feature | default | adds |
 |---|---|---|
 | `serde` | yes | `Serialize`/`Deserialize` on the data types; deserializing re-runs validation |
-| `async` | yes | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+| `indicators` | yes | `signals::indicators` (700+ streaming indicators), `technical`, `regime`, `correlation`, `volatility` |
+| `options` | yes | `greeks` (Black-Scholes, Greeks, implied volatility) and `options` |
+| `portfolio`, `risk`, `backtest` | yes | ledger, P&L, attribution, risk limits, backtester, execution costs |
+| `fixed-income`, `derivatives`, `crypto`, `credit`, `ml`, `tax`, `yield-curve`, `clustering`, `montecarlo` | yes | the other domain modules |
+| `async` | no | `async_signals`: a Tokio task that runs a signal pipeline over a channel |
+| `ta-compat` | no | a drop-in for the `ta` crate's API, computed with these indicators |
 | `ta` | no | interop with the [`ta`](https://crates.io/crates/ta) crate |
 | `yata` | no | interop with the [`yata`](https://crates.io/crates/yata) crate |
 | `wickra` | no | interop with [`wickra-core`](https://crates.io/crates/wickra-core) (Rust 1.86+) |
 | `arrow` | no | bars to and from Apache Arrow `RecordBatch`, prices as exact `Decimal128` (Rust 1.88+) |
 | `python` | no | PyO3 bindings for the `fin-primitives` Python package; `cd python && maturin build` (Rust 1.83+), see [docs/python.md](python.md) |
 
-`default-features = false` leaves `rust_decimal`, `chrono`, `thiserror`, `libm` and `statrs`.
-Builds for `wasm32-unknown-unknown`.
+`default-features = false` leaves the core types (`Price`, `Quantity`, `Symbol`, `Tick`,
+`OrderBook`, OHLCV, the `Signal` trait) and four dependencies: `rust_decimal`, `chrono`,
+`thiserror` and `libm`. For the indicators alone use
+`default-features = false, features = ["indicators"]`
+(`cargo run --example indicators_only --no-default-features --features indicators`).
+Builds for `wasm32-unknown-unknown`. Adding fin-primitives to another project:
+[INTEGRATION.md](INTEGRATION.md).
 
 ## How it works
 
@@ -251,6 +261,7 @@ Use TA-Lib for long float64 histories. Use this for exact values, bar-by-bar sta
 | [docs/ARCHITECTURE.md](ARCHITECTURE.md) | how the modules connect, what each one guarantees, design rules, writing your own indicator or risk rule |
 | [docs/REFERENCE.md](REFERENCE.md) | module guides (indicators, series analytics, ledger, drawdown, attribution, Greeks, regimes, backtester, Monte Carlo, factor models, yield curves and more), math definitions, API listing |
 | [docs/TESTING.md](TESTING.md) | running the tests and benchmarks, current test status |
+| [docs/INTEGRATION.md](INTEGRATION.md) | depending on it from another project: the minimal feature set, dependencies, stability, replacing pandas-ta calls |
 | [CHANGELOG.md](../CHANGELOG.md) | what changed in each version |
 | [Project site](https://fin-primitives.vercel.app/) | the same overview as a web page |
 

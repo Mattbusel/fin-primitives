@@ -1,21 +1,69 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo check
+      - name: Clippy (every module, tests and examples)
+        run: cargo clippy --all-targets --features full -- -D warnings
       - name: Build and run the examples
         run: |
           for e in order_book candles position_risk option_chain; do
             cargo run --quiet --example "$e"
           done
-      - name: Doc tests
-        run: cargo test --doc
+          cargo run --quiet --example indicators_only --no-default-features --features indicators
+      - name: Tests (unit, integration and doc tests)
+        run: cargo test
       - name: Docs build without broken links
         run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: -D rustdoc::broken_intra_doc_links
+
+  msrv:
+    # rust-version in Cargo.toml. The library (not the dev-dependencies, which need newer
+    # Rust) must build on it with the default features, with none, and with indicators only.
+    name: MSRV (Rust 1.81)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.81
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --lib
+      - run: cargo check --lib --no-default-features
+      - run: cargo check --lib --no-default-features --features indicators
+
+  python:
+    # The Python package on every push: build the wheel, check the generated files, run the
+    # tests (with pandas-ta-classic, the reference for fin_primitives.ta, df.fp and fast).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generated files are up to date
+        run: |
+          python python/tools/gen_registry.py --check
+          python python/tools/gen_ta.py --check
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          args: --out dist
+          manylinux: auto
+          sccache: "true"
+      - name: Install and run the tests
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pytest numpy pandas polars "pandas-ta-classic==0.9.0"
+          .venv/bin/python -m pip install --no-index --find-links python/dist fin-primitives
+          cd python && ../.venv/bin/python -m pytest -q

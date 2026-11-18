@@ -10,8 +10,11 @@ pip install fin-primitives
 ```
 
 One abi3 wheel per platform covers CPython 3.9 and every later version: Linux x86_64 and
-aarch64, macOS x86_64 and arm64, Windows x86_64. No runtime dependencies. numpy, pandas and
-polars are used only if you pass their types in.
+aarch64 (manylinux and musllinux), macOS x86_64 and arm64, Windows x86_64. No runtime
+dependencies. numpy, pandas and polars are used only if you pass their types in.
+
+Replacing pandas-ta in an existing project? See [`fin_primitives.ta`](#pandas-ta-functions-fin_primitivesta)
+below and the [integration guide](https://github.com/Mattbusel/fin-primitives/blob/main/docs/INTEGRATION.md).
 
 ## Streaming
 
@@ -163,6 +166,44 @@ and MACD skips non-finite rows.
 | macd(12, 26, 9) | 77.5 ms | 1.2 ms | 65x |
 | bbands(20, 2) | 15.4 ms | 2.1 ms | 7x |
 | atr(14) | 3.3 ms | 0.3 ms | 12x |
+
+## pandas-ta functions: `fin_primitives.ta`
+
+pandas-ta's function API (3.8.0). Code that calls `ta.rsi(df["close"], length=14)` moves
+over by changing the import; the function names, the input series order, the parameter
+names and defaults, and the output column names are pandas-ta's:
+
+```python
+from fin_primitives import ta          # was: import pandas_ta as ta
+
+df["RSI_14"] = ta.rsi(df["close"], length=14)
+macd = ta.macd(df["close"])            # MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
+st = ta.supertrend(df["high"], df["low"], df["close"], length=10, multiplier=3)
+obv = ta.obv(df["close"], df["volume"])
+```
+
+It has the 65 indicators of `df.fp` below except `ichimoku`, whose pandas-ta function
+returns a tuple with a forward span frame (use `df.fp.ichimoku()`). Every function is typed,
+so mypy and pyright check the calls. The values are `df.fp`'s, and
+`tests/test_ta.py` compares every function with the pandas-ta-classic 0.9.0 function of the
+same name on two fixed 5,000 and 6,000 bar series. On 100,000 bars, RSI, MACD, Bollinger
+Bands, ATR, ADX and MFI together take about 60 ms against about 880 ms for
+pandas-ta-classic (`python/examples/pandas_ta_dropin.py`, Windows x86_64, Python 3.12).
+
+Where it differs from pandas-ta: input shorter than the period gives `NaN` rather than
+`None`; `talib=`, `mamode=`, `offset=`, `drift=` and `fillna=` raise `TypeError` instead of
+changing the formula; series with different indexes raise `ValueError` instead of being
+aligned; and Bollinger %B on a window of zero width is `NaN`, not `0`. numpy arrays and lists
+are accepted too and give a result with a `RangeIndex`.
+
+To offer it as an optional backend and keep pandas-ta as the fallback:
+
+```python
+try:
+    from fin_primitives import ta
+except ImportError:
+    import pandas_ta as ta
+```
 
 ## pandas-ta style: `df.fp` and Polars `.fp`
 

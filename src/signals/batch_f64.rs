@@ -748,22 +748,21 @@ pub fn psar_loop(high: &[f64], low: &[f64], falling: bool, sar: f64, ep: f64, af
         let l = low[row];
         let back2 = row.saturating_sub(2);
         let mut s = sar + af * (ep - sar);
-        let reverse;
-        if falling {
+        let reverse = if falling {
             if l < ep {
                 ep = l;
                 af = py_min(af + af0, max_af);
             }
             s = py_max(py_max(high[row - 1], high[back2]), s);
-            reverse = h > s;
+            h > s
         } else {
             if h > ep {
                 ep = h;
                 af = py_min(af + af0, max_af);
             }
             s = py_min(py_min(low[row - 1], low[back2]), s);
-            reverse = l < s;
-        }
+            l < s
+        };
         if reverse {
             s = ep;
             af = af0;
@@ -793,22 +792,21 @@ pub fn supertrend_loop(close: &[f64], upper: &[f64], lower: &[f64]) -> Four {
     let mut fub = vec![f64::NAN; m];
     let mut flb = vec![f64::NAN; m];
     for i in 1..m {
-        let direction;
-        if fub[i - 1].is_nan() || flb[i - 1].is_nan() {
+        let direction = if fub[i - 1].is_nan() || flb[i - 1].is_nan() {
             fub[i] = upper[i];
             flb[i] = lower[i];
-            direction = 1.0;
+            1.0
         } else {
             fub[i] = if upper[i] < fub[i - 1] || close[i - 1] > fub[i - 1] { upper[i] } else { fub[i - 1] };
             flb[i] = if lower[i] > flb[i - 1] || close[i - 1] < flb[i - 1] { lower[i] } else { flb[i - 1] };
-            direction = if close[i] > fub[i - 1] {
+            if close[i] > fub[i - 1] {
                 1.0
             } else if close[i] < flb[i - 1] {
                 -1.0
             } else {
                 dir[i - 1]
-            };
-        }
+            }
+        };
         if fub[i].is_nan() || flb[i].is_nan() {
             continue;
         }

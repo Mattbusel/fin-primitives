@@ -46,14 +46,20 @@ jobs:
           - { os: macos, runner: macos-15, target: x86_64, test: false, floor: "3.10" }
           - { os: macos, runner: macos-15, target: aarch64, test: true, floor: "3.10" }
           - { os: windows, runner: windows-latest, target: x64, test: true, floor: "3.9" }
+          # musllinux (Alpine and other musl images). The runner's CPython is glibc, so these
+          # are smoke-tested inside a python:3.12-alpine container instead.
+          - { os: musllinux, runner: ubuntu-24.04, target: x86_64, test: false, floor: "3.9", manylinux: musllinux_1_2 }
+          - { os: musllinux, runner: ubuntu-24.04-arm, target: aarch64, test: false, floor: "3.10", manylinux: musllinux_1_2 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           architecture: ${{ matrix.os == 'windows' && 'x64' || null }}
-      - name: Check the indicator catalogue is up to date
-        run: python python/tools/gen_registry.py --check
+      - name: Check the indicator catalogue and fin_primitives.ta are up to date
+        run: |
+          python python/tools/gen_registry.py --check
+          python python/tools/gen_ta.py --check
       - name: Check the wheel's license file matches the repository's
         shell: bash
         run: cmp LICENSE python/LICENSE
@@ -65,8 +71,20 @@ jobs:
           # No --release: pyproject.toml selects the crate's release-python profile
           # (optimised, panics unwind into Python exceptions).
           args: --out dist
-          manylinux: ${{ matrix.os == 'linux' && 'auto' || null }}
+          manylinux: ${{ matrix.manylinux || (matrix.os == 'linux' && 'auto') || null }}
           sccache: "true"
+      - name: Smoke-test the musllinux wheel in Alpine
+        if: matrix.os == 'musllinux'
+        run: |
+          docker run --rm -v "$PWD/python/dist:/dist" python:3.12-alpine sh -c '
+            pip install --no-index --find-links /dist fin-primitives &&
+            python -c "
+          import fin_primitives as fp
+          closes = [44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03, 45.61, 46.28, 46.28, 46.00]
+          last = fp.rsi(closes, 14)[-1]
+          assert round(float(last), 2) == 66.25, last
+          print(fp.__version__, last)
+          "'
       - name: Test the wheel on CPython ${{ matrix.floor }} (oldest tested)
         if: matrix.test
         uses: actions/setup-python@v5
@@ -204,7 +222,7 @@ jobs:
         run: |
           ls -l dist
           VERSION="${TAG#py-v}"
-          test "$(ls dist/*.whl | wc -l)" -eq 6 || { echo "expected 6 wheels (5 native, 1 pyemscripten)"; exit 1; }
+          test "$(ls dist/*.whl | wc -l)" -eq 8 || { echo "expected 8 wheels (5 manylinux/macOS/Windows, 2 musllinux, 1 pyemscripten)"; exit 1; }
           for f in dist/*.whl; do
             unzip -l "$f" | grep -q "dist-info/licenses/LICENSE" || { echo "$f has no LICENSE"; exit 1; }
           done

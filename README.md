@@ -47,6 +47,6 @@ fn main() -> Result<(), fin_primitives::FinError> {
 
 [Docs](https://docs.rs/fin-primitives) · [crates.io](https://crates.io/crates/fin-primitives) · [Site](https://fin-primitives.vercel.app/)
 
-More: [docs/DETAILS.md](docs/DETAILS.md)
+More: [docs/DETAILS.md](docs/DETAILS.md) · Adding it to another project: [docs/INTEGRATION.md](docs/INTEGRATION.md)
 
 MIT license. Does not place orders. Not financial advice.
