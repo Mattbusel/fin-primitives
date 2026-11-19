@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "fin-primitives"
 # Taken from the Rust crate's Cargo.toml, so the wheel and the crate share one version.
 dynamic = ["version"]
-description = "Exact decimal trading indicators from Rust: 743 streaming indicators (RSI, EMA, MACD, Bollinger, ATR, ...) for Python, numpy, pandas and polars."
+description = "Your screener and your report should compute the same RSI. 743 streaming indicators matched to TA-Lib, exact decimals, built in Rust for Python, numpy, pandas and polars."
 readme = "../docs/python.md"
 license = { text = "MIT" }
 authors = [{ name = "Matt Busel" }]

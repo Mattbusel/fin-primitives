@@ -1,4 +1,4 @@
-# fin-primitives
+# fin-primitives: your trading code probably can't agree with itself
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
@@ -7,9 +7,7 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국�
 [![CI](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattbusel/fin-primitives/actions/workflows/ci.yml)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Trading basics for Rust, with exact prices.
-
-700+ indicators. Matches TA-Lib to 2e-11 or better on 22 shared indicators.
+Most trading code computes the same indicator more than one way and never notices. In a 73.5K-star stock tool, the screener, the alerts and the report each had their own RSI, and on the same 200-bar series one said oversold (26.36) while the others said neutral (50.19) ([the merged fix moved all three onto this crate](https://github.com/ZhuLinsen/daily_stock_analysis/pull/2537)). fin-primitives is one implementation of 700+ indicators, matched to TA-Lib to 2e-11 or better on 22 shared indicators, with exact decimal prices that refuse bad values. Python teams already run it without writing a line of Rust: that 73.5K-star Python project now ships it as a runtime dependency.
 
 - Rejects bad prices, like a negative one.
 - Rolls trades into candles.
