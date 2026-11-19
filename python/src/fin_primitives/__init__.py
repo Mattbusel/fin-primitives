@@ -470,7 +470,7 @@ def bollinger_b(close: Any, period: int = 20, k: Number = 2, *, mode: str = "aut
 
 
 def atr(high: Any, low: Any, close: Any, period: int = 14, *, mode: str = "auto") -> Any:
-    """Average true range (simple average of the last ``period`` true ranges)."""
+    """Wilder's average true range (TA-Lib's ``ATR``; a simple average of true ranges before 4.0)."""
     return compute("atr", close, period, high=high, low=low, mode=mode)
 
 

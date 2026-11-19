@@ -237,8 +237,8 @@ buy 1 BTC at   64250.58 average
 
 Same 100,000 seeded OHLCV bars through both ([method, script and full tables](../bench/talib_compare/README.md);
 i7-13700KF, TA-Lib 0.8.1). Where definitions match, values agree to 2e-11 or better. The float64 side is the one that rounds.
-Two differ on purpose: `Atr` is a simple average of true range (TA-Lib's `SMA(TRANGE)`, not Wilder's `ATR`),
-and `Obv` starts at 0. TA-Lib is about 100 times faster (0.2 to 12 ns per bar).
+One differs on purpose: `Obv` starts at 0. (Up to 3.9, `Atr` was a simple average of true range; since 4.0 it is
+Wilder's, equal to TA-Lib `ATR`.) TA-Lib is about 100 times faster (0.2 to 12 ns per bar).
 Use TA-Lib for long float64 histories. Use this for exact values, bar-by-bar state and no C dependency.
 
 | indicator | max difference vs TA-Lib (after bar 1,000) | fin-primitives, ns per bar | TA-Lib batch, ns per bar |
@@ -247,7 +247,7 @@ Use TA-Lib for long float64 histories. Use this for exact values, bar-by-bar sta
 | RSI(14) | 1.8e-13 | 252 | 2.1 |
 | MACD(12,26,9) histogram | 5.0e-14 (seeded differently: 0.036 in the first bars) | 362 | 1.7 |
 | Bollinger(20, 2) bands | 1.6e-11 | 1023 | 2.7 |
-| ATR(14) | equals TA-Lib `SMA(TRANGE, 14)` to 1.2e-14 | 86 | 0.8 |
+| ATR(14) / NATR(14) | 8.4e-15 / 6.4e-15 (Wilder, since 4.0; checked with `fin_primitives.Indicator` on the same bars) | 86 | 0.8 |
 | Stochastic fast %K / %D (14, 3) | 6.7e-13 / 1.3e-12 | 174 / 259 | 7.7 |
 | Williams %R(14) / CCI(20) / MFI(14) | 6.7e-13 / 1.0e-11 / 1.3e-12 | 170 / 1060 / 589 | 1.9 / 12.2 / 5.9 |
 | ADX(14) | 3.7e-13, except near exact up/down ties that float64 splits | 794 | 6.2 |

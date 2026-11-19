@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-19
+
+### Why this is a major version
+One RSI, one ATR. Up to 3.9, `Atr::new` (and so `fin_primitives.atr()`, `Indicator("atr")`,
+`Atrp` and `Natr`) was a simple moving average of the true range, while `Atr::wilder`,
+`fin_primitives.fast.atr`, `df.fp.atr` and `fin_primitives.ta.atr` were Wilder's ATR. The
+same crate gave two ATRs. On the indicator-diff standard series the simple average is 0.13
+(5.4 %) above Wilder's on the last bar and never converges to it, so a stop or a position
+size taken from it is a different number from the one TA-Lib, pandas-ta and every charting
+platform show. We had the bug we test other projects for, so we fixed it, and since it
+changes values it is a major version.
+
+### Changed (breaking)
+- `Atr::new` is Wilder's ATR (TA-Lib's `ATR`): the mean true range of bars 1..n seeds it,
+  then `atr = (prev * (n - 1) + tr) / n`. Equal to TA-Lib `ATR` to 8.4e-15 on the 100,000
+  bar comparison data. `Atr::new_f64` / `AtrF64::new` follow.
+- `Natr` and `Atrp` use it: both equal TA-Lib `NATR` to 6.4e-15 (they were
+  `SMA(TRANGE) / close * 100`).
+- Python: `fin_primitives.atr()`, `Indicator("atr")`, `Indicator("natr")` and
+  `Indicator("atrp")` change with them, in exact and float mode.
+
+### Added
+- `fin_primitives.indicator_diff` and the `indicator-diff` command: runs one price series
+  through every RSI, ATR and MACD on the machine (TA-Lib, pandas-ta and pandas-ta-classic
+  with and without TA-Lib, bukosabino `ta`, the hand-rolled versions that get copied
+  between projects, and your own functions via `candidates=` or `--load`/`--expr`) and
+  reports, per implementation and output, the largest difference from the textbook value,
+  the difference on the last bar, the first bar with a value, how many bars change verdict
+  (RSI zone, MACD sign), the bar from which it agrees to 0.01, what it does after one
+  missing price, and the reason: the formula it was identified as (Cutler's SMA RSI,
+  `ewm(span=n)` smoothing, Wilder seeded on the first change or on zero, pandas'
+  `adjust=True`, TradingView's ATR seed, TA-Lib's MACD seeding, simple-average ATR or
+  MACD...), found by comparing the output with a catalogue of 21 known variants.
+  `standard_series()` is a fixed 500-bar series (pure Python, same on every machine).
+  The command fails closed: exit status 1 when anything disagrees (so it can gate CI),
+  2 on bad input, and it refuses missing prices unless `--allow-nan`. Importing pandas-ta
+  for the comparison does not swap the caller's `df.ta` accessor.
+- `Atr::sma`, `Atr::sma_f64`, `AtrF64::sma`: the simple-average ATR, for code that has to
+  reproduce it.
+
+### Fixed
+- `fin_primitives.fast.macd`'s docstring said it matched TA-Lib's `MACD`; it matches
+  pandas-ta-classic. TA-Lib seeds the fast EMA on the slow EMA's first bar, so its signal
+  differs by up to 0.084 in warm-up and converges by bar 71 (indicator-diff names this).
+
+### Migration
+- Need the old numbers? `Atr::sma(name, n)` in Rust. In Python, a 14-bar rolling mean of
+  `fin_primitives.fast.true_range(high, low, close)`.
+- `Atr::wilder` and `Atr::wilder_f64` still work and are now the same as `Atr::new`.
+
 ## [3.9.0] - 2026-11-18
 
 ### Added

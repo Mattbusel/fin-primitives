@@ -202,7 +202,7 @@ pub(crate) const ENTRIES: &[Entry] = &[
         key: "atr",
         type_name: "Atr",
         params: &[("period", "int")],
-        doc: "Average True Range over `period` bars.",
+        doc: "Average True Range over `period` bars: Wilder's ATR, as TA-Lib's `ATR` computes it.",
         build: |name, args| {
             check_arity(args, 1)?;
             Ok(Box::new(ind::Atr::new(name, arg_usize(args, 0, "period")?).map_err(fin_err)?))
@@ -3472,7 +3472,7 @@ pub(crate) const ENTRIES: &[Entry] = &[
         key: "natr",
         type_name: "Natr",
         params: &[("period", "int")],
-        doc: "Normalised ATR — ATR expressed as a percentage of the closing price.",
+        doc: "Normalised ATR: ATR expressed as a percentage of the closing price (TA-Lib's `NATR`).",
         build: |name, args| {
             check_arity(args, 1)?;
             Ok(Box::new(ind::Natr::new(name, arg_usize(args, 0, "period")?).map_err(fin_err)?))

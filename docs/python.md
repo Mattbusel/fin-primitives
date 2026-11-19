@@ -112,6 +112,50 @@ An `Indicator` holds native Rust state, so it cannot be pickled or deep-copied. 
 one with `Indicator(ind.key, *ind.params, mode=ind.mode)` and replay the data instead.
 `fp.catalogue()` returns a fresh copy each call.
 
+## Which RSI do you have? `fin_primitives.indicator_diff`
+
+`indicator_diff.diff()` (and the `indicator-diff` command) runs one series through every
+RSI, ATR and MACD it can import and compares each with the textbook value: Wilder's RSI and
+ATR as TA-Lib computes them, and MACD with SMA-seeded EMAs (`fin_primitives.fast`).
+
+```python
+from fin_primitives import indicator_diff as idiff
+
+report = idiff.diff(df["close"], df["high"], df["low"])      # or idiff.standard_series()
+print(report.to_text())
+report.disagreements()                                       # rows that differ
+
+# your own implementation: a function of a DataFrame with open/high/low/close columns
+report = idiff.diff(close, high, low, libraries=False,
+                    candidates={"ours": ("rsi", lambda d: my_rsi(d["close"], 14))})
+```
+
+It compares TA-Lib, pandas-ta and pandas-ta-classic (each with and without TA-Lib, because
+pandas-ta switches to TA-Lib's code when it can import it), bukosabino `ta`, the exact-decimal
+`fin_primitives` path, and the hand-rolled versions that get pasted between projects
+(rolling-mean RSI, `ewm(span=n)` RSI, rolling-mean ATR, `ewm(span, adjust=False)` MACD).
+Each row reports the largest and last-bar difference, the first bar with a value, how many
+bars change verdict (RSI below 30 / above 70, MACD sign), the bar from which it agrees to
+0.01, what happens after one missing price, and the reason: the formula it was identified as
+from a catalogue of 21 known variants (`idiff.VARIANTS`, `idiff.identify()`).
+
+```text
+$ indicator-diff --demo --indicators rsi
+== RSI  (textbook last value 76.9002)
+  implementation                   match    max diff   last diff  1st bar  flips  agrees from
+  talib                            yes       4.3e-14     2.8e-14       14      0       bar 14
+  pandas_ta (talib=False)          NO        24.7661           0        1      6      bar 114
+  ta                               NO         4.1946           0       13      2       bar 85
+  hand-rolled: rolling-mean RSI    NO        21.3575     10.2060       14     92        never
+  ...
+```
+
+The command fails closed: exit status 1 when any implementation disagrees (so it can sit in
+CI), 2 on bad input, and it refuses missing prices unless `--allow-nan` (libraries treat a
+gap differently, so a series with gaps is not a fair comparison). `--load FILE --expr
+"rsi=fn(close, 14)"` adds your own code; `--only-expr` skips the installed libraries;
+`--json` prints the report as JSON.
+
 ## Fast whole-series float64: `fin_primitives.fast`
 
 For backtests that compute an indicator over a whole price history at once. Plain float64

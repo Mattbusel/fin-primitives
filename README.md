@@ -43,6 +43,18 @@ fn main() -> Result<(), fin_primitives::FinError> {
 }
 ```
 
+## Which RSI do you have?
+
+Most indicator bugs are not arithmetic bugs. They are choices nobody wrote down: a simple average where Wilder used his smoothing, `ewm(span=14)` where Wilder's alpha is 1/14, a seed on the wrong bar, a warm-up filled with 50. `indicator-diff` runs one price series through every RSI, ATR and MACD installed (TA-Lib, pandas-ta, ta, the hand-rolled versions that get copied between projects, and yours) and names the formula each one actually computes, with the size of the gap and how many bars change verdict.
+
+```bash
+pip install fin-primitives pandas
+indicator-diff --demo                       # the 500-bar standard series
+indicator-diff prices.csv --load bot/ta.py --expr "rsi=compute_rsi(close, 14)"   # exits 1 if it is not Wilder's
+```
+
+We ran the indicator code of 20 popular open-source trading repos through it (plus two that inherit one library's numbers). All 20 differ from the textbook value somewhere, and 13 use a formula that never converges to Wilder's (three of them on purpose, following the Tongdaxin platform). The most common: Cutler's simple-average RSI, 10.2 points off Wilder's on the last bar of the standard series and on the other side of 30 or 70 on 92 bars, and a simple-average ATR, 5.4 % high and never converging. pandas-ta 0.4.71b0 gives different numbers depending on whether TA-Lib is installed. We had the same bug: until 4.0 our own `Atr::new` was a simple average. It is Wilder's now, everywhere in the crate.
+
 [Docs](https://docs.rs/fin-primitives) · [crates.io](https://crates.io/crates/fin-primitives) · [Site](https://fin-primitives.vercel.app/)
 
 More: [docs/DETAILS.md](docs/DETAILS.md) · Adding it to another project: [docs/INTEGRATION.md](docs/INTEGRATION.md)

@@ -153,11 +153,22 @@ fn atr_wilder_matches_talib_in_f64_and_decimal() {
 
 #[test]
 fn atr_simple_matches_decimal_atr() {
-    let mut f = Atr::new_f64(14).unwrap();
+    let mut f = Atr::sma_f64(14).unwrap();
     let got: Vec<f64> = (0..N).map(|i| nan(f.update(HIGH[i], LOW[i], CLOSE[i]))).collect();
-    let plain = Atr::new("atr", 14).unwrap();
+    let plain = Atr::sma("atr", 14).unwrap();
     assert!(!plain.is_wilder());
     assert_series("SMA ATR vs Decimal", &got, &run_decimal(plain));
+}
+
+#[test]
+fn atr_new_is_wilder_and_matches_talib() {
+    // Since 4.0, Atr::new and Atr::new_f64 are Wilder's ATR: one ATR, the one TA-Lib shows.
+    let mut f = Atr::new_f64(14).unwrap();
+    let got: Vec<f64> = (0..N).map(|i| nan(f.update(HIGH[i], LOW[i], CLOSE[i]))).collect();
+    assert_series("Atr::new_f64 vs TA-Lib", &got, &ATR_14);
+    let dec_atr = Atr::new("atr", 14).unwrap();
+    assert!(dec_atr.is_wilder());
+    assert_series("Atr::new vs TA-Lib", &run_decimal(dec_atr), &ATR_14);
 }
 
 #[test]

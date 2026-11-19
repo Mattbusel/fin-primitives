@@ -10,9 +10,9 @@ the GIL, runs a single O(n) loop in Rust and returns a new numpy array::
     >>> lower, mid, upper = fast.bbands(df["close"], 20, 2.0)   # pandas in, pandas out
     >>> line, signal, hist = fast.macd(close, 12, 26, 9)
 
-The results follow pandas-ta-classic (and so TA-Lib's seeding): the same leading NaNs, the
-same SMA seeds, the same Wilder smoothing, and values equal to pandas-ta's to within a few
-units in the last place (most are bit for bit identical).
+The results follow pandas-ta-classic (and TA-Lib's seeding for RSI and ATR): the same
+leading NaNs, the same SMA seeds, the same Wilder smoothing, and values equal to pandas-ta's
+to within a few units in the last place (most are bit for bit identical).
 
 Input can be a numpy array, a pandas Series or anything ``numpy.asarray`` accepts. A pandas
 Series comes back as a Series with the same index; everything else comes back as numpy
@@ -103,7 +103,11 @@ def atr(high: Any, low: Any, close: Any, period: int = 14, *, seed: str = "talib
 
 
 def macd(close: Any, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[Any, Any, Any]:
-    """MACD as ``(line, signal, histogram)`` (``pandas_ta.macd``, TA-Lib ``MACD``).
+    """MACD as ``(line, signal, histogram)`` (pandas-ta-classic's ``macd``).
+
+    Each EMA is seeded with the mean of its first ``period`` closes. TA-Lib's ``MACD``
+    seeds the fast EMA on the slow EMA's first bar instead, so its signal differs during
+    warm-up and converges later; ``fin_primitives.indicator_diff`` shows by how much.
 
     The line starts at index ``slow - 1``, the signal and histogram at
     ``slow + signal - 2``. Rows where close is not finite read NaN and are skipped.

@@ -83,10 +83,11 @@ against a 40-digit Python `decimal` reference on every 37th bar, TA-Lib is off b
 
 ### Why some numbers differ
 
-- **ATR and NATR: definition.** fin-primitives' `Atr` is the simple moving average of true
-  range over the period (its docs say so). TA-Lib's `ATR` is Wilder's smoothed average. The
-  last column shows fin-primitives matches TA-Lib's own `SMA(TRANGE(...), 14)` to 1.2e-14.
-  If you need Wilder's ATR, it is not the `Atr` type.
+- **ATR and NATR: definition (this table is from 3.x).** Up to 3.9, fin-primitives' `Atr` was
+  the simple moving average of true range, so the last column compares it with TA-Lib's own
+  `SMA(TRANGE(...), 14)` (1.2e-14). Since 4.0 `Atr`, `Natr` and `Atrp` are Wilder's and equal
+  TA-Lib `ATR` / `NATR` on these bars to 8.4e-15 / 6.4e-15 (checked with
+  `fin_primitives.Indicator`; the timing columns are unchanged).
 - **OBV: starting value.** fin-primitives starts the running total at 0. TA-Lib starts it at
   the first bar's volume. Every step is identical: fin-primitives equals TA-Lib's OBV minus
   `volume[0]` exactly (difference 0).

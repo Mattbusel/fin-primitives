@@ -75,7 +75,7 @@ the rest off:
 
 ```toml
 [dependencies]
-fin-primitives = { version = "3.9", default-features = false, features = ["indicators"] }
+fin-primitives = { version = "4.0", default-features = false, features = ["indicators"] }
 rust_decimal = "1"
 ```
 

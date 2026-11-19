@@ -1,6 +1,6 @@
 [package]
 name = "fin-primitives"
-version = "3.9.0"
+version = "4.0.0"
 edition = "2021"
 rust-version = "1.81"
 description = "One RSI, not three: 700+ streaming trading indicators matched to TA-Lib, exact decimal price and quantity types, a level-2 order book, OHLCV candles, Black-Scholes Greeks, a position ledger and risk limits."

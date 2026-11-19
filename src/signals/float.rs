@@ -17,7 +17,7 @@
 //! | [`Rsi`] | [`Rsi::new_f64`] | [`RsiF64`] |
 //! | [`Macd`] | [`Macd::new_f64`] | [`MacdF64`] |
 //! | [`BollingerB`] | [`BollingerB::new_f64`] | [`BollingerF64`] |
-//! | [`Atr`] | [`Atr::new_f64`], [`Atr::wilder_f64`] | [`AtrF64`] |
+//! | [`Atr`] | [`Atr::new_f64`], [`Atr::sma_f64`], [`Atr::wilder_f64`] | [`AtrF64`] |
 //! | [`StdDev`] | [`StdDev::new_f64`] | [`StdDevF64`] |
 //! | [`StochasticK`] | [`StochasticK::new_f64`] | [`StochasticF64`] |
 //! | [`Roc`] | [`Roc::new_f64`] | [`RocF64`] |
@@ -622,10 +622,10 @@ enum AtrSmoothingF64 {
 /// true ranges of the next `period` bars, so the first value arrives on bar
 /// `period + 1`.
 ///
-/// - [`AtrF64::new`] keeps a simple moving average of the true range: the `f64` twin of
-///   [`Atr::new`].
-/// - [`AtrF64::wilder`] continues with Wilder smoothing after the SMA seed: the `f64`
-///   twin of [`Atr::wilder`] and TA-Lib's `ATR`.
+/// - [`AtrF64::new`] (and its alias [`AtrF64::wilder`]) continues with Wilder smoothing
+///   after the SMA seed: the `f64` twin of [`Atr::new`] and TA-Lib's `ATR`.
+/// - [`AtrF64::sma`] keeps a simple moving average of the true range: the `f64` twin of
+///   [`Atr::sma`] (what `AtrF64::new` was before 4.0).
 #[derive(Debug, Clone)]
 pub struct AtrF64 {
     prev_close: Option<f64>,
@@ -633,15 +633,23 @@ pub struct AtrF64 {
 }
 
 impl AtrF64 {
-    /// Simple-average ATR (the twin of [`Atr::new`]).
+    /// Wilder ATR (the twin of [`Atr::new`] and TA-Lib's `ATR`).
     ///
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
+        Self::wilder(period)
+    }
+
+    /// Simple-average ATR (the twin of [`Atr::sma`]; `AtrF64::new` before 4.0).
+    ///
+    /// # Errors
+    /// [`FinError::InvalidPeriod`] if `period == 0`.
+    pub fn sma(period: usize) -> Result<Self, FinError> {
         Ok(Self { prev_close: None, smoothing: AtrSmoothingF64::Simple(SmaF64::new(period)?) })
     }
 
-    /// Wilder ATR (the twin of [`Atr::wilder`] and TA-Lib's `ATR`).
+    /// Wilder ATR (the twin of [`Atr::wilder`] and TA-Lib's `ATR`; the same as [`AtrF64::new`]).
     ///
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
@@ -1312,12 +1320,20 @@ impl BollingerB {
 }
 
 impl Atr {
-    /// The `f64` fast path of [`Atr::new`]: a simple-average [`AtrF64`].
+    /// The `f64` fast path of [`Atr::new`]: a Wilder [`AtrF64`] (TA-Lib's `ATR`).
     ///
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new_f64(period: usize) -> Result<AtrF64, FinError> {
         AtrF64::new(period)
+    }
+
+    /// The `f64` fast path of [`Atr::sma`]: a simple-average [`AtrF64`].
+    ///
+    /// # Errors
+    /// [`FinError::InvalidPeriod`] if `period == 0`.
+    pub fn sma_f64(period: usize) -> Result<AtrF64, FinError> {
+        AtrF64::sma(period)
     }
 
     /// The `f64` fast path of [`Atr::wilder`]: a Wilder [`AtrF64`] (TA-Lib's `ATR`).

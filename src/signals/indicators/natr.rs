@@ -1,19 +1,21 @@
 //! Normalised Average True Range.
 
 use crate::error::FinError;
+use crate::signals::indicators::Atr;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
-use std::collections::VecDeque;
 
-/// Normalised ATR — ATR expressed as a percentage of the closing price.
+/// Normalised ATR: ATR expressed as a percentage of the closing price (TA-Lib's `NATR`).
 ///
 /// ```text
 /// NATR = ATR(period) / close * 100
 /// ```
 ///
-/// The ATR is the simple moving average of true range over `period` bars.
+/// The ATR is Wilder's ([`Atr::new`]). Before 4.0 it was a simple moving average of the
+/// true range, which never converges to TA-Lib's `NATR`.
 /// Returns [`SignalValue::Unavailable`] until `period + 1` bars have been seen
-/// (the first bar cannot produce a true range because there is no previous close).
+/// (the first bar cannot produce a true range because there is no previous close), and
+/// when `close` is zero.
 ///
 /// # Example
 /// ```rust
@@ -25,9 +27,7 @@ use std::collections::VecDeque;
 /// ```
 pub struct Natr {
     name: String,
-    period: usize,
-    prev_close: Option<Decimal>,
-    tr_values: VecDeque<Decimal>,
+    atr: Atr,
 }
 
 impl Natr {
@@ -36,15 +36,9 @@ impl Natr {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 {
-            return Err(FinError::InvalidPeriod(period));
-        }
-        Ok(Self {
-            name: name.into(),
-            period,
-            prev_close: None,
-            tr_values: VecDeque::with_capacity(period),
-        })
+        let name = name.into();
+        let atr = Atr::new(format!("{name}_atr"), period)?;
+        Ok(Self { name, atr })
     }
 }
 
@@ -54,42 +48,20 @@ impl Signal for Natr {
     }
 
     fn period(&self) -> usize {
-        self.period
+        self.atr.period()
     }
 
     fn is_ready(&self) -> bool {
-        self.tr_values.len() >= self.period
+        self.atr.is_ready()
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let true_range = match self.prev_close {
-            None => {
-                self.prev_close = Some(bar.close);
-                return Ok(SignalValue::Unavailable);
-            }
-            Some(prev) => bar.true_range(Some(prev))
-        };
-
-        self.prev_close = Some(bar.close);
-        self.tr_values.push_back(true_range);
-        if self.tr_values.len() > self.period {
-            self.tr_values.pop_front();
-        }
-
-        if self.tr_values.len() < self.period {
+        let SignalValue::Scalar(atr) = self.atr.update(bar)? else {
             return Ok(SignalValue::Unavailable);
-        }
-
-        let sum: Decimal = self.tr_values.iter().copied().sum();
-        #[allow(clippy::cast_possible_truncation)]
-        let atr = sum
-            .checked_div(Decimal::from(self.period as u32))
-            .ok_or(FinError::ArithmeticOverflow)?;
-
+        };
         if bar.close.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-
         let natr = atr
             .checked_div(bar.close)
             .ok_or(FinError::ArithmeticOverflow)?
@@ -98,8 +70,7 @@ impl Signal for Natr {
     }
 
     fn reset(&mut self) {
-        self.prev_close = None;
-        self.tr_values.clear();
+        self.atr.reset();
     }
 }
 
@@ -163,6 +134,17 @@ mod tests {
         assert!(!natr.is_ready()); // 1 TR so far, need 2
         natr.update_bar(&bar("100", "102", "98", "100")).unwrap();
         assert!(natr.is_ready());
+    }
+
+    #[test]
+    fn test_natr_uses_wilder_atr() {
+        let mut natr = Natr::new("n", 2).unwrap();
+        natr.update_bar(&bar("100", "100", "100", "100")).unwrap();
+        natr.update_bar(&bar("100", "104", "100", "100")).unwrap(); // TR 4
+        natr.update_bar(&bar("100", "102", "100", "100")).unwrap(); // TR 2: seed 3
+                                                                    // TR 6: Wilder (3 * 1 + 6) / 2 = 4.5 (a simple average would say 4).
+        let v = natr.update_bar(&bar("100", "106", "100", "100")).unwrap();
+        assert_eq!(v, SignalValue::Scalar(dec!(4.5)));
     }
 
     #[test]

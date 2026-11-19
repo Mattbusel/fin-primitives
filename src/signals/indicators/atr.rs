@@ -5,19 +5,20 @@ use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
-/// Average True Range over `period` bars.
+/// Average True Range over `period` bars: Wilder's ATR, as TA-Lib's `ATR` computes it.
 ///
 /// True Range for each bar is: `max(high - low, |high - prev_close|, |low - prev_close|)`.
-/// ATR is the simple moving average of true range over `period` bars.
+/// The first bar only sets the previous close. The true ranges of the next `period` bars
+/// are averaged to seed the ATR, and every later bar applies Wilder smoothing:
+/// `atr = (prev_atr * (period - 1) + true_range) / period`.
 ///
-/// Returns `SignalValue::Unavailable` until `period + 1` bars have been seen (the first
-/// bar cannot produce a true range because there is no previous close).
+/// Returns `SignalValue::Unavailable` until `period + 1` bars have been seen.
+///
+/// Since 4.0 [`Atr::new`] is Wilder's ATR. Before 4.0 it was a simple moving average of
+/// the true range, which never converges to the ATR that TA-Lib, pandas-ta and charting
+/// platforms show; that average is still available as [`Atr::sma`].
 ///
 /// ATR is commonly used for volatility measurement, position sizing, and stop-loss placement.
-///
-/// [`Atr::wilder`] builds Wilder's original ATR instead (TA-Lib's `ATR`): the same
-/// simple average seeds it, and later bars apply
-/// `atr = (prev_atr * (period - 1) + true_range) / period`.
 ///
 /// # Example
 /// ```rust
@@ -25,6 +26,7 @@ use std::collections::VecDeque;
 /// use fin_primitives::signals::Signal;
 /// let atr = Atr::new("atr_14", 14).unwrap();
 /// assert_eq!(atr.period(), 14);
+/// assert!(atr.is_wilder());
 /// ```
 pub struct Atr {
     name: String,
@@ -36,11 +38,25 @@ pub struct Atr {
 }
 
 impl Atr {
-    /// Constructs a new `Atr` with the given name and period.
+    /// Constructs Wilder's ATR (TA-Lib's `ATR`) with the given name and period.
     ///
     /// # Errors
     /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
+        let mut atr = Self::sma(name, period)?;
+        atr.wilder = Some(None);
+        Ok(atr)
+    }
+
+    /// Constructs a simple moving average of the true range over `period` bars.
+    ///
+    /// This was [`Atr::new`] before 4.0. It is not Wilder's ATR: it does not converge to
+    /// the value TA-Lib or a charting platform shows, and it jumps when a large bar leaves
+    /// the window. Use it only to reproduce an existing system that averages this way.
+    ///
+    /// # Errors
+    /// Returns [`crate::error::FinError::InvalidPeriod`] if `period == 0`.
+    pub fn sma(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
         if period == 0 {
             return Err(crate::error::FinError::InvalidPeriod(period));
         }
@@ -53,11 +69,12 @@ impl Atr {
         })
     }
 
-    /// Constructs Wilder's ATR, which matches TA-Lib's `ATR`.
+    /// Constructs Wilder's ATR, which matches TA-Lib's `ATR`. The same as [`Atr::new`]
+    /// since 4.0; kept so code written for 3.x keeps compiling.
     ///
     /// The first bar only sets the previous close. The true ranges of the next
     /// `period` bars are averaged to seed the ATR (so the first value arrives on bar
-    /// `period + 1`, as with [`Atr::new`]), and every later bar applies Wilder
+    /// `period + 1`), and every later bar applies Wilder
     /// smoothing: `atr = (prev_atr * (period - 1) + true_range) / period`.
     ///
     /// # Errors
@@ -79,12 +96,10 @@ impl Atr {
     /// assert_eq!(next.as_decimal(), Some(dec!(2)));
     /// ```
     pub fn wilder(name: impl Into<String>, period: usize) -> Result<Self, crate::error::FinError> {
-        let mut atr = Self::new(name, period)?;
-        atr.wilder = Some(None);
-        Ok(atr)
+        Self::new(name, period)
     }
 
-    /// `true` if this ATR uses Wilder smoothing (built with [`Atr::wilder`]).
+    /// `true` if this ATR uses Wilder smoothing (every constructor except [`Atr::sma`]).
     pub fn is_wilder(&self) -> bool {
         self.wilder.is_some()
     }
@@ -102,7 +117,7 @@ impl Signal for Atr {
                 self.prev_close = Some(bar.close);
                 return Ok(SignalValue::Unavailable);
             }
-            Some(prev) => bar.true_range(Some(prev))
+            Some(prev) => bar.true_range(Some(prev)),
         };
 
         self.prev_close = Some(bar.close);
@@ -216,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_atr_period_3_averages_true_ranges() {
-        let mut atr = Atr::new("atr3", 3).unwrap();
+        let mut atr = Atr::sma("atr3", 3).unwrap();
         // Bar 0: establishes prev_close = 100, no TR
         atr.update_bar(&bar("100", "110", "90", "100")).unwrap();
         // Bar 1: TR = max(120-80, |120-100|, |80-100|) = max(40, 20, 20) = 40
@@ -232,6 +247,31 @@ mod tests {
         } else {
             panic!("expected Scalar after period bars");
         }
+    }
+
+    #[test]
+    fn test_atr_new_is_wilder_and_sma_is_not() {
+        let bars = [
+            bar("100", "110", "90", "100"),
+            bar("100", "120", "80", "110"),  // TR 40
+            bar("112", "115", "105", "108"), // TR 10
+            bar("110", "112", "100", "105"), // TR 12: seed (40 + 10 + 12) / 3
+            bar("105", "109", "103", "108"), // TR 6
+        ];
+        let mut w = Atr::new("w", 3).unwrap();
+        let mut s = Atr::sma("s", 3).unwrap();
+        let (mut wv, mut sv) = (SignalValue::Unavailable, SignalValue::Unavailable);
+        for b in &bars {
+            wv = w.update_bar(b).unwrap();
+            sv = s.update_bar(b).unwrap();
+        }
+        assert!(w.is_wilder() && !s.is_wilder());
+        // Wilder: (62/3 * 2 + 6) / 3; simple average: (10 + 12 + 6) / 3.
+        assert_eq!(
+            wv,
+            SignalValue::Scalar((dec!(62) / dec!(3) * dec!(2) + dec!(6)) / dec!(3))
+        );
+        assert_eq!(sv, SignalValue::Scalar(dec!(28) / dec!(3)));
     }
 
     #[test]
