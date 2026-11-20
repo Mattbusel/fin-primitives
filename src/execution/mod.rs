@@ -63,7 +63,12 @@ impl CostModel {
     /// Estimates round-trip execution cost for an order of `shares` at `price`.
     ///
     /// `notional_usd` = `shares * price` (passed explicitly to avoid rounding differences).
-    pub fn estimate(notional_usd: f64, shares: f64, price: f64, params: &CostParams) -> ExecutionCost {
+    pub fn estimate(
+        notional_usd: f64,
+        shares: f64,
+        price: f64,
+        params: &CostParams,
+    ) -> ExecutionCost {
         let _ = price; // price is implicit in notional/shares
 
         let commission_usd = params.commission_per_share * shares;
@@ -178,14 +183,22 @@ impl TurnoverOptimizer {
 
             trades.push(Trade {
                 symbol: symbol.clone(),
-                direction: if delta > 0.0 { TradeDirection::Buy } else { TradeDirection::Sell },
+                direction: if delta > 0.0 {
+                    TradeDirection::Buy
+                } else {
+                    TradeDirection::Sell
+                },
                 weight_change: delta.abs(),
                 estimated_cost_bps: cost.cost_bps,
             });
         }
 
         // Sort by weight change descending (largest rebalance first).
-        trades.sort_by(|a, b| b.weight_change.partial_cmp(&a.weight_change).unwrap_or(std::cmp::Ordering::Equal));
+        trades.sort_by(|a, b| {
+            b.weight_change
+                .partial_cmp(&a.weight_change)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         trades
     }
 }
@@ -212,7 +225,11 @@ mod tests {
         let params = default_params();
         let cost = CostModel::estimate(10_000.0, 1_000.0, 10.0, &params);
         // commission = 0.005 * 1000 = 5.0
-        assert!((cost.commission_usd - 5.0).abs() < 1e-9, "commission={}", cost.commission_usd);
+        assert!(
+            (cost.commission_usd - 5.0).abs() < 1e-9,
+            "commission={}",
+            cost.commission_usd
+        );
     }
 
     #[test]
@@ -220,7 +237,11 @@ mod tests {
         let params = default_params();
         let cost = CostModel::estimate(10_000.0, 1_000.0, 10.0, &params);
         // spread = 5 bps * 10000 = 5.0 USD
-        assert!((cost.spread_cost_usd - 5.0).abs() < 1e-9, "spread={}", cost.spread_cost_usd);
+        assert!(
+            (cost.spread_cost_usd - 5.0).abs() < 1e-9,
+            "spread={}",
+            cost.spread_cost_usd
+        );
     }
 
     #[test]
@@ -230,8 +251,12 @@ mod tests {
         let cost = CostModel::estimate(10_000.0, 1_000.0, 10.0, &params);
         let expected_impact_bps = 0.1 * (1_000.0f64 / 1_000_000.0).sqrt() * 10_000.0;
         let expected_impact_usd = expected_impact_bps / 10_000.0 * 10_000.0;
-        assert!((cost.market_impact_usd - expected_impact_usd).abs() < 1e-6,
-            "impact={} expected={}", cost.market_impact_usd, expected_impact_usd);
+        assert!(
+            (cost.market_impact_usd - expected_impact_usd).abs() < 1e-6,
+            "impact={} expected={}",
+            cost.market_impact_usd,
+            expected_impact_usd
+        );
     }
 
     #[test]
@@ -293,11 +318,17 @@ mod tests {
 
     #[test]
     fn no_trades_when_within_tolerance() {
-        let current: HashMap<String, f64> = [("AAPL".to_string(), 0.3), ("MSFT".to_string(), 0.7)].into();
-        let target: HashMap<String, f64> = [("AAPL".to_string(), 0.301), ("MSFT".to_string(), 0.699)].into();
+        let current: HashMap<String, f64> =
+            [("AAPL".to_string(), 0.3), ("MSFT".to_string(), 0.7)].into();
+        let target: HashMap<String, f64> =
+            [("AAPL".to_string(), 0.301), ("MSFT".to_string(), 0.699)].into();
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
-        assert!(trades.is_empty(), "expected no trades, got {}", trades.len());
+        assert!(
+            trades.is_empty(),
+            "expected no trades, got {}",
+            trades.len()
+        );
     }
 
     #[test]
@@ -349,12 +380,14 @@ mod tests {
             ("A".to_string(), 0.1),
             ("B".to_string(), 0.5),
             ("C".to_string(), 0.2),
-        ].into();
+        ]
+        .into();
         let target: HashMap<String, f64> = [
-            ("A".to_string(), 0.5),  // +0.4
-            ("B".to_string(), 0.1),  // -0.4
-            ("C".to_string(), 0.4),  // +0.2
-        ].into();
+            ("A".to_string(), 0.5), // +0.4
+            ("B".to_string(), 0.1), // -0.4
+            ("C".to_string(), 0.4), // +0.2
+        ]
+        .into();
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
         assert_eq!(trades.len(), 3);
@@ -370,7 +403,11 @@ mod tests {
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
         for t in &trades {
-            assert!(t.estimated_cost_bps >= 0.0, "cost_bps={}", t.estimated_cost_bps);
+            assert!(
+                t.estimated_cost_bps >= 0.0,
+                "cost_bps={}",
+                t.estimated_cost_bps
+            );
         }
     }
 
@@ -381,13 +418,15 @@ mod tests {
             ("MSFT".to_string(), 0.25),
             ("GOOG".to_string(), 0.25),
             ("AMZN".to_string(), 0.25),
-        ].into();
+        ]
+        .into();
         let target: HashMap<String, f64> = [
             ("AAPL".to_string(), 0.4),
             ("MSFT".to_string(), 0.1),
             ("GOOG".to_string(), 0.35),
             ("AMZN".to_string(), 0.15),
-        ].into();
+        ]
+        .into();
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
         // All four have |delta| > 0.005
@@ -435,7 +474,10 @@ mod tests {
         let params = default_params();
         let trades = TurnoverOptimizer::optimize(&current, &target, &params, 0.005);
         assert_eq!(trades.len(), 1);
-        assert!(trades[0].weight_change > 0.0, "weight_change should be positive");
+        assert!(
+            trades[0].weight_change > 0.0,
+            "weight_change should be positive"
+        );
     }
 
     #[test]

@@ -34,7 +34,12 @@ impl Coppock {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if any period is zero.
-    pub fn new(name: impl Into<String>, long_roc: usize, short_roc: usize, wma_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        long_roc: usize,
+        short_roc: usize,
+        wma_period: usize,
+    ) -> Result<Self, FinError> {
         if long_roc == 0 || short_roc == 0 || wma_period == 0 {
             return Err(FinError::InvalidPeriod(0));
         }
@@ -65,7 +70,10 @@ impl Signal for Coppock {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let long_base = self.closes[0];
         let short_idx = self.closes.len().saturating_sub(self.short_roc + 1);
         let short_base = self.closes[short_idx];
@@ -88,9 +96,13 @@ impl Signal for Coppock {
         // WMA: weights 1,2,...,wma_period
         let n = self.wma_period;
         let denom = (n * (n + 1) / 2) as u64;
-        let wma: Decimal = self.roc_values.iter().enumerate()
+        let wma: Decimal = self
+            .roc_values
+            .iter()
+            .enumerate()
             .map(|(i, &v)| v * Decimal::from((i + 1) as u64))
-            .sum::<Decimal>() / Decimal::from(denom);
+            .sum::<Decimal>()
+            / Decimal::from(denom);
 
         Ok(SignalValue::Scalar(wma))
     }
@@ -119,7 +131,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -147,7 +162,9 @@ mod tests {
     #[test]
     fn test_coppock_flat_price_zero() {
         let mut c = Coppock::new("c", 3, 2, 3).unwrap();
-        for _ in 0..10 { c.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            c.update_bar(&bar("100")).unwrap();
+        }
         match c.update_bar(&bar("100")).unwrap() {
             SignalValue::Scalar(v) => assert_eq!(v, rust_decimal_macros::dec!(0)),
             _ => panic!("expected scalar"),
@@ -157,7 +174,9 @@ mod tests {
     #[test]
     fn test_coppock_reset() {
         let mut c = Coppock::new("c", 3, 2, 3).unwrap();
-        for _ in 0..10 { c.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            c.update_bar(&bar("100")).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

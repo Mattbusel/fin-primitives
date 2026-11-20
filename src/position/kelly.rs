@@ -160,8 +160,8 @@ mod tests {
     fn btc_input() -> KellyInput {
         KellyInput {
             win_probability: 0.6,
-            win_return: 1.0,   // win = +100 %
-            loss_return: 1.0,  // lose = -100 %
+            win_return: 1.0,  // win = +100 %
+            loss_return: 1.0, // lose = -100 %
             bankroll: 10_000.0,
         }
     }
@@ -302,7 +302,12 @@ mod tests {
     fn portfolio_allocate_total_below_max() {
         let assets = vec![
             btc_input(),
-            KellyInput { win_probability: 0.55, win_return: 1.0, loss_return: 1.0, bankroll: 10_000.0 },
+            KellyInput {
+                win_probability: 0.55,
+                win_return: 1.0,
+                loss_return: 1.0,
+                bankroll: 10_000.0,
+            },
         ];
         let cov = CovarianceMatrix::new(vec!["BTC".into(), "ETH".into()]);
         let alloc = KellyPortfolio::allocate(&assets, &cov, 0.5);
@@ -312,13 +317,19 @@ mod tests {
 
     #[test]
     fn portfolio_allocate_correlated_assets_penalised() {
-        let a = KellyInput { win_probability: 0.6, win_return: 1.0, loss_return: 1.0, bankroll: 10_000.0 };
+        let a = KellyInput {
+            win_probability: 0.6,
+            win_return: 1.0,
+            loss_return: 1.0,
+            bankroll: 10_000.0,
+        };
         let b = a.clone();
         let mut cov = CovarianceMatrix::new(vec!["A".into(), "B".into()]);
         // High positive correlation → penalty.
         cov.set(0, 1, 0.9);
         let alloc = KellyPortfolio::allocate(&[a.clone(), b], &cov, 1.0);
-        let uncorrelated_alloc = KellyPortfolio::allocate(&[a], &CovarianceMatrix::new(vec!["A".into()]), 1.0);
+        let uncorrelated_alloc =
+            KellyPortfolio::allocate(&[a], &CovarianceMatrix::new(vec!["A".into()]), 1.0);
         // With high correlation, individual allocations should be lower.
         assert!(alloc[0] < uncorrelated_alloc[0] + 1e-10);
     }
@@ -332,7 +343,12 @@ mod tests {
 
     #[test]
     fn portfolio_allocate_negative_edge_asset_gets_zero() {
-        let bad = KellyInput { win_probability: 0.3, win_return: 1.0, loss_return: 1.0, bankroll: 10_000.0 };
+        let bad = KellyInput {
+            win_probability: 0.3,
+            win_return: 1.0,
+            loss_return: 1.0,
+            bankroll: 10_000.0,
+        };
         let good = btc_input();
         let cov = CovarianceMatrix::new(vec!["BAD".into(), "BTC".into()]);
         let alloc = KellyPortfolio::allocate(&[bad, good], &cov, 1.0);

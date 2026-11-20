@@ -460,8 +460,7 @@ impl OhlcvBar {
     /// A gap exists when `|gap_pct| >= pct_threshold`. Returns `false` when
     /// `gap_pct` cannot be computed (zero previous close).
     pub fn has_gap(&self, prev: &OhlcvBar, pct_threshold: Decimal) -> bool {
-        self.gap_pct(prev)
-            .is_some_and(|g| g.abs() >= pct_threshold)
+        self.gap_pct(prev).is_some_and(|g| g.abs() >= pct_threshold)
     }
 
     /// Creates a single-tick OHLCV bar from a `Tick`.
@@ -543,7 +542,6 @@ impl OhlcvBar {
             && self.open.value() >= prev.close.value()
             && self.close.value() <= prev.open.value()
     }
-
 }
 
 /// A timeframe for bar aggregation.
@@ -579,7 +577,8 @@ impl Timeframe {
             return Err(FinError::InvalidTimeframe);
         }
         // `Weeks(u32::MAX)` does not fit in i64 nanoseconds; that used to wrap silently.
-        secs.checked_mul(1_000_000_000).ok_or(FinError::InvalidTimeframe)
+        secs.checked_mul(1_000_000_000)
+            .ok_or(FinError::InvalidTimeframe)
     }
 
     /// Returns the bucket start timestamp for a given tick timestamp.
@@ -594,7 +593,11 @@ impl Timeframe {
         /// 1970-01-05, the first Monday after the epoch, in nanoseconds.
         const FIRST_MONDAY_NANOS: i64 = 4 * 86_400 * 1_000_000_000;
         let nanos = self.to_nanos()?;
-        let origin = if matches!(self, Timeframe::Weeks(_)) { FIRST_MONDAY_NANOS } else { 0 };
+        let origin = if matches!(self, Timeframe::Weeks(_)) {
+            FIRST_MONDAY_NANOS
+        } else {
+            0
+        };
         let offset = ts.nanos() - origin;
         let bucket = offset.div_euclid(nanos) * nanos + origin;
         Ok(NanoTimestamp::new(bucket))
@@ -956,7 +959,10 @@ impl OhlcvSeries {
 
     /// Returns the maximum high price across all bars, or `None` if empty.
     pub fn max_high(&self) -> Option<Decimal> {
-        self.bars.iter().map(|b| b.high.value()).reduce(Decimal::max)
+        self.bars
+            .iter()
+            .map(|b| b.high.value())
+            .reduce(Decimal::max)
     }
 
     /// Returns the minimum low price across all bars, or `None` if empty.
@@ -969,7 +975,10 @@ impl OhlcvSeries {
     /// If `n > self.len()`, considers all bars.
     pub fn highest_high(&self, n: usize) -> Option<Decimal> {
         let start = self.bars.len().saturating_sub(n);
-        self.bars[start..].iter().map(|b| b.high.value()).reduce(Decimal::max)
+        self.bars[start..]
+            .iter()
+            .map(|b| b.high.value())
+            .reduce(Decimal::max)
     }
 
     /// Returns the lowest low price among the last `n` bars, or `None` if empty.
@@ -977,7 +986,10 @@ impl OhlcvSeries {
     /// If `n > self.len()`, considers all bars.
     pub fn lowest_low(&self, n: usize) -> Option<Decimal> {
         let start = self.bars.len().saturating_sub(n);
-        self.bars[start..].iter().map(|b| b.low.value()).reduce(Decimal::min)
+        self.bars[start..]
+            .iter()
+            .map(|b| b.low.value())
+            .reduce(Decimal::min)
     }
 
     /// Returns the volume-weighted average price (VWAP) across all bars, or `None` if empty
@@ -1010,7 +1022,13 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n {
             return None;
         }
-        let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.volume.value()).sum();
+        let sum: Decimal = self
+            .bars
+            .iter()
+            .rev()
+            .take(n)
+            .map(|b| b.volume.value())
+            .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -1037,13 +1055,20 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..].iter().map(|b| {
-            let h = b.high.value();
-            let l = b.low.value();
-            let c = b.close.value();
-            let range = h - l;
-            if range == Decimal::ZERO { Decimal::ZERO } else { ((c - l) - (h - c)) / range }
-        }).sum();
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| {
+                let h = b.high.value();
+                let l = b.low.value();
+                let c = b.close.value();
+                let range = h - l;
+                if range == Decimal::ZERO {
+                    Decimal::ZERO
+                } else {
+                    ((c - l) - (h - c)) / range
+                }
+            })
+            .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -1057,7 +1082,13 @@ impl OhlcvSeries {
         if n == 0 || self.bars.len() < n {
             return None;
         }
-        let sum: Decimal = self.bars.iter().rev().take(n).map(|b| b.dollar_volume()).sum();
+        let sum: Decimal = self
+            .bars
+            .iter()
+            .rev()
+            .take(n)
+            .map(|b| b.dollar_volume())
+            .sum();
         Some(sum / Decimal::from(n as u64))
     }
 
@@ -1154,7 +1185,10 @@ impl OhlcvSeries {
     /// If `n > self.len()`, considers all bars.
     pub fn highest_close(&self, n: usize) -> Option<Decimal> {
         let start = self.bars.len().saturating_sub(n);
-        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::max)
+        self.bars[start..]
+            .iter()
+            .map(|b| b.close.value())
+            .reduce(Decimal::max)
     }
 
     /// Returns the lowest close price among the last `n` bars, or `None` if empty.
@@ -1162,7 +1196,10 @@ impl OhlcvSeries {
     /// If `n > self.len()`, considers all bars.
     pub fn lowest_close(&self, n: usize) -> Option<Decimal> {
         let start = self.bars.len().saturating_sub(n);
-        self.bars[start..].iter().map(|b| b.close.value()).reduce(Decimal::min)
+        self.bars[start..]
+            .iter()
+            .map(|b| b.close.value())
+            .reduce(Decimal::min)
     }
 
     /// Returns the mean (average) close price of the last `n` bars, or `None` if empty.
@@ -1192,7 +1229,10 @@ impl OhlcvSeries {
         let mean: Decimal = slice.iter().map(|b| b.close.value()).sum::<Decimal>() / n_dec;
         let variance: Decimal = slice
             .iter()
-            .map(|b| { let d = b.close.value() - mean; d * d })
+            .map(|b| {
+                let d = b.close.value() - mean;
+                d * d
+            })
             .sum::<Decimal>()
             / n_dec;
         decimal_sqrt(variance).ok()
@@ -1204,8 +1244,7 @@ impl OhlcvSeries {
     /// median is the average of the two middle values.
     pub fn median_close(&self, n: usize) -> Option<Decimal> {
         let start = self.bars.len().saturating_sub(n);
-        let mut closes: Vec<Decimal> =
-            self.bars[start..].iter().map(|b| b.close.value()).collect();
+        let mut closes: Vec<Decimal> = self.bars[start..].iter().map(|b| b.close.value()).collect();
         if closes.is_empty() {
             return None;
         }
@@ -1242,16 +1281,33 @@ impl OhlcvSeries {
         if n < 2 {
             return None;
         }
-        let xs: Vec<Decimal> = self.bars[self.bars.len() - n..].iter().map(|b| b.close.value()).collect();
-        let ys: Vec<Decimal> = other.bars[other.bars.len() - n..].iter().map(|b| b.close.value()).collect();
+        let xs: Vec<Decimal> = self.bars[self.bars.len() - n..]
+            .iter()
+            .map(|b| b.close.value())
+            .collect();
+        let ys: Vec<Decimal> = other.bars[other.bars.len() - n..]
+            .iter()
+            .map(|b| b.close.value())
+            .collect();
         let n_dec = Decimal::from(n);
         let mean_x: Decimal = xs.iter().copied().sum::<Decimal>() / n_dec;
         let mean_y: Decimal = ys.iter().copied().sum::<Decimal>() / n_dec;
-        let cov: Decimal = xs.iter().zip(ys.iter())
+        let cov: Decimal = xs
+            .iter()
+            .zip(ys.iter())
             .map(|(x, y)| (*x - mean_x) * (*y - mean_y))
-            .sum::<Decimal>() / n_dec;
-        let var_x: Decimal = xs.iter().map(|x| (*x - mean_x) * (*x - mean_x)).sum::<Decimal>() / n_dec;
-        let var_y: Decimal = ys.iter().map(|y| (*y - mean_y) * (*y - mean_y)).sum::<Decimal>() / n_dec;
+            .sum::<Decimal>()
+            / n_dec;
+        let var_x: Decimal = xs
+            .iter()
+            .map(|x| (*x - mean_x) * (*x - mean_x))
+            .sum::<Decimal>()
+            / n_dec;
+        let var_y: Decimal = ys
+            .iter()
+            .map(|y| (*y - mean_y) * (*y - mean_y))
+            .sum::<Decimal>()
+            / n_dec;
         if var_x.is_zero() || var_y.is_zero() {
             return None;
         }
@@ -1427,7 +1483,11 @@ impl OhlcvSeries {
         if std_dev == 0.0 {
             return None;
         }
-        let bars_per_year = if bars_per_year <= 0.0 { 252.0 } else { bars_per_year };
+        let bars_per_year = if bars_per_year <= 0.0 {
+            252.0
+        } else {
+            bars_per_year
+        };
         Some((mean - risk_free_rate) / std_dev * bars_per_year.sqrt())
     }
 
@@ -1504,9 +1564,8 @@ impl OhlcvSeries {
         let mut pivots = Vec::new();
         for i in n..self.bars.len() - n {
             let h = self.bars[i].high.value();
-            let is_pivot = (1..=n).all(|j| {
-                h > self.bars[i - j].high.value() && h > self.bars[i + j].high.value()
-            });
+            let is_pivot = (1..=n)
+                .all(|j| h > self.bars[i - j].high.value() && h > self.bars[i + j].high.value());
             if is_pivot {
                 pivots.push(i);
             }
@@ -1528,9 +1587,8 @@ impl OhlcvSeries {
         let mut pivots = Vec::new();
         for i in n..self.bars.len() - n {
             let l = self.bars[i].low.value();
-            let is_pivot = (1..=n).all(|j| {
-                l < self.bars[i - j].low.value() && l < self.bars[i + j].low.value()
-            });
+            let is_pivot = (1..=n)
+                .all(|j| l < self.bars[i - j].low.value() && l < self.bars[i + j].low.value());
             if is_pivot {
                 pivots.push(i);
             }
@@ -1604,7 +1662,10 @@ impl OhlcvSeries {
             return false;
         }
         let k = Decimal::TWO / Decimal::from((period + 1) as u32);
-        let seed: Decimal = self.bars[..period].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let seed: Decimal = self.bars[..period]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(period as u32);
         let mut ema = seed;
         for bar in &self.bars[period..] {
@@ -1622,10 +1683,14 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n).max(1);
-        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
-            let prev = &self.bars[start + i - 1];
-            bar.is_bullish_engulfing(prev)
-        }).count()
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, bar)| {
+                let prev = &self.bars[start + i - 1];
+                bar.is_bullish_engulfing(prev)
+            })
+            .count()
     }
 
     /// Returns the ratio of the current bar's range to the average range over the last `n` bars.
@@ -1638,7 +1703,10 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let avg_range: Decimal = self.bars[start..].iter().map(|b| b.range()).sum::<Decimal>();
+        let avg_range: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.range())
+            .sum::<Decimal>();
         #[allow(clippy::cast_possible_truncation)]
         let avg_range = avg_range / Decimal::from(n as u32);
         if avg_range == Decimal::ZERO {
@@ -1655,15 +1723,19 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n).max(1);
-        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
-            let prev = &self.bars[start + i - 1];
-            // bearish: prev bullish, current opens above prev close, closes below prev open
-            let p_o = prev.open.value();
-            let p_c = prev.close.value();
-            let s_o = bar.open.value();
-            let s_c = bar.close.value();
-            p_c > p_o && s_c < s_o && s_o >= p_c && s_c <= p_o
-        }).count()
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, bar)| {
+                let prev = &self.bars[start + i - 1];
+                // bearish: prev bullish, current opens above prev close, closes below prev open
+                let p_o = prev.open.value();
+                let p_c = prev.close.value();
+                let s_o = bar.open.value();
+                let s_c = bar.close.value();
+                p_c > p_o && s_c < s_o && s_o >= p_c && s_c <= p_o
+            })
+            .count()
     }
 
     /// Returns a trend-strength ratio over the last `n` bars.
@@ -1679,7 +1751,8 @@ impl OhlcvSeries {
         let start = self.bars.len() - n;
         let window = &self.bars[start..];
         let net = (window.last()?.close.value() - window[0].close.value()).abs();
-        let total: Decimal = window.windows(2)
+        let total: Decimal = window
+            .windows(2)
             .map(|w| (w[1].close.value() - w[0].close.value()).abs())
             .sum();
         if total == Decimal::ZERO {
@@ -1716,9 +1789,11 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n).max(1);
-        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
-            bar.open.value() > self.bars[start + i - 1].close.value()
-        }).count()
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, bar)| bar.open.value() > self.bars[start + i - 1].close.value())
+            .count()
     }
 
     /// Returns the count of bars in the last `n` where `open < prev_close` (gap down).
@@ -1727,9 +1802,11 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n).max(1);
-        self.bars[start..].iter().enumerate().filter(|(i, bar)| {
-            bar.open.value() < self.bars[start + i - 1].close.value()
-        }).count()
+        self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, bar)| bar.open.value() < self.bars[start + i - 1].close.value())
+            .count()
     }
 
     /// Returns the average overnight gap percentage over the last `n` bars.
@@ -1820,7 +1897,9 @@ impl OhlcvSeries {
         if self.bars.len() < 2 || multiplier.is_zero() {
             return false;
         }
-        let Some(last) = self.bars.last() else { return false };
+        let Some(last) = self.bars.last() else {
+            return false;
+        };
         let last_vol = last.volume.value();
         // average of all bars except the last one (up to n bars)
         let prior_count = self.bars.len() - 1;
@@ -1872,7 +1951,10 @@ impl OhlcvSeries {
             return None;
         }
         let mean_ret = log_rets.iter().copied().sum::<f64>() / log_rets.len() as f64;
-        let downside: Vec<f64> = log_rets.iter().map(|&r| if r < 0.0 { r * r } else { 0.0 }).collect();
+        let downside: Vec<f64> = log_rets
+            .iter()
+            .map(|&r| if r < 0.0 { r * r } else { 0.0 })
+            .collect();
         let downside_var = downside.iter().copied().sum::<f64>() / downside.len() as f64;
         let downside_dev = downside_var.sqrt();
         if downside_dev == 0.0 {
@@ -1903,7 +1985,10 @@ impl OhlcvSeries {
             .iter()
             .rev()
             .take(n)
-            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.close.value().to_f64().unwrap_or(0.0) })
+            .map(|b| {
+                use rust_decimal::prelude::ToPrimitive;
+                b.close.value().to_f64().unwrap_or(0.0)
+            })
             .collect::<Vec<_>>()
             .into_iter()
             .rev()
@@ -1943,7 +2028,11 @@ impl OhlcvSeries {
             .iter()
             .enumerate()
             .map(|(i, b)| {
-                let prev = if i == 0 { None } else { Some(&self.bars[i - 1]) };
+                let prev = if i == 0 {
+                    None
+                } else {
+                    Some(&self.bars[i - 1])
+                };
                 b.true_range(prev)
             })
             .collect();
@@ -2104,8 +2193,14 @@ impl OhlcvSeries {
         if slice.is_empty() {
             return None;
         }
-        let h = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
-        let l = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        let h = slice
+            .iter()
+            .map(|b| b.high.value())
+            .fold(Decimal::MIN, Decimal::max);
+        let l = slice
+            .iter()
+            .map(|b| b.low.value())
+            .fold(Decimal::MAX, Decimal::min);
         Some((h, l))
     }
 
@@ -2182,7 +2277,12 @@ impl OhlcvSeries {
         let n_f = n as f64;
         let mx = xs.iter().sum::<f64>() / n_f;
         let my = ys.iter().sum::<f64>() / n_f;
-        let cov = xs.iter().zip(ys.iter()).map(|(x, y)| (x - mx) * (y - my)).sum::<f64>() / n_f;
+        let cov = xs
+            .iter()
+            .zip(ys.iter())
+            .map(|(x, y)| (x - mx) * (y - my))
+            .sum::<f64>()
+            / n_f;
         let sx = (xs.iter().map(|x| (x - mx).powi(2)).sum::<f64>() / n_f).sqrt();
         let sy = (ys.iter().map(|y| (y - my).powi(2)).sum::<f64>() / n_f).sqrt();
         if sx == 0.0 || sy == 0.0 {
@@ -2204,7 +2304,9 @@ impl OhlcvSeries {
             .windows(2)
             .filter_map(|w| {
                 let prev = w[0].close.value();
-                if prev.is_zero() { return None; }
+                if prev.is_zero() {
+                    return None;
+                }
                 (w[1].close.value() / prev).to_f64().map(|r| r.ln())
             })
             .collect();
@@ -2212,7 +2314,9 @@ impl OhlcvSeries {
             .windows(2)
             .filter_map(|w| {
                 let prev = w[0].close.value();
-                if prev.is_zero() { return None; }
+                if prev.is_zero() {
+                    return None;
+                }
                 (w[1].close.value() / prev).to_f64().map(|r| r.ln())
             })
             .collect();
@@ -2223,11 +2327,16 @@ impl OhlcvSeries {
         let n_f = len as f64;
         let ma = asset_lr[..len].iter().sum::<f64>() / n_f;
         let mm = mkt_lr[..len].iter().sum::<f64>() / n_f;
-        let cov = asset_lr[..len].iter().zip(mkt_lr[..len].iter())
+        let cov = asset_lr[..len]
+            .iter()
+            .zip(mkt_lr[..len].iter())
             .map(|(a, m)| (a - ma) * (m - mm))
-            .sum::<f64>() / n_f;
+            .sum::<f64>()
+            / n_f;
         let var_m = mkt_lr[..len].iter().map(|m| (m - mm).powi(2)).sum::<f64>() / n_f;
-        if var_m == 0.0 { return None; }
+        if var_m == 0.0 {
+            return None;
+        }
         Some(cov / var_m)
     }
 
@@ -2246,17 +2355,23 @@ impl OhlcvSeries {
             .filter_map(|(aw, bw)| {
                 let ap = aw[0].close.value();
                 let bp = bw[0].close.value();
-                if ap.is_zero() || bp.is_zero() { return None; }
+                if ap.is_zero() || bp.is_zero() {
+                    return None;
+                }
                 let ar = (aw[1].close.value() / ap).to_f64()?.ln();
                 let br = (bw[1].close.value() / bp).to_f64()?.ln();
                 Some(ar - br)
             })
             .collect();
-        if excess.len() < 2 { return None; }
+        if excess.len() < 2 {
+            return None;
+        }
         let n_f = excess.len() as f64;
         let mean = excess.iter().sum::<f64>() / n_f;
         let te = (excess.iter().map(|e| (e - mean).powi(2)).sum::<f64>() / n_f).sqrt();
-        if te == 0.0 { return None; }
+        if te == 0.0 {
+            return None;
+        }
         Some(mean / te)
     }
 
@@ -2294,7 +2409,10 @@ impl OhlcvSeries {
         }
         let start = self.bars.len() - period;
         #[allow(clippy::cast_possible_truncation)]
-        let sma: Decimal = self.bars[start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let sma: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(period as u32);
         Some(self.bars.last()?.close.value() > sma)
     }
@@ -2345,12 +2463,14 @@ impl OhlcvSeries {
         if total_vol.is_zero() {
             return None;
         }
-        let vwap: Decimal = slice.iter()
+        let vwap: Decimal = slice
+            .iter()
             .map(|b| {
                 let tp = b.typical_price();
                 tp * b.volume.value()
             })
-            .sum::<Decimal>() / total_vol;
+            .sum::<Decimal>()
+            / total_vol;
         if vwap.is_zero() {
             return None;
         }
@@ -2385,7 +2505,10 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n);
-        self.bars[start..].iter().filter(|b| b.is_doji(threshold)).count()
+        self.bars[start..]
+            .iter()
+            .filter(|b| b.is_doji(threshold))
+            .count()
     }
 
     /// Counts bars in the last `n` where `open > prev_close` (gap-up).
@@ -2396,7 +2519,10 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n + 1);
-        self.bars[start..].windows(2).filter(|w| w[1].gap_up_from(&w[0])).count()
+        self.bars[start..]
+            .windows(2)
+            .filter(|w| w[1].gap_up_from(&w[0]))
+            .count()
     }
 
     /// Counts bars in the last `n` where `open < prev_close` (gap-down).
@@ -2407,7 +2533,10 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n + 1);
-        self.bars[start..].windows(2).filter(|w| w[1].gap_down_from(&w[0])).count()
+        self.bars[start..]
+            .windows(2)
+            .filter(|w| w[1].gap_down_from(&w[0]))
+            .count()
     }
 
     /// Returns the cumulative volume over the last `n` bars.
@@ -2539,7 +2668,8 @@ impl OhlcvSeries {
         if slice.len() < 2 {
             return 0;
         }
-        slice.windows(2)
+        slice
+            .windows(2)
             .filter(|w| {
                 let prev_bull = w[0].close.value() >= w[0].open.value();
                 let curr_bull = w[1].close.value() >= w[1].open.value();
@@ -2593,7 +2723,9 @@ impl OhlcvSeries {
         }
         let sum: Option<Decimal> = slice.iter().try_fold(Decimal::ZERO, |acc, b| {
             let o = b.open.value();
-            if o.is_zero() { return None; }
+            if o.is_zero() {
+                return None;
+            }
             Some(acc + (b.range()) / o * Decimal::ONE_HUNDRED)
         });
         #[allow(clippy::cast_possible_truncation)]
@@ -2608,7 +2740,10 @@ impl OhlcvSeries {
             return 0;
         }
         let start = self.bars.len().saturating_sub(n + 1);
-        self.bars[start..].windows(2).filter(|w| w[1].close.value() > w[0].high.value()).count()
+        self.bars[start..]
+            .windows(2)
+            .filter(|w| w[1].close.value() > w[0].high.value())
+            .count()
     }
 
     /// Skewness of close prices over the last `n` bars (Fisher's moment coefficient of skewness).
@@ -2634,7 +2769,11 @@ impl OhlcvSeries {
         if std_dev == 0.0 {
             return None;
         }
-        let skew = vals.iter().map(|x| ((x - mean) / std_dev).powi(3)).sum::<f64>() / n_f;
+        let skew = vals
+            .iter()
+            .map(|x| ((x - mean) / std_dev).powi(3))
+            .sum::<f64>()
+            / n_f;
         Some(skew)
     }
 
@@ -2661,7 +2800,12 @@ impl OhlcvSeries {
         if variance == 0.0 {
             return None;
         }
-        let kurt = vals.iter().map(|x| ((x - mean) / variance.sqrt()).powi(4)).sum::<f64>() / n_f - 3.0;
+        let kurt = vals
+            .iter()
+            .map(|x| ((x - mean) / variance.sqrt()).powi(4))
+            .sum::<f64>()
+            / n_f
+            - 3.0;
         Some(kurt)
     }
 
@@ -2678,9 +2822,15 @@ impl OhlcvSeries {
         }
         let fast_start = self.bars.len() - fast_period;
         let slow_start = self.bars.len() - slow_period;
-        let fast_avg: Decimal = self.bars[fast_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let fast_avg: Decimal = self.bars[fast_start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(fast_period as u32);
-        let slow_avg: Decimal = self.bars[slow_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let slow_avg: Decimal = self.bars[slow_start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(slow_period as u32);
         fast_avg > slow_avg
     }
@@ -2866,10 +3016,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - period;
-        let sum: Decimal = self.bars[start..]
-            .iter()
-            .map(|b| b.typical_price())
-            .sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.typical_price()).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(period as u32))
     }
@@ -2892,7 +3039,10 @@ impl OhlcvSeries {
         let mean = closes.iter().copied().sum::<Decimal>() / Decimal::from(n as u32);
         let variance = closes
             .iter()
-            .map(|c| { let d = *c - mean; d * d })
+            .map(|c| {
+                let d = *c - mean;
+                d * d
+            })
             .sum::<Decimal>()
             / Decimal::from((n - 1) as u32);
         use rust_decimal::prelude::ToPrimitive;
@@ -2948,7 +3098,9 @@ impl OhlcvSeries {
         let sum_xy: f64 = vols.iter().enumerate().map(|(i, &v)| i as f64 * v).sum();
         let sum_xx: f64 = (0..vols.len()).map(|i| (i as f64).powi(2)).sum();
         let denom = n_f * sum_xx - sum_x * sum_x;
-        if denom == 0.0 { return None; }
+        if denom == 0.0 {
+            return None;
+        }
         Some((n_f * sum_xy - sum_x * sum_y) / denom)
     }
 
@@ -2966,13 +3118,17 @@ impl OhlcvSeries {
         let mut count = 0usize;
         for b in &self.bars[start..] {
             let body = b.body_size().to_f64()?;
-            if body == 0.0 { continue; }
+            if body == 0.0 {
+                continue;
+            }
             let range = (b.range()).to_f64()?;
             let wick = (range - body).max(0.0);
             sum += wick / body;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / count as f64)
     }
 
@@ -2993,14 +3149,22 @@ impl OhlcvSeries {
             .iter()
             .filter_map(|b| b.close.value().to_f64())
             .collect();
-        if xs.len() < 2 { return None; }
+        if xs.len() < 2 {
+            return None;
+        }
         let n_f = xs.len() as f64;
         let mx = xs.iter().sum::<f64>() / n_f;
         let my = ys.iter().sum::<f64>() / n_f;
-        let num: f64 = xs.iter().zip(ys.iter()).map(|(x, y)| (x - mx) * (y - my)).sum();
+        let num: f64 = xs
+            .iter()
+            .zip(ys.iter())
+            .map(|(x, y)| (x - mx) * (y - my))
+            .sum();
         let sx = (xs.iter().map(|x| (x - mx).powi(2)).sum::<f64>() / n_f).sqrt();
         let sy = (ys.iter().map(|y| (y - my).powi(2)).sum::<f64>() / n_f).sqrt();
-        if sx == 0.0 || sy == 0.0 { return None; }
+        if sx == 0.0 || sy == 0.0 {
+            return None;
+        }
         Some(num / (n_f * sx * sy))
     }
 
@@ -3016,11 +3180,15 @@ impl OhlcvSeries {
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let c = b.close.value();
-            if c.is_zero() { continue; }
+            if c.is_zero() {
+                continue;
+            }
             sum += (b.range()) / c * Decimal::ONE_HUNDRED;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -3033,7 +3201,8 @@ impl OhlcvSeries {
         }
         let start = self.bars.len().saturating_sub(n);
         let slice = &self.bars[start..];
-        slice.windows(2)
+        slice
+            .windows(2)
             .filter(|w| {
                 let mid = (w[0].high.value() + w[0].low.value()) / Decimal::TWO;
                 w[1].close.value() > mid
@@ -3061,7 +3230,10 @@ impl OhlcvSeries {
         let excess_mean = mean - rf_daily;
         let variance = returns
             .iter()
-            .map(|r| { let d = *r - mean; d * d })
+            .map(|r| {
+                let d = *r - mean;
+                d * d
+            })
             .sum::<Decimal>()
             / len_d;
         let std_f64 = variance.to_f64()?.sqrt();
@@ -3083,8 +3255,14 @@ impl OhlcvSeries {
         }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let highest = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
-        let lowest  = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        let highest = slice
+            .iter()
+            .map(|b| b.high.value())
+            .fold(Decimal::MIN, Decimal::max);
+        let lowest = slice
+            .iter()
+            .map(|b| b.low.value())
+            .fold(Decimal::MAX, Decimal::min);
         let range = highest - lowest;
         if range.is_zero() {
             return None;
@@ -3154,12 +3332,23 @@ impl OhlcvSeries {
         if returns.len() <= lag {
             return None;
         }
-        let x: Vec<f64> = returns[..returns.len() - lag].iter().map(|r| r.to_f64().unwrap_or(0.0)).collect();
-        let y: Vec<f64> = returns[lag..].iter().map(|r| r.to_f64().unwrap_or(0.0)).collect();
+        let x: Vec<f64> = returns[..returns.len() - lag]
+            .iter()
+            .map(|r| r.to_f64().unwrap_or(0.0))
+            .collect();
+        let y: Vec<f64> = returns[lag..]
+            .iter()
+            .map(|r| r.to_f64().unwrap_or(0.0))
+            .collect();
         let n_f = x.len() as f64;
         let mean_x = x.iter().sum::<f64>() / n_f;
         let mean_y = y.iter().sum::<f64>() / n_f;
-        let cov: f64 = x.iter().zip(y.iter()).map(|(xi, yi)| (xi - mean_x) * (yi - mean_y)).sum::<f64>() / n_f;
+        let cov: f64 = x
+            .iter()
+            .zip(y.iter())
+            .map(|(xi, yi)| (xi - mean_x) * (yi - mean_y))
+            .sum::<f64>()
+            / n_f;
         let std_x = (x.iter().map(|xi| (xi - mean_x).powi(2)).sum::<f64>() / n_f).sqrt();
         let std_y = (y.iter().map(|yi| (yi - mean_y).powi(2)).sum::<f64>() / n_f).sqrt();
         if std_x == 0.0 || std_y == 0.0 {
@@ -3186,10 +3375,17 @@ impl OhlcvSeries {
             return None;
         }
         let mean = returns.iter().sum::<f64>() / returns.len() as f64;
-        let cum: Vec<f64> = returns.iter().scan(0.0f64, |acc, &r| { *acc += r - mean; Some(*acc) }).collect();
+        let cum: Vec<f64> = returns
+            .iter()
+            .scan(0.0f64, |acc, &r| {
+                *acc += r - mean;
+                Some(*acc)
+            })
+            .collect();
         let r = cum.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
             - cum.iter().cloned().fold(f64::INFINITY, f64::min);
-        let s = (returns.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / returns.len() as f64).sqrt();
+        let s = (returns.iter().map(|&r| (r - mean).powi(2)).sum::<f64>() / returns.len() as f64)
+            .sqrt();
         if s == 0.0 || r <= 0.0 {
             return None;
         }
@@ -3211,9 +3407,15 @@ impl OhlcvSeries {
         let mut sum_sq = 0.0f64;
         for b in slice {
             let c = b.close.value();
-            if c > peak { peak = c; }
-            if peak.is_zero() { continue; }
-            let dd_pct = ((c - peak) / peak * Decimal::ONE_HUNDRED).to_f64().unwrap_or(0.0);
+            if c > peak {
+                peak = c;
+            }
+            if peak.is_zero() {
+                continue;
+            }
+            let dd_pct = ((c - peak) / peak * Decimal::ONE_HUNDRED)
+                .to_f64()
+                .unwrap_or(0.0);
             sum_sq += dd_pct * dd_pct;
         }
         let ui = (sum_sq / n as f64).sqrt();
@@ -3268,14 +3470,20 @@ impl OhlcvSeries {
     /// Fraction of the last `n` closes that are above the VWAP over that window.
     /// Returns `None` if `n` is 0, fewer than `n` bars exist, or total volume is zero.
     pub fn close_above_vwap_pct(&self, n: usize) -> Option<f64> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let window = &self.bars[start..];
         let total_vol: Decimal = window.iter().map(|b| b.volume.value()).sum();
-        if total_vol.is_zero() { return None; }
-        let vwap = window.iter()
+        if total_vol.is_zero() {
+            return None;
+        }
+        let vwap = window
+            .iter()
             .map(|b| b.typical_price() * b.volume.value())
-            .sum::<Decimal>() / total_vol;
+            .sum::<Decimal>()
+            / total_vol;
         let above = window.iter().filter(|b| b.close.value() > vwap).count();
         Some(above as f64 / n as f64 * 100.0)
     }
@@ -3283,9 +3491,12 @@ impl OhlcvSeries {
     /// Count of direction reversals in the last `n` closes (close switches from up to down or
     /// vice versa). Returns 0 if `n` < 2 or there are insufficient bars.
     pub fn reversal_count(&self, n: usize) -> usize {
-        if n < 2 || self.bars.len() < n { return 0; }
+        if n < 2 || self.bars.len() < n {
+            return 0;
+        }
         let start = self.bars.len() - n;
-        self.bars[start..].windows(3)
+        self.bars[start..]
+            .windows(3)
             .filter(|w| {
                 let prev_dir = w[1].close.value() > w[0].close.value();
                 let curr_dir = w[2].close.value() > w[1].close.value();
@@ -3298,7 +3509,9 @@ impl OhlcvSeries {
     /// (i.e., price returned to the prior close within the same bar). Returns `None` if `n` is 0
     /// or there are insufficient bars.
     pub fn open_gap_fill_rate(&self, n: usize) -> Option<f64> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut gap_count = 0usize;
         let mut filled = 0usize;
@@ -3306,7 +3519,9 @@ impl OhlcvSeries {
             let prior_close = self.bars[i - 1].close.value();
             let bar = &self.bars[i];
             let open = bar.open.value();
-            if open == prior_close { continue; }
+            if open == prior_close {
+                continue;
+            }
             gap_count += 1;
             let gap_up = open > prior_close;
             if (gap_up && bar.low.value() <= prior_close)
@@ -3315,7 +3530,9 @@ impl OhlcvSeries {
                 filled += 1;
             }
         }
-        if gap_count == 0 { return None; }
+        if gap_count == 0 {
+            return None;
+        }
         Some(filled as f64 / gap_count as f64 * 100.0)
     }
 
@@ -3323,7 +3540,9 @@ impl OhlcvSeries {
     /// where 1.0 means perfectly symmetric. Returns `None` if `n` is 0, fewer than `n` bars
     /// exist, or no bar has any shadows.
     pub fn candle_symmetry(&self, n: usize) -> Option<f64> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut ratios = Vec::new();
         for bar in &self.bars[start..] {
@@ -3331,18 +3550,22 @@ impl OhlcvSeries {
             let body_bot = bar.close.value().min(bar.open.value());
             let upper = bar.high.value() - body_top;
             let lower = body_bot - bar.low.value();
-            if upper.is_zero() && lower.is_zero() { continue; }
+            if upper.is_zero() && lower.is_zero() {
+                continue;
+            }
             let total = upper + lower;
-            if total.is_zero() { continue; }
+            if total.is_zero() {
+                continue;
+            }
             use rust_decimal::prelude::ToPrimitive;
-            let ratio: f64 = lower.to_f64().unwrap_or(0.0)
-                / total.to_f64().unwrap_or(1.0);
+            let ratio: f64 = lower.to_f64().unwrap_or(0.0) / total.to_f64().unwrap_or(1.0);
             ratios.push(ratio);
         }
-        if ratios.is_empty() { return None; }
+        if ratios.is_empty() {
+            return None;
+        }
         Some(ratios.iter().sum::<f64>() / ratios.len() as f64)
     }
-
 }
 
 impl Default for OhlcvSeries {
@@ -3397,10 +3620,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let count = self.bars[start..]
-            .iter()
-            .filter(|b| b.is_bullish())
-            .count();
+        let count = self.bars[start..].iter().filter(|b| b.is_bullish()).count();
         Some(count as f64 / n as f64 * 100.0)
     }
 
@@ -3454,7 +3674,9 @@ impl OhlcvSeries {
         for w in slice.windows(2) {
             let pc = w[0].close.value().to_f64()?;
             let cc = w[1].close.value().to_f64()?;
-            if pc <= 0.0 { continue; }
+            if pc <= 0.0 {
+                continue;
+            }
             let r = (cc / pc).ln();
             if r > 0.0 {
                 gains += r;
@@ -3574,7 +3796,10 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let bullish = self.bars[start..].iter().filter(|b| b.close > b.open).count();
+        let bullish = self.bars[start..]
+            .iter()
+            .filter(|b| b.close > b.open)
+            .count();
         Some(bullish as f64 / n as f64)
     }
 
@@ -3655,7 +3880,12 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        Some(self.bars[start..].iter().filter(|b| b.close < b.open).count())
+        Some(
+            self.bars[start..]
+                .iter()
+                .filter(|b| b.close < b.open)
+                .count(),
+        )
     }
 
     /// Average body size (|close − open|) over the last `n` bars.
@@ -3666,10 +3896,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..]
-            .iter()
-            .map(|b| b.body_size())
-            .sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.body_size()).sum();
         Some(sum / Decimal::from(n as u32))
     }
 
@@ -3681,10 +3908,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..]
-            .iter()
-            .map(|b| b.midpoint())
-            .sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.midpoint()).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -3767,7 +3991,9 @@ impl OhlcvSeries {
             use rust_decimal::prelude::ToPrimitive;
             let r = prev.to_f64()?;
             let c = curr.to_f64()?;
-            if r <= 0.0 { return None; }
+            if r <= 0.0 {
+                return None;
+            }
             rets.push((c / r).ln());
         }
         let mean = rets.iter().sum::<f64>() / rets.len() as f64;
@@ -3798,10 +4024,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..]
-            .iter()
-            .map(|b| b.upper_shadow())
-            .sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.upper_shadow()).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -3814,10 +4037,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let mut mids: Vec<Decimal> = self.bars[start..]
-            .iter()
-            .map(|b| b.midpoint())
-            .collect();
+        let mut mids: Vec<Decimal> = self.bars[start..].iter().map(|b| b.midpoint()).collect();
         mids.sort();
         let mid = n / 2;
         if n % 2 == 0 {
@@ -3882,7 +4102,9 @@ impl OhlcvSeries {
         for i in (start + 1)..self.bars.len() {
             if self.bars[i].close > self.bars[i - 1].close {
                 cur_run += 1;
-                if cur_run > max_run { max_run = cur_run; }
+                if cur_run > max_run {
+                    max_run = cur_run;
+                }
             } else {
                 cur_run = 0;
             }
@@ -3905,7 +4127,9 @@ impl OhlcvSeries {
         let mut vol_sum = Decimal::ZERO;
         for i in (start + 1)..self.bars.len() {
             let prev_close = self.bars[i - 1].close.value();
-            if prev_close.is_zero() { continue; }
+            if prev_close.is_zero() {
+                continue;
+            }
             let ret = (self.bars[i].close.value() - prev_close) / prev_close;
             let vol = self.bars[i].volume.value();
             vol_return_sum += ret * vol;
@@ -3965,8 +4189,8 @@ impl OhlcvSeries {
         if recent_atrs.is_empty() {
             return None;
         }
-        let mean: Decimal = recent_atrs.iter().copied().sum::<Decimal>()
-            / Decimal::from(recent_atrs.len() as u32);
+        let mean: Decimal =
+            recent_atrs.iter().copied().sum::<Decimal>() / Decimal::from(recent_atrs.len() as u32);
         if mean.is_zero() {
             return Some("medium");
         }
@@ -3995,10 +4219,15 @@ impl OhlcvSeries {
         let mut dn_vol = Decimal::ZERO;
         for b in &self.bars[start..] {
             let vol = b.volume.value();
-            if b.close > b.open { up_vol += vol; }
-            else if b.close < b.open { dn_vol += vol; }
+            if b.close > b.open {
+                up_vol += vol;
+            } else if b.close < b.open {
+                dn_vol += vol;
+            }
         }
-        if dn_vol.is_zero() { return None; }
+        if dn_vol.is_zero() {
+            return None;
+        }
         Some(up_vol / dn_vol)
     }
 
@@ -4017,11 +4246,15 @@ impl OhlcvSeries {
         let hundred = Decimal::from(100u32);
         for b in &self.bars[start..] {
             let tp = b.typical_price();
-            if tp.is_zero() { continue; }
+            if tp.is_zero() {
+                continue;
+            }
             sum += (b.range()) / tp * hundred;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count as u32))
     }
 
@@ -4038,8 +4271,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let net = (self.bars.last()?.close.value()
-            - self.bars[start].close.value())
+        let net = (self.bars.last()?.close.value() - self.bars[start].close.value())
             .abs()
             .to_f64()
             .unwrap_or(0.0);
@@ -4051,7 +4283,9 @@ impl OhlcvSeries {
                     .unwrap_or(0.0)
             })
             .sum();
-        if path == 0.0 { return None; }
+        if path == 0.0 {
+            return None;
+        }
         Some(net / path)
     }
 
@@ -4076,7 +4310,9 @@ impl OhlcvSeries {
                 high_indices.push(i);
             }
         }
-        if high_indices.len() < 2 { return None; }
+        if high_indices.len() < 2 {
+            return None;
+        }
         let gaps: Vec<usize> = high_indices.windows(2).map(|w| w[1] - w[0]).collect();
         Some(gaps.iter().sum::<usize>() as f64 / gaps.len() as f64)
     }
@@ -4151,7 +4387,9 @@ impl OhlcvSeries {
             .map(|b| b.close.value().to_f64().unwrap_or(0.0))
             .collect();
         let mean = vals.iter().sum::<f64>() / n as f64;
-        if mean == 0.0 { return None; }
+        if mean == 0.0 {
+            return None;
+        }
         let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64;
         Some(variance.sqrt() / mean)
     }
@@ -4169,7 +4407,9 @@ impl OhlcvSeries {
             .map(|b| b.volume.value())
             .sum::<Decimal>()
             / Decimal::from(n as u32);
-        if avg_vol.is_zero() { return None; }
+        if avg_vol.is_zero() {
+            return None;
+        }
         let last_vol = self.bars.last()?.volume.value();
         Some(last_vol / avg_vol * Decimal::from(100u32))
     }
@@ -4206,9 +4446,14 @@ impl OhlcvSeries {
             .map(|b| b.volume.value())
             .sum::<Decimal>()
             / Decimal::from(n as u32);
-        if avg_vol.is_zero() { return None; }
+        if avg_vol.is_zero() {
+            return None;
+        }
         let limit = avg_vol * threshold;
-        let count = self.bars[start..].iter().filter(|b| b.volume.value() > limit).count();
+        let count = self.bars[start..]
+            .iter()
+            .filter(|b| b.volume.value() > limit)
+            .count();
         Some(count)
     }
 
@@ -4281,7 +4526,9 @@ impl OhlcvSeries {
             .collect();
         let mean = vals.iter().sum::<f64>() / n as f64;
         let std = (vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n as f64).sqrt();
-        if std == 0.0 { return None; }
+        if std == 0.0 {
+            return None;
+        }
         let last = *vals.last()?;
         Some((last - mean) / std)
     }
@@ -4302,8 +4549,11 @@ impl OhlcvSeries {
         for i in (start + 1)..self.bars.len() {
             let prior_close = self.bars[i - 1].close.value();
             let cur_open = self.bars[i].open.value();
-            if cur_open > prior_close { ups += 1; }
-            else if cur_open < prior_close { downs += 1; }
+            if cur_open > prior_close {
+                ups += 1;
+            } else if cur_open < prior_close {
+                downs += 1;
+            }
         }
         Some((ups, downs))
     }
@@ -4338,7 +4588,9 @@ impl OhlcvSeries {
             } else {
                 break;
             }
-            if i == 0 { break; }
+            if i == 0 {
+                break;
+            }
             i -= 1;
         }
         Some(streak)
@@ -4381,14 +4633,13 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let closes: Vec<Decimal> = self.bars[start..]
-            .iter()
-            .map(|b| b.close.value())
-            .collect();
+        let closes: Vec<Decimal> = self.bars[start..].iter().map(|b| b.close.value()).collect();
         let hi = closes.iter().copied().max()?;
         let lo = closes.iter().copied().min()?;
         let avg = closes.iter().sum::<Decimal>() / Decimal::from(n as u32);
-        if avg.is_zero() { return None; }
+        if avg.is_zero() {
+            return None;
+        }
         Some((hi - lo) / avg)
     }
 
@@ -4401,21 +4652,28 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let closes: Vec<f64> = self.bars[start..].iter()
+        let closes: Vec<f64> = self.bars[start..]
+            .iter()
             .map(|b| b.close.value().to_f64().unwrap_or(0.0))
             .collect();
-        let vols: Vec<f64> = self.bars[start..].iter()
+        let vols: Vec<f64> = self.bars[start..]
+            .iter()
             .map(|b| b.volume.value().to_f64().unwrap_or(0.0))
             .collect();
         let n_f = n as f64;
         let mean_c = closes.iter().sum::<f64>() / n_f;
         let mean_v = vols.iter().sum::<f64>() / n_f;
-        let cov: f64 = closes.iter().zip(vols.iter())
+        let cov: f64 = closes
+            .iter()
+            .zip(vols.iter())
             .map(|(c, v)| (c - mean_c) * (v - mean_v))
-            .sum::<f64>() / n_f;
+            .sum::<f64>()
+            / n_f;
         let std_c = (closes.iter().map(|c| (c - mean_c).powi(2)).sum::<f64>() / n_f).sqrt();
         let std_v = (vols.iter().map(|v| (v - mean_v).powi(2)).sum::<f64>() / n_f).sqrt();
-        if std_c == 0.0 || std_v == 0.0 { return None; }
+        if std_c == 0.0 || std_v == 0.0 {
+            return None;
+        }
         Some(cov / (std_c * std_v))
     }
 
@@ -4430,8 +4688,14 @@ impl OhlcvSeries {
         }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let high = slice.iter().map(|b| b.high.value()).fold(Decimal::MIN, Decimal::max);
-        let low = slice.iter().map(|b| b.low.value()).fold(Decimal::MAX, Decimal::min);
+        let high = slice
+            .iter()
+            .map(|b| b.high.value())
+            .fold(Decimal::MIN, Decimal::max);
+        let low = slice
+            .iter()
+            .map(|b| b.low.value())
+            .fold(Decimal::MAX, Decimal::min);
         let range = high - low;
         if range.is_zero() {
             return None;
@@ -4449,7 +4713,10 @@ impl OhlcvSeries {
         }
         let start = self.bars.len() - n;
         #[allow(clippy::cast_possible_truncation)]
-        let avg = self.bars[start..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+        let avg = self.bars[start..]
+            .iter()
+            .map(|b| b.volume.value())
+            .sum::<Decimal>()
             / Decimal::from(n as u32);
         Some(avg)
     }
@@ -4468,19 +4735,29 @@ impl OhlcvSeries {
         }
         let atr_avg = |n: usize| -> Option<Decimal> {
             let start = self.bars.len() - n;
-            let trs: Decimal = self.bars[start..].iter().enumerate().map(|(i, b)| {
-                let prev = if i == 0 { &self.bars[start - 1] } else { &self.bars[start + i - 1] };
-                let hl = b.range();
-                let hpc = (b.high.value() - prev.close.value()).abs();
-                let lpc = (b.low.value() - prev.close.value()).abs();
-                hl.max(hpc).max(lpc)
-            }).sum();
+            let trs: Decimal = self.bars[start..]
+                .iter()
+                .enumerate()
+                .map(|(i, b)| {
+                    let prev = if i == 0 {
+                        &self.bars[start - 1]
+                    } else {
+                        &self.bars[start + i - 1]
+                    };
+                    let hl = b.range();
+                    let hpc = (b.high.value() - prev.close.value()).abs();
+                    let lpc = (b.low.value() - prev.close.value()).abs();
+                    hl.max(hpc).max(lpc)
+                })
+                .sum();
             #[allow(clippy::cast_possible_truncation)]
             Some(trs / Decimal::from(n as u32))
         };
         let atr_fast = atr_avg(fast)?;
         let atr_slow = atr_avg(slow)?;
-        if atr_slow.is_zero() { return None; }
+        if atr_slow.is_zero() {
+            return None;
+        }
         atr_fast.checked_div(atr_slow)
     }
 
@@ -4516,14 +4793,16 @@ impl OhlcvSeries {
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             let body = b.body_size();
-            sum += body
-                .checked_div(range)
-                .unwrap_or(Decimal::ZERO);
+            sum += body.checked_div(range).unwrap_or(Decimal::ZERO);
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -4552,10 +4831,7 @@ impl OhlcvSeries {
             return None;
         }
         let start = self.bars.len() - n;
-        let max_range = self.bars[start..]
-            .iter()
-            .map(|b| b.range())
-            .max()?;
+        let max_range = self.bars[start..].iter().map(|b| b.range()).max()?;
         if max_range.is_zero() {
             return None;
         }
@@ -4578,11 +4854,14 @@ impl OhlcvSeries {
         let mut max_gap = Decimal::ZERO;
         for i in start + 1..self.bars.len() {
             let prev_close = self.bars[i - 1].close.value();
-            if prev_close.is_zero() { return None; }
-            let gap = (self.bars[i].open.value() - prev_close).abs()
-                / prev_close
-                * Decimal::from(100u32);
-            if gap > max_gap { max_gap = gap; }
+            if prev_close.is_zero() {
+                return None;
+            }
+            let gap =
+                (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::from(100u32);
+            if gap > max_gap {
+                max_gap = gap;
+            }
         }
         Some(max_gap)
     }
@@ -4602,11 +4881,13 @@ impl OhlcvSeries {
         let sma_now: Decimal = self.bars[total - n..]
             .iter()
             .map(|b| b.close.value())
-            .sum::<Decimal>() / Decimal::from(n as u32);
+            .sum::<Decimal>()
+            / Decimal::from(n as u32);
         let sma_prev: Decimal = self.bars[total - n - 1..total - 1]
             .iter()
             .map(|b| b.close.value())
-            .sum::<Decimal>() / Decimal::from(n as u32);
+            .sum::<Decimal>()
+            / Decimal::from(n as u32);
         let close_now = self.bars[total - 1].close.value();
         let close_prev = self.bars[total - 2].close.value();
         if close_prev <= sma_prev && close_now > sma_now {
@@ -4617,7 +4898,6 @@ impl OhlcvSeries {
             Some(0)
         }
     }
-
 
     /// Index (0-based within the last `n` bars) of the bar with the highest volume.
     ///
@@ -4641,7 +4921,9 @@ impl OhlcvSeries {
     /// Returns `None` if `n == 0`, fewer than `n + 1` bars exist, or ATR is zero.
     pub fn range_pct_of_atr(&self, n: usize) -> Option<Decimal> {
         let atr = self.avg_true_range(n)?;
-        if atr.is_zero() { return None; }
+        if atr.is_zero() {
+            return None;
+        }
         let last = self.bars.last()?;
         let range = last.range();
         range.checked_div(atr).map(|r| r * Decimal::ONE_HUNDRED)
@@ -4662,10 +4944,14 @@ impl OhlcvSeries {
         let mut max_dd = Decimal::ZERO;
         for b in &self.bars[start..] {
             let c = b.close.value();
-            if c > peak { peak = c; }
+            if c > peak {
+                peak = c;
+            }
             if !peak.is_zero() {
                 let dd = (c - peak) / peak * Decimal::ONE_HUNDRED;
-                if dd < max_dd { max_dd = dd; }
+                if dd < max_dd {
+                    max_dd = dd;
+                }
             }
         }
         Some(max_dd)
@@ -4685,14 +4971,18 @@ impl OhlcvSeries {
         let mut above = 0u32;
         for (offset, b) in self.bars[window_start..].iter().enumerate() {
             let abs_idx = window_start + offset;
-            if abs_idx + 1 < sma_period { continue; }
+            if abs_idx + 1 < sma_period {
+                continue;
+            }
             let sma_start = abs_idx + 1 - sma_period;
             let sma = self.bars[sma_start..=abs_idx]
                 .iter()
                 .map(|x| x.close.value())
                 .sum::<Decimal>()
                 / Decimal::from(sma_period as u32);
-            if b.close.value() > sma { above += 1; }
+            if b.close.value() > sma {
+                above += 1;
+            }
         }
         Some(Decimal::from(above) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
@@ -4704,7 +4994,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, `lookback == 0`, or fewer than `n` bars exist.
     pub fn swing_high_count(&self, n: usize, lookback: usize) -> Option<usize> {
-        if n == 0 || lookback == 0 || self.bars.len() < n { return None; }
+        if n == 0 || lookback == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let len = slice.len();
@@ -4713,7 +5005,9 @@ impl OhlcvSeries {
             let peak = slice[i].high.value();
             let is_high = (0..lookback).all(|k| peak > slice[i - 1 - k].high.value())
                 && (0..lookback).all(|k| peak > slice[i + 1 + k].high.value());
-            if is_high { count += 1; }
+            if is_high {
+                count += 1;
+            }
         }
         Some(count)
     }
@@ -4732,7 +5026,9 @@ impl OhlcvSeries {
         let mut sum = Decimal::ZERO;
         for i in start..self.bars.len() {
             let prev_close = self.bars[i - 1].close.value();
-            if prev_close.is_zero() { return None; }
+            if prev_close.is_zero() {
+                return None;
+            }
             let gap = (self.bars[i].open.value() - prev_close).abs();
             sum += gap / prev_close * Decimal::ONE_HUNDRED;
         }
@@ -4763,10 +5059,14 @@ impl OhlcvSeries {
                 down_count += 1;
             }
         }
-        if up_count == 0 || down_count == 0 { return None; }
+        if up_count == 0 || down_count == 0 {
+            return None;
+        }
         let avg_up = up_sum / Decimal::from(up_count);
         let avg_down = down_sum / Decimal::from(down_count);
-        if avg_down.is_zero() { return None; }
+        if avg_down.is_zero() {
+            return None;
+        }
         avg_up.checked_div(avg_down)
     }
 
@@ -4777,12 +5077,16 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
     pub fn avg_wick_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { return None; }
+            if range.is_zero() {
+                return None;
+            }
             let upper_wick = b.high.value() - b.close.value().max(b.open.value());
             let lower_wick = b.close.value().min(b.open.value()) - b.low.value();
             sum += (upper_wick + lower_wick) / range * Decimal::from(100u32);
@@ -4797,13 +5101,19 @@ impl OhlcvSeries {
     /// Requires `n + 1` bars.
     /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn trend_continuation_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let mut continuing = 0u32;
         for i in 0..n {
-            let prev_dir = self.bars[start + i].close.value()
+            let prev_dir = self.bars[start + i]
+                .close
+                .value()
                 .cmp(&self.bars[start + i].open.value());
-            let curr_dir = self.bars[start + i + 1].close.value()
+            let curr_dir = self.bars[start + i + 1]
+                .close
+                .value()
                 .cmp(&self.bars[start + i + 1].open.value());
             if prev_dir == curr_dir && prev_dir != std::cmp::Ordering::Equal {
                 continuing += 1;
@@ -4815,28 +5125,40 @@ impl OhlcvSeries {
 
     /// Count of inside bars (high ≤ prev high AND low ≥ prev low) in the last `n` bars.
     pub fn inside_bar_count(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut count = 0usize;
         for i in start..self.bars.len() {
-            if i == 0 { continue; }
+            if i == 0 {
+                continue;
+            }
             let prev = &self.bars[i - 1];
             let cur = &self.bars[i];
-            if cur.high <= prev.high && cur.low >= prev.low { count += 1; }
+            if cur.high <= prev.high && cur.low >= prev.low {
+                count += 1;
+            }
         }
         Some(count)
     }
 
     /// Count of outside bars (high > prev high AND low < prev low) in the last `n` bars.
     pub fn outside_bar_count(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut count = 0usize;
         for i in start..self.bars.len() {
-            if i == 0 { continue; }
+            if i == 0 {
+                continue;
+            }
             let prev = &self.bars[i - 1];
             let cur = &self.bars[i];
-            if cur.high > prev.high && cur.low < prev.low { count += 1; }
+            if cur.high > prev.high && cur.low < prev.low {
+                count += 1;
+            }
         }
         Some(count)
     }
@@ -4845,9 +5167,12 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn high_volume_price(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        self.bars[start..].iter()
+        self.bars[start..]
+            .iter()
             .max_by_key(|b| b.volume.value())
             .map(|b| b.close.value())
     }
@@ -4858,7 +5183,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_close_minus_open(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..]
             .iter()
@@ -4875,14 +5202,23 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_upper_shadow_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..].iter().map(|b| {
-            let body_top = b.open.value().max(b.close.value());
-            let shadow = b.high.value() - body_top;
-            let close = b.close.value();
-            if close.is_zero() { Decimal::ZERO } else { shadow / close * Decimal::from(100u32) }
-        }).sum();
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| {
+                let body_top = b.open.value().max(b.close.value());
+                let shadow = b.high.value() - body_top;
+                let close = b.close.value();
+                if close.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    shadow / close * Decimal::from(100u32)
+                }
+            })
+            .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -4894,14 +5230,23 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_lower_shadow_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..].iter().map(|b| {
-            let body_bottom = b.open.value().min(b.close.value());
-            let shadow = body_bottom - b.low.value();
-            let close = b.close.value();
-            if close.is_zero() { Decimal::ZERO } else { shadow / close * Decimal::from(100u32) }
-        }).sum();
+        let sum: Decimal = self.bars[start..]
+            .iter()
+            .map(|b| {
+                let body_bottom = b.open.value().min(b.close.value());
+                let shadow = body_bottom - b.low.value();
+                let close = b.close.value();
+                if close.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    shadow / close * Decimal::from(100u32)
+                }
+            })
+            .sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
     }
@@ -4912,7 +5257,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn percent_doji(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let threshold = Decimal::new(1, 1); // 0.1
         let mut doji_count = 0u32;
@@ -4934,12 +5281,16 @@ impl OhlcvSeries {
     /// 100 means close was at the high; 0 means close was at the low; 50 means mid-range.
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
     pub fn avg_close_range_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { return None; }
+            if range.is_zero() {
+                return None;
+            }
             sum += (b.close.value() - b.low.value()) / range * Decimal::from(100u32);
         }
         #[allow(clippy::cast_possible_truncation)]
@@ -4952,12 +5303,16 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or `min_low` is zero.
     pub fn price_channel_width(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let max_high = slice.iter().map(|b| b.high.value()).max()?;
         let min_low = slice.iter().map(|b| b.low.value()).min()?;
-        if min_low.is_zero() { return None; }
+        if min_low.is_zero() {
+            return None;
+        }
         Some((max_high - min_low) / min_low * Decimal::ONE_HUNDRED)
     }
 
@@ -4967,12 +5322,16 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or any bar has zero range.
     pub fn avg_candle_efficiency(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { return None; }
+            if range.is_zero() {
+                return None;
+            }
             sum += b.body_size() / range;
         }
         #[allow(clippy::cast_possible_truncation)]
@@ -4984,7 +5343,9 @@ impl OhlcvSeries {
     /// Counts volume on any bar whose high exceeds all previous bars in the window.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn volume_at_high(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut running_high = slice[0].high.value();
@@ -5002,7 +5363,9 @@ impl OhlcvSeries {
     ///
     /// Requires `n + 1` bars. Returns `None` if `n == 0` or insufficient bars.
     pub fn close_momentum_consistency(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let mut up = 0u32;
         for i in 0..n {
@@ -5019,9 +5382,13 @@ impl OhlcvSeries {
     /// Returns `None` if fewer than 2 bars exist or `prev_close` is zero.
     pub fn price_gap_pct(&self) -> Option<Decimal> {
         let n = self.bars.len();
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         let prev_close = self.bars[n - 2].close.value();
-        if prev_close.is_zero() { return None; }
+        if prev_close.is_zero() {
+            return None;
+        }
         Some((self.bars[n - 1].open.value() - prev_close) / prev_close * Decimal::ONE_HUNDRED)
     }
 
@@ -5029,13 +5396,17 @@ impl OhlcvSeries {
     ///
     /// Returns `0` if the series has fewer than 2 bars.
     pub fn longest_winning_streak(&self) -> usize {
-        if self.bars.len() < 2 { return 0; }
+        if self.bars.len() < 2 {
+            return 0;
+        }
         let mut max_streak = 0usize;
         let mut streak = 0usize;
         for i in 1..self.bars.len() {
             if self.bars[i].close > self.bars[i - 1].close {
                 streak += 1;
-                if streak > max_streak { max_streak = streak; }
+                if streak > max_streak {
+                    max_streak = streak;
+                }
             } else {
                 streak = 0;
             }
@@ -5048,13 +5419,18 @@ impl OhlcvSeries {
     /// Each gap is `|open - prev_close| / prev_close * 100`.
     /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn avg_gap_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for i in start..self.bars.len() {
             let prev_close = self.bars[i - 1].close.value();
-            if prev_close.is_zero() { continue; }
-            sum += (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::ONE_HUNDRED;
+            if prev_close.is_zero() {
+                continue;
+            }
+            sum +=
+                (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::ONE_HUNDRED;
         }
         #[allow(clippy::cast_possible_truncation)]
         Some(sum / Decimal::from(n as u32))
@@ -5065,17 +5441,23 @@ impl OhlcvSeries {
     /// Momentum per bar = `(close − open) / (high − low)`.  Bars with zero range are skipped.
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero range.
     pub fn intrabar_momentum(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
             let range = bar.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += (bar.close.value() - bar.open.value()) / range;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -5083,7 +5465,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn volume_per_bar(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..].iter().map(|b| b.volume.value()).sum();
         #[allow(clippy::cast_possible_truncation)]
@@ -5095,12 +5479,16 @@ impl OhlcvSeries {
     /// A close is "near the high" when `(high − close) / high * 100 <= threshold_pct`.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn pct_bars_near_high(&self, n: usize, threshold_pct: Decimal) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut near = 0u32;
         for bar in &self.bars[start..] {
             let high = bar.high.value();
-            if high.is_zero() { continue; }
+            if high.is_zero() {
+                continue;
+            }
             let dist_pct = (high - bar.close.value()) / high * Decimal::ONE_HUNDRED;
             if dist_pct <= threshold_pct {
                 near += 1;
@@ -5115,17 +5503,23 @@ impl OhlcvSeries {
     /// Body % per bar = `|close − open| / (high − low) * 100`.  Bars with zero range are skipped.
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero range.
     pub fn avg_body_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
             let range = bar.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += bar.body_size() / range * Decimal::ONE_HUNDRED;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -5135,7 +5529,9 @@ impl OhlcvSeries {
     /// Bars where the lower wick is zero are skipped.
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or all bars have zero lower wick.
     pub fn tail_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
@@ -5144,11 +5540,15 @@ impl OhlcvSeries {
             let body_bot = bar.open.value().min(bar.close.value());
             let upper = bar.high.value() - body_top;
             let lower = body_bot - bar.low.value();
-            if lower.is_zero() { continue; }
+            if lower.is_zero() {
+                continue;
+            }
             sum += upper / lower;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -5158,14 +5558,24 @@ impl OhlcvSeries {
     /// Returns `None` if `n == 0`, `m == 0`, insufficient bars, or the `m`-bar average is zero.
     pub fn avg_volume_ratio(&self, n: usize, m: usize) -> Option<Decimal> {
         let len = self.bars.len();
-        if n == 0 || m == 0 || len < n.max(m) { return None; }
+        if n == 0 || m == 0 || len < n.max(m) {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
-        let avg_n: Decimal = self.bars[len - n..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+        let avg_n: Decimal = self.bars[len - n..]
+            .iter()
+            .map(|b| b.volume.value())
+            .sum::<Decimal>()
             / Decimal::from(n as u32);
         #[allow(clippy::cast_possible_truncation)]
-        let avg_m: Decimal = self.bars[len - m..].iter().map(|b| b.volume.value()).sum::<Decimal>()
+        let avg_m: Decimal = self.bars[len - m..]
+            .iter()
+            .map(|b| b.volume.value())
+            .sum::<Decimal>()
             / Decimal::from(m as u32);
-        if avg_m.is_zero() { return None; }
+        if avg_m.is_zero() {
+            return None;
+        }
         Some(avg_n / avg_m)
     }
 
@@ -5174,18 +5584,35 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, or standard deviations are zero.
     pub fn open_close_correlation(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let opens: Vec<f64> = self.bars[start..].iter().filter_map(|b| b.open.value().to_f64()).collect();
-        let closes: Vec<f64> = self.bars[start..].iter().filter_map(|b| b.close.value().to_f64()).collect();
-        if opens.len() < 2 { return None; }
+        let opens: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.open.value().to_f64())
+            .collect();
+        let closes: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
+        if opens.len() < 2 {
+            return None;
+        }
         let nf = opens.len() as f64;
         let mean_o = opens.iter().sum::<f64>() / nf;
         let mean_c = closes.iter().sum::<f64>() / nf;
-        let cov: f64 = opens.iter().zip(closes.iter()).map(|(o, c)| (o - mean_o) * (c - mean_c)).sum::<f64>() / nf;
+        let cov: f64 = opens
+            .iter()
+            .zip(closes.iter())
+            .map(|(o, c)| (o - mean_o) * (c - mean_c))
+            .sum::<f64>()
+            / nf;
         let std_o = (opens.iter().map(|o| (o - mean_o).powi(2)).sum::<f64>() / nf).sqrt();
         let std_c = (closes.iter().map(|c| (c - mean_c).powi(2)).sum::<f64>() / nf).sqrt();
-        if std_o == 0.0 || std_c == 0.0 { return None; }
+        if std_o == 0.0 || std_c == 0.0 {
+            return None;
+        }
         Some(cov / (std_o * std_c))
     }
 
@@ -5195,7 +5622,9 @@ impl OhlcvSeries {
     /// Positive value = momentum is building; negative = fading.
     /// Returns `None` if `n < 4` or fewer than `n + 1` bars exist.
     pub fn price_acceleration(&self, n: usize) -> Option<Decimal> {
-        if n < 4 || self.bars.len() < n + 1 { return None; }
+        if n < 4 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let half = n / 2;
         let changes: Vec<Decimal> = (start..self.bars.len() - 1)
@@ -5204,7 +5633,8 @@ impl OhlcvSeries {
         #[allow(clippy::cast_possible_truncation)]
         let avg_first = changes[..half].iter().sum::<Decimal>() / Decimal::from(half as u32);
         #[allow(clippy::cast_possible_truncation)]
-        let avg_second = changes[half..].iter().sum::<Decimal>() / Decimal::from((changes.len() - half) as u32);
+        let avg_second =
+            changes[half..].iter().sum::<Decimal>() / Decimal::from((changes.len() - half) as u32);
         Some(avg_second - avg_first)
     }
 
@@ -5214,23 +5644,37 @@ impl OhlcvSeries {
     /// Returns `None` if `n == 0`, insufficient bars, or returns have zero variance.
     pub fn returns_skewness(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let returns: Vec<f64> = (start..self.bars.len() - 1)
             .filter_map(|i| {
                 let prev = self.bars[i].close.value().to_f64()?;
                 let curr = self.bars[i + 1].close.value().to_f64()?;
-                if prev == 0.0 { return None; }
+                if prev == 0.0 {
+                    return None;
+                }
                 Some((curr / prev).ln())
             })
             .collect();
-        if returns.len() < 3 { return None; }
+        if returns.len() < 3 {
+            return None;
+        }
         let m = returns.len() as f64;
         let mean = returns.iter().sum::<f64>() / m;
         let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m;
         let std = variance.sqrt();
-        if std == 0.0 { return None; }
-        Some(returns.iter().map(|r| ((r - mean) / std).powi(3)).sum::<f64>() / m)
+        if std == 0.0 {
+            return None;
+        }
+        Some(
+            returns
+                .iter()
+                .map(|r| ((r - mean) / std).powi(3))
+                .sum::<f64>()
+                / m,
+        )
     }
 
     /// Z-score of the most recent bar's volume relative to the last `n` bars.
@@ -5238,17 +5682,24 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2` or fewer than `n` bars exist or volume std-dev is zero.
     pub fn volume_zscore(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let vols: Vec<f64> = self.bars[start..].iter()
+        let vols: Vec<f64> = self.bars[start..]
+            .iter()
             .filter_map(|b| b.volume.value().to_f64())
             .collect();
-        if vols.len() < 2 { return None; }
+        if vols.len() < 2 {
+            return None;
+        }
         let m = vols.len() as f64;
         let mean = vols.iter().sum::<f64>() / m;
         let variance = vols.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (m - 1.0);
         let std = variance.sqrt();
-        if std == 0.0 { return None; }
+        if std == 0.0 {
+            return None;
+        }
         let last_vol = self.bars.last()?.volume.value().to_f64()?;
         Some((last_vol - mean) / std)
     }
@@ -5264,13 +5715,17 @@ impl OhlcvSeries {
         let body_bot = bar.open.value().min(bar.close.value());
         let upper = bar.high.value() - body_top;
         let lower = body_bot - bar.low.value();
-        if lower.is_zero() { return None; }
+        if lower.is_zero() {
+            return None;
+        }
         Some(upper / lower)
     }
 
     /// Simple moving average of close over last `n` bars.
     fn sma(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let sum: Decimal = self.bars[start..].iter().map(|b| b.close.value()).sum();
         Some(sum / Decimal::from(n as u32))
@@ -5278,7 +5733,9 @@ impl OhlcvSeries {
 
     /// Mean true range over last `n` bars (requires `n + 1` bars for true range).
     fn atr(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let mut sum = Decimal::ZERO;
         for i in start..self.bars.len() - 1 {
@@ -5293,10 +5750,14 @@ impl OhlcvSeries {
 
     /// Exponential moving average of close over `n` bars (SMA seed).
     fn ema(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let seed: Decimal = self.bars[start..start + n.min(self.bars.len() - start)]
-            .iter().map(|b| b.close.value()).sum::<Decimal>()
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(n as u32);
         let k = Decimal::from(2u32) / Decimal::from((n + 1) as u32);
         let mut e = seed;
@@ -5315,7 +5776,9 @@ impl OhlcvSeries {
         let close = self.bars.last()?.close.value();
         let sma = self.sma(n)?;
         let atr = self.atr(n)?;
-        if atr.is_zero() { return None; }
+        if atr.is_zero() {
+            return None;
+        }
         Some((close - sma).abs() / atr)
     }
 
@@ -5324,12 +5787,16 @@ impl OhlcvSeries {
     /// Combines momentum and volume into a single trend confirmation signal.
     /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn volume_price_trend(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let mut vpt = Decimal::ZERO;
         for i in start..self.bars.len() - 1 {
             let prev_close = self.bars[i].close.value();
-            if prev_close.is_zero() { continue; }
+            if prev_close.is_zero() {
+                continue;
+            }
             let pct_chg = (self.bars[i + 1].close.value() - prev_close) / prev_close;
             vpt += pct_chg * self.bars[i + 1].volume.value();
         }
@@ -5341,7 +5808,9 @@ impl OhlcvSeries {
     /// Returns `0` if the series has fewer than 2 bars or the most recent bar is not bearish.
     pub fn bear_run_length(&self) -> usize {
         let n = self.bars.len();
-        if n < 2 { return 0; }
+        if n < 2 {
+            return 0;
+        }
         let mut count = 0;
         let mut i = n - 1;
         while i > 0 && self.bars[i].close.value() < self.bars[i - 1].close.value() {
@@ -5358,7 +5827,9 @@ impl OhlcvSeries {
     pub fn avg_true_range_pct(&self, n: usize) -> Option<Decimal> {
         let atr = self.atr(n)?;
         let close = self.bars.last()?.close.value();
-        if close.is_zero() { return None; }
+        if close.is_zero() {
+            return None;
+        }
         Some(atr / close * Decimal::ONE_HUNDRED)
     }
 
@@ -5369,7 +5840,9 @@ impl OhlcvSeries {
     pub fn close_vs_ema(&self, n: usize) -> Option<Decimal> {
         let ema = self.ema(n)?;
         let close = self.bars.last()?.close.value();
-        if close.is_zero() { return None; }
+        if close.is_zero() {
+            return None;
+        }
         Some((close - ema) / close * Decimal::ONE_HUNDRED)
     }
 
@@ -5378,12 +5851,16 @@ impl OhlcvSeries {
     /// Positive = volume trend is increasing; negative = decreasing.
     /// Returns `None` if `n < 2` or fewer than `n` bars exist.
     pub fn volume_momentum(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let changes: Vec<Decimal> = (start..self.bars.len() - 1)
             .map(|i| self.bars[i + 1].volume.value() - self.bars[i].volume.value())
             .collect();
-        if changes.is_empty() { return None; }
+        if changes.is_empty() {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         Some(changes.iter().sum::<Decimal>() / Decimal::from(changes.len() as u32))
     }
@@ -5393,7 +5870,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn max_volume_bar(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let (rel_idx, _) = self.bars[start..]
             .iter()
@@ -5407,14 +5886,21 @@ impl OhlcvSeries {
     /// Gap is measured as `|open - prev_close| / prev_close * 100`.
     /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn gap_count(&self, n: usize, min_pct: Decimal) -> Option<usize> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let count = (start..self.bars.len()).filter(|&i| {
-            let prev_close = self.bars[i - 1].close.value();
-            if prev_close.is_zero() { return false; }
-            let gap = (self.bars[i].open.value() - prev_close).abs() / prev_close * Decimal::ONE_HUNDRED;
-            gap >= min_pct
-        }).count();
+        let count = (start..self.bars.len())
+            .filter(|&i| {
+                let prev_close = self.bars[i - 1].close.value();
+                if prev_close.is_zero() {
+                    return false;
+                }
+                let gap = (self.bars[i].open.value() - prev_close).abs() / prev_close
+                    * Decimal::ONE_HUNDRED;
+                gap >= min_pct
+            })
+            .count();
         Some(count)
     }
 
@@ -5423,12 +5909,16 @@ impl OhlcvSeries {
     /// `avg = mean((close[i] - close[i-1]) / close[i-1] * 100)` for the last n periods.
     /// Returns `None` if `n == 0`, fewer than `n + 1` bars exist, or any previous close is zero.
     pub fn avg_close_pct_change(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let mut sum = Decimal::ZERO;
         for i in start..self.bars.len() - 1 {
             let prev = self.bars[i].close.value();
-            if prev.is_zero() { return None; }
+            if prev.is_zero() {
+                return None;
+            }
             sum += (self.bars[i + 1].close.value() - prev) / prev * Decimal::ONE_HUNDRED;
         }
         #[allow(clippy::cast_possible_truncation)]
@@ -5441,7 +5931,9 @@ impl OhlcvSeries {
     /// Returns `None` if `n == 0`, insufficient bars, or SMA is zero.
     pub fn bollinger_width(&self, n: usize, multiplier: Decimal) -> Option<Decimal> {
         let sma = self.sma(n)?;
-        if sma.is_zero() { return None; }
+        if sma.is_zero() {
+            return None;
+        }
         let std = self.std_dev(n)?;
         let upper = sma + multiplier * std;
         let lower = sma - multiplier * std;
@@ -5453,11 +5945,15 @@ impl OhlcvSeries {
     /// Counts backward from the most recent bar. Returns `0` if current close is below SMA
     /// or insufficient bars exist.
     pub fn close_above_ma_streak(&self, period: usize) -> usize {
-        if self.bars.len() < period { return 0; }
+        if self.bars.len() < period {
+            return 0;
+        }
         let mut streak = 0usize;
         // Walk backward: for each bar compute its SMA and check
         for i in (period - 1..self.bars.len()).rev() {
-            let sum: Decimal = (0..period).map(|j| self.bars[i + 1 - period + j].close.value()).sum();
+            let sum: Decimal = (0..period)
+                .map(|j| self.bars[i + 1 - period + j].close.value())
+                .sum();
             #[allow(clippy::cast_possible_truncation)]
             let sma = sum / Decimal::from(period as u32);
             if self.bars[i].close.value() >= sma {
@@ -5473,17 +5969,23 @@ impl OhlcvSeries {
     ///
     /// Bars with zero range are skipped.  Returns `None` if all bars have zero range.
     pub fn avg_body_to_range_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
             let range = bar.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += bar.body_size() / range;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(sum / Decimal::from(count))
     }
 
@@ -5493,13 +5995,17 @@ impl OhlcvSeries {
     /// the remainder.  Net = buy_vol − sell_vol.  Bars with zero range contribute zero.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn net_volume(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut net = Decimal::ZERO;
         for bar in &self.bars[start..] {
             let range = bar.range();
             let vol = bar.volume.value();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             let buy_frac = (bar.close.value() - bar.low.value()) / range;
             let buy_vol = vol * buy_frac;
             let sell_vol = vol - buy_vol;
@@ -5513,10 +6019,13 @@ impl OhlcvSeries {
     /// Measures the typical upper extension from the open.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_high_minus_open(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         #[allow(clippy::cast_possible_truncation)]
-        let sum: Decimal = self.bars[start..].iter()
+        let sum: Decimal = self.bars[start..]
+            .iter()
             .map(|b| b.high.value() - b.open.value())
             .sum();
         Some(sum / Decimal::from(n as u32))
@@ -5527,12 +6036,17 @@ impl OhlcvSeries {
     /// A close is in the upper half when `close >= (high + low) / 2`.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn close_consistency(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let upper = self.bars[start..].iter().filter(|b| {
-            let mid = b.midpoint();
-            b.close.value() >= mid
-        }).count();
+        let upper = self.bars[start..]
+            .iter()
+            .filter(|b| {
+                let mid = b.midpoint();
+                b.close.value() >= mid
+            })
+            .count();
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(upper as u32) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
@@ -5543,8 +6057,12 @@ impl OhlcvSeries {
     /// Positive values indicate short-term momentum is stronger than longer-term.
     /// Returns `None` if `fast >= slow` or insufficient bars.
     pub fn momentum_divergence(&self, fast: usize, slow: usize) -> Option<Decimal> {
-        if fast == 0 || slow == 0 || fast >= slow { return None; }
-        if self.bars.len() <= slow { return None; }
+        if fast == 0 || slow == 0 || fast >= slow {
+            return None;
+        }
+        if self.bars.len() <= slow {
+            return None;
+        }
         let n = self.bars.len();
         let current = self.bars[n - 1].close.value();
         let fast_prev = self.bars[n - 1 - fast].close.value();
@@ -5556,11 +6074,15 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars, or lowest_low is zero.
     pub fn price_range_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
         let low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
-        if low.is_zero() { return None; }
+        if low.is_zero() {
+            return None;
+        }
         Some((high - low) / low * Decimal::ONE_HUNDRED)
     }
 
@@ -5569,10 +6091,13 @@ impl OhlcvSeries {
     /// Positive = net bullish body on average; negative = net bearish.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_open_to_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         #[allow(clippy::cast_possible_truncation)]
-        let sum: Decimal = self.bars[start..].iter()
+        let sum: Decimal = self.bars[start..]
+            .iter()
             .map(|b| b.close.value() - b.open.value())
             .sum();
         Some(sum / Decimal::from(n as u32))
@@ -5583,14 +6108,15 @@ impl OhlcvSeries {
     /// Positive = ranges are expanding; negative = contracting.
     /// Returns `None` if `n == 0` or fewer than `2 * n` bars exist.
     pub fn price_range_expansion(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < 2 * n { return None; }
+        if n == 0 || self.bars.len() < 2 * n {
+            return None;
+        }
         let len = self.bars.len();
         #[allow(clippy::cast_possible_truncation)]
         let n_dec = Decimal::from(n as u32);
-        let recent_sum: Decimal = self.bars[len - n..].iter()
-            .map(|b| b.range())
-            .sum();
-        let prior_sum: Decimal = self.bars[len - 2 * n..len - n].iter()
+        let recent_sum: Decimal = self.bars[len - n..].iter().map(|b| b.range()).sum();
+        let prior_sum: Decimal = self.bars[len - 2 * n..len - n]
+            .iter()
             .map(|b| b.range())
             .sum();
         Some((recent_sum - prior_sum) / n_dec)
@@ -5600,7 +6126,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars exist, or total volume is zero.
     pub fn up_volume_fraction(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut up_vol = Decimal::ZERO;
         let mut total_vol = Decimal::ZERO;
@@ -5611,7 +6139,9 @@ impl OhlcvSeries {
                 up_vol += v;
             }
         }
-        if total_vol.is_zero() { return None; }
+        if total_vol.is_zero() {
+            return None;
+        }
         Some(up_vol / total_vol)
     }
 
@@ -5620,12 +6150,17 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2` or fewer than `n` bars exist.
     pub fn std_volume(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let vols: Vec<f64> = self.bars[start..].iter()
+        let vols: Vec<f64> = self.bars[start..]
+            .iter()
             .filter_map(|b| b.volume.value().to_f64())
             .collect();
-        if vols.len() < 2 { return None; }
+        if vols.len() < 2 {
+            return None;
+        }
         let nf = vols.len() as f64;
         let mean = vols.iter().sum::<f64>() / nf;
         let var = vols.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (nf - 1.0);
@@ -5636,13 +6171,17 @@ impl OhlcvSeries {
     ///
     /// Returns `0` if the series has fewer than 2 bars.
     pub fn longest_losing_streak(&self) -> usize {
-        if self.bars.len() < 2 { return 0; }
+        if self.bars.len() < 2 {
+            return 0;
+        }
         let mut max_streak = 0usize;
         let mut current = 0usize;
         for i in 1..self.bars.len() {
             if self.bars[i].close.value() < self.bars[i - 1].close.value() {
                 current += 1;
-                if current > max_streak { max_streak = current; }
+                if current > max_streak {
+                    max_streak = current;
+                }
             } else {
                 current = 0;
             }
@@ -5654,7 +6193,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn recent_max_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         self.bars[start..].iter().map(|b| b.close.value()).max()
     }
@@ -5663,7 +6204,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn recent_min_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         self.bars[start..].iter().map(|b| b.close.value()).min()
     }
@@ -5673,7 +6216,9 @@ impl OhlcvSeries {
     /// Measures divergence between fast and slow accumulation/distribution momentum.
     /// Returns `None` if `fast == 0`, `slow == 0`, `fast >= slow`, or not enough bars.
     pub fn chaikin_oscillator(&self, fast: usize, slow: usize) -> Option<Decimal> {
-        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() <= slow { return None; }
+        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() <= slow {
+            return None;
+        }
         let n = self.bars.len();
         // fast EMA: use simple approximation via alpha = 2/(fast+1)
         // We compute EMA of (close * volume) over last `slow` bars
@@ -5696,36 +6241,48 @@ impl OhlcvSeries {
     /// bullish = `close > open` and bearish = `close < open`.
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn candle_body_trend(&self, n: usize) -> Option<i64> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let bull = self.bars[start..].iter()
-            .filter(|b| b.is_bullish()).count() as i64;
-        let bear = self.bars[start..].iter()
-            .filter(|b| b.is_bearish()).count() as i64;
+        let bull = self.bars[start..].iter().filter(|b| b.is_bullish()).count() as i64;
+        let bear = self.bars[start..].iter().filter(|b| b.is_bearish()).count() as i64;
         Some(bull - bear)
     }
 
     /// Percentage of bars over the last `n` that are doji (body ≤ 10% of range).
     pub fn pct_doji(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let doji_count = self.bars[start..].iter().filter(|b| {
-            let range = b.range();
-            if range.is_zero() { return true; }
-            let body = b.body_size();
-            body / range <= Decimal::new(1, 1)
-        }).count() as u32;
+        let doji_count = self.bars[start..]
+            .iter()
+            .filter(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    return true;
+                }
+                let body = b.body_size();
+                body / range <= Decimal::new(1, 1)
+            })
+            .count() as u32;
         Some(Decimal::from(doji_count) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
 
     /// Linear regression slope direction of closes over `n` bars.
     /// Returns `+1` if upward, `-1` if downward, `0` if flat.
     pub fn recent_close_trend(&self, n: usize) -> Option<i64> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let closes: Vec<f64> = self.bars[start..]
             .iter()
-            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.close.value().to_f64().unwrap_or(0.0) })
+            .map(|b| {
+                use rust_decimal::prelude::ToPrimitive;
+                b.close.value().to_f64().unwrap_or(0.0)
+            })
             .collect();
         let m = closes.len() as f64;
         let x_mean = (m - 1.0) / 2.0;
@@ -5737,14 +6294,24 @@ impl OhlcvSeries {
             num += dx * (y - y_mean);
             den += dx * dx;
         }
-        if den == 0.0 { return Some(0); }
+        if den == 0.0 {
+            return Some(0);
+        }
         let slope = num / den;
-        if slope > 1e-10 { Some(1) } else if slope < -1e-10 { Some(-1) } else { Some(0) }
+        if slope > 1e-10 {
+            Some(1)
+        } else if slope < -1e-10 {
+            Some(-1)
+        } else {
+            Some(0)
+        }
     }
 
     /// Max high minus min low over the last `n` bars.
     pub fn high_low_range(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
         let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
@@ -5755,9 +6322,14 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn volume_above_avg_count(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let vols: Vec<Decimal> = self.bars[start..].iter().map(|b| b.volume.value()).collect();
+        let vols: Vec<Decimal> = self.bars[start..]
+            .iter()
+            .map(|b| b.volume.value())
+            .collect();
         let avg = vols.iter().sum::<Decimal>() / Decimal::from(n);
         Some(vols.iter().filter(|&&v| v > avg).count())
     }
@@ -5766,47 +6338,63 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars exist or average range is zero.
     pub fn range_vs_atr_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let avg_range = self.bars[start..].iter()
+        let avg_range = self.bars[start..]
+            .iter()
             .map(|b| b.range())
-            .sum::<Decimal>() / Decimal::from(n);
-        if avg_range.is_zero() { return None; }
+            .sum::<Decimal>()
+            / Decimal::from(n);
+        if avg_range.is_zero() {
+            return None;
+        }
         let last = self.bars.last()?;
         Some((last.range()) / avg_range)
     }
 
     /// Average volume on bullish bars (close > open) over the last `n` bars.
     pub fn avg_volume_on_up_bars(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let up_vols: Vec<Decimal> = self.bars[start..].iter()
+        let up_vols: Vec<Decimal> = self.bars[start..]
+            .iter()
             .filter(|b| b.is_bullish())
             .map(|b| b.volume.value())
             .collect();
-        if up_vols.is_empty() { return None; }
+        if up_vols.is_empty() {
+            return None;
+        }
         Some(up_vols.iter().sum::<Decimal>() / Decimal::from(up_vols.len() as u32))
     }
 
     /// Average volume on bearish bars (close < open) over the last `n` bars.
     pub fn avg_volume_on_down_bars(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let down_vols: Vec<Decimal> = self.bars[start..].iter()
+        let down_vols: Vec<Decimal> = self.bars[start..]
+            .iter()
             .filter(|b| b.is_bearish())
             .map(|b| b.volume.value())
             .collect();
-        if down_vols.is_empty() { return None; }
+        if down_vols.is_empty() {
+            return None;
+        }
         Some(down_vols.iter().sum::<Decimal>() / Decimal::from(down_vols.len() as u32))
     }
 
     /// Percentage of bars over the last `n` where close > open.
     pub fn pct_bars_close_above_open(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let bull = self.bars[start..].iter()
-            .filter(|b| b.is_bullish())
-            .count() as u32;
+        let bull = self.bars[start..].iter().filter(|b| b.is_bullish()).count() as u32;
         Some(Decimal::from(bull) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
     }
 
@@ -5814,12 +6402,16 @@ impl OhlcvSeries {
     ///
     /// `0` = at the low, `1` = at the high. Returns `None` if range is zero.
     pub fn open_range_position(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
         let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
         let range = max_high - min_low;
-        if range.is_zero() { return None; }
+        if range.is_zero() {
+            return None;
+        }
         let last_open = self.bars.last()?.open.value();
         Some((last_open - min_low) / range)
     }
@@ -5828,15 +6420,23 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n < 2` or fewer than `n+1` bars exist.
     pub fn overnight_gap_count(&self, n: usize, threshold_pct: Decimal) -> Option<usize> {
-        if n < 2 || self.bars.len() <= n { return None; }
+        if n < 2 || self.bars.len() <= n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let threshold = threshold_pct / Decimal::ONE_HUNDRED;
-        let count = self.bars[start..].iter().enumerate().filter(|(i, b)| {
-            let prev_close = self.bars[start + i - 1].close.value();
-            if prev_close.is_zero() { return false; }
-            let gap = (b.open.value() - prev_close).abs() / prev_close;
-            gap >= threshold
-        }).count();
+        let count = self.bars[start..]
+            .iter()
+            .enumerate()
+            .filter(|(i, b)| {
+                let prev_close = self.bars[start + i - 1].close.value();
+                if prev_close.is_zero() {
+                    return false;
+                }
+                let gap = (b.open.value() - prev_close).abs() / prev_close;
+                gap >= threshold
+            })
+            .count();
         Some(count)
     }
 
@@ -5845,16 +6445,26 @@ impl OhlcvSeries {
     /// Overall trend is up if `close[-1] > close[-n]`, down if < , flat otherwise.
     /// Returns `None` if `n < 2` or fewer than `n` bars.
     pub fn trend_consistency(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let first_close = self.bars[start].close.value();
         let last_close = self.bars.last()?.close.value();
-        if first_close == last_close { return Some(Decimal::ZERO); }
+        if first_close == last_close {
+            return Some(Decimal::ZERO);
+        }
         let up_trend = last_close > first_close;
-        let consistent: usize = self.bars[start + 1..].iter().enumerate()
+        let consistent: usize = self.bars[start + 1..]
+            .iter()
+            .enumerate()
             .filter(|(i, b)| {
                 let prev = self.bars[start + i].close.value();
-                if up_trend { b.close.value() > prev } else { b.close.value() < prev }
+                if up_trend {
+                    b.close.value() > prev
+                } else {
+                    b.close.value() < prev
+                }
             })
             .count();
         Some(Decimal::from(consistent) / Decimal::from(n - 1))
@@ -5874,7 +6484,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars exist.
     pub fn close_change_n(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() <= n { return None; }
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
         let prev = self.bars[self.bars.len() - 1 - n].close.value();
         let last = self.bars.last()?.close.value();
         Some(last - prev)
@@ -5884,9 +6496,13 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars exist or the reference close is zero.
     pub fn pct_change_n(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() <= n { return None; }
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
         let prev = self.bars[self.bars.len() - 1 - n].close.value();
-        if prev.is_zero() { return None; }
+        if prev.is_zero() {
+            return None;
+        }
         let last = self.bars.last()?.close.value();
         Some((last - prev) / prev * Decimal::ONE_HUNDRED)
     }
@@ -5895,49 +6511,79 @@ impl OhlcvSeries {
     ///
     /// Measures how far the close is from the high on average. Returns `None` if range is always zero.
     pub fn close_to_high_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += (b.high.value() - b.close.value()) / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Average ratio of `(close - low) / range` over the last `n` bars.
     ///
     /// Measures how far the close is from the low on average.
     pub fn close_to_low_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += (b.close.value() - b.low.value()) / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Coefficient of variation of volume over the last `n` bars: `std(vol) / mean(vol)`.
     ///
     /// Returns `None` if fewer than 2 bars or mean volume is zero.
     pub fn volume_coefficient_of_variation(&self, n: usize) -> Option<f64> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let vols: Vec<f64> = self.bars[start..]
             .iter()
-            .map(|b| { use rust_decimal::prelude::ToPrimitive; b.volume.value().to_f64().unwrap_or(0.0) })
+            .map(|b| {
+                use rust_decimal::prelude::ToPrimitive;
+                b.volume.value().to_f64().unwrap_or(0.0)
+            })
             .collect();
         let mean = vols.iter().sum::<f64>() / vols.len() as f64;
-        if mean == 0.0 { return None; }
-        let variance = vols.iter().map(|&v| { let d = v - mean; d * d }).sum::<f64>() / vols.len() as f64;
+        if mean == 0.0 {
+            return None;
+        }
+        let variance = vols
+            .iter()
+            .map(|&v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / vols.len() as f64;
         Some(variance.sqrt() / mean)
     }
 
@@ -5945,19 +6591,27 @@ impl OhlcvSeries {
     ///
     /// Upper wick = `high - max(open, close)`. Returns `None` if range is always zero.
     pub fn close_wick_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             let body_top = b.open.value().max(b.close.value());
             let upper_wick = b.high.value() - body_top;
             sum += upper_wick / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Wick imbalance over last `n` bars: `(upper_wick_sum - lower_wick_sum) / range_sum`.
@@ -5965,21 +6619,27 @@ impl OhlcvSeries {
     /// Positive = more upper-wick pressure (bearish); Negative = more lower-wick pressure (bullish).
     /// Returns `None` if `n == 0`, fewer than `n` bars, or range_sum is zero.
     pub fn wick_imbalance(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut upper_sum = Decimal::ZERO;
         let mut lower_sum = Decimal::ZERO;
         let mut range_sum = Decimal::ZERO;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             let body_top = b.open.value().max(b.close.value());
             let body_bot = b.open.value().min(b.close.value());
             upper_sum += b.high.value() - body_top;
             lower_sum += body_bot - b.low.value();
             range_sum += range;
         }
-        if range_sum.is_zero() { return None; }
+        if range_sum.is_zero() {
+            return None;
+        }
         Some((upper_sum - lower_sum) / range_sum)
     }
 
@@ -5987,44 +6647,71 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_candle_size(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        Some(self.bars[start..].iter().map(|b| b.range()).sum::<Decimal>()
-            / Decimal::from(n))
+        Some(
+            self.bars[start..]
+                .iter()
+                .map(|b| b.range())
+                .sum::<Decimal>()
+                / Decimal::from(n),
+        )
     }
 
     /// Average body-to-range ratio for bullish bars (close > open) over the last `n` bars.
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars, or no bullish bars with range > 0.
     pub fn bull_strength(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            if b.close.value() <= b.open.value() { continue; }
+            if b.close.value() <= b.open.value() {
+                continue;
+            }
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += (b.close.value() - b.open.value()) / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Average body-to-range ratio for bearish bars (close < open) over the last `n` bars.
     pub fn bear_strength(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
-            if b.is_bullish() { continue; }
+            if b.is_bullish() {
+                continue;
+            }
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += (b.open.value() - b.close.value()) / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Open price of the most recent bar.
@@ -6051,10 +6738,14 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars exist.
     pub fn close_above_prev_high(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() <= n { return None; }
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
         let start = self.bars.len() - n;
         // start >= 1 since bars.len() > n
-        let count = self.bars[start..].iter().enumerate()
+        let count = self.bars[start..]
+            .iter()
+            .enumerate()
             .filter(|(i, b)| b.close.value() > self.bars[start - 1 + i].high.value())
             .count();
         Some(count)
@@ -6064,14 +6755,20 @@ impl OhlcvSeries {
     ///
     /// Uses up/down proportions `p` and `1-p`. Returns `None` if `n < 2` or all moves same direction.
     pub fn price_entropy(&self, n: usize) -> Option<f64> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut ups = 0usize;
         for i in start + 1..self.bars.len() {
-            if self.bars[i].close.value() > self.bars[i - 1].close.value() { ups += 1; }
+            if self.bars[i].close.value() > self.bars[i - 1].close.value() {
+                ups += 1;
+            }
         }
         let total = n - 1;
-        if ups == 0 || ups == total { return None; }
+        if ups == 0 || ups == total {
+            return None;
+        }
         let p = ups as f64 / total as f64;
         let q = 1.0 - p;
         Some(-(p * p.log2() + q * q.log2()))
@@ -6081,12 +6778,16 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, fewer than `n` bars, or any close is zero.
     pub fn avg_spread_pct(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         for b in &self.bars[start..] {
             let close = b.close.value();
-            if close.is_zero() { return None; }
+            if close.is_zero() {
+                return None;
+            }
             sum += (b.range()) / close * Decimal::ONE_HUNDRED;
         }
         Some(sum / Decimal::from(n))
@@ -6096,9 +6797,13 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars or the reference close is zero.
     pub fn close_momentum_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() <= n { return None; }
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
         let prev = self.bars[self.bars.len() - 1 - n].close.value();
-        if prev.is_zero() { return None; }
+        if prev.is_zero() {
+            return None;
+        }
         Some(self.bars.last()?.close.value() / prev)
     }
 
@@ -6130,7 +6835,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if there are no bars.
     pub fn bars_since_new_high(&self) -> Option<usize> {
-        if self.bars.is_empty() { return None; }
+        if self.bars.is_empty() {
+            return None;
+        }
         let mut last_high_idx = 0;
         let mut peak = self.bars[0].close.value();
         for (i, b) in self.bars.iter().enumerate() {
@@ -6147,10 +6854,14 @@ impl OhlcvSeries {
     /// Negative values indicate drawdown; zero means at the n-bar high.
     /// Returns `None` if `n == 0`, fewer than `n` bars, or n-bar high is zero.
     pub fn drawdown_from_peak(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let peak = self.bars[start..].iter().map(|b| b.high.value()).max()?;
-        if peak.is_zero() { return None; }
+        if peak.is_zero() {
+            return None;
+        }
         let current = self.bars.last()?.close.value();
         Some((current - peak) / peak * Decimal::ONE_HUNDRED)
     }
@@ -6160,15 +6871,25 @@ impl OhlcvSeries {
     /// Returns `None` if `fast == 0`, `slow == 0`, `fast >= slow`, fewer than `slow` bars,
     /// or the slow SMA is zero.
     pub fn price_oscillator(&self, fast: usize, slow: usize) -> Option<Decimal> {
-        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() < slow { return None; }
+        if fast == 0 || slow == 0 || fast >= slow || self.bars.len() < slow {
+            return None;
+        }
         let n = self.bars.len();
         let fast_start = n - fast;
         let slow_start = n - slow;
-        let fast_sma = self.bars[fast_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let fast_sma = self.bars[fast_start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(fast);
-        let slow_sma = self.bars[slow_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let slow_sma = self.bars[slow_start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(slow);
-        if slow_sma.is_zero() { return None; }
+        if slow_sma.is_zero() {
+            return None;
+        }
         Some((fast_sma - slow_sma) / slow_sma * Decimal::ONE_HUNDRED)
     }
 
@@ -6176,9 +6897,13 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars exist.
     pub fn close_below_prev_low(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() <= n { return None; }
+        if n == 0 || self.bars.len() <= n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let count = self.bars[start..].iter().enumerate()
+        let count = self.bars[start..]
+            .iter()
+            .enumerate()
             .filter(|(i, b)| b.close.value() < self.bars[start - 1 + i].low.value())
             .count();
         Some(count)
@@ -6188,12 +6913,18 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, `period == 0`, or fewer than `max(n, period)` bars.
     pub fn bars_above_ma(&self, n: usize, period: usize) -> Option<usize> {
-        if n == 0 || period == 0 || self.bars.len() < n.max(period) { return None; }
+        if n == 0 || period == 0 || self.bars.len() < n.max(period) {
+            return None;
+        }
         let sma_start = self.bars.len() - period;
-        let sma = self.bars[sma_start..].iter().map(|b| b.close.value()).sum::<Decimal>()
+        let sma = self.bars[sma_start..]
+            .iter()
+            .map(|b| b.close.value())
+            .sum::<Decimal>()
             / Decimal::from(period);
         let bar_start = self.bars.len() - n;
-        let count = self.bars[bar_start..].iter()
+        let count = self.bars[bar_start..]
+            .iter()
             .filter(|b| b.close.value() > sma)
             .count();
         Some(count)
@@ -6203,15 +6934,25 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `2 * n` bars or prior range is zero.
     pub fn price_contraction(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < 2 * n { return None; }
+        if n == 0 || self.bars.len() < 2 * n {
+            return None;
+        }
         let len = self.bars.len();
         let recent_high = self.bars[len - n..].iter().map(|b| b.high.value()).max()?;
         let recent_low = self.bars[len - n..].iter().map(|b| b.low.value()).min()?;
-        let prior_high = self.bars[len - 2 * n..len - n].iter().map(|b| b.high.value()).max()?;
-        let prior_low = self.bars[len - 2 * n..len - n].iter().map(|b| b.low.value()).min()?;
+        let prior_high = self.bars[len - 2 * n..len - n]
+            .iter()
+            .map(|b| b.high.value())
+            .max()?;
+        let prior_low = self.bars[len - 2 * n..len - n]
+            .iter()
+            .map(|b| b.low.value())
+            .min()?;
         let recent_range = recent_high - recent_low;
         let prior_range = prior_high - prior_low;
-        if prior_range.is_zero() { return None; }
+        if prior_range.is_zero() {
+            return None;
+        }
         Some(recent_range / prior_range)
     }
 
@@ -6219,7 +6960,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if there are no bars.
     pub fn bars_since_new_low(&self) -> Option<usize> {
-        if self.bars.is_empty() { return None; }
+        if self.bars.is_empty() {
+            return None;
+        }
         let mut last_low_idx = 0;
         let mut trough = self.bars[0].close.value();
         for (i, b) in self.bars.iter().enumerate() {
@@ -6236,17 +6979,25 @@ impl OhlcvSeries {
     /// Higher values mean more volume traded per unit of price range.
     /// Returns `None` if `n == 0`, fewer than `n` bars, or all ranges are zero.
     pub fn volume_per_range(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for b in &self.bars[start..] {
             let range = b.range();
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += b.volume.value() / range;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Ratio of fast vol (std dev of closes over `fast` bars) to slow vol (over `slow` bars).
@@ -6256,19 +7007,28 @@ impl OhlcvSeries {
     /// or slow vol is zero.
     pub fn price_volatility_ratio(&self, fast: usize, slow: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if fast < 2 || slow < 2 || fast >= slow || self.bars.len() < slow { return None; }
+        if fast < 2 || slow < 2 || fast >= slow || self.bars.len() < slow {
+            return None;
+        }
         let n = self.bars.len();
         let std_dev = |bars: &[crate::ohlcv::OhlcvBar]| -> Option<f64> {
             let m = bars.len() as f64;
-            let vals: Vec<f64> = bars.iter().filter_map(|b| b.close.value().to_f64()).collect();
-            if vals.len() < 2 { return None; }
+            let vals: Vec<f64> = bars
+                .iter()
+                .filter_map(|b| b.close.value().to_f64())
+                .collect();
+            if vals.len() < 2 {
+                return None;
+            }
             let mean = vals.iter().sum::<f64>() / m;
             let var = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (m - 1.0);
             Some(var.sqrt())
         };
         let fast_vol = std_dev(&self.bars[n - fast..])?;
         let slow_vol = std_dev(&self.bars[n - slow..])?;
-        if slow_vol == 0.0 { return None; }
+        if slow_vol == 0.0 {
+            return None;
+        }
         Some(fast_vol / slow_vol)
     }
 
@@ -6281,7 +7041,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars exist.
     pub fn close_distance_from_high(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let max_high = self.bars[start..].iter().map(|b| b.high.value()).max()?;
         Some((max_high - self.bars.last()?.close.value()).abs())
@@ -6291,18 +7053,27 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars or the low is zero.
     pub fn pct_from_low(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let min_low = self.bars[start..].iter().map(|b| b.low.value()).min()?;
-        if min_low.is_zero() { return None; }
+        if min_low.is_zero() {
+            return None;
+        }
         Some((self.bars.last()?.close.value() - min_low) / min_low * Decimal::ONE_HUNDRED)
     }
 
     /// Returns `true` if the latest close exceeds the highest close of the prior `n` bars.
     pub fn is_breakout_up(&self, n: usize) -> bool {
-        if n == 0 || self.bars.len() <= n { return false; }
+        if n == 0 || self.bars.len() <= n {
+            return false;
+        }
         let len = self.bars.len();
-        let prior_high = self.bars[len - 1 - n..len - 1].iter().map(|b| b.close.value()).max();
+        let prior_high = self.bars[len - 1 - n..len - 1]
+            .iter()
+            .map(|b| b.close.value())
+            .max();
         match (prior_high, self.bars.last()) {
             (Some(ph), Some(last)) => last.close.value() > ph,
             _ => false,
@@ -6314,7 +7085,11 @@ impl OhlcvSeries {
     /// Starts from the latest bar and counts backwards. Returns `0` if the
     /// latest bar's close is not above `price`, or if the series is empty.
     pub fn consecutive_closes_above(&self, price: Decimal) -> usize {
-        self.bars.iter().rev().take_while(|b| b.close.value() > price).count()
+        self.bars
+            .iter()
+            .rev()
+            .take_while(|b| b.close.value() > price)
+            .count()
     }
 
     /// Average `(open - low) / (high - low) * 100` over the last `n` bars.
@@ -6323,16 +7098,25 @@ impl OhlcvSeries {
     /// fewer than `n` bars exist or `n` is zero. Bars with zero range are skipped.
     pub fn open_range_pct(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let vals: Vec<f64> = self.bars[start..].iter().filter_map(|b| {
-            let range = b.range();
-            if range.is_zero() { return None; }
-            let num = (b.open.value() - b.low.value()).to_f64()?;
-            let den = range.to_f64()?;
-            Some(num / den * 100.0)
-        }).collect();
-        if vals.is_empty() { return None; }
+        let vals: Vec<f64> = self.bars[start..]
+            .iter()
+            .filter_map(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    return None;
+                }
+                let num = (b.open.value() - b.low.value()).to_f64()?;
+                let den = range.to_f64()?;
+                Some(num / den * 100.0)
+            })
+            .collect();
+        if vals.is_empty() {
+            return None;
+        }
         Some(vals.iter().sum::<f64>() / vals.len() as f64)
     }
 
@@ -6346,22 +7130,37 @@ impl OhlcvSeries {
     /// negative skewness → left-tailed (occasional large losses).
     pub fn skewness_of_returns(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 3 || self.bars.len() < n { return None; }
+        if n < 3 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
-            let prev_c = w[0].close.value().to_f64()?;
-            if prev_c == 0.0 { return None; }
-            let curr_c = w[1].close.value().to_f64()?;
-            Some((curr_c - prev_c) / prev_c)
-        }).collect();
+        let returns: Vec<f64> = slice
+            .windows(2)
+            .filter_map(|w| {
+                let prev_c = w[0].close.value().to_f64()?;
+                if prev_c == 0.0 {
+                    return None;
+                }
+                let curr_c = w[1].close.value().to_f64()?;
+                Some((curr_c - prev_c) / prev_c)
+            })
+            .collect();
         let m = returns.len();
-        if m < 2 { return None; }
+        if m < 2 {
+            return None;
+        }
         let mean = returns.iter().sum::<f64>() / m as f64;
         let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m as f64;
         let std_dev = variance.sqrt();
-        if std_dev == 0.0 { return None; }
-        let skew = returns.iter().map(|r| ((r - mean) / std_dev).powi(3)).sum::<f64>() / m as f64;
+        if std_dev == 0.0 {
+            return None;
+        }
+        let skew = returns
+            .iter()
+            .map(|r| ((r - mean) / std_dev).powi(3))
+            .sum::<f64>()
+            / m as f64;
         Some(skew)
     }
 
@@ -6375,22 +7174,38 @@ impl OhlcvSeries {
     /// negative kurtosis → thin tails.
     pub fn kurtosis_of_returns(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 4 || self.bars.len() < n { return None; }
+        if n < 4 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
-            let prev_c = w[0].close.value().to_f64()?;
-            if prev_c == 0.0 { return None; }
-            let curr_c = w[1].close.value().to_f64()?;
-            Some((curr_c - prev_c) / prev_c)
-        }).collect();
+        let returns: Vec<f64> = slice
+            .windows(2)
+            .filter_map(|w| {
+                let prev_c = w[0].close.value().to_f64()?;
+                if prev_c == 0.0 {
+                    return None;
+                }
+                let curr_c = w[1].close.value().to_f64()?;
+                Some((curr_c - prev_c) / prev_c)
+            })
+            .collect();
         let m = returns.len();
-        if m < 3 { return None; }
+        if m < 3 {
+            return None;
+        }
         let mean = returns.iter().sum::<f64>() / m as f64;
         let variance = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / m as f64;
         let std_dev = variance.sqrt();
-        if std_dev == 0.0 { return None; }
-        let kurt = returns.iter().map(|r| ((r - mean) / std_dev).powi(4)).sum::<f64>() / m as f64 - 3.0;
+        if std_dev == 0.0 {
+            return None;
+        }
+        let kurt = returns
+            .iter()
+            .map(|r| ((r - mean) / std_dev).powi(4))
+            .sum::<f64>()
+            / m as f64
+            - 3.0;
         Some(kurt)
     }
 
@@ -6404,26 +7219,44 @@ impl OhlcvSeries {
     /// standard deviation is zero.
     pub fn autocorrelation_of_returns(&self, n: usize, lag: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if lag == 0 || n < lag + 2 || self.bars.len() < n { return None; }
+        if lag == 0 || n < lag + 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let returns: Vec<f64> = slice.windows(2).filter_map(|w| {
-            let prev_c = w[0].close.value().to_f64()?;
-            if prev_c == 0.0 { return None; }
-            let curr_c = w[1].close.value().to_f64()?;
-            Some((curr_c - prev_c) / prev_c)
-        }).collect();
-        if returns.len() <= lag { return None; }
+        let returns: Vec<f64> = slice
+            .windows(2)
+            .filter_map(|w| {
+                let prev_c = w[0].close.value().to_f64()?;
+                if prev_c == 0.0 {
+                    return None;
+                }
+                let curr_c = w[1].close.value().to_f64()?;
+                Some((curr_c - prev_c) / prev_c)
+            })
+            .collect();
+        if returns.len() <= lag {
+            return None;
+        }
         let x = &returns[..returns.len() - lag];
         let y = &returns[lag..];
         let m = x.len();
-        if m == 0 { return None; }
+        if m == 0 {
+            return None;
+        }
         let mean_x = x.iter().sum::<f64>() / m as f64;
         let mean_y = y.iter().sum::<f64>() / m as f64;
-        let cov: f64 = x.iter().zip(y.iter()).map(|(a, b)| (a - mean_x) * (b - mean_y)).sum::<f64>() / m as f64;
+        let cov: f64 = x
+            .iter()
+            .zip(y.iter())
+            .map(|(a, b)| (a - mean_x) * (b - mean_y))
+            .sum::<f64>()
+            / m as f64;
         let std_x = (x.iter().map(|a| (a - mean_x).powi(2)).sum::<f64>() / m as f64).sqrt();
         let std_y = (y.iter().map(|b| (b - mean_y).powi(2)).sum::<f64>() / m as f64).sqrt();
-        if std_x == 0.0 || std_y == 0.0 { return None; }
+        if std_x == 0.0 || std_y == 0.0 {
+            return None;
+        }
         Some(cov / (std_x * std_y))
     }
 
@@ -6432,13 +7265,17 @@ impl OhlcvSeries {
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn median_volume(&self, n: usize) -> Option<Decimal> {
         use rust_decimal::prelude::ToPrimitive;
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut vols: Vec<f64> = self.bars[start..]
             .iter()
             .filter_map(|b| b.volume.value().to_f64())
             .collect();
-        if vols.is_empty() { return None; }
+        if vols.is_empty() {
+            return None;
+        }
         vols.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mid = vols.len() / 2;
         let median = if vols.len() % 2 == 0 {
@@ -6455,7 +7292,9 @@ impl OhlcvSeries {
     /// The first bar in the window uses `high - low` (no prior bar available).
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_true_range(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut sum = Decimal::ZERO;
@@ -6477,7 +7316,9 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, or the loss
     /// expectation is zero (no returns fell below `threshold`).
     pub fn omega_ratio(&self, n: usize, threshold: Decimal) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut gain_sum = Decimal::ZERO;
@@ -6485,13 +7326,17 @@ impl OhlcvSeries {
         let mut count = 0u32;
         for w in slice.windows(2) {
             let prev_c = w[0].close.value();
-            if prev_c.is_zero() { continue; }
+            if prev_c.is_zero() {
+                continue;
+            }
             let ret = (w[1].close.value() - prev_c) / prev_c;
             gain_sum += (ret - threshold).max(Decimal::ZERO);
             loss_sum += (threshold - ret).max(Decimal::ZERO);
             count += 1;
         }
-        if count == 0 || loss_sum.is_zero() { return None; }
+        if count == 0 || loss_sum.is_zero() {
+            return None;
+        }
         gain_sum.checked_div(loss_sum)
     }
 
@@ -6506,24 +7351,38 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, or there are no
     /// winning or losing bars. Clamps the output to `[-1, 1]`.
     pub fn kelly_fraction(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut gains = Vec::new();
         let mut losses = Vec::new();
         for w in slice.windows(2) {
             let prev_c = w[0].close.value();
-            if prev_c.is_zero() { continue; }
+            if prev_c.is_zero() {
+                continue;
+            }
             let ret = (w[1].close.value() - prev_c) / prev_c;
-            if ret > Decimal::ZERO { gains.push(ret); } else if ret < Decimal::ZERO { losses.push(-ret); }
+            if ret > Decimal::ZERO {
+                gains.push(ret);
+            } else if ret < Decimal::ZERO {
+                losses.push(-ret);
+            }
         }
         let total = gains.len() + losses.len();
-        if gains.is_empty() || losses.is_empty() || total == 0 { return None; }
+        if gains.is_empty() || losses.is_empty() || total == 0 {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let win_rate = Decimal::from(gains.len() as u32) / Decimal::from(total as u32);
-        let avg_gain: Decimal = gains.iter().copied().sum::<Decimal>() / Decimal::from(gains.len() as u32);
-        let avg_loss: Decimal = losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32);
-        if avg_loss.is_zero() || avg_gain.is_zero() { return None; }
+        let avg_gain: Decimal =
+            gains.iter().copied().sum::<Decimal>() / Decimal::from(gains.len() as u32);
+        let avg_loss: Decimal =
+            losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32);
+        if avg_loss.is_zero() || avg_gain.is_zero() {
+            return None;
+        }
         let kelly = win_rate / avg_loss - (Decimal::ONE - win_rate) / avg_gain;
         Some(kelly.clamp(Decimal::NEGATIVE_ONE, Decimal::ONE))
     }
@@ -6538,18 +7397,28 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, or gross loss is zero.
     pub fn profit_factor(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut gross_gain = Decimal::ZERO;
         let mut gross_loss = Decimal::ZERO;
         for w in slice.windows(2) {
             let prev_c = w[0].close.value();
-            if prev_c.is_zero() { continue; }
+            if prev_c.is_zero() {
+                continue;
+            }
             let ret = w[1].close.value() - prev_c;
-            if ret > Decimal::ZERO { gross_gain += ret; } else { gross_loss += -ret; }
+            if ret > Decimal::ZERO {
+                gross_gain += ret;
+            } else {
+                gross_loss += -ret;
+            }
         }
-        if gross_loss.is_zero() { return None; }
+        if gross_loss.is_zero() {
+            return None;
+        }
         gross_gain.checked_div(gross_loss)
     }
 
@@ -6562,23 +7431,37 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, first close is zero,
     /// or max drawdown is zero (no drawdown occurred).
     pub fn recovery_factor(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let first_close = slice.first()?.close.value();
-        let last_close  = slice.last()?.close.value();
-        if first_close.is_zero() { return None; }
+        let last_close = slice.last()?.close.value();
+        if first_close.is_zero() {
+            return None;
+        }
         let net_return = (last_close - first_close) / first_close;
         // Max drawdown: peak-to-trough
         let mut peak = Decimal::MIN;
         let mut max_dd = Decimal::ZERO;
         for bar in slice {
             let c = bar.close.value();
-            if c > peak { peak = c; }
-            let dd = if peak.is_zero() { Decimal::ZERO } else { (peak - c) / peak };
-            if dd > max_dd { max_dd = dd; }
+            if c > peak {
+                peak = c;
+            }
+            let dd = if peak.is_zero() {
+                Decimal::ZERO
+            } else {
+                (peak - c) / peak
+            };
+            if dd > max_dd {
+                max_dd = dd;
+            }
         }
-        if max_dd.is_zero() { return None; }
+        if max_dd.is_zero() {
+            return None;
+        }
         net_return.checked_div(max_dd)
     }
 
@@ -6591,14 +7474,18 @@ impl OhlcvSeries {
     /// Returns the average MAE across bars in the window. Returns `None` if
     /// `n == 0`, fewer than `n` bars exist, or all opens are zero.
     pub fn avg_max_adverse_excursion(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in slice {
             let o = bar.open.value();
-            if o.is_zero() { continue; }
+            if o.is_zero() {
+                continue;
+            }
             let mae = if bar.is_bullish() {
                 (o - bar.low.value()).abs() / o
             } else {
@@ -6607,7 +7494,9 @@ impl OhlcvSeries {
             sum += mae;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
 
@@ -6626,23 +7515,42 @@ impl OhlcvSeries {
     /// is degenerate (zero denominator).
     pub fn half_life_of_mean_reversion(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 3 || self.bars.len() < n { return None; }
+        if n < 3 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let prices: Vec<f64> = slice.iter().filter_map(|b| b.close.value().to_f64()).collect();
+        let prices: Vec<f64> = slice
+            .iter()
+            .filter_map(|b| b.close.value().to_f64())
+            .collect();
         let m = prices.len();
-        if m < 3 { return None; }
+        if m < 3 {
+            return None;
+        }
         // OLS: regress delta[t] = prices[t] - prices[t-1] on prices[t-1]
         let lagged: Vec<f64> = prices[..m - 1].to_vec();
-        let delta:  Vec<f64> = prices[1..].iter().zip(prices[..m-1].iter()).map(|(a, b)| a - b).collect();
+        let delta: Vec<f64> = prices[1..]
+            .iter()
+            .zip(prices[..m - 1].iter())
+            .map(|(a, b)| a - b)
+            .collect();
         let n_obs = lagged.len() as f64;
         let mean_x = lagged.iter().sum::<f64>() / n_obs;
         let mean_y = delta.iter().sum::<f64>() / n_obs;
-        let cov_xy = lagged.iter().zip(delta.iter()).map(|(x, y)| (x - mean_x) * (y - mean_y)).sum::<f64>();
-        let var_x  = lagged.iter().map(|x| (x - mean_x).powi(2)).sum::<f64>();
-        if var_x == 0.0 { return None; }
+        let cov_xy = lagged
+            .iter()
+            .zip(delta.iter())
+            .map(|(x, y)| (x - mean_x) * (y - mean_y))
+            .sum::<f64>();
+        let var_x = lagged.iter().map(|x| (x - mean_x).powi(2)).sum::<f64>();
+        if var_x == 0.0 {
+            return None;
+        }
         let lambda = cov_xy / var_x;
-        if lambda >= 0.0 { return None; } // no mean reversion
+        if lambda >= 0.0 {
+            return None;
+        } // no mean reversion
         Some(-std::f64::consts::LN_2 / lambda)
     }
 
@@ -6652,16 +7560,27 @@ impl OhlcvSeries {
     /// `R_f` is the risk-free rate, and `β` is the beta of this series against `market`.
     ///
     /// Returns `None` if `n < 3`, either series has fewer than `n` bars, or `β` is zero.
-    pub fn treynor_ratio(&self, market: &OhlcvSeries, n: usize, risk_free_rate: f64) -> Option<f64> {
+    pub fn treynor_ratio(
+        &self,
+        market: &OhlcvSeries,
+        n: usize,
+        risk_free_rate: f64,
+    ) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 3 || self.bars.len() < n || market.bars.len() < n { return None; }
+        if n < 3 || self.bars.len() < n || market.bars.len() < n {
+            return None;
+        }
         let beta = self.beta(market, n)?;
-        if beta == 0.0 { return None; }
+        if beta == 0.0 {
+            return None;
+        }
         // Annualise using n bars
         let start = self.bars.len() - n;
         let first_c = self.bars[start].close.value().to_f64()?;
-        let last_c  = self.bars.last()?.close.value().to_f64()?;
-        if first_c == 0.0 { return None; }
+        let last_c = self.bars.last()?.close.value().to_f64()?;
+        if first_c == 0.0 {
+            return None;
+        }
         let total_return = (last_c - first_c) / first_c;
         Some((total_return - risk_free_rate) / beta)
     }
@@ -6674,23 +7593,33 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, either series has fewer than `n` bars.
     pub fn tracking_error(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n {
+            return None;
+        }
         let p_start = self.bars.len() - n;
         let b_start = benchmark.bars.len() - n;
         let p_slice = &self.bars[p_start..];
         let b_slice = &benchmark.bars[b_start..];
-        let diffs: Vec<f64> = p_slice.windows(2).zip(b_slice.windows(2)).filter_map(|(pw, bw)| {
-            let pc0 = pw[0].close.value().to_f64()?;
-            let bc0 = bw[0].close.value().to_f64()?;
-            if pc0 == 0.0 || bc0 == 0.0 { return None; }
-            let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
-            let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
-            Some(pr - br)
-        }).collect();
+        let diffs: Vec<f64> = p_slice
+            .windows(2)
+            .zip(b_slice.windows(2))
+            .filter_map(|(pw, bw)| {
+                let pc0 = pw[0].close.value().to_f64()?;
+                let bc0 = bw[0].close.value().to_f64()?;
+                if pc0 == 0.0 || bc0 == 0.0 {
+                    return None;
+                }
+                let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
+                let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
+                Some(pr - br)
+            })
+            .collect();
         let m = diffs.len() as f64;
-        if m < 1.0 { return None; }
+        if m < 1.0 {
+            return None;
+        }
         let mean = diffs.iter().sum::<f64>() / m;
-        let var  = diffs.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / m;
+        let var = diffs.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / m;
         Some(var.sqrt())
     }
 
@@ -6704,7 +7633,9 @@ impl OhlcvSeries {
     /// had no up bars in the window.
     pub fn up_capture(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n {
+            return None;
+        }
         let p_start = self.bars.len() - n;
         let b_start = benchmark.bars.len() - n;
         let p_slice = &self.bars[p_start..];
@@ -6715,15 +7646,21 @@ impl OhlcvSeries {
         for (pw, bw) in p_slice.windows(2).zip(b_slice.windows(2)) {
             let bc0 = bw[0].close.value().to_f64()?;
             let pc0 = pw[0].close.value().to_f64()?;
-            if bc0 == 0.0 || pc0 == 0.0 { continue; }
+            if bc0 == 0.0 || pc0 == 0.0 {
+                continue;
+            }
             let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
-            if br <= 0.0 { continue; }
+            if br <= 0.0 {
+                continue;
+            }
             let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
             p_up_sum += pr;
             b_up_sum += br;
             count += 1;
         }
-        if count == 0 || b_up_sum == 0.0 { return None; }
+        if count == 0 || b_up_sum == 0.0 {
+            return None;
+        }
         Some(p_up_sum / b_up_sum)
     }
 
@@ -6739,7 +7676,9 @@ impl OhlcvSeries {
     /// had no down bars in the window.
     pub fn down_capture(&self, benchmark: &OhlcvSeries, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n || benchmark.bars.len() < n {
+            return None;
+        }
         let p_start = self.bars.len() - n;
         let b_start = benchmark.bars.len() - n;
         let p_slice = &self.bars[p_start..];
@@ -6750,15 +7689,21 @@ impl OhlcvSeries {
         for (pw, bw) in p_slice.windows(2).zip(b_slice.windows(2)) {
             let bc0 = bw[0].close.value().to_f64()?;
             let pc0 = pw[0].close.value().to_f64()?;
-            if bc0 == 0.0 || pc0 == 0.0 { continue; }
+            if bc0 == 0.0 || pc0 == 0.0 {
+                continue;
+            }
             let br = (bw[1].close.value().to_f64()? - bc0) / bc0;
-            if br >= 0.0 { continue; }
+            if br >= 0.0 {
+                continue;
+            }
             let pr = (pw[1].close.value().to_f64()? - pc0) / pc0;
             p_dn_sum += pr;
             b_dn_sum += br;
             count += 1;
         }
-        if count == 0 || b_dn_sum == 0.0 { return None; }
+        if count == 0 || b_dn_sum == 0.0 {
+            return None;
+        }
         Some(p_dn_sum / b_dn_sum)
     }
 
@@ -6770,22 +7715,33 @@ impl OhlcvSeries {
     /// Returns `None` if `n < 2`, fewer than `n` bars exist, or there are no
     /// winning or losing bars.
     pub fn payoff_ratio(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let mut win_sum  = Decimal::ZERO;
+        let mut win_sum = Decimal::ZERO;
         let mut loss_sum = Decimal::ZERO;
-        let mut win_cnt  = 0u32;
+        let mut win_cnt = 0u32;
         let mut loss_cnt = 0u32;
         for w in slice.windows(2) {
             let pc = w[0].close.value();
-            if pc.is_zero() { continue; }
+            if pc.is_zero() {
+                continue;
+            }
             let ret = (w[1].close.value() - pc) / pc;
-            if ret > Decimal::ZERO { win_sum  += ret; win_cnt  += 1; }
-            else if ret < Decimal::ZERO { loss_sum += -ret; loss_cnt += 1; }
+            if ret > Decimal::ZERO {
+                win_sum += ret;
+                win_cnt += 1;
+            } else if ret < Decimal::ZERO {
+                loss_sum += -ret;
+                loss_cnt += 1;
+            }
         }
-        if win_cnt == 0 || loss_cnt == 0 { return None; }
-        let avg_win  = win_sum  / Decimal::from(win_cnt);
+        if win_cnt == 0 || loss_cnt == 0 {
+            return None;
+        }
+        let avg_win = win_sum / Decimal::from(win_cnt);
         let avg_loss = loss_sum / Decimal::from(loss_cnt);
         avg_win.checked_div(avg_loss)
     }
@@ -6799,26 +7755,43 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n < 2` or fewer than `n` bars exist.
     pub fn expected_value(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let mut wins  = Vec::new();
+        let mut wins = Vec::new();
         let mut losses = Vec::new();
         for w in slice.windows(2) {
             let pc = w[0].close.value();
-            if pc.is_zero() { continue; }
+            if pc.is_zero() {
+                continue;
+            }
             let ret = (w[1].close.value() - pc) / pc;
-            if ret > Decimal::ZERO { wins.push(ret); }
-            else if ret < Decimal::ZERO { losses.push(-ret); }
+            if ret > Decimal::ZERO {
+                wins.push(ret);
+            } else if ret < Decimal::ZERO {
+                losses.push(-ret);
+            }
         }
         let total = wins.len() + losses.len();
-        if total == 0 { return None; }
+        if total == 0 {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let total_d = Decimal::from(total as u32);
-        let win_rate  = Decimal::from(wins.len() as u32) / total_d;
+        let win_rate = Decimal::from(wins.len() as u32) / total_d;
         let loss_rate = Decimal::ONE - win_rate;
-        let avg_win  = if wins.is_empty()   { Decimal::ZERO } else { wins.iter().copied().sum::<Decimal>()   / Decimal::from(wins.len() as u32) };
-        let avg_loss = if losses.is_empty() { Decimal::ZERO } else { losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32) };
+        let avg_win = if wins.is_empty() {
+            Decimal::ZERO
+        } else {
+            wins.iter().copied().sum::<Decimal>() / Decimal::from(wins.len() as u32)
+        };
+        let avg_loss = if losses.is_empty() {
+            Decimal::ZERO
+        } else {
+            losses.iter().copied().sum::<Decimal>() / Decimal::from(losses.len() as u32)
+        };
         Some(win_rate * avg_win - loss_rate * avg_loss)
     }
 
@@ -6828,15 +7801,24 @@ impl OhlcvSeries {
     /// Useful for measuring breakout frequency. Returns `None` if `n == 0`,
     /// `lookback == 0`, or there are fewer than `n + lookback` bars.
     pub fn breakout_count(&self, n: usize, lookback: usize) -> Option<usize> {
-        if n == 0 || lookback == 0 { return None; }
+        if n == 0 || lookback == 0 {
+            return None;
+        }
         let required = n + lookback;
-        if self.bars.len() < required { return None; }
+        if self.bars.len() < required {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - required..];
-        let count = (lookback..slice.len()).filter(|&i| {
-            let current_close = slice[i].close.value();
-            let prior_high = slice[i - lookback..i].iter().map(|b| b.close.value()).fold(Decimal::MIN, Decimal::max);
-            current_close > prior_high
-        }).count();
+        let count = (lookback..slice.len())
+            .filter(|&i| {
+                let current_close = slice[i].close.value();
+                let prior_high = slice[i - lookback..i]
+                    .iter()
+                    .map(|b| b.close.value())
+                    .fold(Decimal::MIN, Decimal::max);
+                current_close > prior_high
+            })
+            .count();
         Some(count)
     }
 
@@ -6847,9 +7829,13 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, `period == 0`, or fewer than `n + period` bars exist.
     pub fn pct_close_above_ema(&self, n: usize, period: usize) -> Option<Decimal> {
-        if n == 0 || period == 0 { return None; }
+        if n == 0 || period == 0 {
+            return None;
+        }
         let required = n + period - 1;
-        if self.bars.len() < required { return None; }
+        if self.bars.len() < required {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - required..];
         // Seed EMA with first `period` bars
         #[allow(clippy::cast_possible_truncation)]
@@ -6861,7 +7847,9 @@ impl OhlcvSeries {
         for bar in &slice[period..] {
             let c = bar.close.value();
             ema = c * k + ema * (Decimal::ONE - k);
-            if c > ema { above += 1; }
+            if c > ema {
+                above += 1;
+            }
         }
         let n_d = Decimal::from(n as u32);
         Some(Decimal::from(above) / n_d * Decimal::ONE_HUNDRED)
@@ -6878,7 +7866,9 @@ impl OhlcvSeries {
     /// Returns the average across bars in the window. Returns `None` if `n == 0`
     /// or fewer than `n` bars exist. Bars with zero range or volume are skipped.
     pub fn avg_volume_imbalance(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
@@ -6887,12 +7877,16 @@ impl OhlcvSeries {
             let l = bar.low.value();
             let c = bar.close.value();
             let range = h - l;
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             let clv = ((c - l) - (h - c)) / range;
             sum += clv * bar.volume.value();
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
 
@@ -6906,7 +7900,9 @@ impl OhlcvSeries {
     /// Bars with zero range are skipped. Returns `None` if `n == 0` or fewer
     /// than `n` bars exist.
     pub fn avg_clv(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
@@ -6915,11 +7911,15 @@ impl OhlcvSeries {
             let l = bar.low.value();
             let c = bar.close.value();
             let range = h - l;
-            if range.is_zero() { continue; }
+            if range.is_zero() {
+                continue;
+            }
             sum += ((c - l) - (h - c)) / range;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
 
@@ -6928,14 +7928,20 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn bars_in_drawdown(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
         let mut peak = Decimal::MIN;
         let mut count = 0usize;
         for bar in slice {
             let c = bar.close.value();
-            if c > peak { peak = c; } else { count += 1; }
+            if c > peak {
+                peak = c;
+            } else {
+                count += 1;
+            }
         }
         Some(count)
     }
@@ -6945,7 +7951,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0`, `lookback == 0`, or fewer than `n + lookback` bars exist.
     pub fn resistance_breakout_pct(&self, n: usize, lookback: usize) -> Option<Decimal> {
-        if n == 0 || lookback == 0 { return None; }
+        if n == 0 || lookback == 0 {
+            return None;
+        }
         let count = self.breakout_count(n, lookback)?;
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(count as u32) / Decimal::from(n as u32) * Decimal::ONE_HUNDRED)
@@ -6957,7 +7965,9 @@ impl OhlcvSeries {
     /// the window uses the bar before the window for the prior close. Returns
     /// `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn avg_abs_open_gap(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start - 1..]; // include prior bar for first gap
         let mut sum = Decimal::ZERO;
@@ -6974,17 +7984,23 @@ impl OhlcvSeries {
     /// Bars with zero body are skipped (doji). Returns `None` if `n == 0`,
     /// fewer than `n` bars exist, or all bars are doji.
     pub fn avg_wicks_to_body(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for bar in &self.bars[start..] {
             let body = bar.body_size();
-            if body.is_zero() { continue; }
+            if body.is_zero() {
+                continue;
+            }
             sum += (bar.upper_shadow() + bar.lower_shadow()) / body;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
 
@@ -6999,21 +8015,44 @@ impl OhlcvSeries {
     /// has zero standard deviation.
     pub fn volume_trend_correlation(&self, n: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let vols: Vec<f64> = slice.iter().filter_map(|b| b.volume.value().to_f64()).collect();
-        let dirs: Vec<f64> = slice.iter().map(|b| {
-            if b.is_bullish() { 1.0 } else if b.is_bearish() { -1.0 } else { 0.0 }
-        }).collect();
+        let vols: Vec<f64> = slice
+            .iter()
+            .filter_map(|b| b.volume.value().to_f64())
+            .collect();
+        let dirs: Vec<f64> = slice
+            .iter()
+            .map(|b| {
+                if b.is_bullish() {
+                    1.0
+                } else if b.is_bearish() {
+                    -1.0
+                } else {
+                    0.0
+                }
+            })
+            .collect();
         let m = vols.len().min(dirs.len()) as f64;
-        if m < 2.0 { return None; }
+        if m < 2.0 {
+            return None;
+        }
         let mv = vols.iter().sum::<f64>() / m;
         let md = dirs.iter().sum::<f64>() / m;
-        let cov  = vols.iter().zip(dirs.iter()).map(|(v, d)| (v - mv) * (d - md)).sum::<f64>() / m;
+        let cov = vols
+            .iter()
+            .zip(dirs.iter())
+            .map(|(v, d)| (v - mv) * (d - md))
+            .sum::<f64>()
+            / m;
         let sv = (vols.iter().map(|v| (v - mv).powi(2)).sum::<f64>() / m).sqrt();
         let sd = (dirs.iter().map(|d| (d - md).powi(2)).sum::<f64>() / m).sqrt();
-        if sv == 0.0 || sd == 0.0 { return None; }
+        if sv == 0.0 || sd == 0.0 {
+            return None;
+        }
         Some(cov / (sv * sd))
     }
 
@@ -7025,15 +8064,31 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n < 2` or fewer than `n` bars exist.
     pub fn candle_consistency(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
         let slice = &self.bars[start..];
-        let dirs: Vec<i8> = slice.iter().map(|b| {
-            if b.is_bullish() { 1 } else if b.is_bearish() { -1 } else { 0 }
-        }).collect();
-        let consistent = dirs.windows(2).filter(|w| w[0] != 0 && w[1] != 0 && w[0] == w[1]).count();
+        let dirs: Vec<i8> = slice
+            .iter()
+            .map(|b| {
+                if b.is_bullish() {
+                    1
+                } else if b.is_bearish() {
+                    -1
+                } else {
+                    0
+                }
+            })
+            .collect();
+        let consistent = dirs
+            .windows(2)
+            .filter(|w| w[0] != 0 && w[1] != 0 && w[0] == w[1])
+            .count();
         let total = dirs.windows(2).filter(|w| w[0] != 0 && w[1] != 0).count();
-        if total == 0 { return None; }
+        if total == 0 {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         Some(Decimal::from(consistent as u32) / Decimal::from(total as u32) * Decimal::ONE_HUNDRED)
     }
@@ -7045,11 +8100,11 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n` bars exist.
     pub fn avg_open_close_spread(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let start = self.bars.len() - n;
-        let sum: Decimal = self.bars[start..].iter()
-            .map(|b| b.body_size())
-            .sum();
+        let sum: Decimal = self.bars[start..].iter().map(|b| b.body_size()).sum();
         sum.checked_div(Decimal::from(n as u32))
     }
 
@@ -7061,19 +8116,25 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if `n == 0` or fewer than `n + 1` bars exist.
     pub fn avg_range_to_prev_close(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let start = self.bars.len() - n - 1;
         let slice = &self.bars[start..];
         let mut sum = Decimal::ZERO;
         let mut count = 0u32;
         for w in slice.windows(2) {
             let pc = w[0].close.value();
-            if pc.is_zero() { continue; }
+            if pc.is_zero() {
+                continue;
+            }
             let range = w[1].range();
             sum += range / pc;
             count += 1;
         }
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
     /// Returns the volume-weighted standard deviation of close prices over the
@@ -7082,16 +8143,27 @@ impl OhlcvSeries {
     /// Returns `None` if fewer than `n` bars are available or total volume is zero.
     pub fn volume_weighted_std_dev(&self, n: usize) -> Option<Decimal> {
         use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
         let total_vol: Decimal = slice.iter().map(|b| b.volume.value()).sum();
-        if total_vol.is_zero() { return None; }
-        let vwap: Decimal = slice.iter()
+        if total_vol.is_zero() {
+            return None;
+        }
+        let vwap: Decimal = slice
+            .iter()
             .map(|b| b.close.value() * b.volume.value())
-            .sum::<Decimal>() / total_vol;
-        let vw_var: Decimal = slice.iter()
-            .map(|b| { let d = b.close.value() - vwap; b.volume.value() * d * d })
-            .sum::<Decimal>() / total_vol;
+            .sum::<Decimal>()
+            / total_vol;
+        let vw_var: Decimal = slice
+            .iter()
+            .map(|b| {
+                let d = b.close.value() - vwap;
+                b.volume.value() * d * d
+            })
+            .sum::<Decimal>()
+            / total_vol;
         let vf = vw_var.to_f64()?;
         Decimal::from_f64(vf.sqrt())
     }
@@ -7101,10 +8173,15 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn pct_inside_bars(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let count = slice.windows(2)
-            .filter(|w| w[1].high.value() < w[0].high.value() && w[1].low.value() > w[0].low.value())
+        let count = slice
+            .windows(2)
+            .filter(|w| {
+                w[1].high.value() < w[0].high.value() && w[1].low.value() > w[0].low.value()
+            })
             .count();
         Decimal::from(count as u32).checked_div(Decimal::from(n as u32))
     }
@@ -7115,13 +8192,24 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars are available.
     pub fn avg_bar_polarity(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
-        let sum: Decimal = slice.iter().map(|b| {
-            let c = b.close.value();
-            let o = b.open.value();
-            if c > o { Decimal::ONE } else if c < o { Decimal::NEGATIVE_ONE } else { Decimal::ZERO }
-        }).sum();
+        let sum: Decimal = slice
+            .iter()
+            .map(|b| {
+                let c = b.close.value();
+                let o = b.open.value();
+                if c > o {
+                    Decimal::ONE
+                } else if c < o {
+                    Decimal::NEGATIVE_ONE
+                } else {
+                    Decimal::ZERO
+                }
+            })
+            .sum();
         sum.checked_div(Decimal::from(n as u32))
     }
 
@@ -7132,23 +8220,32 @@ impl OhlcvSeries {
     /// Returns `None` if fewer than `n + 1` bars are available or the lower
     /// percentile return is zero.
     pub fn return_tail_ratio(&self, n: usize) -> Option<Decimal> {
-        if n < 2 || self.bars.len() < n + 1 { return None; }
+        if n < 2 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let mut returns: Vec<Decimal> = slice.windows(2)
+        let mut returns: Vec<Decimal> = slice
+            .windows(2)
             .filter_map(|w| {
                 let pc = w[0].close.value();
-                if pc.is_zero() { return None; }
+                if pc.is_zero() {
+                    return None;
+                }
                 Some((w[1].close.value() - pc) / pc)
             })
             .collect();
-        if returns.is_empty() { return None; }
+        if returns.is_empty() {
+            return None;
+        }
         returns.sort();
         let len = returns.len();
         let p95_idx = ((len as f64 * 0.95) as usize).min(len - 1);
         let p05_idx = ((len as f64 * 0.05) as usize).min(len - 1);
         let p95 = returns[p95_idx];
         let p05 = returns[p05_idx].abs();
-        if p05.is_zero() { return None; }
+        if p05.is_zero() {
+            return None;
+        }
         p95.checked_div(p05)
     }
 
@@ -7158,9 +8255,12 @@ impl OhlcvSeries {
     /// Positive = net upward gap bias; negative = net downward gap bias.
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn signed_gap_sum(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let sum: Decimal = slice.windows(2)
+        let sum: Decimal = slice
+            .windows(2)
             .map(|w| w[1].open.value() - w[0].close.value())
             .sum();
         Some(sum)
@@ -7170,7 +8270,9 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars are available.
     pub fn bull_bar_fraction(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
         let count = slice.iter().filter(|b| b.is_bullish()).count();
         #[allow(clippy::cast_possible_truncation)]
@@ -7182,7 +8284,9 @@ impl OhlcvSeries {
     /// Positive = net buying pressure; negative = net selling pressure.
     /// Returns `None` if fewer than `n` bars are available.
     pub fn cumulative_delta(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let sum: Decimal = self.bars[self.bars.len() - n..]
             .iter()
             .map(|b| b.close.value() - b.open.value())
@@ -7196,22 +8300,27 @@ impl OhlcvSeries {
     /// volatility context. Requires `n + 1` bars (ATR uses prior close).
     /// Returns `None` if fewer than `n + 1` bars or ATR is zero.
     pub fn avg_body_to_atr(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let trs: Vec<Decimal> = slice.windows(2).map(|w| {
-            let h = w[1].high.value();
-            let l = w[1].low.value();
-            let pc = w[0].close.value();
-            (h - l).max((h - pc).abs()).max((l - pc).abs())
-        }).collect();
+        let trs: Vec<Decimal> = slice
+            .windows(2)
+            .map(|w| {
+                let h = w[1].high.value();
+                let l = w[1].low.value();
+                let pc = w[0].close.value();
+                (h - l).max((h - pc).abs()).max((l - pc).abs())
+            })
+            .collect();
         let atr: Decimal = trs.iter().sum::<Decimal>();
-        if atr.is_zero() { return None; }
+        if atr.is_zero() {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let n_d = Decimal::from(n as u32);
         let avg_atr = atr / n_d;
-        let avg_body: Decimal = slice[1..].iter()
-            .map(|b| b.body_size())
-            .sum::<Decimal>() / n_d;
+        let avg_body: Decimal = slice[1..].iter().map(|b| b.body_size()).sum::<Decimal>() / n_d;
         avg_body.checked_div(avg_atr)
     }
 
@@ -7221,12 +8330,21 @@ impl OhlcvSeries {
     /// High values indicate choppy price action; low values suggest trending.
     /// Returns `None` if fewer than `n` bars are available.
     pub fn candle_direction_changes(&self, n: usize) -> Option<usize> {
-        if n < 2 || self.bars.len() < n { return None; }
+        if n < 2 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
-        let directions: Vec<i32> = slice.iter()
+        let directions: Vec<i32> = slice
+            .iter()
             .map(|b| {
                 let d = b.close.value() - b.open.value();
-                if d > Decimal::ZERO { 1 } else if d < Decimal::ZERO { -1 } else { 0 }
+                if d > Decimal::ZERO {
+                    1
+                } else if d < Decimal::ZERO {
+                    -1
+                } else {
+                    0
+                }
             })
             .filter(|d| *d != 0)
             .collect();
@@ -7238,9 +8356,12 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn win_rate(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let wins = slice.windows(2)
+        let wins = slice
+            .windows(2)
             .filter(|w| w[1].close.value() > w[0].close.value())
             .count();
         #[allow(clippy::cast_possible_truncation)]
@@ -7251,44 +8372,70 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n + 1` bars are available or all prior closes are zero.
     pub fn best_return(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        slice.windows(2).filter_map(|w| {
-            let pc = w[0].close.value();
-            if pc.is_zero() { return None; }
-            Some((w[1].close.value() - pc) / pc)
-        }).reduce(|a, b| if a > b { a } else { b })
+        slice
+            .windows(2)
+            .filter_map(|w| {
+                let pc = w[0].close.value();
+                if pc.is_zero() {
+                    return None;
+                }
+                Some((w[1].close.value() - pc) / pc)
+            })
+            .reduce(|a, b| if a > b { a } else { b })
     }
 
     /// Returns the worst (minimum) single-bar close-to-close return over the last `n` bars.
     ///
     /// Returns `None` if fewer than `n + 1` bars are available or all prior closes are zero.
     pub fn worst_return(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        slice.windows(2).filter_map(|w| {
-            let pc = w[0].close.value();
-            if pc.is_zero() { return None; }
-            Some((w[1].close.value() - pc) / pc)
-        }).reduce(|a, b| if a < b { a } else { b })
+        slice
+            .windows(2)
+            .filter_map(|w| {
+                let pc = w[0].close.value();
+                if pc.is_zero() {
+                    return None;
+                }
+                Some((w[1].close.value() - pc) / pc)
+            })
+            .reduce(|a, b| if a < b { a } else { b })
     }
 
     /// Returns the median close-to-close return over the last `n` bars.
     ///
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn median_return(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let mut returns: Vec<Decimal> = slice.windows(2).filter_map(|w| {
-            let pc = w[0].close.value();
-            if pc.is_zero() { return None; }
-            Some((w[1].close.value() - pc) / pc)
-        }).collect();
-        if returns.is_empty() { return None; }
+        let mut returns: Vec<Decimal> = slice
+            .windows(2)
+            .filter_map(|w| {
+                let pc = w[0].close.value();
+                if pc.is_zero() {
+                    return None;
+                }
+                Some((w[1].close.value() - pc) / pc)
+            })
+            .collect();
+        if returns.is_empty() {
+            return None;
+        }
         returns.sort();
         let m = returns.len();
-        if m % 2 == 1 { Some(returns[m / 2]) }
-        else { (returns[m / 2 - 1] + returns[m / 2]).checked_div(Decimal::TWO) }
+        if m % 2 == 1 {
+            Some(returns[m / 2])
+        } else {
+            (returns[m / 2 - 1] + returns[m / 2]).checked_div(Decimal::TWO)
+        }
     }
 
     /// Returns `(current_close - N-bar_median_close) / N-bar_median_close × 100`.
@@ -7297,16 +8444,25 @@ impl OhlcvSeries {
     /// of recent prices. Returns `None` if fewer than `n` bars are available or the
     /// median is zero.
     pub fn price_vs_median(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
         let mut closes: Vec<Decimal> = slice.iter().map(|b| b.close.value()).collect();
         closes.sort();
         let m = closes.len();
-        let median = if m % 2 == 1 { closes[m / 2] }
-            else { (closes[m / 2 - 1] + closes[m / 2]) / Decimal::TWO };
-        if median.is_zero() { return None; }
+        let median = if m % 2 == 1 {
+            closes[m / 2]
+        } else {
+            (closes[m / 2 - 1] + closes[m / 2]) / Decimal::TWO
+        };
+        if median.is_zero() {
+            return None;
+        }
         let current = self.bars.last()?.close.value();
-        (current - median).checked_div(median).map(|r| r * Decimal::ONE_HUNDRED)
+        (current - median)
+            .checked_div(median)
+            .map(|r| r * Decimal::ONE_HUNDRED)
     }
 
     /// Returns the fraction of last `n + 1` bar-pairs where close > prev_close (win rate).
@@ -7314,9 +8470,14 @@ impl OhlcvSeries {
     /// Alias for `win_rate` using close-to-close comparisons.
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn close_win_rate(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let wins = slice.windows(2).filter(|w| w[1].close.value() > w[0].close.value()).count();
+        let wins = slice
+            .windows(2)
+            .filter(|w| w[1].close.value() > w[0].close.value())
+            .count();
         #[allow(clippy::cast_possible_truncation)]
         Decimal::from(wins as u32).checked_div(Decimal::from(n as u32))
     }
@@ -7325,11 +8486,19 @@ impl OhlcvSeries {
     ///
     /// Returns `None` if fewer than `n` bars are available or total volume is zero.
     pub fn rolling_vwap(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
         let total_vol: Decimal = slice.iter().map(|b| b.volume.value()).sum();
-        if total_vol.is_zero() { return None; }
-        let vwap = slice.iter().map(|b| b.close.value() * b.volume.value()).sum::<Decimal>() / total_vol;
+        if total_vol.is_zero() {
+            return None;
+        }
+        let vwap = slice
+            .iter()
+            .map(|b| b.close.value() * b.volume.value())
+            .sum::<Decimal>()
+            / total_vol;
         Some(vwap)
     }
 
@@ -7338,17 +8507,22 @@ impl OhlcvSeries {
     /// A bar is engulfing if its body completely contains the prior bar's body.
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn engulfing_count(&self, n: usize) -> Option<usize> {
-        if n == 0 || self.bars.len() < n + 1 { return None; }
+        if n == 0 || self.bars.len() < n + 1 {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n - 1..];
-        let count = slice.windows(2).filter(|w| {
-            let (po, pc) = (w[0].open.value(), w[0].close.value());
-            let (co, cc) = (w[1].open.value(), w[1].close.value());
-            let prev_lo = po.min(pc);
-            let prev_hi = po.max(pc);
-            let curr_lo = co.min(cc);
-            let curr_hi = co.max(cc);
-            curr_lo <= prev_lo && curr_hi >= prev_hi && prev_lo != prev_hi
-        }).count();
+        let count = slice
+            .windows(2)
+            .filter(|w| {
+                let (po, pc) = (w[0].open.value(), w[0].close.value());
+                let (co, cc) = (w[1].open.value(), w[1].close.value());
+                let prev_lo = po.min(pc);
+                let prev_hi = po.max(pc);
+                let curr_lo = co.min(cc);
+                let curr_hi = co.max(cc);
+                curr_lo <= prev_lo && curr_hi >= prev_hi && prev_lo != prev_hi
+            })
+            .count();
         Some(count)
     }
 
@@ -7357,7 +8531,9 @@ impl OhlcvSeries {
     /// Returns `None` if fewer than `n + 1` bars are available.
     pub fn rolling_velocity(&self, n: usize) -> Option<Decimal> {
         let len = self.bars.len();
-        if n == 0 || len < n + 1 { return None; }
+        if n == 0 || len < n + 1 {
+            return None;
+        }
         Some(self.bars[len - 1].close.value() - self.bars[len - 1 - n].close.value())
     }
 
@@ -7367,61 +8543,88 @@ impl OhlcvSeries {
     /// Bars with zero range are excluded.
     /// Returns `None` if fewer than `n` bars are available or no bar has a non-zero range.
     pub fn avg_body_ratio(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let slice = &self.bars[self.bars.len() - n..];
         let (sum, count) = slice.iter().fold((Decimal::ZERO, 0u32), |(s, c), b| {
             let range = b.range();
-            if range.is_zero() { (s, c) }
-            else { (s + b.body_size() / range, c + 1) }
+            if range.is_zero() {
+                (s, c)
+            } else {
+                (s + b.body_size() / range, c + 1)
+            }
         });
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         sum.checked_div(Decimal::from(count))
     }
 
     /// Average upper shadow fraction — mean of  over  bars.
     /// Returns  if  or fewer than  bars are available.
     pub fn avg_upper_shadow_fraction(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
-        let sum: Decimal = bars.iter().map(|b| {
-            let range = b.range();
-            if range.is_zero() { Decimal::ZERO }
-            else {
-                let body_hi = b.close.value().max(b.open.value());
-                (b.high.value() - body_hi) / range
-            }
-        }).sum();
+        let sum: Decimal = bars
+            .iter()
+            .map(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    let body_hi = b.close.value().max(b.open.value());
+                    (b.high.value() - body_hi) / range
+                }
+            })
+            .sum();
         Some(sum / Decimal::from(n as u32))
     }
 
     /// Average lower shadow fraction — mean of  over  bars.
     /// Returns  if  or fewer than  bars are available.
     pub fn avg_lower_shadow_fraction(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
-        let sum: Decimal = bars.iter().map(|b| {
-            let range = b.range();
-            if range.is_zero() { Decimal::ZERO }
-            else {
-                let body_lo = b.close.value().min(b.open.value());
-                (body_lo - b.low.value()) / range
-            }
-        }).sum();
+        let sum: Decimal = bars
+            .iter()
+            .map(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    let body_lo = b.close.value().min(b.open.value());
+                    (body_lo - b.low.value()) / range
+                }
+            })
+            .sum();
         Some(sum / Decimal::from(n as u32))
     }
 
     /// Average intrabar return — mean of  over  bars.
     /// Bars with zero open are excluded. Returns  if none qualify.
     pub fn avg_intrabar_return(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
-        let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
-            if b.open.value().is_zero() { None }
-            else {
-                Some((b.close.value() - b.open.value()) / b.open.value() * Decimal::ONE_HUNDRED)
-            }
-        }).collect();
-        if vals.is_empty() { return None; }
+        let vals: Vec<Decimal> = bars
+            .iter()
+            .filter_map(|b| {
+                if b.open.value().is_zero() {
+                    None
+                } else {
+                    Some((b.close.value() - b.open.value()) / b.open.value() * Decimal::ONE_HUNDRED)
+                }
+            })
+            .collect();
+        if vals.is_empty() {
+            return None;
+        }
         let sum: Decimal = vals.iter().sum();
         Some(sum / Decimal::from(vals.len() as u32))
     }
@@ -7429,50 +8632,73 @@ impl OhlcvSeries {
     /// Average close position in range — mean of  over  bars.
     /// Bars with zero range use 0.5. Returns  if fewer than  bars available.
     pub fn avg_close_position(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
         let half = Decimal::new(5, 1);
-        let sum: Decimal = bars.iter().map(|b| {
-            let range = b.range();
-            if range.is_zero() { half }
-            else { (b.close.value() - b.low.value()) / range }
-        }).sum();
+        let sum: Decimal = bars
+            .iter()
+            .map(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    half
+                } else {
+                    (b.close.value() - b.low.value()) / range
+                }
+            })
+            .sum();
         Some(sum / Decimal::from(n as u32))
     }
 
     /// Shadow imbalance average — mean of  over  bars.
     /// Bars with zero range contribute 0. Returns  if fewer than  bars available.
     pub fn avg_shadow_imbalance(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
-        let sum: Decimal = bars.iter().map(|b| {
-            let range = b.range();
-            if range.is_zero() { Decimal::ZERO }
-            else {
-                let body_hi = b.close.value().max(b.open.value());
-                let body_lo = b.close.value().min(b.open.value());
-                let upper = b.high.value() - body_hi;
-                let lower = body_lo - b.low.value();
-                (upper - lower) / range
-            }
-        }).sum();
+        let sum: Decimal = bars
+            .iter()
+            .map(|b| {
+                let range = b.range();
+                if range.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    let body_hi = b.close.value().max(b.open.value());
+                    let body_lo = b.close.value().min(b.open.value());
+                    let upper = b.high.value() - body_hi;
+                    let lower = body_lo - b.low.value();
+                    (upper - lower) / range
+                }
+            })
+            .sum();
         Some(sum / Decimal::from(n as u32))
     }
 
     /// Average normalized range — mean of  over  bars.
     /// Bars with zero close are excluded. Returns  if none qualify.
     pub fn avg_normalized_range(&self, n: usize) -> Option<Decimal> {
-        if n == 0 || self.bars.len() < n { return None; }
+        if n == 0 || self.bars.len() < n {
+            return None;
+        }
         let bars = &self.bars[self.bars.len() - n..];
-        let vals: Vec<Decimal> = bars.iter().filter_map(|b| {
-            if b.close.value().is_zero() { None }
-            else { Some((b.range()) / b.close.value()) }
-        }).collect();
-        if vals.is_empty() { return None; }
+        let vals: Vec<Decimal> = bars
+            .iter()
+            .filter_map(|b| {
+                if b.close.value().is_zero() {
+                    None
+                } else {
+                    Some((b.range()) / b.close.value())
+                }
+            })
+            .collect();
+        if vals.is_empty() {
+            return None;
+        }
         let sum: Decimal = vals.iter().sum();
         Some(sum / Decimal::from(vals.len() as u32))
     }
-
 }
 
 #[cfg(test)]
@@ -7665,7 +8891,9 @@ mod tests {
         let tf = Timeframe::Minutes(1);
         let b = tf.bucket_start(NanoTimestamp::new(-1)).unwrap();
         assert_eq!(b.nanos(), -60_000_000_000);
-        let b = tf.bucket_start(NanoTimestamp::new(-60_000_000_000)).unwrap();
+        let b = tf
+            .bucket_start(NanoTimestamp::new(-60_000_000_000))
+            .unwrap();
         assert_eq!(b.nanos(), -60_000_000_000);
     }
 
@@ -7677,14 +8905,20 @@ mod tests {
         assert_eq!(b.nanos(), 1_790_553_600 * 1_000_000_000);
         // Sunday 23:59:59 stays in the same week, Monday 00:00 starts the next one.
         let sunday = NanoTimestamp::new((1_790_553_600 + 7 * 86_400 - 1) * 1_000_000_000);
-        assert_eq!(Timeframe::Weeks(1).bucket_start(sunday).unwrap().nanos(), b.nanos());
+        assert_eq!(
+            Timeframe::Weeks(1).bucket_start(sunday).unwrap().nanos(),
+            b.nanos()
+        );
         let monday = NanoTimestamp::new((1_790_553_600 + 7 * 86_400) * 1_000_000_000);
         assert_eq!(Timeframe::Weeks(1).bucket_start(monday).unwrap(), monday);
     }
 
     #[test]
     fn test_timeframe_huge_weeks_is_an_error_not_a_wrap() {
-        assert!(matches!(Timeframe::Weeks(u32::MAX).to_nanos(), Err(FinError::InvalidTimeframe)));
+        assert!(matches!(
+            Timeframe::Weeks(u32::MAX).to_nanos(),
+            Err(FinError::InvalidTimeframe)
+        ));
     }
 
     #[test]
@@ -7733,14 +8967,23 @@ mod tests {
         let sym = Symbol::new("X").unwrap();
         let mut agg = OhlcvAggregator::new(sym, Timeframe::Seconds(60)).unwrap();
         let m = 60_000_000_000_i64;
-        assert!(agg.push_tick(&make_tick("X", "100", "1", 10)).unwrap().is_empty());
+        assert!(agg
+            .push_tick(&make_tick("X", "100", "1", 10))
+            .unwrap()
+            .is_empty());
         let done = agg.push_tick(&make_tick("X", "101", "1", m + 10)).unwrap();
         assert_eq!(done.len(), 1);
         // A straggler from minute 0 arrives after minute 1 has opened. It used to close
         // the minute-1 bar after one tick and open a second minute-0 bar.
-        assert!(agg.push_tick(&make_tick("X", "50", "1", 20)).unwrap().is_empty());
+        assert!(agg
+            .push_tick(&make_tick("X", "50", "1", 20))
+            .unwrap()
+            .is_empty());
         assert_eq!(agg.late_tick_count(), 1);
-        assert!(agg.push_tick(&make_tick("X", "102", "1", m + 20)).unwrap().is_empty());
+        assert!(agg
+            .push_tick(&make_tick("X", "102", "1", m + 20))
+            .unwrap()
+            .is_empty());
         let open = agg.current_bar().unwrap();
         assert_eq!(open.tick_count, 2);
         assert_eq!(open.low.value(), dec!(101));
@@ -7760,7 +9003,12 @@ mod tests {
             .push_tick(&make_tick("X", "200", "1", 3 * nanos_per_min + 1))
             .unwrap();
         // 1 completed bar + 2 gap bars
-        assert_eq!(out.len(), 3, "expected 1 completed + 2 gap bars, got {}", out.len());
+        assert_eq!(
+            out.len(),
+            3,
+            "expected 1 completed + 2 gap bars, got {}",
+            out.len()
+        );
         // Completed bar has real data.
         assert_eq!(out[0].tick_count, 1);
         // Gap bars have zero volume and tick_count.
@@ -8638,7 +9886,9 @@ mod tests {
     #[test]
     fn test_ohlcv_series_below_sma_zero_when_all_above() {
         let mut series = OhlcvSeries::new();
-        for _ in 0..3 { series.push(make_bar("100", "110", "90", "100")).unwrap(); }
+        for _ in 0..3 {
+            series.push(make_bar("100", "110", "90", "100")).unwrap();
+        }
         // SMA(3) = 100, close=100, not strictly below → 0
         assert_eq!(series.below_sma(3, 3), 0);
     }
@@ -8666,8 +9916,8 @@ mod tests {
     #[test]
     fn test_close_above_open_streak_three_bullish() {
         let mut series = OhlcvSeries::new();
-        series.push(make_bar("100", "110", "90", "95")).unwrap();   // bearish
-        series.push(make_bar("95", "110", "90", "105")).unwrap();   // bullish
+        series.push(make_bar("100", "110", "90", "95")).unwrap(); // bearish
+        series.push(make_bar("95", "110", "90", "105")).unwrap(); // bullish
         series.push(make_bar("105", "115", "100", "112")).unwrap(); // bullish
         series.push(make_bar("112", "120", "108", "118")).unwrap(); // bullish
         assert_eq!(series.close_above_open_streak(), 3);
@@ -8677,7 +9927,7 @@ mod tests {
     fn test_close_above_open_streak_last_bearish_returns_zero() {
         let mut series = OhlcvSeries::new();
         series.push(make_bar("105", "110", "100", "102")).unwrap(); // bullish
-        series.push(make_bar("102", "108", "98", "99")).unwrap();   // bearish (close < open)
+        series.push(make_bar("102", "108", "98", "99")).unwrap(); // bearish (close < open)
         assert_eq!(series.close_above_open_streak(), 0);
     }
 
@@ -8690,7 +9940,7 @@ mod tests {
     fn test_max_drawdown_pct_declining_series() {
         let mut series = OhlcvSeries::new();
         series.push(make_bar("100", "110", "90", "100")).unwrap();
-        series.push(make_bar("100", "105", "75", "80")).unwrap();  // 20% drawdown from 100
+        series.push(make_bar("100", "105", "75", "80")).unwrap(); // 20% drawdown from 100
         series.push(make_bar("80", "85", "75", "84")).unwrap();
         let dd = series.max_drawdown_pct(10).unwrap();
         assert!((dd - 20.0).abs() < 1e-6, "expected ~20, got {dd}");
@@ -8766,18 +10016,34 @@ mod tests {
         let mut series = OhlcvSeries::new();
         // Add 3 bars with low volume
         for _ in 0..3 {
-            series.push(OhlcvBar {
-                symbol: sym.clone(), open: p, high: p, low: p, close: p,
-                volume: Quantity::new(dec!(100)).unwrap(),
-                ts_open: NanoTimestamp::new(0), ts_close: NanoTimestamp::new(1), tick_count: 1,
-            }).unwrap();
+            series
+                .push(OhlcvBar {
+                    symbol: sym.clone(),
+                    open: p,
+                    high: p,
+                    low: p,
+                    close: p,
+                    volume: Quantity::new(dec!(100)).unwrap(),
+                    ts_open: NanoTimestamp::new(0),
+                    ts_close: NanoTimestamp::new(1),
+                    tick_count: 1,
+                })
+                .unwrap();
         }
         // Add a spike bar with 5× volume
-        series.push(OhlcvBar {
-            symbol: sym.clone(), open: p, high: p, low: p, close: p,
-            volume: Quantity::new(dec!(500)).unwrap(),
-            ts_open: NanoTimestamp::new(2), ts_close: NanoTimestamp::new(3), tick_count: 1,
-        }).unwrap();
+        series
+            .push(OhlcvBar {
+                symbol: sym.clone(),
+                open: p,
+                high: p,
+                low: p,
+                close: p,
+                volume: Quantity::new(dec!(500)).unwrap(),
+                ts_open: NanoTimestamp::new(2),
+                ts_close: NanoTimestamp::new(3),
+                tick_count: 1,
+            })
+            .unwrap();
         assert!(series.volume_spike(3, dec!(3)));
     }
 
@@ -8788,11 +10054,19 @@ mod tests {
         let p = crate::types::Price::new(dec!(100)).unwrap();
         let mut series = OhlcvSeries::new();
         for _ in 0..4 {
-            series.push(OhlcvBar {
-                symbol: sym.clone(), open: p, high: p, low: p, close: p,
-                volume: Quantity::new(dec!(100)).unwrap(),
-                ts_open: NanoTimestamp::new(0), ts_close: NanoTimestamp::new(1), tick_count: 1,
-            }).unwrap();
+            series
+                .push(OhlcvBar {
+                    symbol: sym.clone(),
+                    open: p,
+                    high: p,
+                    low: p,
+                    close: p,
+                    volume: Quantity::new(dec!(100)).unwrap(),
+                    ts_open: NanoTimestamp::new(0),
+                    ts_close: NanoTimestamp::new(1),
+                    tick_count: 1,
+                })
+                .unwrap();
         }
         assert!(!series.volume_spike(3, dec!(3)));
     }
@@ -8802,7 +10076,14 @@ mod tests {
         let mut series = OhlcvSeries::new();
         // Strictly rising prices → direction == path → ER = 1
         for i in 0..6u32 {
-            series.push(make_bar(&format!("{}", 100 + i), &format!("{}", 105 + i), &format!("{}", 99 + i), &format!("{}", 100 + i))).unwrap();
+            series
+                .push(make_bar(
+                    &format!("{}", 100 + i),
+                    &format!("{}", 105 + i),
+                    &format!("{}", 99 + i),
+                    &format!("{}", 100 + i),
+                ))
+                .unwrap();
         }
         let er = series.efficiency_ratio(5).unwrap();
         assert_eq!(er, dec!(1));
@@ -8843,9 +10124,9 @@ mod tests {
     fn test_candle_color_changes_alternating() {
         let mut series = OhlcvSeries::new();
         // Bullish, Bearish, Bullish → 2 changes
-        series.push(make_bar("95", "110", "90", "105")).unwrap();  // bull
+        series.push(make_bar("95", "110", "90", "105")).unwrap(); // bull
         series.push(make_bar("105", "115", "100", "102")).unwrap(); // bear
-        series.push(make_bar("102", "115", "98", "110")).unwrap();  // bull
+        series.push(make_bar("102", "115", "98", "110")).unwrap(); // bull
         assert_eq!(series.candle_color_changes(3), 2);
     }
 
@@ -8935,7 +10216,10 @@ mod tests {
         let p2 = Price::new(dec!(110)).unwrap();
         let b1 = OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p1, high: p1, low: p1, close: p1,
+            open: p1,
+            high: p1,
+            low: p1,
+            close: p1,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -8943,7 +10227,10 @@ mod tests {
         };
         let b2 = OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p2, high: p2, low: p2, close: p2,
+            open: p2,
+            high: p2,
+            low: p2,
+            close: p2,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(2),
             ts_close: NanoTimestamp::new(3),
@@ -8975,9 +10262,7 @@ mod tests {
     #[test]
     fn test_price_above_ma_pct_all_above() {
         // Rising prices: every close will be above the 2-bar SMA of the prior window.
-        let bars = vec![
-            bar("100"), bar("102"), bar("104"), bar("106"), bar("108"),
-        ];
+        let bars = vec![bar("100"), bar("102"), bar("104"), bar("106"), bar("108")];
         let series = OhlcvSeries::from_bars(bars).unwrap();
         // n=3, period=2 → need at least 4 bars
         let pct = series.price_above_ma_pct(3, 2).unwrap();
@@ -9031,7 +10316,10 @@ mod tests {
             let cl = Price::new(c.parse::<rust_decimal::Decimal>().unwrap()).unwrap();
             OhlcvBar {
                 symbol: Symbol::new("X").unwrap(),
-                open: op, high: cl, low: op, close: cl,
+                open: op,
+                high: cl,
+                low: op,
+                close: cl,
                 volume: Quantity::zero(),
                 ts_open: NanoTimestamp::new(0),
                 ts_close: NanoTimestamp::new(1),
@@ -9212,7 +10500,7 @@ mod tests {
     fn test_close_to_open_ratio_bullish() {
         // close > open → ratio > 1
         let bars = vec![
-            make_bar_vol("100", "110", "95", "110", "1000"),  // close/open = 1.1
+            make_bar_vol("100", "110", "95", "110", "1000"), // close/open = 1.1
             make_bar_vol("105", "115", "100", "115", "1000"), // close/open ≈ 1.095
         ];
         let series = OhlcvSeries::from_bars(bars).unwrap();
@@ -9228,12 +10516,15 @@ mod tests {
 
     #[test]
     fn test_volume_trend_rising() {
-        let bars: Vec<OhlcvBar> = (1..=5u32).map(|i| {
-            make_bar_vol("100", "100", "100", "100", &(i * 100).to_string())
-        }).collect();
+        let bars: Vec<OhlcvBar> = (1..=5u32)
+            .map(|i| make_bar_vol("100", "100", "100", "100", &(i * 100).to_string()))
+            .collect();
         let series = OhlcvSeries::from_bars(bars).unwrap();
         let slope = series.volume_trend(5).unwrap();
-        assert!(slope > 0.0_f64, "rising volume: positive slope, got {slope}");
+        assert!(
+            slope > 0.0_f64,
+            "rising volume: positive slope, got {slope}"
+        );
     }
 
     #[test]

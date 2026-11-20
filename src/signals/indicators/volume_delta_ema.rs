@@ -53,14 +53,26 @@ impl VolumeDeltaEma {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k, prev_volume: None })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+            prev_volume: None,
+        })
     }
 }
 
 impl Signal for VolumeDeltaEma {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ema.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
@@ -115,7 +127,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,7 +146,10 @@ mod tests {
     #[test]
     fn test_vde_first_bar_unavailable() {
         let mut vde = VolumeDeltaEma::new("vde", 5).unwrap();
-        assert_eq!(vde.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vde.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vde.is_ready());
     }
 
@@ -147,7 +165,9 @@ mod tests {
     fn test_vde_stable_volume_zero() {
         // Same volume every bar → delta = 0 → EMA → 0
         let mut vde = VolumeDeltaEma::new("vde", 5).unwrap();
-        for _ in 0..10 { vde.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..10 {
+            vde.update_bar(&bar("1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = vde.update_bar(&bar("1000")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {
@@ -188,6 +208,9 @@ mod tests {
         assert!(vde.is_ready());
         vde.reset();
         assert!(!vde.is_ready());
-        assert_eq!(vde.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vde.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -60,7 +60,10 @@ impl BidAskSpread {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, buf: VecDeque::with_capacity(window) })
+        Ok(Self {
+            window,
+            buf: VecDeque::with_capacity(window),
+        })
     }
 
     /// Records a bid/ask quote.
@@ -69,7 +72,9 @@ impl BidAskSpread {
     /// Returns [`FinError::InvalidInput`] if `bid >= ask` or `bid <= 0`.
     pub fn update(&mut self, bid: Decimal, ask: Decimal) -> Result<(), FinError> {
         if bid <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(format!("bid must be positive, got {bid}")));
+            return Err(FinError::InvalidInput(format!(
+                "bid must be positive, got {bid}"
+            )));
         }
         if ask <= bid {
             return Err(FinError::InvalidInput(format!(
@@ -81,7 +86,9 @@ impl BidAskSpread {
         let mid_f = mid.to_f64().unwrap_or(0.0);
         let spread_f = spread.to_f64().unwrap_or(0.0);
         if mid_f <= 0.0 {
-            return Err(FinError::InvalidInput("mid price must be positive".to_owned()));
+            return Err(FinError::InvalidInput(
+                "mid price must be positive".to_owned(),
+            ));
         }
         let bps = spread_f / mid_f * 10_000.0;
         self.buf.push_back(bps);
@@ -158,7 +165,10 @@ impl AmihudIlliquidity {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, buf: VecDeque::with_capacity(window) })
+        Ok(Self {
+            window,
+            buf: VecDeque::with_capacity(window),
+        })
     }
 
     /// Records a price observation.
@@ -176,7 +186,9 @@ impl AmihudIlliquidity {
         volume: Decimal,
     ) -> Result<(), FinError> {
         if prev_close <= Decimal::ZERO {
-            return Err(FinError::InvalidInput("prev_close must be positive".to_owned()));
+            return Err(FinError::InvalidInput(
+                "prev_close must be positive".to_owned(),
+            ));
         }
         if close <= Decimal::ZERO {
             return Err(FinError::InvalidInput("close must be positive".to_owned()));
@@ -269,7 +281,10 @@ impl KyleLambda {
         if window < 2 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, buf: VecDeque::with_capacity(window) })
+        Ok(Self {
+            window,
+            buf: VecDeque::with_capacity(window),
+        })
     }
 
     /// Records a price change and signed volume observation.
@@ -279,7 +294,11 @@ impl KyleLambda {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidInput`] if either value is non-finite.
-    pub fn update(&mut self, price_change: Decimal, signed_volume: Decimal) -> Result<(), FinError> {
+    pub fn update(
+        &mut self,
+        price_change: Decimal,
+        signed_volume: Decimal,
+    ) -> Result<(), FinError> {
         let dp = price_change.to_f64().ok_or_else(|| {
             FinError::InvalidInput("price_change is not representable as f64".to_owned())
         })?;
@@ -306,8 +325,16 @@ impl KyleLambda {
         let n = self.buf.len() as f64;
         let mean_dp = self.buf.iter().map(|(dp, _)| dp).sum::<f64>() / n;
         let mean_dq = self.buf.iter().map(|(_, dq)| dq).sum::<f64>() / n;
-        let cov: f64 = self.buf.iter().map(|(dp, dq)| (dp - mean_dp) * (dq - mean_dq)).sum::<f64>();
-        let var_dq: f64 = self.buf.iter().map(|(_, dq)| (dq - mean_dq).powi(2)).sum::<f64>();
+        let cov: f64 = self
+            .buf
+            .iter()
+            .map(|(dp, dq)| (dp - mean_dp) * (dq - mean_dq))
+            .sum::<f64>();
+        let var_dq: f64 = self
+            .buf
+            .iter()
+            .map(|(_, dq)| (dq - mean_dq).powi(2))
+            .sum::<f64>();
         if var_dq == 0.0 {
             return None;
         }
@@ -394,7 +421,9 @@ impl RollImpliedSpread {
             FinError::InvalidInput("price_change is not representable as f64".to_owned())
         })?;
         if !dp.is_finite() {
-            return Err(FinError::InvalidInput("price_change must be finite".to_owned()));
+            return Err(FinError::InvalidInput(
+                "price_change must be finite".to_owned(),
+            ));
         }
         self.changes.push_back(dp);
         if self.changes.len() > self.window + 1 {
@@ -489,7 +518,10 @@ impl OrderImbalance {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, buf: VecDeque::with_capacity(window) })
+        Ok(Self {
+            window,
+            buf: VecDeque::with_capacity(window),
+        })
     }
 
     /// Records a volume observation.
@@ -867,7 +899,10 @@ mod tests {
             r.update(ret).unwrap();
         }
         let spread = r.get().unwrap();
-        assert!(spread > 0.0, "alternating returns should give positive Roll spread: {spread}");
+        assert!(
+            spread > 0.0,
+            "alternating returns should give positive Roll spread: {spread}"
+        );
     }
 
     #[test]
@@ -977,11 +1012,15 @@ mod tests {
             m.update_spread(dec!(99.90), dec!(100.10)).unwrap();
             m.update_volume_imbalance(dec!(600), dec!(400)).unwrap();
             m.update_price_impact(
-                rust_decimal::prelude::FromPrimitive::from_f64(0.05 + i as f64 * 0.01).unwrap_or(dec!(0.05)),
-                rust_decimal::prelude::FromPrimitive::from_f64(100.0 + i as f64 * 50.0).unwrap_or(dec!(100)),
-            ).unwrap();
+                rust_decimal::prelude::FromPrimitive::from_f64(0.05 + i as f64 * 0.01)
+                    .unwrap_or(dec!(0.05)),
+                rust_decimal::prelude::FromPrimitive::from_f64(100.0 + i as f64 * 50.0)
+                    .unwrap_or(dec!(100)),
+            )
+            .unwrap();
             m.update_amihud(dec!(100), dec!(102), dec!(1000)).unwrap();
-            m.update_roll(if i % 2 == 0 { dec!(0.05) } else { dec!(-0.05) }).unwrap();
+            m.update_roll(if i % 2 == 0 { dec!(0.05) } else { dec!(-0.05) })
+                .unwrap();
         }
         let snap = m.snapshot();
         assert!(snap.avg_spread_bps.is_some());
@@ -1059,8 +1098,16 @@ mod tests {
         let b = vec![0.1, -0.1, 0.2, -0.2, 0.1];
         let hs = HasbrouckShare::estimate(&a, &b);
         // Equal variance → shares close to 0.5 each
-        assert!((hs.security_a_share - 0.5).abs() < 0.01, "a={}", hs.security_a_share);
-        assert!((hs.security_b_share - 0.5).abs() < 0.01, "b={}", hs.security_b_share);
+        assert!(
+            (hs.security_a_share - 0.5).abs() < 0.01,
+            "a={}",
+            hs.security_a_share
+        );
+        assert!(
+            (hs.security_b_share - 0.5).abs() < 0.01,
+            "b={}",
+            hs.security_b_share
+        );
     }
 
     #[test]
@@ -1092,7 +1139,12 @@ mod tests {
 
     #[test]
     fn test_pin_probability_zero_denominator() {
-        let pin = PinEstimate { alpha: 0.0, mu: 0.0, epsilon_b: 0.0, epsilon_s: 0.0 };
+        let pin = PinEstimate {
+            alpha: 0.0,
+            mu: 0.0,
+            epsilon_b: 0.0,
+            epsilon_s: 0.0,
+        };
         assert_eq!(pin.pin_probability(), 0.0);
     }
 
@@ -1186,7 +1238,10 @@ impl KyleLambdaEstimate {
     pub fn estimate(price_changes: &[f64], signed_volumes: &[f64]) -> Self {
         let n = price_changes.len().min(signed_volumes.len());
         if n < 2 {
-            return Self { lambda: 0.0, r_squared: 0.0 };
+            return Self {
+                lambda: 0.0,
+                r_squared: 0.0,
+            };
         }
         let nf = n as f64;
         let mean_dp = price_changes[..n].iter().sum::<f64>() / nf;
@@ -1204,7 +1259,10 @@ impl KyleLambdaEstimate {
         }
 
         if var_q == 0.0 {
-            return Self { lambda: 0.0, r_squared: 0.0 };
+            return Self {
+                lambda: 0.0,
+                r_squared: 0.0,
+            };
         }
 
         let lambda = cov_pq / var_q;
@@ -1256,16 +1314,30 @@ impl HasbrouckShare {
     pub fn estimate(returns_a: &[f64], returns_b: &[f64]) -> Self {
         let n = returns_a.len().min(returns_b.len());
         if n == 0 {
-            return Self { security_a_share: 0.5, security_b_share: 0.5 };
+            return Self {
+                security_a_share: 0.5,
+                security_b_share: 0.5,
+            };
         }
         let nf = n as f64;
         let mean_a = returns_a[..n].iter().sum::<f64>() / nf;
         let mean_b = returns_b[..n].iter().sum::<f64>() / nf;
-        let var_a: f64 = returns_a[..n].iter().map(|x| (x - mean_a).powi(2)).sum::<f64>() / nf;
-        let var_b: f64 = returns_b[..n].iter().map(|x| (x - mean_b).powi(2)).sum::<f64>() / nf;
+        let var_a: f64 = returns_a[..n]
+            .iter()
+            .map(|x| (x - mean_a).powi(2))
+            .sum::<f64>()
+            / nf;
+        let var_b: f64 = returns_b[..n]
+            .iter()
+            .map(|x| (x - mean_b).powi(2))
+            .sum::<f64>()
+            / nf;
         let total = var_a + var_b;
         if total == 0.0 {
-            return Self { security_a_share: 0.5, security_b_share: 0.5 };
+            return Self {
+                security_a_share: 0.5,
+                security_b_share: 0.5,
+            };
         }
         Self {
             security_a_share: var_a / total,
@@ -1321,7 +1393,12 @@ impl PinEstimate {
     pub fn from_trade_counts(buy_days: &[u64], sell_days: &[u64]) -> Self {
         let n = buy_days.len().min(sell_days.len());
         if n == 0 {
-            return Self { alpha: 0.0, mu: 0.0, epsilon_b: 0.0, epsilon_s: 0.0 };
+            return Self {
+                alpha: 0.0,
+                mu: 0.0,
+                epsilon_b: 0.0,
+                epsilon_s: 0.0,
+            };
         }
         let nf = n as f64;
         let mut sum_min = 0.0_f64;
@@ -1345,7 +1422,12 @@ impl PinEstimate {
         let mu = sum_excess / nf;
         let alpha = event_days as f64 / nf;
 
-        Self { alpha, mu, epsilon_b, epsilon_s }
+        Self {
+            alpha,
+            mu,
+            epsilon_b,
+            epsilon_s,
+        }
     }
 
     /// Compute the PIN probability.

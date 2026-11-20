@@ -48,9 +48,15 @@ impl BodyFillRatio {
 }
 
 impl Signal for BodyFillRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ratios.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ratios.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -63,7 +69,10 @@ impl Signal for BodyFillRatio {
         self.ratios.push_back(ratio);
         self.sum += ratio;
         if self.ratios.len() > self.period {
-            self.sum -= self.ratios.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.sum -= self
+                .ratios
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         if self.ratios.len() < self.period {
@@ -94,7 +103,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -111,7 +123,10 @@ mod tests {
     fn test_bfr_unavailable_before_warm_up() {
         let mut bfr = BodyFillRatio::new("bfr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(bfr.update_bar(&bar("90", "110", "90", "110")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                bfr.update_bar(&bar("90", "110", "90", "110")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -140,7 +155,9 @@ mod tests {
     #[test]
     fn test_bfr_reset() {
         let mut bfr = BodyFillRatio::new("bfr", 3).unwrap();
-        for _ in 0..3 { bfr.update_bar(&bar("90", "110", "90", "110")).unwrap(); }
+        for _ in 0..3 {
+            bfr.update_bar(&bar("90", "110", "90", "110")).unwrap();
+        }
         assert!(bfr.is_ready());
         bfr.reset();
         assert!(!bfr.is_ready());

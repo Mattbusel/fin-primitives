@@ -32,7 +32,10 @@ pub struct BullishEngulfing {
 impl BullishEngulfing {
     /// Constructs a new `BullishEngulfing`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev: None }
+        Self {
+            name: name.into(),
+            prev: None,
+        }
     }
 }
 
@@ -99,7 +102,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut bull = BullishEngulfing::new("bull");
-        assert_eq!(bull.update_bar(&bar("10", "12", "9", "11")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bull.update_bar(&bar("10", "12", "9", "11")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

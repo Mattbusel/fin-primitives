@@ -72,8 +72,18 @@ impl Signal for NormalizedPrice {
             return Ok(SignalValue::Unavailable);
         }
 
-        let highest = self.highs.iter().copied().reduce(Decimal::max).unwrap_or(bar.high);
-        let lowest = self.lows.iter().copied().reduce(Decimal::min).unwrap_or(bar.low);
+        let highest = self
+            .highs
+            .iter()
+            .copied()
+            .reduce(Decimal::max)
+            .unwrap_or(bar.high);
+        let lowest = self
+            .lows
+            .iter()
+            .copied()
+            .reduce(Decimal::min)
+            .unwrap_or(bar.low);
         let range = highest - lowest;
 
         if range.is_zero() {
@@ -108,7 +118,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -124,7 +137,10 @@ mod tests {
     #[test]
     fn test_np_unavailable_before_period() {
         let mut np = NormalizedPrice::new("np", 3).unwrap();
-        assert_eq!(np.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            np.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!np.is_ready());
     }
 

@@ -74,7 +74,9 @@ impl Signal for HighLowRatio {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        let ratio = period_high.checked_div(period_low).ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = period_high
+            .checked_div(period_low)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
     }
 
@@ -105,7 +107,10 @@ mod tests {
         let lo = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: hi,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: hi,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,13 +120,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(HighLowRatio::new("hlr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            HighLowRatio::new("hlr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut hlr = HighLowRatio::new("hlr", 3).unwrap();
-        assert_eq!(hlr.update_bar(&bar("12", "10")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hlr.update_bar(&bar("12", "10")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

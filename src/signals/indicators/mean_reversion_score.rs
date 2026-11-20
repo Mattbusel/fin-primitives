@@ -1,10 +1,10 @@
 //! Mean Reversion Score indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Z-score of current close relative to rolling SMA and standard deviation.
 ///
@@ -24,7 +24,11 @@ impl MeanReversionScore {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -47,7 +51,14 @@ impl Signal for MeanReversionScore {
             return Ok(SignalValue::Unavailable);
         }
         let mean = vals.iter().sum::<f64>() / n;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         let std_dev = var.sqrt();
 
         if std_dev == 0.0 {
@@ -62,10 +73,19 @@ impl Signal for MeanReversionScore {
         }
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "MeanReversionScore" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "MeanReversionScore"
+    }
 }
 
 #[cfg(test)]

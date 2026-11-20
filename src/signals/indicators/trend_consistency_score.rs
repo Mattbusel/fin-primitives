@@ -1,9 +1,9 @@
 //! Trend Consistency Score indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Fraction of bars where close > N-bar EMA (simplified as SMA).
 ///
@@ -23,7 +23,11 @@ impl TrendConsistencyScore {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -46,10 +50,19 @@ impl Signal for TrendConsistencyScore {
         Ok(SignalValue::Scalar(score))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "TrendConsistencyScore" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "TrendConsistencyScore"
+    }
 }
 
 #[cfg(test)]

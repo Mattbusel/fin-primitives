@@ -42,7 +42,9 @@ impl VolumeOpenBias {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -56,9 +58,15 @@ impl VolumeOpenBias {
 }
 
 impl Signal for VolumeOpenBias {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gap_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gap_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let gap_vol = match self.prev_close {
@@ -72,12 +80,22 @@ impl Signal for VolumeOpenBias {
         self.gap_sum += gap_vol;
         self.vol_sum += bar.volume;
         if self.gap_window.len() > self.period {
-            if let Some(old_g) = self.gap_window.pop_front() { self.gap_sum -= old_g; }
-            if let Some(old_v) = self.vol_window.pop_front() { self.vol_sum -= old_v; }
+            if let Some(old_g) = self.gap_window.pop_front() {
+                self.gap_sum -= old_g;
+            }
+            if let Some(old_v) = self.vol_window.pop_front() {
+                self.vol_sum -= old_v;
+            }
         }
-        if self.gap_window.len() < self.period { return Ok(SignalValue::Unavailable); }
-        if self.vol_sum.is_zero() { return Ok(SignalValue::Unavailable); }
-        Ok(SignalValue::Scalar(self.gap_sum / self.vol_sum * Decimal::ONE_HUNDRED))
+        if self.gap_window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
+        if self.vol_sum.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        Ok(SignalValue::Scalar(
+            self.gap_sum / self.vol_sum * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn reset(&mut self) {
@@ -102,10 +120,14 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         let high = if cp.value() > op.value() { cp } else { op };
-        let low  = if cp.value() < op.value() { cp } else { op };
+        let low = if cp.value() < op.value() { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp, volume: v,
+            open: op,
+            high,
+            low,
+            close: cp,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -113,12 +135,17 @@ mod tests {
     }
 
     #[test]
-    fn test_vob_period_0_error() { assert!(VolumeOpenBias::new("vob", 0).is_err()); }
+    fn test_vob_period_0_error() {
+        assert!(VolumeOpenBias::new("vob", 0).is_err());
+    }
 
     #[test]
     fn test_vob_unavailable_before_period() {
         let mut vob = VolumeOpenBias::new("vob", 3).unwrap();
-        assert_eq!(vob.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vob.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -141,10 +168,10 @@ mod tests {
         let mut vob = VolumeOpenBias::new("vob", 3).unwrap();
         // Each bar opens at or below previous close -> no gap-up
         vob.update_bar(&bar("105", "100", "1000")).unwrap(); // prev_close=100
-        vob.update_bar(&bar("100", "95", "1000")).unwrap();  // open=100, prev=100 -> no gap
-        vob.update_bar(&bar("95",  "90", "1000")).unwrap();  // open=95, prev=95 -> no gap
-        let v = vob.update_bar(&bar("90", "85", "1000")).unwrap();  // open=90, prev=90 -> no gap
-        // window=[0,0,0], vol=[1000,1000,1000] -> 0%
+        vob.update_bar(&bar("100", "95", "1000")).unwrap(); // open=100, prev=100 -> no gap
+        vob.update_bar(&bar("95", "90", "1000")).unwrap(); // open=95, prev=95 -> no gap
+        let v = vob.update_bar(&bar("90", "85", "1000")).unwrap(); // open=90, prev=90 -> no gap
+                                                                   // window=[0,0,0], vol=[1000,1000,1000] -> 0%
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 

@@ -1,9 +1,9 @@
 //! High-Low Divergence indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `(high - prev_high) - (prev_low - low)`.
 ///
@@ -56,10 +56,21 @@ impl Signal for HighLowDivergence {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_high = None; self.prev_low = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "HighLowDivergence" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_high = None;
+        self.prev_low = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "HighLowDivergence"
+    }
 }
 
 #[cfg(test)]

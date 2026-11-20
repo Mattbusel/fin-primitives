@@ -97,10 +97,14 @@ impl Signal for VolumeMomentumIndex {
             let vol_ratio = if mean_vol.is_zero() {
                 Decimal::ZERO
             } else {
-                bar.volume.checked_div(mean_vol).ok_or(FinError::ArithmeticOverflow)?
+                bar.volume
+                    .checked_div(mean_vol)
+                    .ok_or(FinError::ArithmeticOverflow)?
             };
 
-            let vmi = price_mom.checked_mul(vol_ratio).ok_or(FinError::ArithmeticOverflow)?;
+            let vmi = price_mom
+                .checked_mul(vol_ratio)
+                .ok_or(FinError::ArithmeticOverflow)?;
             self.vmis.push_back(vmi);
         }
 
@@ -142,7 +146,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -152,13 +159,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(VolumeMomentumIndex::new("vmi", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            VolumeMomentumIndex::new("vmi", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut vmi = VolumeMomentumIndex::new("vmi", 3).unwrap();
-        assert_eq!(vmi.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vmi.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

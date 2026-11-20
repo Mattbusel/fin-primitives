@@ -72,9 +72,15 @@ impl BodyToWickRatio {
 }
 
 impl Signal for BodyToWickRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.values.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.values.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -93,14 +99,18 @@ impl Signal for BodyToWickRatio {
                 // Represent as body/range = 1 (all body, no wick)
                 Decimal::ONE
             } else {
-                body.checked_div(total_wicks).ok_or(FinError::ArithmeticOverflow)?
+                body.checked_div(total_wicks)
+                    .ok_or(FinError::ArithmeticOverflow)?
             }
         };
 
         self.sum += ratio;
         self.values.push_back(ratio);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .values
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -108,7 +118,8 @@ impl Signal for BodyToWickRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -150,8 +161,14 @@ mod tests {
     #[test]
     fn test_bwr_unavailable_during_warmup() {
         let mut bwr = BodyToWickRatio::new("bwr", 3).unwrap();
-        assert_eq!(bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!bwr.is_ready());
     }
 

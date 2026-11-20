@@ -58,9 +58,15 @@ impl SharpeRatio {
 }
 
 impl Signal for SharpeRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -115,7 +121,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

@@ -62,7 +62,9 @@ impl ClimaxVolume {
 }
 
 impl Signal for ClimaxVolume {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
@@ -127,7 +129,10 @@ mod tests {
         let lp = if cp <= op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,18 +148,28 @@ mod tests {
     #[test]
     fn test_climax_unavailable_before_period() {
         let mut cv = ClimaxVolume::new("c", 3, dec!(2), dec!(1.5)).unwrap();
-        assert_eq!(cv.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(cv.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cv.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            cv.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_climax_normal_bar_zero() {
         let mut cv = ClimaxVolume::new("c", 3, dec!(2), dec!(1.5)).unwrap();
         // All bars same volume — none qualifies as climax
-        for _ in 0..3 { cv.update_bar(&bar("100", "105", "100")).unwrap(); }
+        for _ in 0..3 {
+            cv.update_bar(&bar("100", "105", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = cv.update_bar(&bar("100", "105", "100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -168,13 +183,17 @@ mod tests {
         // body avg=(1+1+10)/3=4, range_mult=1 => need body>=4; body=10 ✓
         if let SignalValue::Scalar(v) = cv.update_bar(&bar("100", "110", "500")).unwrap() {
             assert_eq!(v, dec!(1), "bullish climax should be +1: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_climax_reset() {
         let mut cv = ClimaxVolume::new("c", 3, dec!(2), dec!(1.5)).unwrap();
-        for _ in 0..3 { cv.update_bar(&bar("100", "105", "100")).unwrap(); }
+        for _ in 0..3 {
+            cv.update_bar(&bar("100", "105", "100")).unwrap();
+        }
         assert!(cv.is_ready());
         cv.reset();
         assert!(!cv.is_ready());

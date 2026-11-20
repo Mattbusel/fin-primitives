@@ -1,8 +1,8 @@
 //! Close Distance From EMA indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Signed distance of close from its EMA: `(close - EMA) / EMA * 100`.
 ///
@@ -24,7 +24,13 @@ impl CloseDistanceFromEma {
             return Err(FinError::InvalidPeriod(period));
         }
         let k = Decimal::TWO / Decimal::from((period + 1) as u32);
-        Ok(Self { period, k, ema: None, warm_up: 0, warm_up_sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            k,
+            ema: None,
+            warm_up: 0,
+            warm_up_sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -52,13 +58,25 @@ impl Signal for CloseDistanceFromEma {
         if ema.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        Ok(SignalValue::Scalar((bar.close - ema) / ema * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (bar.close - ema) / ema * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.ema.is_some() }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.ema = None; self.warm_up = 0; self.warm_up_sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "CloseDistanceFromEma" }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.ema = None;
+        self.warm_up = 0;
+        self.warm_up_sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "CloseDistanceFromEma"
+    }
 }
 
 #[cfg(test)]

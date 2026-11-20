@@ -89,7 +89,11 @@ impl VolSurface {
         // Fill NaN gaps with nearest known value (simple sweep)
         Self::fill_gaps(&mut grid, n_exp, n_str);
 
-        Self { strikes: strike_set, expiries: expiry_set, grid }
+        Self {
+            strikes: strike_set,
+            expiries: expiry_set,
+            grid,
+        }
     }
 
     /// Bilinear interpolation for (strike, expiry).
@@ -120,8 +124,8 @@ impl VolSurface {
             return None;
         }
 
-        let v = (1.0 - t_e) * ((1.0 - t_s) * v00 + t_s * v10)
-            + t_e * ((1.0 - t_s) * v01 + t_s * v11);
+        let v =
+            (1.0 - t_e) * ((1.0 - t_s) * v00 + t_s * v10) + t_e * ((1.0 - t_s) * v01 + t_s * v11);
         Some(v)
     }
 
@@ -152,7 +156,11 @@ impl VolSurface {
             .filter_map(|(j, &exp)| {
                 let mid = self.strikes.len() / 2;
                 let vol = self.grid[j][mid];
-                if vol.is_nan() { None } else { Some((exp, vol)) }
+                if vol.is_nan() {
+                    None
+                } else {
+                    Some((exp, vol))
+                }
             })
             .collect()
     }
@@ -172,7 +180,10 @@ impl VolSurface {
         if pts.is_empty() {
             return None;
         }
-        Some(VolSmile { expiry, points: pts })
+        Some(VolSmile {
+            expiry,
+            points: pts,
+        })
     }
 
     // Fill NaN cells with the nearest non-NaN value via a simple forward/backward pass.
@@ -236,7 +247,11 @@ fn bracket(sorted: &[f64], x: f64) -> (usize, usize, f64) {
     let lo = pos - 1;
     let hi = pos;
     let span = sorted[hi] - sorted[lo];
-    let t = if span.abs() < 1e-15 { 0.0 } else { (x - sorted[lo]) / span };
+    let t = if span.abs() < 1e-15 {
+        0.0
+    } else {
+        (x - sorted[lo]) / span
+    };
     (lo, hi, t)
 }
 
@@ -336,7 +351,10 @@ mod tests {
         let v11 = 0.20 + 0.05 * (100.0 - 100.0) / 100.0 + 0.10 * 1.0; // 0.300
         let expected = 0.25 * (v00 + v10 + v01 + v11); // bilinear at t=0.5, s=0.5
         let v = surf.interpolate(95.0, 0.75).unwrap();
-        assert!((v - expected).abs() < 0.005, "bilinear: {v:.4} vs {expected:.4}");
+        assert!(
+            (v - expected).abs() < 0.005,
+            "bilinear: {v:.4} vs {expected:.4}"
+        );
     }
 
     #[test]
@@ -399,7 +417,11 @@ mod tests {
 
     #[test]
     fn from_points_single_point() {
-        let pts = vec![VolPoint { strike: 100.0, expiry: 1.0, implied_vol: 0.20 }];
+        let pts = vec![VolPoint {
+            strike: 100.0,
+            expiry: 1.0,
+            implied_vol: 0.20,
+        }];
         let surf = VolSurface::from_points(pts);
         // Should be able to query the exact point
         let v = surf.interpolate(100.0, 1.0).unwrap();
@@ -409,8 +431,16 @@ mod tests {
     #[test]
     fn from_points_duplicate_averaged() {
         let pts = vec![
-            VolPoint { strike: 100.0, expiry: 1.0, implied_vol: 0.20 },
-            VolPoint { strike: 100.0, expiry: 1.0, implied_vol: 0.30 },
+            VolPoint {
+                strike: 100.0,
+                expiry: 1.0,
+                implied_vol: 0.20,
+            },
+            VolPoint {
+                strike: 100.0,
+                expiry: 1.0,
+                implied_vol: 0.30,
+            },
         ];
         let surf = VolSurface::from_points(pts);
         let v = surf.interpolate(100.0, 1.0).unwrap();
@@ -423,7 +453,12 @@ mod tests {
         let surf = skewed_surface();
         let smile = surf.smile(1.0).unwrap();
         for w in smile.points.windows(2) {
-            assert!(w[0].1 >= w[1].1, "vol should decrease with strike: {} < {}", w[0].1, w[1].1);
+            assert!(
+                w[0].1 >= w[1].1,
+                "vol should decrease with strike: {} < {}",
+                w[0].1,
+                w[1].1
+            );
         }
     }
 }

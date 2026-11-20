@@ -1,10 +1,10 @@
 //! Range Z-Score indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Z-score of the current bar's range relative to the rolling window.
 ///
@@ -21,7 +21,10 @@ impl RangeZScore {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -36,16 +39,21 @@ impl Signal for RangeZScore {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vals: Vec<f64> = self.window.iter()
-            .filter_map(|r| r.to_f64())
-            .collect();
+        let vals: Vec<f64> = self.window.iter().filter_map(|r| r.to_f64()).collect();
         if vals.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
         let n = vals.len() as f64;
         let mean = vals.iter().sum::<f64>() / n;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         let std_dev = var.sqrt();
 
         if std_dev == 0.0 {
@@ -63,10 +71,18 @@ impl Signal for RangeZScore {
         }
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); }
-    fn name(&self) -> &str { "RangeZScore" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "RangeZScore"
+    }
 }
 
 #[cfg(test)]
@@ -87,8 +103,14 @@ mod tests {
     #[test]
     fn test_range_z_score_not_ready() {
         let mut sig = RangeZScore::new(3).unwrap();
-        assert_eq!(sig.update(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sig.update(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sig.update(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sig.update(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

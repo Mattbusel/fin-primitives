@@ -40,9 +40,15 @@ impl ShadowImbalance {
 }
 
 impl Signal for ShadowImbalance {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -74,7 +80,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -85,34 +94,49 @@ mod tests {
     #[test]
     fn test_si_no_range() {
         let mut si = ShadowImbalance::new("si").unwrap();
-        assert_eq!(si.update_bar(&bar("100", "100", "100", "100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            si.update_bar(&bar("100", "100", "100", "100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_si_all_upper_shadow() {
         // open=100, close=100, high=110, low=100 → upper=10, lower=0, range=10 → +1
         let mut si = ShadowImbalance::new("si").unwrap();
-        assert_eq!(si.update_bar(&bar("100", "110", "100", "100")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            si.update_bar(&bar("100", "110", "100", "100")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]
     fn test_si_all_lower_shadow() {
         // open=100, close=100, high=100, low=90 → upper=0, lower=10, range=10 → -1
         let mut si = ShadowImbalance::new("si").unwrap();
-        assert_eq!(si.update_bar(&bar("100", "100", "90", "100")).unwrap(), SignalValue::Scalar(dec!(-1)));
+        assert_eq!(
+            si.update_bar(&bar("100", "100", "90", "100")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
     }
 
     #[test]
     fn test_si_balanced_shadows() {
         // open=100, close=100, high=110, low=90 → upper=10, lower=10, range=20 → 0
         let mut si = ShadowImbalance::new("si").unwrap();
-        assert_eq!(si.update_bar(&bar("100", "110", "90", "100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            si.update_bar(&bar("100", "110", "90", "100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_si_body_consumes_range() {
         // fully bullish: open=90, close=110, high=110, low=90 → upper=0, lower=0 → 0
         let mut si = ShadowImbalance::new("si").unwrap();
-        assert_eq!(si.update_bar(&bar("90", "110", "90", "110")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            si.update_bar(&bar("90", "110", "90", "110")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 }

@@ -22,7 +22,10 @@ impl CorrelationMatrix {
     pub fn from_returns(returns: &[Vec<f64>]) -> Self {
         let n = returns.len();
         if n == 0 {
-            return Self { matrix: vec![], n: 0 };
+            return Self {
+                matrix: vec![],
+                n: 0,
+            };
         }
 
         let t = returns[0].len();
@@ -115,7 +118,11 @@ impl CorrelationMatrix {
                 let new_v: Vec<f64> = av.iter().map(|&x| x / norm).collect();
                 // Rayleigh quotient
                 let av2 = mat_vec_mul(&a, &new_v);
-                lambda = new_v.iter().zip(av2.iter()).map(|(&vi, &avi)| vi * avi).sum();
+                lambda = new_v
+                    .iter()
+                    .zip(av2.iter())
+                    .map(|(&vi, &avi)| vi * avi)
+                    .sum();
                 v = new_v;
             }
             eigenvalues.push(lambda);
@@ -237,7 +244,11 @@ impl LedoitWolfShrinkage {
                 count += 1;
             }
         }
-        let rho_bar = if count > 0 { rho_sum / count as f64 } else { 0.0 };
+        let rho_bar = if count > 0 {
+            rho_sum / count as f64
+        } else {
+            0.0
+        };
 
         let denom = (t as f64 - 1.0) * (1.0 - rho_bar);
         if denom.abs() < 1e-12 {
@@ -268,8 +279,7 @@ impl LedoitWolfShrinkage {
         let mut matrix = vec![vec![0.0_f64; n]; n];
         for i in 0..n {
             for j in 0..n {
-                matrix[i][j] =
-                    (1.0 - alpha) * sample.matrix[i][j] + alpha * target.matrix[i][j];
+                matrix[i][j] = (1.0 - alpha) * sample.matrix[i][j] + alpha * target.matrix[i][j];
             }
         }
         CorrelationMatrix { matrix, n }

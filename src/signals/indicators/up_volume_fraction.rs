@@ -1,9 +1,9 @@
 //! Up Volume Fraction indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling fraction of total volume on up bars: `sum(up_volume) / sum(all_volume)`.
 ///
@@ -37,7 +37,11 @@ impl UpVolumeFraction {
 impl Signal for UpVolumeFraction {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let up_vol = if bar.close > pc { bar.volume } else { Decimal::ZERO };
+            let up_vol = if bar.close > pc {
+                bar.volume
+            } else {
+                Decimal::ZERO
+            };
             self.window.push_back((up_vol, bar.volume));
             self.up_sum += up_vol;
             self.total_sum += bar.volume;
@@ -59,15 +63,21 @@ impl Signal for UpVolumeFraction {
         Ok(SignalValue::Scalar(self.up_sum / self.total_sum))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_close = None;
         self.window.clear();
         self.up_sum = Decimal::ZERO;
         self.total_sum = Decimal::ZERO;
     }
-    fn name(&self) -> &str { "UpVolumeFraction" }
+    fn name(&self) -> &str {
+        "UpVolumeFraction"
+    }
 }
 
 #[cfg(test)]

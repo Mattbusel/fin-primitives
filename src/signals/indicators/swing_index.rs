@@ -65,11 +65,15 @@ impl SwingIndex {
     }
 
     /// Returns the current Accumulation Swing Index value.
-    pub fn asi(&self) -> Decimal { self.asi }
+    pub fn asi(&self) -> Decimal {
+        self.asi
+    }
 }
 
 impl Signal for SwingIndex {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let (pc, po) = match (self.prev_close, self.prev_open) {
@@ -101,7 +105,11 @@ impl Signal for SwingIndex {
 
         // K/T normalization
         let k = r1.max(r2);
-        let kt = if self.limit_move.is_zero() { Decimal::ONE } else { k / self.limit_move };
+        let kt = if self.limit_move.is_zero() {
+            Decimal::ONE
+        } else {
+            k / self.limit_move
+        };
 
         let si = Decimal::from(50u32) * numerator / r * kt;
 
@@ -116,8 +124,12 @@ impl Signal for SwingIndex {
         }
     }
 
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
-    fn period(&self) -> usize { 1 }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
+    fn period(&self) -> usize {
+        1
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -140,7 +152,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -167,9 +182,12 @@ mod tests {
     fn test_si_flat_is_zero() {
         let mut s = SwingIndex::new("s", dec!(0.5), false).unwrap();
         s.update_bar(&bar_ohlc("100", "100", "100", "100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar_ohlc("100", "100", "100", "100")).unwrap() {
+        if let SignalValue::Scalar(v) = s.update_bar(&bar_ohlc("100", "100", "100", "100")).unwrap()
+        {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -178,12 +196,12 @@ mod tests {
         s.update_bar(&bar_ohlc("100", "105", "98", "102")).unwrap(); // bar 1
         let v1 = s.update_bar(&bar_ohlc("102", "108", "101", "107")).unwrap(); // bar 2
         let v2 = s.update_bar(&bar_ohlc("107", "110", "105", "106")).unwrap(); // bar 3
-        // ASI should be non-zero and accumulating
+                                                                               // ASI should be non-zero and accumulating
         assert!(matches!(v1, SignalValue::Scalar(_)));
         assert!(matches!(v2, SignalValue::Scalar(_)));
         if let (SignalValue::Scalar(a1), SignalValue::Scalar(a2)) = (v1, v2) {
             assert_ne!(a1, dec!(0)); // first SI value contributed
-            // a2 = a1 + SI_bar3; they should differ unless SI_bar3 = 0
+                                     // a2 = a1 + SI_bar3; they should differ unless SI_bar3 = 0
             let _ = a2; // just checking no panic
         }
     }

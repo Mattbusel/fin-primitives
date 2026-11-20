@@ -139,7 +139,9 @@ impl FundingHistory {
     /// [`FinError::InvalidInput`] if `max_size` is zero. (Before 3.0 this panicked.)
     pub fn new(max_size: usize) -> Result<Self, FinError> {
         if max_size == 0 {
-            return Err(FinError::InvalidInput("FundingHistory max_size must be > 0".to_owned()));
+            return Err(FinError::InvalidInput(
+                "FundingHistory max_size must be > 0".to_owned(),
+            ));
         }
         Ok(Self {
             data: VecDeque::with_capacity(max_size),
@@ -179,7 +181,13 @@ impl FundingHistory {
     /// Returns `0.0` if fewer than 2 observations are present.
     #[must_use]
     pub fn rate_trend(&self) -> f64 {
-        ols_slope(self.data.iter().map(|r| r.rate).collect::<Vec<_>>().as_slice())
+        ols_slope(
+            self.data
+                .iter()
+                .map(|r| r.rate)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
     }
 
     /// Number of stored observations.
@@ -304,7 +312,11 @@ fn ols_slope(y: &[f64]) -> f64 {
         num += dx * (yi - mean_y);
         den += dx * dx;
     }
-    if den == 0.0 { 0.0 } else { num / den }
+    if den == 0.0 {
+        0.0
+    } else {
+        num / den
+    }
 }
 
 // ─────────────────────────────────────────
@@ -370,7 +382,10 @@ mod tests {
 
     #[test]
     fn funding_history_rejects_zero_capacity() {
-        assert!(matches!(FundingHistory::new(0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(
+            FundingHistory::new(0),
+            Err(FinError::InvalidInput(_))
+        ));
     }
 
     #[test]
@@ -424,7 +439,10 @@ mod tests {
 
     #[test]
     fn open_interest_ratio_zero_volume() {
-        assert_eq!(CryptoMarketMetrics::open_interest_ratio(1_000_000.0, 0.0), 0.0);
+        assert_eq!(
+            CryptoMarketMetrics::open_interest_ratio(1_000_000.0, 0.0),
+            0.0
+        );
     }
 
     #[test]

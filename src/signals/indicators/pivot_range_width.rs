@@ -47,7 +47,11 @@ impl PivotRangeWidth {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, widths: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            widths: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -65,7 +69,9 @@ impl Signal for PivotRangeWidth {
             Decimal::ZERO
         } else {
             let range = bar.high - bar.low;
-            range.checked_div(pivot).ok_or(FinError::ArithmeticOverflow)?
+            range
+                .checked_div(pivot)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.widths.push_back(width);
@@ -111,7 +117,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -121,13 +130,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(PivotRangeWidth::new("prw", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            PivotRangeWidth::new("prw", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut prw = PivotRangeWidth::new("prw", 3).unwrap();
-        assert_eq!(prw.update_bar(&bar("120", "100", "110")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            prw.update_bar(&bar("120", "100", "110")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

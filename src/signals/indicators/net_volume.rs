@@ -39,7 +39,9 @@ impl NetVolume {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,7 +51,9 @@ impl NetVolume {
 }
 
 impl Signal for NetVolume {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let signed = if bar.is_bullish() {
@@ -61,15 +65,23 @@ impl Signal for NetVolume {
         };
 
         self.signed_vols.push_back(signed);
-        if self.signed_vols.len() > self.period { self.signed_vols.pop_front(); }
-        if self.signed_vols.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.signed_vols.len() > self.period {
+            self.signed_vols.pop_front();
+        }
+        if self.signed_vols.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let net = self.signed_vols.iter().sum::<Decimal>();
         Ok(SignalValue::Scalar(net))
     }
 
-    fn is_ready(&self) -> bool { self.signed_vols.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.signed_vols.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.signed_vols.clear();
@@ -91,7 +103,10 @@ mod tests {
         let lp = if cp <= op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -108,7 +123,10 @@ mod tests {
     fn test_nv_unavailable_before_warmup() {
         let mut n = NetVolume::new("n", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -116,20 +134,28 @@ mod tests {
     fn test_nv_all_up_bars_positive() {
         let mut n = NetVolume::new("n", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap(); }
+        for _ in 0..5 {
+            last = n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(3000));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_nv_all_down_bars_negative() {
         let mut n = NetVolume::new("n", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = n.update_bar(&bar_oc_v("101", "100", "1000")).unwrap(); }
+        for _ in 0..5 {
+            last = n.update_bar(&bar_oc_v("101", "100", "1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(-3000));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -143,13 +169,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_nv_reset() {
         let mut n = NetVolume::new("n", 3).unwrap();
-        for _ in 0..5 { n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap(); }
+        for _ in 0..5 {
+            n.update_bar(&bar_oc_v("100", "101", "1000")).unwrap();
+        }
         assert!(n.is_ready());
         n.reset();
         assert!(!n.is_ready());

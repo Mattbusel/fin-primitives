@@ -41,13 +41,16 @@ struct Lcg {
 
 impl Lcg {
     fn new(seed: u64) -> Self {
-        Self { state: seed.wrapping_add(1) }
+        Self {
+            state: seed.wrapping_add(1),
+        }
     }
 
     /// Uniform in (0, 1).
     fn next_f64(&mut self) -> f64 {
         // Numerical Recipes LCG parameters.
-        self.state = self.state
+        self.state = self
+            .state
             .wrapping_mul(6_364_136_223_846_793_005)
             .wrapping_add(1_442_695_040_888_963_407);
         (self.state >> 11) as f64 / (1u64 << 53) as f64
@@ -146,9 +149,17 @@ impl BarrierOption {
         let b = phi * s * (-q * t).exp() * norm_cdf(phi * x2)
             - phi * k * (-r * t).exp() * norm_cdf(phi * x2 - phi * sigma * sqrt_t);
         let c = phi * s * (-q * t).exp() * (h / s).powf(2.0 * (mu + 1.0)) * norm_cdf(eta * y1)
-            - phi * k * (-r * t).exp() * (h / s).powf(2.0 * mu) * norm_cdf(eta * y1 - eta * sigma * sqrt_t);
+            - phi
+                * k
+                * (-r * t).exp()
+                * (h / s).powf(2.0 * mu)
+                * norm_cdf(eta * y1 - eta * sigma * sqrt_t);
         let d = phi * s * (-q * t).exp() * (h / s).powf(2.0 * (mu + 1.0)) * norm_cdf(eta * y2)
-            - phi * k * (-r * t).exp() * (h / s).powf(2.0 * mu) * norm_cdf(eta * y2 - eta * sigma * sqrt_t);
+            - phi
+                * k
+                * (-r * t).exp()
+                * (h / s).powf(2.0 * mu)
+                * norm_cdf(eta * y2 - eta * sigma * sqrt_t);
 
         // Suppress unused lambda warning — it is used in rebate_pv.
         let _ = lambda;
@@ -190,8 +201,14 @@ impl BarrierOption {
     /// Numerical delta via central-difference bump.
     pub fn delta(&self) -> f64 {
         let bump = self.s * 0.001;
-        let up = BarrierOption { s: self.s + bump, ..BarrierOption::clone_self(self) };
-        let dn = BarrierOption { s: self.s - bump, ..BarrierOption::clone_self(self) };
+        let up = BarrierOption {
+            s: self.s + bump,
+            ..BarrierOption::clone_self(self)
+        };
+        let dn = BarrierOption {
+            s: self.s - bump,
+            ..BarrierOption::clone_self(self)
+        };
         (up.price() - dn.price()) / (2.0 * bump)
     }
 
@@ -222,7 +239,8 @@ impl BarrierOption {
             BarrierType::DownAndOut | BarrierType::DownAndIn => -1.0,
         };
 
-        rebate * (-r * t).exp()
+        rebate
+            * (-r * t).exp()
             * (norm_cdf(eta * z1) + (h / s).powf(2.0 * lambda) * norm_cdf(eta * z2))
     }
 
@@ -309,8 +327,7 @@ impl AsianOption {
     pub fn price_geometric_closed(&self) -> f64 {
         let n = self.n_fixings as f64;
         let sig_g = self.sigma * ((2.0 * n + 1.0) / (6.0 * (n + 1.0))).sqrt();
-        let mu_g = 0.5 * (self.r - 0.5 * self.sigma * self.sigma)
-            + 0.5 * sig_g * sig_g;
+        let mu_g = 0.5 * (self.r - 0.5 * self.sigma * self.sigma) + 0.5 * sig_g * sig_g;
         let d1 = ((self.s / self.k).ln() + (mu_g + 0.5 * sig_g * sig_g) * self.t)
             / (sig_g * self.t.sqrt());
         let d2 = d1 - sig_g * self.t.sqrt();
@@ -406,7 +423,8 @@ impl LookbackOption {
 
             s * (b * t).exp() * norm_cdf(a1)
                 - m * (-r * t).exp() * norm_cdf(a2)
-                - s * (-r * t).exp() * (sigma * sigma / (2.0 * b))
+                - s * (-r * t).exp()
+                    * (sigma * sigma / (2.0 * b))
                     * ((s / m).powf(-2.0 * b / (sigma * sigma)) * norm_cdf(-a3)
                         - (b * t).exp() * norm_cdf(-a1))
         } else {
@@ -415,9 +433,9 @@ impl LookbackOption {
             let a2 = a1 - sigma * sqrt_t;
             let a3 = ((s / m).ln() + (-b + 0.5 * sigma * sigma) * t) / (sigma * sqrt_t);
 
-            m * (-r * t).exp() * norm_cdf(-a2)
-                - s * (b * t).exp() * norm_cdf(-a1)
-                + s * (-r * t).exp() * (sigma * sigma / (2.0 * b))
+            m * (-r * t).exp() * norm_cdf(-a2) - s * (b * t).exp() * norm_cdf(-a1)
+                + s * (-r * t).exp()
+                    * (sigma * sigma / (2.0 * b))
                     * ((s / m).powf(-2.0 * b / (sigma * sigma)) * norm_cdf(a3)
                         - (b * t).exp() * norm_cdf(a1))
         }
@@ -443,8 +461,12 @@ impl LookbackOption {
             let mut running_max = spot;
             for _ in 0..steps {
                 spot *= (drift + vol_dt * rng.next_normal()).exp();
-                if spot < running_min { running_min = spot; }
-                if spot > running_max { running_max = spot; }
+                if spot < running_min {
+                    running_min = spot;
+                }
+                if spot > running_max {
+                    running_max = spot;
+                }
             }
             let payoff = if is_call {
                 spot - running_min
@@ -482,7 +504,11 @@ impl DigitalOption {
     /// Price = payout * e^(-rT) * N(d2).
     pub fn cash_or_nothing_call(&self, payout: f64) -> f64 {
         if self.t <= 0.0 || self.sigma <= 0.0 {
-            return if self.s > self.k { payout * (-self.r * self.t).exp() } else { 0.0 };
+            return if self.s > self.k {
+                payout * (-self.r * self.t).exp()
+            } else {
+                0.0
+            };
         }
         let (_, d2) = bsm_d1_d2(self.s, self.k, self.t, self.r, 0.0, self.sigma);
         payout * (-self.r * self.t).exp() * norm_cdf(d2)
@@ -526,8 +552,13 @@ mod tests {
     #[test]
     fn barrier_price_non_negative() {
         let opt = BarrierOption {
-            s: 100.0, k: 100.0, h: 120.0, t: 1.0,
-            r: 0.05, q: 0.0, sigma: 0.2,
+            s: 100.0,
+            k: 100.0,
+            h: 120.0,
+            t: 1.0,
+            r: 0.05,
+            q: 0.0,
+            sigma: 0.2,
             barrier_type: BarrierType::UpAndOut,
             option_type: OptionType::Call,
         };
@@ -537,7 +568,14 @@ mod tests {
 
     #[test]
     fn asian_mc_positive() {
-        let opt = AsianOption { s: 100.0, k: 100.0, t: 1.0, r: 0.05, sigma: 0.2, n_fixings: 12 };
+        let opt = AsianOption {
+            s: 100.0,
+            k: 100.0,
+            t: 1.0,
+            r: 0.05,
+            sigma: 0.2,
+            n_fixings: 12,
+        };
         let price = opt.price_mc(10_000, 42);
         assert!(price > 0.0);
         let cv = opt.control_variate_price(10_000, 42);
@@ -546,14 +584,26 @@ mod tests {
 
     #[test]
     fn lookback_mc_positive() {
-        let opt = LookbackOption { s: 100.0, k: 100.0, t: 1.0, r: 0.05, sigma: 0.2 };
+        let opt = LookbackOption {
+            s: 100.0,
+            k: 100.0,
+            t: 1.0,
+            r: 0.05,
+            sigma: 0.2,
+        };
         let price = opt.price_floating_mc(true, 5_000, 7);
         assert!(price >= 0.0);
     }
 
     #[test]
     fn digital_call_bounds() {
-        let opt = DigitalOption { s: 100.0, k: 100.0, t: 1.0, r: 0.05, sigma: 0.2 };
+        let opt = DigitalOption {
+            s: 100.0,
+            k: 100.0,
+            t: 1.0,
+            r: 0.05,
+            sigma: 0.2,
+        };
         let p = opt.cash_or_nothing_call(1.0);
         assert!((0.0..=1.0).contains(&p));
         assert!(opt.asset_or_nothing_call() > 0.0);

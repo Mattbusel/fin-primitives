@@ -50,9 +50,15 @@ impl HighLowPctRange {
 }
 
 impl Signal for HighLowPctRange {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let hl_pct = if bar.close.is_zero() {
@@ -68,7 +74,10 @@ impl Signal for HighLowPctRange {
         self.window.push_back(hl_pct);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -76,7 +85,8 @@ impl Signal for HighLowPctRange {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -103,7 +113,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -119,8 +132,14 @@ mod tests {
     #[test]
     fn test_hlp_unavailable_before_period() {
         let mut s = HighLowPctRange::new("hlp", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -128,9 +147,12 @@ mod tests {
     fn test_hlp_known_value() {
         // H=110, L=90, C=100 → HL%=20/100*100=20%
         let mut s = HighLowPctRange::new("hlp", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","100")).unwrap() {
-            assert!((v - dec!(20)).abs() < dec!(0.001), "HL%=20 for 10% range bar: {v}");
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "100")).unwrap() {
+            assert!(
+                (v - dec!(20)).abs() < dec!(0.001),
+                "HL%=20 for 10% range bar: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -139,8 +161,13 @@ mod tests {
     #[test]
     fn test_hlp_non_negative() {
         let mut s = HighLowPctRange::new("hlp", 3).unwrap();
-        for (h,l,c) in &[("110","90","100"),("115","85","98"),("108","92","105"),("112","88","100")] {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(h,l,c)).unwrap() {
+        for (h, l, c) in &[
+            ("110", "90", "100"),
+            ("115", "85", "98"),
+            ("108", "92", "105"),
+            ("112", "88", "100"),
+        ] {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l, c)).unwrap() {
                 assert!(v >= dec!(0), "HL% range must be non-negative: {v}");
             }
         }
@@ -149,8 +176,8 @@ mod tests {
     #[test]
     fn test_hlp_reset() {
         let mut s = HighLowPctRange::new("hlp", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

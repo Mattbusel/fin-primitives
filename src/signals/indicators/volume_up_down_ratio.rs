@@ -41,7 +41,9 @@ impl VolumeUpDownRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -54,23 +56,43 @@ impl VolumeUpDownRatio {
 }
 
 impl Signal for VolumeUpDownRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.total_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.total_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.is_bullish() { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.is_bullish() {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
         self.up_window.push_back(up_vol);
         self.total_window.push_back(bar.volume);
         self.up_sum += up_vol;
         self.total_sum += bar.volume;
         if self.total_window.len() > self.period {
-            if let Some(old_u) = self.up_window.pop_front() { self.up_sum -= old_u; }
-            if let Some(old_t) = self.total_window.pop_front() { self.total_sum -= old_t; }
+            if let Some(old_u) = self.up_window.pop_front() {
+                self.up_sum -= old_u;
+            }
+            if let Some(old_t) = self.total_window.pop_front() {
+                self.total_sum -= old_t;
+            }
         }
-        if self.total_window.len() < self.period { return Ok(SignalValue::Unavailable); }
-        if self.total_sum.is_zero() { return Ok(SignalValue::Unavailable); }
-        Ok(SignalValue::Scalar(self.up_sum / self.total_sum * Decimal::ONE_HUNDRED))
+        if self.total_window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
+        if self.total_sum.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        Ok(SignalValue::Scalar(
+            self.up_sum / self.total_sum * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn reset(&mut self) {
@@ -94,10 +116,14 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         let high = if cp.value() > op.value() { cp } else { op };
-        let low  = if cp.value() < op.value() { cp } else { op };
+        let low = if cp.value() < op.value() { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp, volume: v,
+            open: op,
+            high,
+            low,
+            close: cp,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -105,12 +131,17 @@ mod tests {
     }
 
     #[test]
-    fn test_vudr_period_0_error() { assert!(VolumeUpDownRatio::new("v", 0).is_err()); }
+    fn test_vudr_period_0_error() {
+        assert!(VolumeUpDownRatio::new("v", 0).is_err());
+    }
 
     #[test]
     fn test_vudr_unavailable_before_period() {
         let mut v = VolumeUpDownRatio::new("v", 3).unwrap();
-        assert_eq!(v.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

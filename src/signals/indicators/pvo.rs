@@ -37,14 +37,19 @@ impl Pvo {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero or `fast_period >= slow_period`.
-    pub fn new(name: impl Into<String>, fast_period: usize, slow_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        fast_period: usize,
+        slow_period: usize,
+    ) -> Result<Self, FinError> {
         if fast_period == 0 || slow_period == 0 {
             return Err(FinError::InvalidPeriod(0));
         }
         if fast_period >= slow_period {
-            return Err(FinError::InvalidInput(
-                format!("fast_period ({}) must be < slow_period ({})", fast_period, slow_period)
-            ));
+            return Err(FinError::InvalidInput(format!(
+                "fast_period ({}) must be < slow_period ({})",
+                fast_period, slow_period
+            )));
         }
         let fast_k = Decimal::TWO / Decimal::from(fast_period as u32 + 1);
         let slow_k = Decimal::TWO / Decimal::from(slow_period as u32 + 1);
@@ -63,7 +68,9 @@ impl Pvo {
 
 impl Pvo {
     /// Returns the fast EMA period.
-    pub fn fast_period(&self) -> usize { self.fast_period }
+    pub fn fast_period(&self) -> usize {
+        self.fast_period
+    }
 }
 
 impl Signal for Pvo {
@@ -76,12 +83,26 @@ impl Signal for Pvo {
         self.bar_count += 1;
 
         let fast = match self.fast_ema {
-            None => { self.fast_ema = Some(vol); vol }
-            Some(prev) => { let v = prev + self.fast_k * (vol - prev); self.fast_ema = Some(v); v }
+            None => {
+                self.fast_ema = Some(vol);
+                vol
+            }
+            Some(prev) => {
+                let v = prev + self.fast_k * (vol - prev);
+                self.fast_ema = Some(v);
+                v
+            }
         };
         let slow = match self.slow_ema {
-            None => { self.slow_ema = Some(vol); vol }
-            Some(prev) => { let v = prev + self.slow_k * (vol - prev); self.slow_ema = Some(v); v }
+            None => {
+                self.slow_ema = Some(vol);
+                vol
+            }
+            Some(prev) => {
+                let v = prev + self.slow_k * (vol - prev);
+                self.slow_ema = Some(v);
+                v
+            }
         };
 
         if self.bar_count < self.slow_period {
@@ -135,7 +156,10 @@ mod tests {
     fn test_pvo_unavailable_before_warmup() {
         let mut p = Pvo::new("p", 3, 6).unwrap();
         for _ in 0..5 {
-            assert_eq!(p.update(&bar_vol("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                p.update(&bar_vol("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -158,7 +182,11 @@ mod tests {
             last = p.update(&bar_vol("1000")).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v.abs() < dec!(1), "pvo should be near 0 for flat volume: {}", v);
+            assert!(
+                v.abs() < dec!(1),
+                "pvo should be near 0 for flat volume: {}",
+                v
+            );
         } else {
             panic!("expected scalar");
         }

@@ -117,7 +117,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: lp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: lp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +136,10 @@ mod tests {
     #[test]
     fn test_pc_unavailable_before_period() {
         let mut pc = PriceChannel::new("pc", 3).unwrap();
-        assert_eq!(pc.update_bar(&bar("105", "95")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pc.update_bar(&bar("105", "95")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pc.is_ready());
     }
 
@@ -166,7 +172,9 @@ mod tests {
     #[test]
     fn test_pc_reset() {
         let mut pc = PriceChannel::new("pc", 3).unwrap();
-        for _ in 0..3 { pc.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            pc.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(pc.is_ready());
         pc.reset();
         assert!(!pc.is_ready());

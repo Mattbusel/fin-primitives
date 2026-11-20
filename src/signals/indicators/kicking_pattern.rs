@@ -133,12 +133,17 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_pct() { assert!(KickingPattern::new("kp", 101).is_err()); }
+    fn test_invalid_pct() {
+        assert!(KickingPattern::new("kp", 101).is_err());
+    }
 
     #[test]
     fn test_first_bar_unavailable() {
         let mut kp = KickingPattern::new("kp", 80).unwrap();
-        assert_eq!(kp.update_bar(&bar("20", "20", "10", "10")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            kp.update_bar(&bar("20", "20", "10", "10")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -1,9 +1,9 @@
 //! Price Compression Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Ratio of N-bar price range to sum of individual bar ranges.
 ///
@@ -49,16 +49,33 @@ impl Signal for PriceCompressionRatio {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        let period_high = self.window.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
-        let period_low = self.window.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
+        let period_high = self
+            .window
+            .iter()
+            .map(|b| b.high)
+            .fold(Decimal::MIN, Decimal::max);
+        let period_low = self
+            .window
+            .iter()
+            .map(|b| b.low)
+            .fold(Decimal::MAX, Decimal::min);
         let net_range = period_high - period_low;
         Ok(SignalValue::Scalar(net_range / self.range_sum))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.range_sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "PriceCompressionRatio" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.range_sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "PriceCompressionRatio"
+    }
 }
 
 #[cfg(test)]

@@ -49,9 +49,15 @@ impl CloseAbovePriorClose {
 }
 
 impl Signal for CloseAbovePriorClose {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.above.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.above.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(prev) = self.prev_close {
@@ -60,7 +66,10 @@ impl Signal for CloseAbovePriorClose {
             self.above.push_back(flag);
 
             if self.above.len() > self.period {
-                let removed = self.above.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                let removed = self
+                    .above
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
                 self.above_sum -= u32::from(removed);
             }
         }
@@ -97,7 +106,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

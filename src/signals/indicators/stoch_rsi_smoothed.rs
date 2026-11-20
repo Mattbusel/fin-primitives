@@ -164,8 +164,8 @@ mod tests {
     fn test_stochrsi_smoothed_in_range() {
         let mut s = StochRsiSmoothed::new("s", 3, 3, 3).unwrap();
         let prices = [
-            "100", "102", "101", "103", "102", "104", "103", "101", "99", "100",
-            "102", "104", "103", "105", "104",
+            "100", "102", "101", "103", "102", "104", "103", "101", "99", "100", "102", "104",
+            "103", "105", "104",
         ];
         for c in &prices {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(c)).unwrap() {

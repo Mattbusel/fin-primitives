@@ -50,7 +50,9 @@ impl SmoothedRsi {
         rsi_period: usize,
         smooth_period: usize,
     ) -> Result<Self, FinError> {
-        if rsi_period < 2 { return Err(FinError::InvalidPeriod(rsi_period)); }
+        if rsi_period < 2 {
+            return Err(FinError::InvalidPeriod(rsi_period));
+        }
         if smooth_period == 0 {
             return Err(FinError::InvalidInput("smooth_period must be > 0".into()));
         }
@@ -78,7 +80,9 @@ impl SmoothedRsi {
 }
 
 impl Signal for SmoothedRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let prev = match self.prev_close {
@@ -91,16 +95,24 @@ impl Signal for SmoothedRsi {
         self.prev_close = Some(bar.close);
 
         let change = bar.close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         // RSI seeding phase
         if self.avg_gain.is_none() {
             self.seed_gains.push(gain);
             self.seed_losses.push(loss);
             if self.seed_gains.len() == self.rsi_period {
-                let ag = self.seed_gains.iter().sum::<Decimal>()
-                    / Decimal::from(self.rsi_period as u32);
+                let ag =
+                    self.seed_gains.iter().sum::<Decimal>() / Decimal::from(self.rsi_period as u32);
                 let al = self.seed_losses.iter().sum::<Decimal>()
                     / Decimal::from(self.rsi_period as u32);
                 self.avg_gain = Some(ag);
@@ -111,8 +123,10 @@ impl Signal for SmoothedRsi {
 
         // Wilder smoothing
         let k = Decimal::ONE / Decimal::from(self.rsi_period as u32);
-        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + gain * k;
-        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + loss * k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + gain * k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + loss * k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
 
@@ -131,13 +145,18 @@ impl Signal for SmoothedRsi {
             return Ok(SignalValue::Unavailable);
         }
 
-        let new_ema = self.ema.ok_or_else(crate::error::invariant_broken)? + ema_k * (rsi - self.ema.ok_or_else(crate::error::invariant_broken)?);
+        let new_ema = self.ema.ok_or_else(crate::error::invariant_broken)?
+            + ema_k * (rsi - self.ema.ok_or_else(crate::error::invariant_broken)?);
         self.ema = Some(new_ema);
         Ok(SignalValue::Scalar(new_ema))
     }
 
-    fn is_ready(&self) -> bool { self.ema.is_some() }
-    fn period(&self) -> usize { self.rsi_period }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.rsi_period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -161,7 +180,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -184,8 +206,10 @@ mod tests {
     #[test]
     fn test_srsi_range_0_to_100() {
         let mut s = SmoothedRsi::new("s", 5, 3).unwrap();
-        for price in ["100", "102", "101", "104", "103", "106", "105", "108", "107", "110",
-                       "109", "112", "111", "114", "113"] {
+        for price in [
+            "100", "102", "101", "104", "103", "106", "105", "108", "107", "110", "109", "112",
+            "111", "114", "113",
+        ] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(price)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(100), "out of range: {v}");
             }
@@ -203,7 +227,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(90), "expected near 100, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -216,7 +242,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v < dec!(10), "expected near 0, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

@@ -129,7 +129,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +149,10 @@ mod tests {
     fn test_vwhl_unavailable_during_warmup() {
         let mut vwhl = VolumeWeightedHl::new("vwhl", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vwhl.update_bar(&bar("110", "90", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vwhl.update_bar(&bar("110", "90", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

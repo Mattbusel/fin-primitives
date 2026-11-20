@@ -40,9 +40,17 @@ impl VolumeSurge2 {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0` or threshold <= 0.
-    pub fn new(name: impl Into<String>, period: usize, threshold: Decimal) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        if threshold <= Decimal::ZERO { return Err(FinError::InvalidPeriod(period)); }
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        threshold: Decimal,
+    ) -> Result<Self, FinError> {
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        if threshold <= Decimal::ZERO {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -53,25 +61,43 @@ impl VolumeSurge2 {
     }
 
     /// Returns the surge threshold multiplier.
-    pub fn threshold(&self) -> Decimal { self.threshold }
+    pub fn threshold(&self) -> Decimal {
+        self.threshold
+    }
 }
 
 impl Signal for VolumeSurge2 {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.volume);
         self.sum += bar.volume;
         if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
         let avg = self.sum / Decimal::from(self.period as u32);
-        if avg.is_zero() { return Ok(SignalValue::Unavailable); }
-        let surge = if bar.volume > self.threshold * avg { Decimal::ONE } else { Decimal::ZERO };
+        if avg.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        let surge = if bar.volume > self.threshold * avg {
+            Decimal::ONE
+        } else {
+            Decimal::ZERO
+        };
         Ok(SignalValue::Scalar(surge))
     }
 
@@ -94,7 +120,11 @@ mod tests {
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p, volume: v,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -102,20 +132,29 @@ mod tests {
     }
 
     #[test]
-    fn test_vs_period_0_error() { assert!(VolumeSurge2::new("vs", 0, dec!(2)).is_err()); }
+    fn test_vs_period_0_error() {
+        assert!(VolumeSurge2::new("vs", 0, dec!(2)).is_err());
+    }
     #[test]
-    fn test_vs_negative_threshold_error() { assert!(VolumeSurge2::new("vs", 5, dec!(-1)).is_err()); }
+    fn test_vs_negative_threshold_error() {
+        assert!(VolumeSurge2::new("vs", 5, dec!(-1)).is_err());
+    }
 
     #[test]
     fn test_vs_unavailable_before_period() {
         let mut vs = VolumeSurge2::new("vs", 3, dec!(2)).unwrap();
-        assert_eq!(vs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vs.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_vs_no_surge() {
         let mut vs = VolumeSurge2::new("vs", 3, dec!(2)).unwrap();
-        for _ in 0..3 { vs.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            vs.update_bar(&bar("100")).unwrap();
+        }
         // avg=100, threshold=2, volume=100 -> 100 > 200? No
         let v = vs.update_bar(&bar("100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
@@ -124,7 +163,9 @@ mod tests {
     #[test]
     fn test_vs_surge_detected() {
         let mut vs = VolumeSurge2::new("vs", 3, dec!(2)).unwrap();
-        for _ in 0..3 { vs.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            vs.update_bar(&bar("100")).unwrap();
+        }
         // After 3 bars of 100, push 600.
         // Window slides to [100, 100, 600], avg = 266.67
         // 600 > 2 * 266.67 = 533.33? Yes -> surge

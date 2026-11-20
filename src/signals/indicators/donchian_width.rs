@@ -1,9 +1,9 @@
 //! Donchian Channel Width indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Width of the Donchian channel: `rolling_high - rolling_low`.
 ///
@@ -47,10 +47,19 @@ impl Signal for DonchianWidth {
         Ok(SignalValue::Scalar(rolling_high - rolling_low))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.highs.clear(); self.lows.clear(); }
-    fn name(&self) -> &str { "DonchianWidth" }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.highs.clear();
+        self.lows.clear();
+    }
+    fn name(&self) -> &str {
+        "DonchianWidth"
+    }
 }
 
 #[cfg(test)]

@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Volatility of Volatility — std dev of rolling ATR values over a meta-window.
@@ -61,9 +61,15 @@ impl VolatilityOfVolatility {
 }
 
 impl Signal for VolatilityOfVolatility {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.atr_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.atr_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -73,7 +79,10 @@ impl Signal for VolatilityOfVolatility {
         self.tr_sum += tr;
         self.tr_window.push_back(tr);
         if self.tr_window.len() > self.period {
-            let removed = self.tr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .tr_window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 
@@ -82,7 +91,8 @@ impl Signal for VolatilityOfVolatility {
             return Ok(SignalValue::Unavailable);
         }
 
-        let atr = self.tr_sum
+        let atr = self
+            .tr_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -91,7 +101,10 @@ impl Signal for VolatilityOfVolatility {
         self.atr_sum_sq += atr * atr;
         self.atr_window.push_back(atr);
         if self.atr_window.len() > self.period {
-            let removed = self.atr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .atr_window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.atr_sum -= removed;
             self.atr_sum_sq -= removed * removed;
         }
@@ -101,10 +114,12 @@ impl Signal for VolatilityOfVolatility {
         }
 
         let n = Decimal::from(self.period as u32);
-        let mean = self.atr_sum
+        let mean = self
+            .atr_sum
             .checked_div(n)
             .ok_or(FinError::ArithmeticOverflow)?;
-        let mean_sq = self.atr_sum_sq
+        let mean_sq = self
+            .atr_sum_sq
             .checked_div(n)
             .ok_or(FinError::ArithmeticOverflow)?;
         let variance = (mean_sq - mean * mean).max(Decimal::ZERO);
@@ -139,7 +154,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -159,7 +177,10 @@ mod tests {
         // period=3: needs 3 bars to fill TR window, then 3 more ATR values to fill ATR window
         // First 4 bars should be Unavailable (bars 1-3: no ATR yet, bar 4: only 2 ATR values)
         for _ in 0..4 {
-            assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                s.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!s.is_ready());
     }
@@ -169,9 +190,9 @@ mod tests {
         // Same bar every time → TR constant → ATR constant → std dev of ATR = 0
         let mut s = VolatilityOfVolatility::new("vov", 2).unwrap();
         for _ in 0..5 {
-            s.update_bar(&bar("110","90","100")).unwrap();
+            s.update_bar(&bar("110", "90", "100")).unwrap();
         }
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","100")).unwrap() {
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "100")).unwrap() {
             assert!(v.abs() < dec!(0.001), "constant TR → VoV ≈ 0: {v}");
         } else {
             panic!("expected Scalar");
@@ -182,10 +203,17 @@ mod tests {
     fn test_vov_varying_tr_gives_positive() {
         // Alternating wide and narrow bars → ATR changes → VoV > 0
         let mut s = VolatilityOfVolatility::new("vov", 2).unwrap();
-        let bars = [("120","80","100"),("104","96","100"),("130","70","100"),("103","97","100"),
-                    ("125","75","100")];
+        let bars = [
+            ("120", "80", "100"),
+            ("104", "96", "100"),
+            ("130", "70", "100"),
+            ("103", "97", "100"),
+            ("125", "75", "100"),
+        ];
         let mut last = SignalValue::Unavailable;
-        for &(h, l, c) in &bars { last = s.update_bar(&bar(h, l, c)).unwrap(); }
+        for &(h, l, c) in &bars {
+            last = s.update_bar(&bar(h, l, c)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(0), "varying TR → VoV > 0: {v}");
         } else {
@@ -196,8 +224,13 @@ mod tests {
     #[test]
     fn test_vov_reset() {
         let mut s = VolatilityOfVolatility::new("vov", 2).unwrap();
-        for (h, l, c) in &[("110","90","100"),("115","85","100"),("108","92","100"),
-                            ("112","88","100"),("109","91","100")] {
+        for (h, l, c) in &[
+            ("110", "90", "100"),
+            ("115", "85", "100"),
+            ("108", "92", "100"),
+            ("112", "88", "100"),
+            ("109", "91", "100"),
+        ] {
             s.update_bar(&bar(h, l, c)).unwrap();
         }
         assert!(s.is_ready());

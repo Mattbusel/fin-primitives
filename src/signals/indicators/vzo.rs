@@ -60,7 +60,9 @@ impl Vzo {
 }
 
 impl Signal for Vzo {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -75,10 +77,19 @@ impl Signal for Vzo {
         };
         self.prev_close = Some(close);
 
-        let r = if close > prev { vol } else if close < prev { -vol } else { Decimal::ZERO };
+        let r = if close > prev {
+            vol
+        } else if close < prev {
+            -vol
+        } else {
+            Decimal::ZERO
+        };
 
         let ema_r = match self.ema_r {
-            None => { self.ema_r = Some(r); r }
+            None => {
+                self.ema_r = Some(r);
+                r
+            }
             Some(prev_er) => {
                 let v = r * self.k + prev_er * (Decimal::ONE - self.k);
                 self.ema_r = Some(v);
@@ -87,7 +98,10 @@ impl Signal for Vzo {
         };
 
         let ema_vol = match self.ema_vol {
-            None => { self.ema_vol = Some(vol); vol }
+            None => {
+                self.ema_vol = Some(vol);
+                vol
+            }
             Some(prev_ev) => {
                 let v = vol * self.k + prev_ev * (Decimal::ONE - self.k);
                 self.ema_vol = Some(v);
@@ -99,9 +113,7 @@ impl Signal for Vzo {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        Ok(SignalValue::Scalar(
-            Decimal::from(100u32) * ema_r / ema_vol,
-        ))
+        Ok(SignalValue::Scalar(Decimal::from(100u32) * ema_r / ema_vol))
     }
 
     fn is_ready(&self) -> bool {
@@ -130,7 +142,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +161,10 @@ mod tests {
     #[test]
     fn test_vzo_first_bar_unavailable() {
         let mut v = Vzo::new("v", 14).unwrap();
-        assert_eq!(v.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -165,7 +183,10 @@ mod tests {
             last = v.update_bar(&bar(&i.to_string(), "1000")).unwrap();
         }
         if let SignalValue::Scalar(val) = last {
-            assert!(val > dec!(0), "all-up bars should yield positive VZO: {val}");
+            assert!(
+                val > dec!(0),
+                "all-up bars should yield positive VZO: {val}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -179,6 +200,9 @@ mod tests {
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());
-        assert_eq!(v.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

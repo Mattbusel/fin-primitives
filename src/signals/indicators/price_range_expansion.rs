@@ -1,9 +1,9 @@
 //! Price Range Expansion indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling percentage of bars where `range > prior bar range`.
 ///
@@ -22,7 +22,12 @@ impl PriceRangeExpansion {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_range: None, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            prev_range: None,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
@@ -49,10 +54,20 @@ impl Signal for PriceRangeExpansion {
         Ok(SignalValue::Scalar(pct))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_range = None; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "PriceRangeExpansion" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_range = None;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "PriceRangeExpansion"
+    }
 }
 
 #[cfg(test)]

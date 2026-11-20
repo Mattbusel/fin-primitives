@@ -48,9 +48,15 @@ impl SignedGapSum {
 }
 
 impl Signal for SignedGapSum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let gap = match self.prev_close {
@@ -63,7 +69,9 @@ impl Signal for SignedGapSum {
         self.prev_close = Some(bar.close);
 
         self.gaps.push_back(gap);
-        if self.gaps.len() > self.period { self.gaps.pop_front(); }
+        if self.gaps.len() > self.period {
+            self.gaps.pop_front();
+        }
 
         if self.gaps.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -91,7 +99,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -108,9 +119,15 @@ mod tests {
     fn test_sgs_unavailable_before_warm_up() {
         let mut sgs = SignedGapSum::new("s", 3).unwrap();
         // bar 1: no prev_close → Unavailable
-        assert_eq!(sgs.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sgs.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         // bar 2: 1 gap, need 3
-        assert_eq!(sgs.update_bar(&bar("101", "101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sgs.update_bar(&bar("101", "101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

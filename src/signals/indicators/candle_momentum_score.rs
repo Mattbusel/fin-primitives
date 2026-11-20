@@ -46,7 +46,11 @@ impl CandleMomentumScore {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, scores: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            scores: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -61,7 +65,9 @@ impl Signal for CandleMomentumScore {
             Decimal::ZERO
         } else {
             let body = (bar.close - bar.open).abs();
-            let body_ratio = body.checked_div(range).ok_or(FinError::ArithmeticOverflow)?;
+            let body_ratio = body
+                .checked_div(range)
+                .ok_or(FinError::ArithmeticOverflow)?;
             let direction = if bar.close > bar.open {
                 Decimal::ONE
             } else if bar.close < bar.open {
@@ -69,16 +75,21 @@ impl Signal for CandleMomentumScore {
             } else {
                 Decimal::ZERO
             };
-            let close_pos = (bar.close - bar.low).checked_div(range).ok_or(FinError::ArithmeticOverflow)?;
+            let close_pos = (bar.close - bar.low)
+                .checked_div(range)
+                .ok_or(FinError::ArithmeticOverflow)?;
             // close_pos_scaled ∈ [-1, 1]
             let close_pos_scaled = close_pos
                 .checked_mul(Decimal::TWO)
                 .ok_or(FinError::ArithmeticOverflow)?
                 - Decimal::ONE;
 
-            let component1 = direction.checked_mul(body_ratio).ok_or(FinError::ArithmeticOverflow)?;
+            let component1 = direction
+                .checked_mul(body_ratio)
+                .ok_or(FinError::ArithmeticOverflow)?;
             let sum = component1 + close_pos_scaled;
-            sum.checked_div(Decimal::TWO).ok_or(FinError::ArithmeticOverflow)?
+            sum.checked_div(Decimal::TWO)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.scores.push_back(score);
@@ -134,13 +145,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(CandleMomentumScore::new("cms", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            CandleMomentumScore::new("cms", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut cms = CandleMomentumScore::new("cms", 3).unwrap();
-        assert_eq!(cms.update_bar(&bar("10", "15", "8", "12")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cms.update_bar(&bar("10", "15", "8", "12")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

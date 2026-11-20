@@ -131,7 +131,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -149,7 +152,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_enough_bars() {
         let mut htt = HigherTimeframeTrend::new("htt", 2, 3).unwrap();
-        assert_eq!(htt.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            htt.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

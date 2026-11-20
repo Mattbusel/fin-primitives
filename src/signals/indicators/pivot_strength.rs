@@ -77,7 +77,7 @@ impl Signal for PivotStrength {
                 self.prev_bar = Some((bar.high, bar.low, bar.close));
                 return Ok(SignalValue::Unavailable);
             }
-            Some(pc) => bar.true_range(Some(pc))
+            Some(pc) => bar.true_range(Some(pc)),
         };
         self.prev_close = Some(bar.close);
 

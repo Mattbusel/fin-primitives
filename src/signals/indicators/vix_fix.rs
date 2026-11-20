@@ -106,7 +106,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,7 +125,10 @@ mod tests {
     #[test]
     fn test_vix_fix_unavailable_before_period() {
         let mut vf = VixFix::new("vf", 3).unwrap();
-        assert_eq!(vf.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vf.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vf.is_ready());
     }
 

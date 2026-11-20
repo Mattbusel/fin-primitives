@@ -39,7 +39,9 @@ impl PriceDistanceMa {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,27 +51,38 @@ impl PriceDistanceMa {
 }
 
 impl Signal for PriceDistanceMa {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let n = Decimal::from(self.period as u32);
         let sma = self.closes.iter().sum::<Decimal>() / n;
-        let variance = self.closes.iter()
-            .map(|&c| { let d = c - sma; d * d })
-            .sum::<Decimal>() / n;
+        let variance = self
+            .closes
+            .iter()
+            .map(|&c| {
+                let d = c - sma;
+                d * d
+            })
+            .sum::<Decimal>()
+            / n;
 
         if variance.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
         use rust_decimal::prelude::ToPrimitive;
-        let std_dev = Decimal::try_from(
-            variance.to_f64().unwrap_or(0.0).sqrt()
-        ).unwrap_or(Decimal::ZERO);
+        let std_dev =
+            Decimal::try_from(variance.to_f64().unwrap_or(0.0).sqrt()).unwrap_or(Decimal::ZERO);
 
         if std_dev.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -77,8 +90,12 @@ impl Signal for PriceDistanceMa {
         Ok(SignalValue::Scalar((bar.close - sma) / std_dev))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -96,7 +113,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,10 +142,14 @@ mod tests {
     fn test_pdma_flat_is_zero() {
         let mut p = PriceDistanceMa::new("p", 4).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..6 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -137,13 +161,17 @@ mod tests {
         if let SignalValue::Scalar(v) = p.update_bar(&bar("110")).unwrap() {
             // close=110, sma=100, std_dev ≈ 8.165 → z ≈ 1.22
             assert!(v > dec!(0), "expected positive z-score for above-SMA close");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pdma_reset() {
         let mut p = PriceDistanceMa::new("p", 4).unwrap();
-        for _ in 0..6 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

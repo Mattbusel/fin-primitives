@@ -77,8 +77,14 @@ impl VolatilityStop {
     }
 
     fn atr(&self) -> Decimal {
-        if self.highs.len() < self.period { return Decimal::ZERO; }
-        let trs: Vec<Decimal> = self.highs.iter().zip(self.lows.iter()).zip(self.closes.iter())
+        if self.highs.len() < self.period {
+            return Decimal::ZERO;
+        }
+        let trs: Vec<Decimal> = self
+            .highs
+            .iter()
+            .zip(self.lows.iter())
+            .zip(self.closes.iter())
             .map(|((h, l), pc)| {
                 let hl = h - l;
                 let hc = (h - pc).abs();
@@ -86,7 +92,9 @@ impl VolatilityStop {
                 hl.max(hc).max(lc)
             })
             .collect();
-        if trs.is_empty() { return Decimal::ZERO; }
+        if trs.is_empty() {
+            return Decimal::ZERO;
+        }
         let n = trs.len();
         #[allow(clippy::cast_possible_truncation)]
         let n_d = Decimal::from(n as u32);
@@ -197,7 +205,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -214,7 +225,10 @@ mod tests {
     fn test_vstop_unavailable_before_period() {
         let mut vs = VolatilityStop::new("vs", 3, dec!(2)).unwrap();
         for _ in 0..3 {
-            assert_eq!(vs.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vs.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!vs.is_ready());
     }
@@ -233,7 +247,8 @@ mod tests {
         let mut vs = VolatilityStop::new("vs", 3, dec!(1)).unwrap();
         for i in 0..6u32 {
             let p = (100 + i).to_string();
-            vs.update_bar(&bar(&p, &(90u32 + i).to_string(), &p)).unwrap();
+            vs.update_bar(&bar(&p, &(90u32 + i).to_string(), &p))
+                .unwrap();
         }
         assert!(vs.is_long());
     }
@@ -244,7 +259,10 @@ mod tests {
         let mut last_stop = Decimal::ZERO;
         for i in 0..6u32 {
             let p = (100 + i * 2).to_string();
-            if let SignalValue::Scalar(s) = vs.update_bar(&bar(&p, &(95u32 + i).to_string(), &p)).unwrap() {
+            if let SignalValue::Scalar(s) = vs
+                .update_bar(&bar(&p, &(95u32 + i).to_string(), &p))
+                .unwrap()
+            {
                 last_stop = s;
             }
         }

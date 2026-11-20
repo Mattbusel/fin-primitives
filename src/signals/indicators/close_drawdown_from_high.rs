@@ -110,7 +110,10 @@ mod tests {
         let c = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: c, high: c, low: c, close: c,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,7 +130,10 @@ mod tests {
     fn test_cdfh_unavailable_during_warmup() {
         let mut cdfh = CloseDrawdownFromHigh::new("cdfh", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(cdfh.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                cdfh.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -146,7 +152,7 @@ mod tests {
         let mut cdfh = CloseDrawdownFromHigh::new("cdfh", 3).unwrap();
         cdfh.update_bar(&bar("100")).unwrap();
         cdfh.update_bar(&bar("110")).unwrap(); // peak = 110
-        // close=99 → (99-110)/110*100 = -10
+                                               // close=99 → (99-110)/110*100 = -10
         let v = cdfh.update_bar(&bar("99")).unwrap();
         if let SignalValue::Scalar(s) = v {
             assert!(s < dec!(0), "below peak → negative drawdown: {s}");

@@ -47,9 +47,15 @@ impl RollingKurtosis {
 }
 
 impl Signal for RollingKurtosis {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -68,7 +74,11 @@ impl Signal for RollingKurtosis {
             .filter_map(|w| {
                 let prev = w[0].to_f64()?;
                 let curr = w[1].to_f64()?;
-                if prev == 0.0 { None } else { Some((curr - prev) / prev) }
+                if prev == 0.0 {
+                    None
+                } else {
+                    Some((curr - prev) / prev)
+                }
             })
             .collect();
 
@@ -117,7 +127,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,7 +156,9 @@ mod tests {
     #[test]
     fn test_rk_flat_prices_unavailable() {
         let mut s = RollingKurtosis::new("kurt", 4).unwrap();
-        for _ in 0..5 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         let v = s.update_bar(&bar("100")).unwrap();
         assert_eq!(v, SignalValue::Unavailable);
     }
@@ -159,7 +174,10 @@ mod tests {
         s.update_bar(&bar("100.4")).unwrap();
         let v = s.update_bar(&bar("110")).unwrap(); // big spike
         if let SignalValue::Scalar(r) = v {
-            assert!(r > dec!(0), "spike should give positive excess kurtosis: {r}");
+            assert!(
+                r > dec!(0),
+                "spike should give positive excess kurtosis: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -168,7 +186,7 @@ mod tests {
     #[test]
     fn test_rk_reset() {
         let mut s = RollingKurtosis::new("kurt", 4).unwrap();
-        for p in &["100","101","102","103","104"] {
+        for p in &["100", "101", "102", "103", "104"] {
             s.update_bar(&bar(p)).unwrap();
         }
         assert!(s.is_ready());

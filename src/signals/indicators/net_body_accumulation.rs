@@ -105,7 +105,10 @@ mod tests {
         let (high, low) = if c >= o { (c, o) } else { (o, c) };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -121,8 +124,14 @@ mod tests {
     #[test]
     fn test_nba_unavailable_during_warmup() {
         let mut nba = NetBodyAccumulation::new("nba", 3).unwrap();
-        assert_eq!(nba.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(nba.update_bar(&bar("105", "110")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            nba.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            nba.update_bar(&bar("105", "110")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -148,7 +157,7 @@ mod tests {
         let mut nba = NetBodyAccumulation::new("nba", 2).unwrap();
         nba.update_bar(&bar("100", "110")).unwrap(); // +10
         nba.update_bar(&bar("110", "105")).unwrap(); // -5 → sum=5
-        // Next bar evicts the +10
+                                                     // Next bar evicts the +10
         let v = nba.update_bar(&bar("105", "103")).unwrap(); // -2 → sum=-5-2=-7
         assert_eq!(v, SignalValue::Scalar(dec!(-7)));
     }

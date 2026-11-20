@@ -42,8 +42,12 @@ impl PivotPoint {
 }
 
 impl Signal for PivotPoint {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
     fn is_ready(&self) -> bool {
         self.prev_high.is_some()
     }
@@ -85,7 +89,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,7 +104,10 @@ mod tests {
     fn test_pp_first_bar_unavailable() {
         let mut s = PivotPoint::new("pp");
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         // After first bar, ready for next call
         assert!(s.is_ready());
     }
@@ -133,6 +143,9 @@ mod tests {
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

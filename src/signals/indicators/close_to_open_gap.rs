@@ -1,9 +1,9 @@
 //! Close-to-Open Gap indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of overnight gap: `(open - prev_close) / prev_close * 100`.
 ///
@@ -23,7 +23,12 @@ impl CloseToOpenGap {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -50,10 +55,20 @@ impl Signal for CloseToOpenGap {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "CloseToOpenGap" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "CloseToOpenGap"
+    }
 }
 
 #[cfg(test)]
@@ -88,7 +103,7 @@ mod tests {
         sig.update(&bar("100", "100")).unwrap();
         sig.update(&bar("102", "102")).unwrap(); // gap=+2
         let v = sig.update(&bar("102", "102")).unwrap(); // gap=0 (open=prev_close=102)
-        // window=[2, 0], avg=1
+                                                         // window=[2, 0], avg=1
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 }

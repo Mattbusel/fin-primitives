@@ -42,7 +42,11 @@ impl VolumeTrendIndex {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, bars: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            bars: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -52,7 +56,11 @@ impl Signal for VolumeTrendIndex {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.close >= bar.open { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.close >= bar.open {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
         self.bars.push_back((up_vol, bar.volume));
         if self.bars.len() > self.period {
             self.bars.pop_front();
@@ -103,7 +111,10 @@ mod tests {
         let lo = op.min(cl);
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -113,13 +124,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(VolumeTrendIndex::new("vti", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            VolumeTrendIndex::new("vti", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut vti = VolumeTrendIndex::new("vti", 3).unwrap();
-        assert_eq!(vti.update_bar(&bar("10", "11", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vti.update_bar(&bar("10", "11", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Inertia Indicator — applies linear-regression smoothing to a running
@@ -43,9 +43,17 @@ impl Inertia {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero, or if `reg_period < 2`.
-    pub fn new(name: impl Into<String>, mom_period: usize, reg_period: usize) -> Result<Self, FinError> {
-        if mom_period == 0 { return Err(FinError::InvalidPeriod(mom_period)); }
-        if reg_period < 2  { return Err(FinError::InvalidPeriod(reg_period)); }
+    pub fn new(
+        name: impl Into<String>,
+        mom_period: usize,
+        reg_period: usize,
+    ) -> Result<Self, FinError> {
+        if mom_period == 0 {
+            return Err(FinError::InvalidPeriod(mom_period));
+        }
+        if reg_period < 2 {
+            return Err(FinError::InvalidPeriod(reg_period));
+        }
         Ok(Self {
             name: name.into(),
             mom_period,
@@ -57,17 +65,23 @@ impl Inertia {
 
     fn linreg_value(buf: &VecDeque<Decimal>) -> Option<Decimal> {
         let n = buf.len();
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         let nf = n as f64;
         let xs: Vec<f64> = (0..n).map(|i| i as f64).collect();
         let ys: Vec<f64> = buf.iter().filter_map(|v| v.to_f64()).collect();
-        if ys.len() != n { return None; }
+        if ys.len() != n {
+            return None;
+        }
         let sx: f64 = xs.iter().sum();
         let sy: f64 = ys.iter().sum();
         let sxy: f64 = xs.iter().zip(ys.iter()).map(|(x, y)| x * y).sum();
         let sxx: f64 = xs.iter().map(|x| x * x).sum();
         let denom = nf * sxx - sx * sx;
-        if denom.abs() < f64::EPSILON { return None; }
+        if denom.abs() < f64::EPSILON {
+            return None;
+        }
         let b = (nf * sxy - sx * sy) / denom;
         let a = (sy - b * sx) / nf;
         // Value at last x (n-1)
@@ -77,7 +91,9 @@ impl Inertia {
 }
 
 impl Signal for Inertia {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -88,8 +104,16 @@ impl Signal for Inertia {
             return Ok(SignalValue::Unavailable);
         }
 
-        let momentum = self.closes.back().copied().ok_or_else(crate::error::invariant_broken)?
-            - self.closes.front().copied().ok_or_else(crate::error::invariant_broken)?;
+        let momentum = self
+            .closes
+            .back()
+            .copied()
+            .ok_or_else(crate::error::invariant_broken)?
+            - self
+                .closes
+                .front()
+                .copied()
+                .ok_or_else(crate::error::invariant_broken)?;
 
         self.mom_buf.push_back(momentum);
         if self.mom_buf.len() > self.reg_period {
@@ -129,7 +153,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -148,7 +175,10 @@ mod tests {
         let mut ind = Inertia::new("i", 3, 4).unwrap();
         // Needs mom_period+1 + (reg_period-1) = 4 + 3 = 7 bars before first scalar
         for _ in 0..6 {
-            assert_eq!(ind.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ind.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -159,7 +189,10 @@ mod tests {
         for i in 0..20usize {
             last = ind.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
-        assert!(matches!(last, SignalValue::Scalar(_)), "expected Scalar after warmup");
+        assert!(
+            matches!(last, SignalValue::Scalar(_)),
+            "expected Scalar after warmup"
+        );
     }
 
     #[test]
@@ -170,7 +203,10 @@ mod tests {
             last = ind.update_bar(&bar("100")).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v.abs() < rust_decimal_macros::dec!(0.001), "flat price inertia should be ~0: {v}");
+            assert!(
+                v.abs() < rust_decimal_macros::dec!(0.001),
+                "flat price inertia should be ~0: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -179,7 +215,9 @@ mod tests {
     #[test]
     fn test_inertia_reset() {
         let mut ind = Inertia::new("i", 3, 4).unwrap();
-        for i in 0..20usize { ind.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0..20usize {
+            ind.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(ind.is_ready());
         ind.reset();
         assert!(!ind.is_ready());

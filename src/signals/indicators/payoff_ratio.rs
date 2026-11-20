@@ -53,9 +53,15 @@ impl PayoffRatio {
 }
 
 impl Signal for PayoffRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -127,7 +133,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -144,7 +153,7 @@ mod tests {
     #[test]
     fn test_pr_unavailable_during_warmup() {
         let mut s = PayoffRatio::new("pr", 4).unwrap();
-        for p in &["100","102","99","103"] {
+        for p in &["100", "102", "99", "103"] {
             assert_eq!(s.update_bar(&bar(p)).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
@@ -155,12 +164,15 @@ mod tests {
         // +2% gain, -2% loss, +2% gain, -2% loss → payoff ratio ≈ 1
         let mut s = PayoffRatio::new("pr", 4).unwrap();
         s.update_bar(&bar("100")).unwrap();
-        s.update_bar(&bar("102")).unwrap();    // +2%
-        s.update_bar(&bar("99.96")).unwrap();  // -2%
+        s.update_bar(&bar("102")).unwrap(); // +2%
+        s.update_bar(&bar("99.96")).unwrap(); // -2%
         s.update_bar(&bar("101.96")).unwrap(); // +2%
         if let SignalValue::Scalar(v) = s.update_bar(&bar("99.92")).unwrap() {
             // -2% → payoff ≈ 1
-            assert!((v - dec!(1)).abs() < dec!(0.1), "symmetric returns → payoff ≈ 1: {v}");
+            assert!(
+                (v - dec!(1)).abs() < dec!(0.1),
+                "symmetric returns → payoff ≈ 1: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -171,9 +183,9 @@ mod tests {
         // Big wins, small losses → payoff > 1
         let mut s = PayoffRatio::new("pr", 4).unwrap();
         s.update_bar(&bar("100")).unwrap();
-        s.update_bar(&bar("110")).unwrap();   // +10%
-        s.update_bar(&bar("109")).unwrap();   // -0.9%
-        s.update_bar(&bar("120")).unwrap();   // +10.1%
+        s.update_bar(&bar("110")).unwrap(); // +10%
+        s.update_bar(&bar("109")).unwrap(); // -0.9%
+        s.update_bar(&bar("120")).unwrap(); // +10.1%
         if let SignalValue::Scalar(v) = s.update_bar(&bar("119")).unwrap() {
             // -0.83% → payoff = avg_gain/avg_loss >> 1
             assert!(v > dec!(5), "large wins, small losses → payoff >> 1: {v}");
@@ -185,7 +197,9 @@ mod tests {
     #[test]
     fn test_pr_reset() {
         let mut s = PayoffRatio::new("pr", 4).unwrap();
-        for p in &["100","102","101","103","100","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "102", "101", "103", "100", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

@@ -66,7 +66,11 @@ impl Signal for VolumeClimaxRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_vol = self.volumes.iter().copied().fold(Decimal::ZERO, Decimal::max);
+        let max_vol = self
+            .volumes
+            .iter()
+            .copied()
+            .fold(Decimal::ZERO, Decimal::max);
         if max_vol.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
@@ -95,7 +99,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -111,8 +118,14 @@ mod tests {
     #[test]
     fn test_vcr_unavailable_before_period() {
         let mut vcr = VolumeClimaxRatio::new("vcr", 3).unwrap();
-        assert_eq!(vcr.update_bar(&bar_vol("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vcr.update_bar(&bar_vol("200")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vcr.update_bar(&bar_vol("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vcr.update_bar(&bar_vol("200")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vcr.is_ready());
     }
 

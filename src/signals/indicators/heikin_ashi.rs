@@ -51,9 +51,15 @@ impl HeikinAshi {
 }
 
 impl Signal for HeikinAshi {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.ready }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let four = Decimal::from(4u32);
@@ -109,7 +115,10 @@ mod tests {
     #[test]
     fn test_ha_first_bar_unavailable() {
         let mut h = HeikinAshi::new("ha").unwrap();
-        assert_eq!(h.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            h.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!h.is_ready());
     }
 
@@ -148,6 +157,9 @@ mod tests {
         assert!(h.is_ready());
         h.reset();
         assert!(!h.is_ready());
-        assert_eq!(h.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            h.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

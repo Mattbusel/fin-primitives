@@ -59,7 +59,8 @@ impl Signal for VolumePressureRatio {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let half_vol = bar.volume
+        let half_vol = bar
+            .volume
             .checked_div(Decimal::from(2u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -137,7 +138,10 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(VolumePressureRatio::new("vpr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            VolumePressureRatio::new("vpr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]

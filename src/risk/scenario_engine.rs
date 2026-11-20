@@ -90,9 +90,7 @@ impl ScenarioEngine {
         match shock.shock_type {
             ShockType::AbsoluteReturn => position_value * shock.magnitude,
             ShockType::RelativeReturn => position_value * shock.magnitude,
-            ShockType::VolatilityMultiplier => {
-                position_value * 0.5 * (shock.magnitude - 1.0) * 0.2
-            }
+            ShockType::VolatilityMultiplier => position_value * 0.5 * (shock.magnitude - 1.0) * 0.2,
             ShockType::CorrelationShift => position_value * 0.1 * shock.magnitude,
         }
     }
@@ -193,7 +191,8 @@ impl ScenarioEngine {
         vec![
             Scenario {
                 name: "GFC 2008".to_string(),
-                description: "Global Financial Crisis — Lehman Brothers collapse, Oct 2008".to_string(),
+                description: "Global Financial Crisis — Lehman Brothers collapse, Oct 2008"
+                    .to_string(),
                 scenario_type: ScenarioType::Historical("2008-10".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -237,7 +236,8 @@ impl ScenarioEngine {
             },
             Scenario {
                 name: "Dot-com 2000".to_string(),
-                description: "Technology bubble burst — NASDAQ peak-to-trough 2000-2002".to_string(),
+                description: "Technology bubble burst — NASDAQ peak-to-trough 2000-2002"
+                    .to_string(),
                 scenario_type: ScenarioType::Historical("2000-03".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -281,7 +281,8 @@ impl ScenarioEngine {
             },
             Scenario {
                 name: "EUR Crisis 2011".to_string(),
-                description: "European sovereign debt crisis — peripheral spreads blow out, 2011".to_string(),
+                description: "European sovereign debt crisis — peripheral spreads blow out, 2011"
+                    .to_string(),
                 scenario_type: ScenarioType::Historical("2011".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -309,7 +310,9 @@ impl ScenarioEngine {
         vec![
             Scenario {
                 name: "DFAST Severely Adverse".to_string(),
-                description: "DFAST/CCAR severely adverse scenario: deep recession, high unemployment".to_string(),
+                description:
+                    "DFAST/CCAR severely adverse scenario: deep recession, high unemployment"
+                        .to_string(),
                 scenario_type: ScenarioType::Regulatory("DFAST".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -336,7 +339,9 @@ impl ScenarioEngine {
             },
             Scenario {
                 name: "CCAR Adverse".to_string(),
-                description: "CCAR adverse scenario: moderate recession, elevated but not extreme stress".to_string(),
+                description:
+                    "CCAR adverse scenario: moderate recession, elevated but not extreme stress"
+                        .to_string(),
                 scenario_type: ScenarioType::Regulatory("CCAR".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -358,7 +363,8 @@ impl ScenarioEngine {
             },
             Scenario {
                 name: "CCAR Baseline".to_string(),
-                description: "CCAR baseline scenario: moderate economic growth, stable rates".to_string(),
+                description: "CCAR baseline scenario: moderate economic growth, stable rates"
+                    .to_string(),
                 scenario_type: ScenarioType::Regulatory("CCAR".to_string()),
                 shocks: vec![
                     MarketShock {
@@ -424,9 +430,8 @@ impl ScenarioEngine {
                     .iter()
                     .map(|(_, value, beta)| {
                         let idio_z = lcg_next(&mut state);
-                        let ret = vol
-                            * (corr.sqrt() * beta * market_z
-                                + (1.0 - corr).sqrt() * idio_z);
+                        let ret =
+                            vol * (corr.sqrt() * beta * market_z + (1.0 - corr).sqrt() * idio_z);
                         value * ret
                     })
                     .sum();
@@ -512,7 +517,10 @@ mod tests {
     fn test_run_scenario_gfc() {
         let engine = ScenarioEngine;
         let scenarios = ScenarioEngine::historical_scenarios();
-        let gfc = scenarios.iter().find(|s| s.name == "GFC 2008").expect("GFC scenario");
+        let gfc = scenarios
+            .iter()
+            .find(|s| s.name == "GFC 2008")
+            .expect("GFC scenario");
         let result = engine.run_scenario(gfc, &sample_positions());
         assert!(result.portfolio_pnl < 0.0, "GFC should produce a loss");
     }
@@ -534,7 +542,8 @@ mod tests {
     #[test]
     fn test_tail_scenarios() {
         let engine = ScenarioEngine;
-        let pnls: Vec<f64> = engine.monte_carlo_scenarios(&sample_positions(), 10_000, 0.01, 0.6, 7);
+        let pnls: Vec<f64> =
+            engine.monte_carlo_scenarios(&sample_positions(), 10_000, 0.01, 0.6, 7);
         let (var, cvar) = engine.tail_scenarios(&pnls, 0.95);
         assert!(var >= 0.0);
         assert!(cvar >= var, "CVaR should be >= VaR");

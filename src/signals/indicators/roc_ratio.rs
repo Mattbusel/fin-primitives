@@ -39,9 +39,15 @@ impl RocRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `fast == 0`, `slow == 0`, or `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
-        if fast >= slow { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
+        if fast >= slow {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         Ok(Self {
             name: name.into(),
             fast,
@@ -52,7 +58,9 @@ impl RocRatio {
 }
 
 impl Signal for RocRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -63,7 +71,10 @@ impl Signal for RocRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let len = self.closes.len();
 
         let fast_prev = self.closes[len - 1 - self.fast];
@@ -93,9 +104,15 @@ impl Signal for RocRatio {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.slow }
-    fn period(&self) -> usize { self.slow }
-    fn reset(&mut self) { self.closes.clear(); }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.slow
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
 }
 
 #[cfg(test)]
@@ -109,7 +126,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

@@ -223,10 +223,14 @@ impl AlmgrenChriss {
 
     fn validate(p: &AlmgrenChrissParams) -> Result<(), FinError> {
         if p.time_steps == 0 {
-            return Err(FinError::InvalidInput("time_steps must be at least 1".to_owned()));
+            return Err(FinError::InvalidInput(
+                "time_steps must be at least 1".to_owned(),
+            ));
         }
         if p.volatility <= 0.0 {
-            return Err(FinError::InvalidInput("volatility must be positive".to_owned()));
+            return Err(FinError::InvalidInput(
+                "volatility must be positive".to_owned(),
+            ));
         }
         if p.permanent_impact < 0.0 {
             return Err(FinError::InvalidInput(
@@ -239,7 +243,9 @@ impl AlmgrenChriss {
             ));
         }
         if p.risk_aversion < 0.0 {
-            return Err(FinError::InvalidInput("risk_aversion must be non-negative".to_owned()));
+            return Err(FinError::InvalidInput(
+                "risk_aversion must be non-negative".to_owned(),
+            ));
         }
         Ok(())
     }
@@ -273,7 +279,10 @@ mod tests {
         let p = default_params();
         let traj = AlmgrenChriss::compute(&p).unwrap();
         let first_inv = traj.steps[0].inventory;
-        assert!((first_inv - p.total_shares).abs() < 1.0, "first inventory: {first_inv}");
+        assert!(
+            (first_inv - p.total_shares).abs() < 1.0,
+            "first inventory: {first_inv}"
+        );
     }
 
     #[test]
@@ -283,7 +292,8 @@ mod tests {
         let total_traded: f64 = traj.steps.iter().map(|s| s.trade_size).sum();
         assert!(
             (total_traded - p.total_shares).abs() < 1.0,
-            "total traded {total_traded} vs {}", p.total_shares
+            "total traded {total_traded} vs {}",
+            p.total_shares
         );
     }
 

@@ -96,21 +96,21 @@ impl Signal for JurikMa {
         match (self.e0, self.e1, self.jma) {
             (None, _, _) => {
                 // Bootstrap: seed everything at first close
-                self.e0  = Some(price);
-                self.e1  = Some(Decimal::ZERO);
-                self.e2  = Decimal::ZERO;
+                self.e0 = Some(price);
+                self.e1 = Some(Decimal::ZERO);
+                self.e2 = Decimal::ZERO;
                 self.jma = Some(price);
                 Ok(SignalValue::Scalar(price))
             }
             (Some(e0_prev), Some(e1_prev), Some(jma_prev)) => {
                 let del1 = price - e0_prev;
-                let e0   = e0_prev + self.alpha * del1;
-                let e1   = (price - e0) * (Decimal::ONE - self.alpha) + e1_prev * self.alpha;
-                let e2   = e1 * self.beta + self.e2 * (Decimal::ONE - self.beta);
-                let jma  = jma_prev + e2 + self.beta * (e0 - jma_prev);
-                self.e0  = Some(e0);
-                self.e1  = Some(e1);
-                self.e2  = e2;
+                let e0 = e0_prev + self.alpha * del1;
+                let e1 = (price - e0) * (Decimal::ONE - self.alpha) + e1_prev * self.alpha;
+                let e2 = e1 * self.beta + self.e2 * (Decimal::ONE - self.beta);
+                let jma = jma_prev + e2 + self.beta * (e0 - jma_prev);
+                self.e0 = Some(e0);
+                self.e1 = Some(e1);
+                self.e2 = e2;
                 self.jma = Some(jma);
                 Ok(SignalValue::Scalar(jma))
             }
@@ -119,9 +119,9 @@ impl Signal for JurikMa {
     }
 
     fn reset(&mut self) {
-        self.e0  = None;
-        self.e1  = None;
-        self.e2  = Decimal::ZERO;
+        self.e0 = None;
+        self.e1 = None;
+        self.e2 = Decimal::ZERO;
         self.jma = None;
     }
 }
@@ -138,7 +138,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

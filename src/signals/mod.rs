@@ -13,13 +13,13 @@
 //! - Persistence
 //! - Real-time streaming (use `OhlcvAggregator` upstream)
 
+#[cfg(feature = "indicators")]
+#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
+pub mod batch_f64;
 pub mod combine;
 pub mod compose;
 pub mod composite;
 pub mod entropy;
-#[cfg(feature = "indicators")]
-#[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
-pub mod batch_f64;
 #[cfg(feature = "indicators")]
 #[cfg_attr(docsrs, doc(cfg(feature = "indicators")))]
 pub mod float;
@@ -54,14 +54,32 @@ pub struct BarInput {
 
 impl BarInput {
     /// Constructs a `BarInput` with all fields explicitly specified.
-    pub fn new(close: Decimal, high: Decimal, low: Decimal, open: Decimal, volume: Decimal) -> Self {
-        Self { close, high, low, open, volume }
+    pub fn new(
+        close: Decimal,
+        high: Decimal,
+        low: Decimal,
+        open: Decimal,
+        volume: Decimal,
+    ) -> Self {
+        Self {
+            close,
+            high,
+            low,
+            open,
+            volume,
+        }
     }
 
     /// Constructs a `BarInput` from a single close price, setting all OHLC fields to `close`
     /// and volume to zero. Useful in tests and for close-only indicators (SMA/EMA/RSI).
     pub fn from_close(close: Decimal) -> Self {
-        Self { close, high: close, low: close, open: close, volume: Decimal::ZERO }
+        Self {
+            close,
+            high: close,
+            low: close,
+            open: close,
+            volume: Decimal::ZERO,
+        }
     }
 
     /// Returns the typical price of this bar: `(high + low + close) / 3`.
@@ -557,11 +575,9 @@ impl SignalValue {
     /// ```
     pub fn sqrt(self) -> SignalValue {
         match self {
-            SignalValue::Scalar(v) => {
-                crate::dmath::sqrt(v)
-                    .map(SignalValue::Scalar)
-                    .unwrap_or(SignalValue::Unavailable)
-            }
+            SignalValue::Scalar(v) => crate::dmath::sqrt(v)
+                .map(SignalValue::Scalar)
+                .unwrap_or(SignalValue::Unavailable),
             SignalValue::Unavailable => SignalValue::Unavailable,
         }
     }
@@ -730,7 +746,9 @@ impl SignalValue {
                 }
                 use rust_decimal::prelude::ToPrimitive;
                 let f = v.to_f64().unwrap_or(f64::NAN);
-                if f.is_nan() { return SignalValue::Unavailable; }
+                if f.is_nan() {
+                    return SignalValue::Unavailable;
+                }
                 match Decimal::try_from(f.exp()) {
                     Ok(d) => SignalValue::Scalar(d),
                     Err(_) => SignalValue::Unavailable,
@@ -995,7 +1013,9 @@ impl SignalValue {
     ///
     /// Returns `Unavailable` if `self` is `Unavailable` or `base` is zero.
     pub fn as_percent(self, base: Decimal) -> SignalValue {
-        if base.is_zero() { return SignalValue::Unavailable; }
+        if base.is_zero() {
+            return SignalValue::Unavailable;
+        }
         match self {
             SignalValue::Scalar(v) => SignalValue::Scalar(v / base * Decimal::ONE_HUNDRED),
             SignalValue::Unavailable => SignalValue::Unavailable,
@@ -1150,7 +1170,11 @@ mod tests {
     fn test_signal_value_and_then_scalar_can_return_unavailable() {
         let v = SignalValue::Scalar(dec!(5));
         let result = v.and_then(|x| {
-            if x > dec!(10) { SignalValue::Scalar(x) } else { SignalValue::Unavailable }
+            if x > dec!(10) {
+                SignalValue::Scalar(x)
+            } else {
+                SignalValue::Unavailable
+            }
         });
         assert_eq!(result, SignalValue::Unavailable);
     }
@@ -1170,7 +1194,10 @@ mod tests {
 
     #[test]
     fn test_signal_value_map_unavailable() {
-        assert_eq!(SignalValue::Unavailable.map(|x| x + dec!(5)), SignalValue::Unavailable);
+        assert_eq!(
+            SignalValue::Unavailable.map(|x| x + dec!(5)),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -1183,7 +1210,10 @@ mod tests {
     #[test]
     fn test_signal_value_zip_with_one_unavailable() {
         let a = SignalValue::Scalar(dec!(10));
-        assert_eq!(a.zip_with(SignalValue::Unavailable, |x, y| x + y), SignalValue::Unavailable);
+        assert_eq!(
+            a.zip_with(SignalValue::Unavailable, |x, y| x + y),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -1206,7 +1236,10 @@ mod tests {
 
     #[test]
     fn test_signal_value_clamp_unavailable_passthrough() {
-        assert_eq!(SignalValue::Unavailable.clamp(dec!(0), dec!(100)), SignalValue::Unavailable);
+        assert_eq!(
+            SignalValue::Unavailable.clamp(dec!(0), dec!(100)),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -1216,12 +1249,17 @@ mod tests {
         if let SignalValue::Scalar(r) = v.exp() {
             let diff = (r - dec!(1)).abs();
             assert!(diff < dec!(0.0001), "e^0 should be ~1, got {r}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_signal_value_exp_overflow_guard() {
-        assert_eq!(SignalValue::Scalar(dec!(701)).exp(), SignalValue::Unavailable);
+        assert_eq!(
+            SignalValue::Scalar(dec!(701)).exp(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -1231,21 +1269,33 @@ mod tests {
 
     #[test]
     fn test_signal_value_floor_positive() {
-        assert_eq!(SignalValue::Scalar(dec!(3.7)).floor(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            SignalValue::Scalar(dec!(3.7)).floor(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
     fn test_signal_value_floor_negative() {
-        assert_eq!(SignalValue::Scalar(dec!(-2.3)).floor(), SignalValue::Scalar(dec!(-3)));
+        assert_eq!(
+            SignalValue::Scalar(dec!(-2.3)).floor(),
+            SignalValue::Scalar(dec!(-3))
+        );
     }
 
     #[test]
     fn test_signal_value_ceil_positive() {
-        assert_eq!(SignalValue::Scalar(dec!(3.2)).ceil(), SignalValue::Scalar(dec!(4)));
+        assert_eq!(
+            SignalValue::Scalar(dec!(3.2)).ceil(),
+            SignalValue::Scalar(dec!(4))
+        );
     }
 
     #[test]
     fn test_signal_value_ceil_integer() {
-        assert_eq!(SignalValue::Scalar(dec!(5)).ceil(), SignalValue::Scalar(dec!(5)));
+        assert_eq!(
+            SignalValue::Scalar(dec!(5)).ceil(),
+            SignalValue::Scalar(dec!(5))
+        );
     }
 }

@@ -40,7 +40,9 @@ impl PriceOscillator {
     /// Returns [`FinError::InvalidPeriod`] if `fast == 0`.
     /// Returns [`FinError::InvalidInput`] if `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         if fast >= slow {
             return Err(FinError::InvalidInput("fast must be less than slow".into()));
         }
@@ -54,12 +56,18 @@ impl PriceOscillator {
 }
 
 impl Signal for PriceOscillator {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.slow { self.closes.pop_front(); }
-        if self.closes.len() < self.slow { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.slow {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.slow {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let slow_sma = self.closes.iter().sum::<Decimal>() / Decimal::from(self.slow as u32);
         let fast_sma = self.closes.iter().rev().take(self.fast).sum::<Decimal>()
@@ -69,11 +77,17 @@ impl Signal for PriceOscillator {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        Ok(SignalValue::Scalar((fast_sma - slow_sma) / slow_sma * Decimal::from(100u32)))
+        Ok(SignalValue::Scalar(
+            (fast_sma - slow_sma) / slow_sma * Decimal::from(100u32),
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.slow }
-    fn period(&self) -> usize { self.slow }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.slow
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -91,7 +105,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -118,10 +135,14 @@ mod tests {
     fn test_po_flat_is_zero() {
         let mut p = PriceOscillator::new("p", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..8 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..8 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -135,7 +156,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(0), "expected positive, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -148,13 +171,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v < dec!(0), "expected negative, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_po_reset() {
         let mut p = PriceOscillator::new("p", 3, 5).unwrap();
-        for _ in 0..8 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..8 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

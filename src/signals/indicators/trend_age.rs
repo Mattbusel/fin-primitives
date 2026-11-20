@@ -54,9 +54,15 @@ impl TrendAge {
 }
 
 impl Signal for TrendAge {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -73,9 +79,17 @@ impl Signal for TrendAge {
         let close = bar.close;
 
         self.consecutive = if close > sma {
-            if self.consecutive >= 0 { self.consecutive + 1 } else { 1 }
+            if self.consecutive >= 0 {
+                self.consecutive + 1
+            } else {
+                1
+            }
         } else if close < sma {
-            if self.consecutive <= 0 { self.consecutive - 1 } else { -1 }
+            if self.consecutive <= 0 {
+                self.consecutive - 1
+            } else {
+                -1
+            }
         } else {
             0
         };
@@ -100,7 +114,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,7 +134,10 @@ mod tests {
     fn test_ta_unavailable_before_warm_up() {
         let mut ta = TrendAge::new("ta", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(ta.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ta.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ta.is_ready());
     }
@@ -144,7 +164,9 @@ mod tests {
     #[test]
     fn test_ta_reset() {
         let mut ta = TrendAge::new("ta", 3).unwrap();
-        for i in 0u32..6 { ta.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..6 {
+            ta.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         ta.reset();
         assert!(!ta.is_ready());
         assert_eq!(ta.consecutive(), 0);

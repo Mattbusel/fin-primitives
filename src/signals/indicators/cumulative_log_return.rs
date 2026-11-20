@@ -99,7 +99,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -111,7 +114,10 @@ mod tests {
     fn test_clr_unavailable_on_first_bar() {
         let mut clr = CumulativeLogReturn::new("clr");
         assert!(!clr.is_ready());
-        assert_eq!(clr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            clr.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         // After seeding prev_close, is_ready=true (next bar will produce a value)
         assert!(clr.is_ready());
     }
@@ -122,7 +128,10 @@ mod tests {
         clr.update_bar(&bar("100")).unwrap();
         let v = clr.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!(r.abs() < dec!(0.000001), "no price change should give ~0: {r}");
+            assert!(
+                r.abs() < dec!(0.000001),
+                "no price change should give ~0: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -136,7 +145,10 @@ mod tests {
         let v = clr.update_bar(&bar("121")).unwrap(); // ln(121/110) → total = ln(121/100)
         if let SignalValue::Scalar(r) = v {
             // ln(1.21) ≈ 0.19062
-            assert!(r > dec!(0.18) && r < dec!(0.20), "expected ~ln(1.21), got {r}");
+            assert!(
+                r > dec!(0.18) && r < dec!(0.20),
+                "expected ~ln(1.21), got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -163,7 +175,10 @@ mod tests {
         clr.update_bar(&bar("90")).unwrap();
         let v = clr.update_bar(&bar("80")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!(r < dec!(0), "falling market should give negative cumulative log return: {r}");
+            assert!(
+                r < dec!(0),
+                "falling market should give negative cumulative log return: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -177,7 +192,10 @@ mod tests {
         assert!(clr.is_ready());
         clr.reset();
         assert!(!clr.is_ready());
-        assert_eq!(clr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            clr.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

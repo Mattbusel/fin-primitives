@@ -43,8 +43,7 @@ impl ElderRay {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        let multiplier = Decimal::from(2u32)
-            / Decimal::from((period + 1) as u32);
+        let multiplier = Decimal::from(2u32) / Decimal::from((period + 1) as u32);
         Ok(Self {
             name: name.into(),
             period,
@@ -131,8 +130,14 @@ mod tests {
     #[test]
     fn test_elder_unavailable_before_period() {
         let mut e = ElderRay::new("e3", 3).unwrap();
-        assert_eq!(e.update_bar(&bar(dec!(11), dec!(9), dec!(10))).unwrap(), SignalValue::Unavailable);
-        assert_eq!(e.update_bar(&bar(dec!(11), dec!(9), dec!(10))).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            e.update_bar(&bar(dec!(11), dec!(9), dec!(10))).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            e.update_bar(&bar(dec!(11), dec!(9), dec!(10))).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!e.is_ready());
     }
 

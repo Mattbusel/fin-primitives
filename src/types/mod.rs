@@ -137,9 +137,7 @@ impl From<Symbol> for Arc<str> {
 /// let p = Price::new(dec!(100.50)).unwrap();
 /// assert_eq!(p.value(), dec!(100.50));
 /// ```
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 // Deserialization goes through `Price::new`: a zero or negative price is an error.
 #[cfg_attr(feature = "serde", serde(try_from = "Decimal", into = "Decimal"))]
@@ -267,7 +265,9 @@ impl Price {
     /// `0.5` away from zero. Returns `None` if the rounded result is zero or negative.
     pub fn round_half_up(self, dp: u32) -> Option<Price> {
         use rust_decimal::RoundingStrategy;
-        let rounded = self.0.round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
+        let rounded = self
+            .0
+            .round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
         Price::new(rounded).ok()
     }
 }
@@ -397,9 +397,7 @@ impl std::ops::Mul<Decimal> for Price {
 /// let q = Quantity::zero();
 /// assert_eq!(q.value(), dec!(0));
 /// ```
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 // Deserialization goes through `Quantity::new`: a negative quantity is an error.
 #[cfg_attr(feature = "serde", serde(try_from = "Decimal", into = "Decimal"))]
@@ -584,9 +582,7 @@ impl std::fmt::Display for Side {
 ///
 /// Stores nanoseconds since the Unix epoch (UTC). The inner field is private;
 /// use [`NanoTimestamp::new`] to construct and [`NanoTimestamp::nanos`] to read.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NanoTimestamp(i64);
 
@@ -759,12 +755,20 @@ impl NanoTimestamp {
 
     /// Returns the earlier of `self` and `other`.
     pub fn min(self, other: NanoTimestamp) -> NanoTimestamp {
-        if self.0 <= other.0 { self } else { other }
+        if self.0 <= other.0 {
+            self
+        } else {
+            other
+        }
     }
 
     /// Returns the later of `self` and `other`.
     pub fn max(self, other: NanoTimestamp) -> NanoTimestamp {
-        if self.0 >= other.0 { self } else { other }
+        if self.0 >= other.0 {
+            self
+        } else {
+            other
+        }
     }
 
     /// Returns the signed nanosecond difference `self - earlier`.
@@ -816,8 +820,7 @@ impl NanoTimestamp {
         use chrono::{DateTime, Utc};
         let secs = self.0 / 1_000_000_000;
         let nanos_part = (self.0 % 1_000_000_000).unsigned_abs() as u32;
-        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
-            .unwrap_or_default();
+        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part).unwrap_or_default();
         dt.format("%Y-%m-%d").to_string()
     }
 
@@ -858,7 +861,9 @@ impl NanoTimestamp {
     /// Both `open_hour` and `close_hour` must be in 0–23; if `open_hour >= close_hour` the
     /// function returns `false`.
     pub fn is_market_hours(self, open_hour: u8, close_hour: u8) -> bool {
-        if open_hour >= close_hour { return false; }
+        if open_hour >= close_hour {
+            return false;
+        }
         let h = self.hour_of_day();
         h >= open_hour && h < close_hour
     }
@@ -891,8 +896,7 @@ impl NanoTimestamp {
         use chrono::{DateTime, Utc};
         let secs = self.0 / 1_000_000_000;
         let nanos_part = (self.0 % 1_000_000_000).unsigned_abs() as u32;
-        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part)
-            .unwrap_or_default();
+        let dt = DateTime::<Utc>::from_timestamp(secs, nanos_part).unwrap_or_default();
         dt.format("%Y-%m-%d %H:%M:%S").to_string()
     }
 
@@ -2034,7 +2038,8 @@ mod tests {
     fn test_timestamp_is_between_inclusive() {
         let ts = NanoTimestamp::new(500);
         assert!(ts.is_between(NanoTimestamp::new(100), NanoTimestamp::new(900)));
-        assert!(ts.is_between(NanoTimestamp::new(500), NanoTimestamp::new(500))); // exact bounds
+        assert!(ts.is_between(NanoTimestamp::new(500), NanoTimestamp::new(500)));
+        // exact bounds
     }
 
     #[test]

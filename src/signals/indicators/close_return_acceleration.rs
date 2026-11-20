@@ -51,9 +51,15 @@ impl CloseReturnAcceleration {
 }
 
 impl Signal for CloseReturnAcceleration {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.prev_momentum.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_momentum.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -65,8 +71,14 @@ impl Signal for CloseReturnAcceleration {
         }
 
         // Current N-bar momentum: (close_now - close_N_bars_ago) / close_N_bars_ago
-        let close_now = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let close_n_ago = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let close_now = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let close_n_ago = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if close_n_ago.is_zero() {
             return Ok(SignalValue::Unavailable);
@@ -103,7 +115,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,9 +147,12 @@ mod tests {
         // If we have 100, 102, 104.04: both return ~2% → acceleration ≈ 0
         s.update_bar(&bar("100")).unwrap(); // Unavailable (filling period)
         s.update_bar(&bar("102")).unwrap(); // prev_momentum = 0.02, returns Unavailable (first)
-        // third bar: momentum = (104.04-102)/102 ≈ 0.02, acceleration ≈ 0
+                                            // third bar: momentum = (104.04-102)/102 ≈ 0.02, acceleration ≈ 0
         if let SignalValue::Scalar(v) = s.update_bar(&bar("104.04")).unwrap() {
-            assert!(v.abs() < dec!(0.001), "constant momentum should give ~0 accel: {v}");
+            assert!(
+                v.abs() < dec!(0.001),
+                "constant momentum should give ~0 accel: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -145,9 +163,12 @@ mod tests {
         let mut s = CloseReturnAcceleration::new("cra", 1).unwrap();
         s.update_bar(&bar("100")).unwrap();
         s.update_bar(&bar("101")).unwrap(); // momentum = 1/100 = 0.01
-        // Bigger return: 101 → 103 → momentum = 2/101 > 0.01 → acceleration > 0
+                                            // Bigger return: 101 → 103 → momentum = 2/101 > 0.01 → acceleration > 0
         if let SignalValue::Scalar(v) = s.update_bar(&bar("103")).unwrap() {
-            assert!(v > dec!(0), "larger return gives positive acceleration: {v}");
+            assert!(
+                v > dec!(0),
+                "larger return gives positive acceleration: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -156,7 +177,9 @@ mod tests {
     #[test]
     fn test_cra_reset() {
         let mut s = CloseReturnAcceleration::new("cra", 2).unwrap();
-        for p in &["100","101","102","103","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

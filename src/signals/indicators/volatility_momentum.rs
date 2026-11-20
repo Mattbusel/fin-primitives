@@ -48,9 +48,15 @@ impl VolatilityMomentum {
 }
 
 impl Signal for VolatilityMomentum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.changes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.changes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -66,14 +72,19 @@ impl Signal for VolatilityMomentum {
                 } else {
                     let n = self.changes.len();
                     let nf = n as f64;
-                    let vals: Vec<f64> = self.changes.iter()
-                        .filter_map(|c| c.to_f64())
-                        .collect();
+                    let vals: Vec<f64> = self.changes.iter().filter_map(|c| c.to_f64()).collect();
                     if vals.len() != n {
                         SignalValue::Unavailable
                     } else {
                         let mean = vals.iter().sum::<f64>() / nf;
-                        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / nf;
+                        let var = vals
+                            .iter()
+                            .map(|v| {
+                                let d = v - mean;
+                                d * d
+                            })
+                            .sum::<f64>()
+                            / nf;
                         match Decimal::from_f64(var.sqrt()) {
                             Some(v) => SignalValue::Scalar(v),
                             None => SignalValue::Unavailable,
@@ -104,7 +115,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,7 +136,10 @@ mod tests {
     fn test_vm_unavailable_before_warm_up() {
         let mut vm = VolatilityMomentum::new("vm", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(vm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vm.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -136,7 +153,11 @@ mod tests {
             last = vm.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v < dec!(0.001), "constant changes should give near-zero std dev: {}", v);
+            assert!(
+                v < dec!(0.001),
+                "constant changes should give near-zero std dev: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -151,7 +172,11 @@ mod tests {
             last = vm.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "varying changes should give positive std dev: {}", v);
+            assert!(
+                v > dec!(0),
+                "varying changes should give positive std dev: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -160,7 +185,9 @@ mod tests {
     #[test]
     fn test_vm_reset() {
         let mut vm = VolatilityMomentum::new("vm", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { vm.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            vm.update_bar(&bar(p)).unwrap();
+        }
         assert!(vm.is_ready());
         vm.reset();
         assert!(!vm.is_ready());

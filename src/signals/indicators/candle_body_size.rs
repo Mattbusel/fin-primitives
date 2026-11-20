@@ -30,7 +30,10 @@ pub struct CandleBodySize {
 impl CandleBodySize {
     /// Constructs a new `CandleBodySize`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+        Self {
+            name: name.into(),
+            ready: false,
+        }
     }
 }
 

@@ -44,9 +44,15 @@ impl PriceAboveMa {
         long_period: usize,
         short_period: usize,
     ) -> Result<Self, FinError> {
-        if long_period == 0 { return Err(FinError::InvalidPeriod(long_period)); }
-        if short_period == 0 { return Err(FinError::InvalidPeriod(short_period)); }
-        if short_period >= long_period { return Err(FinError::InvalidPeriod(short_period)); }
+        if long_period == 0 {
+            return Err(FinError::InvalidPeriod(long_period));
+        }
+        if short_period == 0 {
+            return Err(FinError::InvalidPeriod(short_period));
+        }
+        if short_period >= long_period {
+            return Err(FinError::InvalidPeriod(short_period));
+        }
         Ok(Self {
             name: name.into(),
             long_period,
@@ -58,30 +64,42 @@ impl PriceAboveMa {
 }
 
 impl Signal for PriceAboveMa {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.long_closes.push_back(bar.close);
-        if self.long_closes.len() > self.long_period { self.long_closes.pop_front(); }
-        if self.long_closes.len() < self.long_period { return Ok(SignalValue::Unavailable); }
+        if self.long_closes.len() > self.long_period {
+            self.long_closes.pop_front();
+        }
+        if self.long_closes.len() < self.long_period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let sma = self.long_closes.iter().sum::<Decimal>()
-            / Decimal::from(self.long_period as u32);
+        let sma = self.long_closes.iter().sum::<Decimal>() / Decimal::from(self.long_period as u32);
         let flag: u8 = if bar.close > sma { 1 } else { 0 };
 
         self.above_flags.push_back(flag);
-        if self.above_flags.len() > self.short_period { self.above_flags.pop_front(); }
-        if self.above_flags.len() < self.short_period { return Ok(SignalValue::Unavailable); }
+        if self.above_flags.len() > self.short_period {
+            self.above_flags.pop_front();
+        }
+        if self.above_flags.len() < self.short_period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let count = self.above_flags.iter().map(|&v| u32::from(v)).sum::<u32>();
-        let pct = Decimal::from(count)
-            / Decimal::from(self.short_period as u32)
-            * Decimal::from(100u32);
+        let pct =
+            Decimal::from(count) / Decimal::from(self.short_period as u32) * Decimal::from(100u32);
         Ok(SignalValue::Scalar(pct))
     }
 
-    fn is_ready(&self) -> bool { self.above_flags.len() >= self.short_period }
-    fn period(&self) -> usize { self.long_period }
+    fn is_ready(&self) -> bool {
+        self.above_flags.len() >= self.short_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
 
     fn reset(&mut self) {
         self.long_closes.clear();
@@ -100,7 +118,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -129,10 +150,14 @@ mod tests {
         let mut p = PriceAboveMa::new("p", 3, 2).unwrap();
         let prices = ["100", "101", "102", "103", "104"];
         let mut last = SignalValue::Unavailable;
-        for price in &prices { last = p.update_bar(&bar(price)).unwrap(); }
+        for price in &prices {
+            last = p.update_bar(&bar(price)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -140,19 +165,27 @@ mod tests {
         // Falling prices: closes drop below the long SMA
         let mut p = PriceAboveMa::new("p", 3, 2).unwrap();
         // Warm up with high prices, then drop
-        for _ in 0..3 { p.update_bar(&bar("200")).unwrap(); }
+        for _ in 0..3 {
+            p.update_bar(&bar("200")).unwrap();
+        }
         // Now feed low prices — they'll be below SMA of 200s
         let mut last = SignalValue::Unavailable;
-        for _ in 0..3 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pama_reset() {
         let mut p = PriceAboveMa::new("p", 3, 2).unwrap();
-        for _ in 0..10 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

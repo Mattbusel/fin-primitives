@@ -1,9 +1,9 @@
 //! Price Efficiency Ratio indicator (Kaufman's ER).
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Kaufman's Efficiency Ratio: `|close[t] - close[t-N]| / sum(|close[i] - close[i-1]|)`.
 ///
@@ -19,7 +19,10 @@ impl PriceEfficiencyRatio {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(period + 1) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period + 1),
+        })
     }
 }
 
@@ -32,8 +35,18 @@ impl Signal for PriceEfficiencyRatio {
         if self.closes.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
-        let net = (self.closes.back().ok_or_else(crate::error::invariant_broken)? - self.closes.front().ok_or_else(crate::error::invariant_broken)?).abs();
-        let path: Decimal = self.closes.iter()
+        let net = (self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?
+            - self
+                .closes
+                .front()
+                .ok_or_else(crate::error::invariant_broken)?)
+        .abs();
+        let path: Decimal = self
+            .closes
+            .iter()
             .zip(self.closes.iter().skip(1))
             .map(|(a, b)| (*b - *a).abs())
             .sum();
@@ -43,10 +56,18 @@ impl Signal for PriceEfficiencyRatio {
         Ok(SignalValue::Scalar(net / path))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "PriceEfficiencyRatio" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "PriceEfficiencyRatio"
+    }
 }
 
 #[cfg(test)]

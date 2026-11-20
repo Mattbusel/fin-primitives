@@ -40,9 +40,13 @@ impl VolumeTrend {
     /// Returns [`FinError::InvalidPeriod`] if `short == 0`.
     /// Returns [`FinError::InvalidInput`] if `short >= long`.
     pub fn new(name: impl Into<String>, short: usize, long: usize) -> Result<Self, FinError> {
-        if short == 0 { return Err(FinError::InvalidPeriod(short)); }
+        if short == 0 {
+            return Err(FinError::InvalidPeriod(short));
+        }
         if short >= long {
-            return Err(FinError::InvalidInput("short must be less than long".into()));
+            return Err(FinError::InvalidInput(
+                "short must be less than long".into(),
+            ));
         }
         Ok(Self {
             name: name.into(),
@@ -54,12 +58,18 @@ impl VolumeTrend {
 }
 
 impl Signal for VolumeTrend {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.volumes.push_back(bar.volume);
-        if self.volumes.len() > self.long { self.volumes.pop_front(); }
-        if self.volumes.len() < self.long { return Ok(SignalValue::Unavailable); }
+        if self.volumes.len() > self.long {
+            self.volumes.pop_front();
+        }
+        if self.volumes.len() < self.long {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let long_avg = self.volumes.iter().sum::<Decimal>() / Decimal::from(self.long as u32);
 
@@ -73,8 +83,12 @@ impl Signal for VolumeTrend {
         Ok(SignalValue::Scalar(short_avg / long_avg))
     }
 
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.long }
-    fn period(&self) -> usize { self.long }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.long
+    }
+    fn period(&self) -> usize {
+        self.long
+    }
 
     fn reset(&mut self) {
         self.volumes.clear();
@@ -93,7 +107,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -112,7 +129,10 @@ mod tests {
     fn test_vt_unavailable_before_warmup() {
         let mut v = VolumeTrend::new("v", 3, 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(v.update_bar(&bar_v("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                v.update_bar(&bar_v("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -121,10 +141,14 @@ mod tests {
         // Equal volume throughout → short_avg = long_avg → ratio = 1
         let mut v = VolumeTrend::new("v", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..8 { last = v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..8 {
+            last = v.update_bar(&bar_v("1000")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -132,20 +156,28 @@ mod tests {
         // 5 low-volume bars, then 3 high-volume bars → short_avg > long_avg
         let mut v = VolumeTrend::new("v", 3, 5).unwrap();
         // Fill with 5 bars of 100 (long period)
-        for _ in 0..5 { v.update_bar(&bar_v("100")).unwrap(); }
+        for _ in 0..5 {
+            v.update_bar(&bar_v("100")).unwrap();
+        }
         // Push 3 high-volume bars (rolls out the low-volume ones gradually)
         let mut last = SignalValue::Unavailable;
-        for _ in 0..3 { last = v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..3 {
+            last = v.update_bar(&bar_v("1000")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             // long window has 2 bars of 100 and 3 of 1000; short window is 3 bars of 1000
             assert!(val > dec!(1), "expected > 1, got {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vt_reset() {
         let mut v = VolumeTrend::new("v", 3, 5).unwrap();
-        for _ in 0..8 { v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..8 {
+            v.update_bar(&bar_v("1000")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

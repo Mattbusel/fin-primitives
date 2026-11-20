@@ -130,7 +130,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut tb = TweezerBottom::new("tb", 5).unwrap();
-        assert_eq!(tb.update_bar(&bar("10", "15", "9", "12")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            tb.update_bar(&bar("10", "15", "9", "12")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

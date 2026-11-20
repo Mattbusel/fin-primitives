@@ -1,10 +1,10 @@
 //! High-Low Return Correlation indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Pearson correlation between high returns and low returns over rolling period.
 ///
@@ -38,13 +38,21 @@ impl HighLowReturnCorrelation {
 
     fn pearson(xs: &[f64], ys: &[f64]) -> f64 {
         let n = xs.len() as f64;
-        if n < 2.0 { return 0.0; }
+        if n < 2.0 {
+            return 0.0;
+        }
         let mx = xs.iter().sum::<f64>() / n;
         let my = ys.iter().sum::<f64>() / n;
-        let num: f64 = xs.iter().zip(ys.iter()).map(|(x, y)| (x - mx) * (y - my)).sum();
+        let num: f64 = xs
+            .iter()
+            .zip(ys.iter())
+            .map(|(x, y)| (x - mx) * (y - my))
+            .sum();
         let dx: f64 = xs.iter().map(|x| (x - mx).powi(2)).sum::<f64>().sqrt();
         let dy: f64 = ys.iter().map(|y| (y - my).powi(2)).sum::<f64>().sqrt();
-        if dx == 0.0 || dy == 0.0 { return 0.0; }
+        if dx == 0.0 || dy == 0.0 {
+            return 0.0;
+        }
         num / (dx * dy)
     }
 }
@@ -81,15 +89,21 @@ impl Signal for HighLowReturnCorrelation {
         }
     }
 
-    fn is_ready(&self) -> bool { self.high_rets.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.high_rets.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_high = None;
         self.prev_low = None;
         self.high_rets.clear();
         self.low_rets.clear();
     }
-    fn name(&self) -> &str { "HighLowReturnCorrelation" }
+    fn name(&self) -> &str {
+        "HighLowReturnCorrelation"
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +135,7 @@ mod tests {
         // High and low move proportionally together → correlation near 1
         let mut sig = HighLowReturnCorrelation::new(3).unwrap();
         sig.update(&bar("100", "90")).unwrap();
-        sig.update(&bar("110", "99")).unwrap();  // +10%, +10%
+        sig.update(&bar("110", "99")).unwrap(); // +10%, +10%
         sig.update(&bar("121", "108.9")).unwrap(); // +10%, +10%
         sig.update(&bar("133.1", "119.79")).unwrap(); // +10%, +10%
         if let SignalValue::Scalar(v) = sig.update(&bar("146.41", "131.769")).unwrap() {

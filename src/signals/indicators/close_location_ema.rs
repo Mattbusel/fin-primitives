@@ -56,14 +56,25 @@ impl CloseLocationEma {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 
 impl Signal for CloseLocationEma {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ema.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -111,7 +122,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -169,7 +183,10 @@ mod tests {
             cle.update_bar(&bar("110", "90", "108")).unwrap(); // CLV = (216-110-90)/20 = 0.8
         }
         if let SignalValue::Scalar(v) = cle.update_bar(&bar("110", "90", "108")).unwrap() {
-            assert!(v > dec!(0), "persistent high closes → positive EMA CLV: {v}");
+            assert!(
+                v > dec!(0),
+                "persistent high closes → positive EMA CLV: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }

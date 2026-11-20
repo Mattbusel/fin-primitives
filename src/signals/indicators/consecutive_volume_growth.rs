@@ -33,14 +33,24 @@ pub struct ConsecutiveVolumeGrowth {
 impl ConsecutiveVolumeGrowth {
     /// Constructs a new `ConsecutiveVolumeGrowth`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_volume: None, streak: 0 }
+        Self {
+            name: name.into(),
+            prev_volume: None,
+            streak: 0,
+        }
     }
 }
 
 impl Signal for ConsecutiveVolumeGrowth {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.streak = match self.prev_volume {
@@ -70,7 +80,11 @@ mod tests {
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p, volume: v,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -87,9 +101,9 @@ mod tests {
     #[test]
     fn test_cvg_growing_streak() {
         let mut cvg = ConsecutiveVolumeGrowth::new("cvg");
-        cvg.update_bar(&bar("100")).unwrap();    // streak=0
-        cvg.update_bar(&bar("200")).unwrap();    // streak=1
-        cvg.update_bar(&bar("300")).unwrap();    // streak=2
+        cvg.update_bar(&bar("100")).unwrap(); // streak=0
+        cvg.update_bar(&bar("200")).unwrap(); // streak=1
+        cvg.update_bar(&bar("300")).unwrap(); // streak=2
         let v = cvg.update_bar(&bar("400")).unwrap(); // streak=3
         assert_eq!(v, SignalValue::Scalar(dec!(3)));
     }

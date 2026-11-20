@@ -50,9 +50,15 @@ impl NewHighStreak {
 }
 
 impl Signal for NewHighStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.lookback }
-    fn is_ready(&self) -> bool { self.closes.len() > self.lookback }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.lookback
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.lookback
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -64,8 +70,12 @@ impl Signal for NewHighStreak {
         }
 
         // Current close is the last; compare against max of prior `lookback` closes
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let prior_max = self.closes
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let prior_max = self
+            .closes
             .iter()
             .take(self.lookback)
             .copied()
@@ -98,7 +108,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,9 +140,18 @@ mod tests {
         s.update_bar(&bar("100")).unwrap();
         s.update_bar(&bar("101")).unwrap();
         // streak=0 initially after warmup
-        assert_eq!(s.update_bar(&bar("102")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(s.update_bar(&bar("103")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(s.update_bar(&bar("104")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            s.update_bar(&bar("102")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            s.update_bar(&bar("103")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            s.update_bar(&bar("104")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
@@ -138,13 +160,16 @@ mod tests {
         s.update_bar(&bar("100")).unwrap();
         s.update_bar(&bar("101")).unwrap();
         s.update_bar(&bar("102")).unwrap(); // streak=1
-        assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            s.update_bar(&bar("100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_nhs_no_negative() {
         let mut s = NewHighStreak::new("nhs", 2).unwrap();
-        for p in &["105","100","102","99","103","98","104","97"] {
+        for p in &["105", "100", "102", "99", "103", "98", "104", "97"] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
                 assert!(v >= dec!(0), "streak cannot be negative: {v}");
             }
@@ -154,7 +179,9 @@ mod tests {
     #[test]
     fn test_nhs_reset() {
         let mut s = NewHighStreak::new("nhs", 2).unwrap();
-        for p in &["100","101","102","103","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

@@ -74,7 +74,9 @@ impl Signal for Vwma {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vwma = pv_sum.checked_div(vol_sum).ok_or(FinError::ArithmeticOverflow)?;
+        let vwma = pv_sum
+            .checked_div(vol_sum)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(vwma))
     }
 
@@ -123,7 +125,10 @@ mod tests {
     #[test]
     fn test_vwma_unavailable_before_period() {
         let mut v = Vwma::new("v2", 2).unwrap();
-        assert_eq!(v.update_bar(&bar(dec!(10), dec!(100))).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar(dec!(10), dec!(100))).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!v.is_ready());
     }
 
@@ -168,6 +173,9 @@ mod tests {
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());
-        assert_eq!(v.update_bar(&bar(dec!(10), dec!(1))).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar(dec!(10), dec!(1))).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

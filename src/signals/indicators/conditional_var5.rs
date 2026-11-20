@@ -38,7 +38,9 @@ impl ConditionalVar5 {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,9 +51,15 @@ impl ConditionalVar5 {
 }
 
 impl Signal for ConditionalVar5 {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -64,7 +72,9 @@ impl Signal for ConditionalVar5 {
             }
         }
         self.prev_close = Some(bar.close);
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         let mut sorted: Vec<Decimal> = self.window.iter().copied().collect();
         sorted.sort();
         // Take bottom ceil(5%) of observations
@@ -94,7 +104,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -103,12 +116,17 @@ mod tests {
     }
 
     #[test]
-    fn test_cvar5_period_0_error() { assert!(ConditionalVar5::new("cv", 0).is_err()); }
+    fn test_cvar5_period_0_error() {
+        assert!(ConditionalVar5::new("cv", 0).is_err());
+    }
 
     #[test]
     fn test_cvar5_unavailable_before_period() {
         let mut cv = ConditionalVar5::new("cv", 5).unwrap();
-        assert_eq!(cv.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cv.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -116,12 +134,15 @@ mod tests {
         // Falling prices -> all returns negative -> CVaR is the worst
         let mut cv = ConditionalVar5::new("cv", 4).unwrap();
         cv.update_bar(&bar("100")).unwrap();
-        cv.update_bar(&bar("99")).unwrap();  // -1%
-        cv.update_bar(&bar("98")).unwrap();  // ~-1.01%
-        cv.update_bar(&bar("97")).unwrap();  // ~-1.02%
+        cv.update_bar(&bar("99")).unwrap(); // -1%
+        cv.update_bar(&bar("98")).unwrap(); // ~-1.01%
+        cv.update_bar(&bar("97")).unwrap(); // ~-1.02%
         let r = cv.update_bar(&bar("96")).unwrap(); // ~-1.03%
         if let SignalValue::Scalar(cvar) = r {
-            assert!(cvar < dec!(0), "all negative returns, CVaR should be negative, got {cvar}");
+            assert!(
+                cvar < dec!(0),
+                "all negative returns, CVaR should be negative, got {cvar}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -138,7 +159,10 @@ mod tests {
         let r = cv.update_bar(&bar("53")).unwrap();
         if let SignalValue::Scalar(cvar) = r {
             // The -50% loss should be in the worst 5% tail, pulling CVaR negative
-            assert!(cvar < dec!(0), "big loss present, CVaR should be negative, got {cvar}");
+            assert!(
+                cvar < dec!(0),
+                "big loss present, CVaR should be negative, got {cvar}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -147,7 +171,9 @@ mod tests {
     #[test]
     fn test_cvar5_reset() {
         let mut cv = ConditionalVar5::new("cv", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { cv.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            cv.update_bar(&bar(p)).unwrap();
+        }
         assert!(cv.is_ready());
         cv.reset();
         assert!(!cv.is_ready());

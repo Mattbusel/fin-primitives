@@ -40,9 +40,15 @@ impl MidpointOscillator {
 }
 
 impl Signal for MidpointOscillator {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -71,7 +77,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -88,27 +97,39 @@ mod tests {
     #[test]
     fn test_mo_no_range() {
         let mut mo = MidpointOscillator::new("mo").unwrap();
-        assert_eq!(mo.update_bar(&bar("100", "100", "100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            mo.update_bar(&bar("100", "100", "100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_mo_close_at_midpoint() {
         let mut mo = MidpointOscillator::new("mo").unwrap();
         // high=110, low=90, mid=100, close=100 → 0
-        assert_eq!(mo.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            mo.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_mo_close_at_high() {
         let mut mo = MidpointOscillator::new("mo").unwrap();
         // high=110, low=90, mid=100, close=110 → (110-100)/20 = 0.5
-        assert_eq!(mo.update_bar(&bar("110", "90", "110")).unwrap(), SignalValue::Scalar(dec!(0.5)));
+        assert_eq!(
+            mo.update_bar(&bar("110", "90", "110")).unwrap(),
+            SignalValue::Scalar(dec!(0.5))
+        );
     }
 
     #[test]
     fn test_mo_close_at_low() {
         let mut mo = MidpointOscillator::new("mo").unwrap();
         // high=110, low=90, mid=100, close=90 → (90-100)/20 = -0.5
-        assert_eq!(mo.update_bar(&bar("110", "90", "90")).unwrap(), SignalValue::Scalar(dec!(-0.5)));
+        assert_eq!(
+            mo.update_bar(&bar("110", "90", "90")).unwrap(),
+            SignalValue::Scalar(dec!(-0.5))
+        );
     }
 }

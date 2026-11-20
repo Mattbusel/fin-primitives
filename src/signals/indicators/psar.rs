@@ -28,8 +28,8 @@ pub struct ParabolicSar {
     max_af: Decimal,
     // State
     sar: Option<Decimal>,
-    ep: Decimal,  // extreme point
-    af: Decimal,  // acceleration factor
+    ep: Decimal, // extreme point
+    af: Decimal, // acceleration factor
     uptrend: bool,
     prev_high: Option<Decimal>,
     prev_low: Option<Decimal>,
@@ -42,10 +42,14 @@ impl ParabolicSar {
     /// Returns [`FinError::InvalidInput`] if `step <= 0` or `max_af <= 0` or `step > max_af`.
     pub fn new(name: impl Into<String>, step: Decimal, max_af: Decimal) -> Result<Self, FinError> {
         if step <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(format!("step must be > 0, got {step}")));
+            return Err(FinError::InvalidInput(format!(
+                "step must be > 0, got {step}"
+            )));
         }
         if max_af <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(format!("max_af must be > 0, got {max_af}")));
+            return Err(FinError::InvalidInput(format!(
+                "max_af must be > 0, got {max_af}"
+            )));
         }
         if step > max_af {
             return Err(FinError::InvalidInput(format!(
@@ -198,7 +202,10 @@ mod tests {
     #[test]
     fn test_psar_first_bar_unavailable() {
         let mut psar = ParabolicSar::new("p", dec!(0.02), dec!(0.20)).unwrap();
-        assert_eq!(psar.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            psar.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!psar.is_ready());
     }
 

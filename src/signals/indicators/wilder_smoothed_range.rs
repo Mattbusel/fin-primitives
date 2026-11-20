@@ -1,8 +1,8 @@
 //! Wilder Smoothed Range indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Wilder-smoothed (RMA) true range — the smoothing used in ATR.
 ///
@@ -57,7 +57,9 @@ impl Signal for WilderSmoothedRange {
                 self.warm_up_count += 1;
                 if self.warm_up_count >= self.period {
                     self.smoothed = Some(self.warm_up_sum / Decimal::from(self.period as u32));
-                    Ok(SignalValue::Scalar(self.smoothed.ok_or_else(crate::error::invariant_broken)?))
+                    Ok(SignalValue::Scalar(
+                        self.smoothed.ok_or_else(crate::error::invariant_broken)?,
+                    ))
                 } else {
                     Ok(SignalValue::Unavailable)
                 }
@@ -71,15 +73,21 @@ impl Signal for WilderSmoothedRange {
         }
     }
 
-    fn is_ready(&self) -> bool { self.smoothed.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.smoothed.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.smoothed = None;
         self.warm_up_count = 0;
         self.warm_up_sum = Decimal::ZERO;
         self.prev_close = None;
     }
-    fn name(&self) -> &str { "WilderSmoothedRange" }
+    fn name(&self) -> &str {
+        "WilderSmoothedRange"
+    }
 }
 
 #[cfg(test)]
@@ -113,7 +121,13 @@ mod tests {
     #[test]
     fn test_wsr_not_ready() {
         let mut sig = WilderSmoothedRange::new(3).unwrap();
-        assert_eq!(sig.update(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sig.update(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sig.update(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sig.update(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

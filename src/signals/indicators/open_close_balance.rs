@@ -65,9 +65,15 @@ impl OpenCloseBalance {
 }
 
 impl Signal for OpenCloseBalance {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bodies.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bodies.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.close - bar.open;
@@ -79,8 +85,14 @@ impl Signal for OpenCloseBalance {
         self.abs_bodies.push_back(abs_body);
 
         if self.bodies.len() > self.period {
-            let old_body = self.bodies.pop_front().ok_or_else(crate::error::invariant_broken)?;
-            let old_abs = self.abs_bodies.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let old_body = self
+                .bodies
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
+            let old_abs = self
+                .abs_bodies
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum_body -= old_body;
             self.sum_abs -= old_abs;
         }
@@ -93,7 +105,8 @@ impl Signal for OpenCloseBalance {
             return Ok(SignalValue::Unavailable);
         }
 
-        let balance = self.sum_body
+        let balance = self
+            .sum_body
             .checked_div(self.sum_abs)
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(balance))
@@ -122,7 +135,10 @@ mod tests {
         let low = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp,
+            open: op,
+            high,
+            low,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -138,8 +154,14 @@ mod tests {
     #[test]
     fn test_ocb_unavailable_during_warmup() {
         let mut ocb = OpenCloseBalance::new("ocb", 3).unwrap();
-        assert_eq!(ocb.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ocb.update_bar(&bar("105", "108")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ocb.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ocb.update_bar(&bar("105", "108")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ocb.is_ready());
     }
 
@@ -186,7 +208,10 @@ mod tests {
     fn test_ocb_all_doji_unavailable() {
         let mut ocb = OpenCloseBalance::new("ocb", 2).unwrap();
         ocb.update_bar(&bar("100", "100")).unwrap();
-        assert_eq!(ocb.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ocb.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

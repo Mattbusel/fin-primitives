@@ -1,10 +1,10 @@
 //! Volatility Regime Detector indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Ratio of short-term return std dev to long-term return std dev.
 ///
@@ -34,9 +34,18 @@ impl VolatilityRegimeDetector {
 
     fn std_dev(vals: &[f64]) -> f64 {
         let n = vals.len() as f64;
-        if n < 2.0 { return 0.0; }
+        if n < 2.0 {
+            return 0.0;
+        }
         let mean = vals.iter().sum::<f64>() / n;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         var.sqrt()
     }
 }
@@ -78,10 +87,19 @@ impl Signal for VolatilityRegimeDetector {
         }
     }
 
-    fn is_ready(&self) -> bool { self.returns.len() >= self.long_period }
-    fn period(&self) -> usize { self.long_period }
-    fn reset(&mut self) { self.prev_close = None; self.returns.clear(); }
-    fn name(&self) -> &str { "VolatilityRegimeDetector" }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.long_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.returns.clear();
+    }
+    fn name(&self) -> &str {
+        "VolatilityRegimeDetector"
+    }
 }
 
 #[cfg(test)]

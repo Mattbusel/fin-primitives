@@ -64,7 +64,7 @@
 
 use crate::error::FinError;
 use crate::signals::indicators::{
-    Atr, BollingerB, Cci, EfficiencyRatio, Ema, Macd, Mfi, Obv, Ppo, RollingMAD, Roc, Rsi, Sma,
+    Atr, BollingerB, Cci, EfficiencyRatio, Ema, Macd, Mfi, Obv, Ppo, Roc, RollingMAD, Rsi, Sma,
     StdDev, StochasticK,
 };
 use std::collections::VecDeque;
@@ -93,7 +93,11 @@ struct SumWindow {
 
 impl SumWindow {
     fn new(period: usize) -> Self {
-        Self { period, values: VecDeque::with_capacity(period + 1), sum: 0.0 }
+        Self {
+            period,
+            values: VecDeque::with_capacity(period + 1),
+            sum: 0.0,
+        }
     }
 
     fn push(&mut self, value: f64) {
@@ -140,7 +144,9 @@ impl SmaF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { window: SumWindow::new(period) })
+        Ok(Self {
+            window: SumWindow::new(period),
+        })
     }
 
     /// Feeds one value and returns the average once the window is full.
@@ -184,7 +190,13 @@ pub struct EmaF64 {
 
 impl EmaF64 {
     fn with_k(period: usize, k: f64) -> Self {
-        Self { period, k, count: 0, seed_sum: 0.0, value: None }
+        Self {
+            period,
+            k,
+            count: 0,
+            seed_sum: 0.0,
+            value: None,
+        }
     }
 
     /// Creates an EMA with the standard smoothing factor `2 / (period + 1)`.
@@ -275,7 +287,14 @@ impl RsiF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { period, prev: None, count: 0, gain_sum: 0.0, loss_sum: 0.0, avg: None })
+        Ok(Self {
+            period,
+            prev: None,
+            count: 0,
+            gain_sum: 0.0,
+            loss_sum: 0.0,
+            avg: None,
+        })
     }
 
     fn rsi(avg_gain: f64, avg_loss: f64) -> f64 {
@@ -384,7 +403,11 @@ impl MacdF64 {
         check_period(fast)?;
         check_period(slow)?;
         check_period(signal)?;
-        let (fast, slow) = if fast > slow { (slow, fast) } else { (fast, slow) };
+        let (fast, slow) = if fast > slow {
+            (slow, fast)
+        } else {
+            (fast, slow)
+        };
         Ok(Self::build(fast, slow, signal, slow - fast))
     }
 
@@ -403,12 +426,20 @@ impl MacdF64 {
     pub fn update(&mut self, close: f64) -> Option<MacdOutputF64> {
         let index = self.seen;
         self.seen += 1;
-        let fast = if index >= self.fast_delay { self.fast.update(close) } else { None };
+        let fast = if index >= self.fast_delay {
+            self.fast.update(close)
+        } else {
+            None
+        };
         let slow = self.slow.update(close);
         let line = fast? - slow?;
         self.line = Some(line);
         let signal = self.signal.update(line)?;
-        Some(MacdOutputF64 { macd: line, signal, histogram: line - signal })
+        Some(MacdOutputF64 {
+            macd: line,
+            signal,
+            histogram: line - signal,
+        })
     }
 
     /// The latest MACD line, available before the signal line is seeded.
@@ -460,7 +491,9 @@ impl StdDevF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { window: SumWindow::new(period) })
+        Ok(Self {
+            window: SumWindow::new(period),
+        })
     }
 
     /// Feeds one value and returns the standard deviation once the window is full.
@@ -532,7 +565,10 @@ impl BollingerF64 {
                 "Bollinger multiplier must be finite, got {multiplier}"
             )));
         }
-        Ok(Self { window: SumWindow::new(period), multiplier })
+        Ok(Self {
+            window: SumWindow::new(period),
+            multiplier,
+        })
     }
 
     /// Feeds one close and returns the bands once the window is full.
@@ -546,8 +582,17 @@ impl BollingerF64 {
         let upper = middle + width;
         let lower = middle - width;
         let range = upper - lower;
-        let percent_b = if range == 0.0 { 0.5 } else { (close - lower) / range };
-        Some(BollingerOutputF64 { upper, middle, lower, percent_b })
+        let percent_b = if range == 0.0 {
+            0.5
+        } else {
+            (close - lower) / range
+        };
+        Some(BollingerOutputF64 {
+            upper,
+            middle,
+            lower,
+            percent_b,
+        })
     }
 
     /// The band multiplier.
@@ -646,7 +691,10 @@ impl AtrF64 {
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn sma(period: usize) -> Result<Self, FinError> {
-        Ok(Self { prev_close: None, smoothing: AtrSmoothingF64::Simple(SmaF64::new(period)?) })
+        Ok(Self {
+            prev_close: None,
+            smoothing: AtrSmoothingF64::Simple(SmaF64::new(period)?),
+        })
     }
 
     /// Wilder ATR (the twin of [`Atr::wilder`] and TA-Lib's `ATR`; the same as [`AtrF64::new`]).
@@ -654,13 +702,18 @@ impl AtrF64 {
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn wilder(period: usize) -> Result<Self, FinError> {
-        Ok(Self { prev_close: None, smoothing: AtrSmoothingF64::Wilder(EmaF64::wilder(period)?) })
+        Ok(Self {
+            prev_close: None,
+            smoothing: AtrSmoothingF64::Wilder(EmaF64::wilder(period)?),
+        })
     }
 
     /// Feeds one bar and returns the ATR once seeded.
     pub fn update(&mut self, high: f64, low: f64, close: f64) -> Option<f64> {
         let prev = self.prev_close.replace(close)?;
-        let tr = (high - low).max((high - prev).abs()).max((low - prev).abs());
+        let tr = (high - low)
+            .max((high - prev).abs())
+            .max((low - prev).abs());
         match &mut self.smoothing {
             AtrSmoothingF64::Simple(s) => s.update(tr),
             AtrSmoothingF64::Wilder(e) => e.update(tr),
@@ -707,19 +760,32 @@ struct RollingExtreme {
 
 impl RollingExtreme {
     fn new(period: usize, want_max: bool) -> Self {
-        Self { period, seen: 0, deque: VecDeque::with_capacity(period), want_max }
+        Self {
+            period,
+            seen: 0,
+            deque: VecDeque::with_capacity(period),
+            want_max,
+        }
     }
 
     fn update(&mut self, value: f64) -> Option<f64> {
         let index = self.seen;
         self.seen += 1;
-        while self.deque.front().is_some_and(|&(i, _)| i + self.period <= index) {
+        while self
+            .deque
+            .front()
+            .is_some_and(|&(i, _)| i + self.period <= index)
+        {
             self.deque.pop_front();
         }
         // NaN never enters the deque, so it cannot hide a later extreme.
         if !value.is_nan() {
             while self.deque.back().is_some_and(|&(_, v)| {
-                if self.want_max { v <= value } else { v >= value }
+                if self.want_max {
+                    v <= value
+                } else {
+                    v >= value
+                }
             }) {
                 self.deque.pop_back();
             }
@@ -753,7 +819,9 @@ impl MaxF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { inner: RollingExtreme::new(period, true) })
+        Ok(Self {
+            inner: RollingExtreme::new(period, true),
+        })
     }
 
     /// Feeds one value and returns the window maximum once full.
@@ -793,7 +861,9 @@ impl MinF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { inner: RollingExtreme::new(period, false) })
+        Ok(Self {
+            inner: RollingExtreme::new(period, false),
+        })
     }
 
     /// Feeds one value and returns the window minimum once full.
@@ -837,7 +907,10 @@ impl StochasticF64 {
     /// # Errors
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
-        Ok(Self { highest: MaxF64::new(period)?, lowest: MinF64::new(period)? })
+        Ok(Self {
+            highest: MaxF64::new(period)?,
+            lowest: MinF64::new(period)?,
+        })
     }
 
     /// Feeds one bar and returns %K once the window is full.
@@ -846,7 +919,11 @@ impl StochasticF64 {
         let ll = self.lowest.update(low);
         let (hh, ll) = (hh?, ll?);
         let range = hh - ll;
-        Some(if range == 0.0 { 50.0 } else { (close - ll) / range * 100.0 })
+        Some(if range == 0.0 {
+            50.0
+        } else {
+            (close - ll) / range * 100.0
+        })
     }
 
     /// `true` once `period` bars have been seen.
@@ -885,7 +962,10 @@ impl RocF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { period, history: VecDeque::with_capacity(period + 2) })
+        Ok(Self {
+            period,
+            history: VecDeque::with_capacity(period + 2),
+        })
     }
 
     /// Feeds one close and returns the rate of change once `period + 1` closes are in.
@@ -898,7 +978,11 @@ impl RocF64 {
             return None;
         }
         let old = *self.history.front()?;
-        Some(if old == 0.0 { 0.0 } else { (close - old) / old * 100.0 })
+        Some(if old == 0.0 {
+            0.0
+        } else {
+            (close - old) / old * 100.0
+        })
     }
 
     /// `true` once `period + 1` closes have been seen.
@@ -988,7 +1072,11 @@ impl MfiF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { period, prev_tp: None, flows: VecDeque::with_capacity(period + 1) })
+        Ok(Self {
+            period,
+            prev_tp: None,
+            flows: VecDeque::with_capacity(period + 1),
+        })
     }
 
     /// Feeds one bar and returns the MFI once `period` flows are in.
@@ -1010,8 +1098,15 @@ impl MfiF64 {
         if self.flows.len() < self.period {
             return None;
         }
-        let (pos, neg) = self.flows.iter().fold((0.0, 0.0), |(p, n), (fp, fn_)| (p + fp, n + fn_));
-        Some(if neg == 0.0 { 100.0 } else { 100.0 - 100.0 / (1.0 + pos / neg) })
+        let (pos, neg) = self
+            .flows
+            .iter()
+            .fold((0.0, 0.0), |(p, n), (fp, fn_)| (p + fp, n + fn_));
+        Some(if neg == 0.0 {
+            100.0
+        } else {
+            100.0 - 100.0 / (1.0 + pos / neg)
+        })
     }
 
     /// `true` once `period + 1` bars have been seen.
@@ -1050,7 +1145,9 @@ impl CciF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { window: SumWindow::new(period) })
+        Ok(Self {
+            window: SumWindow::new(period),
+        })
     }
 
     /// Feeds one bar and returns the CCI once the window is full.
@@ -1061,9 +1158,18 @@ impl CciF64 {
             return None;
         }
         let mean = self.window.mean();
-        let md = self.window.values.iter().map(|v| (v - mean).abs()).sum::<f64>()
+        let md = self
+            .window
+            .values
+            .iter()
+            .map(|v| (v - mean).abs())
+            .sum::<f64>()
             / as_f64(self.window.period);
-        Some(if md == 0.0 { 0.0 } else { (tp - mean) / (0.015 * md) })
+        Some(if md == 0.0 {
+            0.0
+        } else {
+            (tp - mean) / (0.015 * md)
+        })
     }
 
     /// `true` once `period` bars have been seen.
@@ -1102,7 +1208,10 @@ impl EfficiencyRatioF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { period, closes: VecDeque::with_capacity(period + 2) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period + 2),
+        })
     }
 
     /// Feeds one close and returns the ratio once `period + 1` closes are in.
@@ -1121,7 +1230,11 @@ impl EfficiencyRatioF64 {
             .zip(self.closes.iter().skip(1))
             .map(|(a, b)| (b - a).abs())
             .sum();
-        Some(if path == 0.0 { 0.0 } else { (close - first).abs() / path })
+        Some(if path == 0.0 {
+            0.0
+        } else {
+            (close - first).abs() / path
+        })
     }
 
     /// `true` once `period + 1` closes have been seen.
@@ -1164,7 +1277,10 @@ impl PpoF64 {
         if fast >= slow {
             return Err(FinError::InvalidPeriod(fast));
         }
-        Ok(Self { fast: EmaF64::new(fast)?, slow: EmaF64::new(slow)? })
+        Ok(Self {
+            fast: EmaF64::new(fast)?,
+            slow: EmaF64::new(slow)?,
+        })
     }
 
     /// TA-Lib's `PPO` parameter rules: the periods are swapped when `fast > slow`, and
@@ -1176,8 +1292,15 @@ impl PpoF64 {
     pub fn talib(fast: usize, slow: usize) -> Result<Self, FinError> {
         check_period(fast)?;
         check_period(slow)?;
-        let (fast, slow) = if fast > slow { (slow, fast) } else { (fast, slow) };
-        Ok(Self { fast: EmaF64::new(fast)?, slow: EmaF64::new(slow)? })
+        let (fast, slow) = if fast > slow {
+            (slow, fast)
+        } else {
+            (fast, slow)
+        };
+        Ok(Self {
+            fast: EmaF64::new(fast)?,
+            slow: EmaF64::new(slow)?,
+        })
     }
 
     /// Feeds one close and returns the PPO once the slow EMA is seeded.
@@ -1225,7 +1348,9 @@ impl MeanAbsDevF64 {
     /// [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self, FinError> {
         check_period(period)?;
-        Ok(Self { window: SumWindow::new(period) })
+        Ok(Self {
+            window: SumWindow::new(period),
+        })
     }
 
     /// Feeds one value and returns the deviation once the window is full.
@@ -1236,7 +1361,11 @@ impl MeanAbsDevF64 {
         }
         let mean = self.window.mean();
         Some(
-            self.window.values.iter().map(|v| (v - mean).abs()).sum::<f64>()
+            self.window
+                .values
+                .iter()
+                .map(|v| (v - mean).abs())
+                .sum::<f64>()
                 / as_f64(self.window.period),
         )
     }

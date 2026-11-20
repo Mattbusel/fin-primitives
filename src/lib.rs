@@ -210,7 +210,12 @@
 // `greeks`, `signals::indicators`). Those links resolve in the default and docs.rs
 // builds; with some of those features off they have no target, which is expected.
 #![cfg_attr(
-    not(all(feature = "indicators", feature = "options", feature = "portfolio", feature = "risk")),
+    not(all(
+        feature = "indicators",
+        feature = "options",
+        feature = "portfolio",
+        feature = "risk"
+    )),
     allow(rustdoc::broken_intra_doc_links)
 )]
 
@@ -227,12 +232,12 @@ pub mod tick;
 pub mod types;
 
 // Optional integrations.
-#[cfg(feature = "async")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-pub mod async_signals;
 #[cfg(feature = "arrow")]
 #[cfg_attr(docsrs, doc(cfg(feature = "arrow")))]
 pub mod arrow;
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_signals;
 #[cfg(feature = "python")]
 pub mod python;
 #[cfg(feature = "ta-compat")]

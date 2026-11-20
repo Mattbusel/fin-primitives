@@ -10,7 +10,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList, PyTuple};
 use rust_decimal::Decimal;
 
-use super::args::{decimal_to_f64, decimal_to_py, f64_to_decimal, f64_to_decimal_opt, fin_err, to_decimal};
+use super::args::{
+    decimal_to_f64, decimal_to_py, f64_to_decimal, f64_to_decimal_opt, fin_err, to_decimal,
+};
 use super::registry::{Entry, ALIASES, ENTRIES};
 use crate::signals::{BarInput, Signal, SignalValue};
 
@@ -22,7 +24,10 @@ fn normalise(kind: &str) -> String {
 /// Finds a catalogue entry by key or alias.
 pub(crate) fn lookup(kind: &str) -> PyResult<&'static Entry> {
     let k = normalise(kind);
-    let key = ALIASES.iter().find(|(a, _)| *a == k).map_or(k.as_str(), |(_, key)| *key);
+    let key = ALIASES
+        .iter()
+        .find(|(a, _)| *a == k)
+        .map_or(k.as_str(), |(_, key)| *key);
     if let Ok(i) = ENTRIES.binary_search_by(|e| e.key.cmp(key)) {
         return Ok(&ENTRIES[i]);
     }
@@ -38,7 +43,9 @@ pub(crate) fn lookup(kind: &str) -> PyResult<&'static Entry> {
     } else {
         format!("; did you mean one of: {}", close.join(", "))
     };
-    Err(PyKeyError::new_err(format!("unknown indicator {kind:?}{hint}")))
+    Err(PyKeyError::new_err(format!(
+        "unknown indicator {kind:?}{hint}"
+    )))
 }
 
 fn value_or_none(v: SignalValue) -> Option<Decimal> {
@@ -51,7 +58,9 @@ fn value_or_none(v: SignalValue) -> Option<Decimal> {
 /// Reads native-endian f64s from a bytes buffer.
 fn read_f64s(buf: &[u8], what: &str) -> PyResult<Vec<f64>> {
     if buf.len() % 8 != 0 {
-        return Err(PyValueError::new_err(format!("{what}: buffer length is not a multiple of 8")));
+        return Err(PyValueError::new_err(format!(
+            "{what}: buffer length is not a multiple of 8"
+        )));
     }
     Ok(buf
         .chunks_exact(8)
@@ -73,11 +82,16 @@ pub struct PyIndicator {
 
 impl PyIndicator {
     fn signal(&mut self) -> &mut Box<dyn Signal> {
-        self.inner.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner)
+        self.inner
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn step(&mut self, bar: &BarInput) -> PyResult<Option<Decimal>> {
-        self.signal().update(bar).map(value_or_none).map_err(fin_err)
+        self.signal()
+            .update(bar)
+            .map(value_or_none)
+            .map_err(fin_err)
     }
 }
 
@@ -104,7 +118,11 @@ fn opt_decimal(obj: Option<&Bound<'_, PyAny>>) -> PyResult<Option<Decimal>> {
     }
 }
 
-fn collect_column(obj: Option<&Bound<'_, PyAny>>, what: &str, n: Option<usize>) -> PyResult<Option<Vec<Decimal>>> {
+fn collect_column(
+    obj: Option<&Bound<'_, PyAny>>,
+    what: &str,
+    n: Option<usize>,
+) -> PyResult<Option<Vec<Decimal>>> {
     let Some(o) = obj else { return Ok(None) };
     if o.is_none() {
         return Ok(None);
@@ -120,7 +138,10 @@ fn collect_column(obj: Option<&Bound<'_, PyAny>>, what: &str, n: Option<usize>) 
     }
     if let Some(n) = n {
         if out.len() != n {
-            return Err(PyValueError::new_err(format!("{what} has {} values, close has {n}", out.len())));
+            return Err(PyValueError::new_err(format!(
+                "{what} has {} values, close has {n}",
+                out.len()
+            )));
         }
     }
     Ok(Some(out))
@@ -144,9 +165,17 @@ impl PyIndicator {
         })?;
         let shown: Vec<String> = args
             .iter()
-            .map(|a| a.repr().map(|r| r.to_string()).unwrap_or_else(|_| String::from("?")))
+            .map(|a| {
+                a.repr()
+                    .map(|r| r.to_string())
+                    .unwrap_or_else(|_| String::from("?"))
+            })
             .collect();
-        Ok(Self { inner: Mutex::new(signal), entry, params: shown.join(", ") })
+        Ok(Self {
+            inner: Mutex::new(signal),
+            entry,
+            params: shown.join(", "),
+        })
     }
 
     /// Catalogue key, e.g. `"rsi"`.
@@ -229,7 +258,13 @@ impl PyIndicator {
         volume: Option<f64>,
     ) -> PyResult<Option<f64>> {
         let conv = |v: Option<f64>| v.map(f64_to_decimal).transpose();
-        let bar = bar_from(f64_to_decimal(close)?, conv(high)?, conv(low)?, conv(open)?, conv(volume)?);
+        let bar = bar_from(
+            f64_to_decimal(close)?,
+            conv(high)?,
+            conv(low)?,
+            conv(open)?,
+            conv(volume)?,
+        );
         Ok(self.step(&bar)?.map(decimal_to_f64))
     }
 
@@ -256,8 +291,17 @@ impl PyIndicator {
         let pick = |col: &Option<Vec<Decimal>>, i: usize| col.as_ref().map(|c| c[i]);
         let out = PyList::empty(py);
         for (i, c) in close.iter().enumerate() {
-            let bar = bar_from(*c, pick(&high, i), pick(&low, i), pick(&open, i), pick(&volume, i));
-            match self.step(&bar).map_err(|e| PyValueError::new_err(format!("row {i}: {}", e.value(py))))? {
+            let bar = bar_from(
+                *c,
+                pick(&high, i),
+                pick(&low, i),
+                pick(&open, i),
+                pick(&volume, i),
+            );
+            match self
+                .step(&bar)
+                .map_err(|e| PyValueError::new_err(format!("row {i}: {}", e.value(py))))?
+            {
                 Some(d) => out.append(decimal_to_py(py, d)?)?,
                 None => out.append(py.None())?,
             }
@@ -287,13 +331,21 @@ impl PyIndicator {
                 Some(b) => {
                     let v = read_f64s(b, what)?;
                     if v.len() != n {
-                        return Err(PyValueError::new_err(format!("{what} has {} values, close has {n}", v.len())));
+                        return Err(PyValueError::new_err(format!(
+                            "{what} has {} values, close has {n}",
+                            v.len()
+                        )));
                     }
                     Ok(Some(v))
                 }
             }
         };
-        let (high, low, open, volume) = (col(high, "high")?, col(low, "low")?, col(open, "open")?, col(volume, "volume")?);
+        let (high, low, open, volume) = (
+            col(high, "high")?,
+            col(low, "low")?,
+            col(open, "open")?,
+            col(volume, "volume")?,
+        );
         let signal = self.signal();
         let result: Result<Vec<u8>, String> = py.detach(move || {
             let mut out = Vec::with_capacity(n * 8);
@@ -322,17 +374,25 @@ impl PyIndicator {
     }
 
     fn __repr__(&self) -> String {
-        format!("Indicator({:?}{}{})", self.entry.key, if self.params.is_empty() { "" } else { ", " }, self.params)
+        format!(
+            "Indicator({:?}{}{})",
+            self.entry.key,
+            if self.params.is_empty() { "" } else { ", " },
+            self.params
+        )
     }
 }
 
 /// f64 to Decimal without touching Python (used with the GIL released).
 fn to_dec(v: f64, what: &str, i: usize) -> Result<Decimal, String> {
     if !v.is_finite() {
-        return Err(format!("{what}[{i}] is {v}; drop or fill missing values first"));
+        return Err(format!(
+            "{what}[{i}] is {v}; drop or fill missing values first"
+        ));
     }
-    f64_to_decimal_opt(v)
-        .ok_or_else(|| format!("{what}[{i}] = {v:e} is out of the Decimal range (28 decimal places, |x| < 7.9e28)"))
+    f64_to_decimal_opt(v).ok_or_else(|| {
+        format!("{what}[{i}] = {v:e} is out of the Decimal range (28 decimal places, |x| < 7.9e28)")
+    })
 }
 
 /// Lists the catalogue: one dict per indicator with `key`, `type`, `params`

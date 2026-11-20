@@ -67,7 +67,9 @@ struct Lcg {
 impl Lcg {
     /// Create a new LCG with the given seed.
     fn new(seed: u64) -> Self {
-        Self { state: seed.wrapping_add(1) }
+        Self {
+            state: seed.wrapping_add(1),
+        }
     }
 
     /// Produce the next `u64` in the sequence.
@@ -172,10 +174,7 @@ impl MonteCarloSimulator {
             return 0.0;
         }
         // Use final prices
-        let mut finals: Vec<f64> = paths
-            .iter()
-            .filter_map(|p| p.last().copied())
-            .collect();
+        let mut finals: Vec<f64> = paths.iter().filter_map(|p| p.last().copied()).collect();
         finals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         // VaR at confidence = value at the (1-confidence) quantile
@@ -194,10 +193,7 @@ impl MonteCarloSimulator {
         if paths.is_empty() {
             return 0.0;
         }
-        let mut finals: Vec<f64> = paths
-            .iter()
-            .filter_map(|p| p.last().copied())
-            .collect();
+        let mut finals: Vec<f64> = paths.iter().filter_map(|p| p.last().copied()).collect();
         finals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let tail_n = ((1.0 - confidence) * finals.len() as f64).ceil() as usize;
@@ -245,8 +241,7 @@ impl MonteCarloSimulator {
         let var_95 = Self::var(&paths, 0.95);
         let cvar_95 = Self::cvar(&paths, 0.95);
 
-        let mut finals: Vec<f64> =
-            paths.iter().filter_map(|p| p.last().copied()).collect();
+        let mut finals: Vec<f64> = paths.iter().filter_map(|p| p.last().copied()).collect();
         finals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median_final = if finals.is_empty() {
@@ -257,7 +252,14 @@ impl MonteCarloSimulator {
         let best_case_final = finals.last().copied().unwrap_or(params.s0);
         let worst_case_final = finals.first().copied().unwrap_or(params.s0);
 
-        MonteCarloResult { paths, var_95, cvar_95, median_final, best_case_final, worst_case_final }
+        MonteCarloResult {
+            paths,
+            var_95,
+            cvar_95,
+            median_final,
+            best_case_final,
+            worst_case_final,
+        }
     }
 }
 
@@ -268,11 +270,19 @@ mod tests {
     use super::*;
 
     fn default_params() -> GbmParams {
-        GbmParams { mu: 0.10, sigma: 0.20, s0: 100.0 }
+        GbmParams {
+            mu: 0.10,
+            sigma: 0.20,
+            s0: 100.0,
+        }
     }
 
     fn default_config(seed: u64) -> MonteCarloConfig {
-        MonteCarloConfig { simulations: 1000, horizon_days: 252, seed: Some(seed) }
+        MonteCarloConfig {
+            simulations: 1000,
+            horizon_days: 252,
+            seed: Some(seed),
+        }
     }
 
     #[test]
@@ -315,7 +325,10 @@ mod tests {
         let p1 = MonteCarloSimulator::simulate_paths(&params, &c1);
         let p2 = MonteCarloSimulator::simulate_paths(&params, &c2);
         // First paths should differ
-        let differs = p1[0].iter().zip(p2[0].iter()).any(|(a, b)| (a - b).abs() > 1e-10);
+        let differs = p1[0]
+            .iter()
+            .zip(p2[0].iter())
+            .any(|(a, b)| (a - b).abs() > 1e-10);
         assert!(differs, "Different seeds should yield different paths");
     }
 
@@ -390,28 +403,57 @@ mod tests {
         let p5_final = pct_paths[0].last().copied().unwrap_or(0.0);
         let p50_final = pct_paths[1].last().copied().unwrap_or(0.0);
         let p95_final = pct_paths[2].last().copied().unwrap_or(0.0);
-        assert!(p5_final <= p50_final + 1e-6, "p5={} p50={}", p5_final, p50_final);
-        assert!(p50_final <= p95_final + 1e-6, "p50={} p95={}", p50_final, p95_final);
+        assert!(
+            p5_final <= p50_final + 1e-6,
+            "p5={} p50={}",
+            p5_final,
+            p50_final
+        );
+        assert!(
+            p50_final <= p95_final + 1e-6,
+            "p50={} p95={}",
+            p50_final,
+            p95_final
+        );
     }
 
     #[test]
     fn test_gbm_positive_drift_raises_median() {
         // With strong positive drift, median final price should exceed s0
-        let params = GbmParams { mu: 0.50, sigma: 0.10, s0: 100.0 };
-        let config = MonteCarloConfig { simulations: 5000, horizon_days: 252, seed: Some(1) };
+        let params = GbmParams {
+            mu: 0.50,
+            sigma: 0.10,
+            s0: 100.0,
+        };
+        let config = MonteCarloConfig {
+            simulations: 5000,
+            horizon_days: 252,
+            seed: Some(1),
+        };
         let paths = MonteCarloSimulator::simulate_paths(&params, &config);
-        let mut finals: Vec<f64> =
-            paths.iter().filter_map(|p| p.last().copied()).collect();
+        let mut finals: Vec<f64> = paths.iter().filter_map(|p| p.last().copied()).collect();
         finals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median = finals[finals.len() / 2];
-        assert!(median > 100.0, "Positive drift should raise median: median={}", median);
+        assert!(
+            median > 100.0,
+            "Positive drift should raise median: median={}",
+            median
+        );
     }
 
     #[test]
     fn test_gbm_zero_vol_deterministic() {
         // With sigma=0, all paths should be identical (pure drift)
-        let params = GbmParams { mu: 0.10, sigma: 0.0, s0: 100.0 };
-        let config = MonteCarloConfig { simulations: 10, horizon_days: 10, seed: Some(1) };
+        let params = GbmParams {
+            mu: 0.10,
+            sigma: 0.0,
+            s0: 100.0,
+        };
+        let config = MonteCarloConfig {
+            simulations: 10,
+            horizon_days: 10,
+            seed: Some(1),
+        };
         let paths = MonteCarloSimulator::simulate_paths(&params, &config);
         let first = &paths[0];
         for path in &paths[1..] {
@@ -454,7 +496,11 @@ mod tests {
     fn test_odd_simulation_count() {
         // Test that odd simulation count works correctly
         let params = default_params();
-        let config = MonteCarloConfig { simulations: 101, horizon_days: 10, seed: Some(5) };
+        let config = MonteCarloConfig {
+            simulations: 101,
+            horizon_days: 10,
+            seed: Some(5),
+        };
         let paths = MonteCarloSimulator::simulate_paths(&params, &config);
         assert_eq!(paths.len(), 101);
     }
@@ -462,7 +508,11 @@ mod tests {
     #[test]
     fn test_single_simulation() {
         let params = default_params();
-        let config = MonteCarloConfig { simulations: 1, horizon_days: 5, seed: Some(1) };
+        let config = MonteCarloConfig {
+            simulations: 1,
+            horizon_days: 5,
+            seed: Some(1),
+        };
         let paths = MonteCarloSimulator::simulate_paths(&params, &config);
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].len(), 5);

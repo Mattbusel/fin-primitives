@@ -1,9 +1,9 @@
 //! Price Entropy Score indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Approximate entropy of close returns over the rolling window.
 ///
@@ -23,14 +23,24 @@ impl PriceEntropyScore {
         if period < 3 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, signs: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            signs: VecDeque::with_capacity(period),
+        })
     }
 }
 
 impl Signal for PriceEntropyScore {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let sign: i8 = if bar.close > pc { 1 } else if bar.close < pc { -1 } else { 0 };
+            let sign: i8 = if bar.close > pc {
+                1
+            } else if bar.close < pc {
+                -1
+            } else {
+                0
+            };
             self.signs.push_back(sign);
             if self.signs.len() > self.period {
                 self.signs.pop_front();
@@ -64,10 +74,19 @@ impl Signal for PriceEntropyScore {
         }
     }
 
-    fn is_ready(&self) -> bool { self.signs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.signs.clear(); }
-    fn name(&self) -> &str { "PriceEntropyScore" }
+    fn is_ready(&self) -> bool {
+        self.signs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.signs.clear();
+    }
+    fn name(&self) -> &str {
+        "PriceEntropyScore"
+    }
 }
 
 #[cfg(test)]
@@ -104,7 +123,8 @@ mod tests {
         sig.update(&bar("102")).unwrap(); // up
         sig.update(&bar("100")).unwrap(); // down
         sig.update(&bar("102")).unwrap(); // up
-        if let SignalValue::Scalar(v) = sig.update(&bar("100")).unwrap() { // down
+        if let SignalValue::Scalar(v) = sig.update(&bar("100")).unwrap() {
+            // down
             // window=[up,down,up,down], entropy > 0
             assert!(v > dec!(0), "expected non-zero entropy, got {v}");
         } else {

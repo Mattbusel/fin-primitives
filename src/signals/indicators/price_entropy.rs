@@ -35,7 +35,9 @@ impl PriceEntropy {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -44,7 +46,8 @@ impl PriceEntropy {
     }
 
     fn entropy(probs: &[f64]) -> f64 {
-        probs.iter()
+        probs
+            .iter()
             .filter(|&&p| p > 0.0)
             .map(|&p| -p * p.ln())
             .sum::<f64>()
@@ -53,14 +56,24 @@ impl PriceEntropy {
 }
 
 impl Signal for PriceEntropy {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period + 1 { self.closes.pop_front(); }
-        if self.closes.len() <= self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period + 1 {
+            self.closes.pop_front();
+        }
+        if self.closes.len() <= self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let prices: Vec<Decimal> = self.closes.iter().copied().collect();
         let n = prices.len() - 1; // number of returns
@@ -69,9 +82,13 @@ impl Signal for PriceEntropy {
         let mut flat = 0usize;
         for w in prices.windows(2) {
             let ret = w[1] - w[0];
-            if ret > Decimal::ZERO { up += 1; }
-            else if ret < Decimal::ZERO { down += 1; }
-            else { flat += 1; }
+            if ret > Decimal::ZERO {
+                up += 1;
+            } else if ret < Decimal::ZERO {
+                down += 1;
+            } else {
+                flat += 1;
+            }
         }
         let n_f = n as f64;
         let probs = [up as f64 / n_f, down as f64 / n_f, flat as f64 / n_f];
@@ -99,7 +116,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -108,13 +128,18 @@ mod tests {
     }
 
     #[test]
-    fn test_pe_period_too_small() { assert!(PriceEntropy::new("pe", 1).is_err()); }
+    fn test_pe_period_too_small() {
+        assert!(PriceEntropy::new("pe", 1).is_err());
+    }
 
     #[test]
     fn test_pe_unavailable_before_warmup() {
         let mut pe = PriceEntropy::new("pe", 4).unwrap();
         for _ in 0..4 {
-            assert_eq!(pe.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pe.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -126,7 +151,10 @@ mod tests {
             pe.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
         if let SignalValue::Scalar(e) = pe.update_bar(&bar("107")).unwrap() {
-            assert!(e < dec!(0.3), "expected low entropy for unidirectional series, got {e}");
+            assert!(
+                e < dec!(0.3),
+                "expected low entropy for unidirectional series, got {e}"
+            );
         }
     }
 
@@ -134,20 +162,25 @@ mod tests {
     fn test_pe_alternating_moderate_entropy() {
         // Alternating up/down -> 50% up, 50% down -> higher entropy
         let mut pe = PriceEntropy::new("pe", 6).unwrap();
-        let prices = ["100","102","100","102","100","102","100","102"];
+        let prices = ["100", "102", "100", "102", "100", "102", "100", "102"];
         let mut last = SignalValue::Unavailable;
         for p in &prices {
             last = pe.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(e) = last {
-            assert!(e > dec!(0), "expected positive entropy for mixed series, got {e}");
+            assert!(
+                e > dec!(0),
+                "expected positive entropy for mixed series, got {e}"
+            );
         }
     }
 
     #[test]
     fn test_pe_reset() {
         let mut pe = PriceEntropy::new("pe", 4).unwrap();
-        for i in 0u32..7 { pe.update_bar(&bar(&(100+i).to_string())).unwrap(); }
+        for i in 0u32..7 {
+            pe.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(pe.is_ready());
         pe.reset();
         assert!(!pe.is_ready());

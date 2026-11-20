@@ -53,9 +53,15 @@ impl ReturnMeanDeviation {
 }
 
 impl Signal for ReturnMeanDeviation {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -67,7 +73,9 @@ impl Signal for ReturnMeanDeviation {
                 };
 
                 self.returns.push_back(ret);
-                if self.returns.len() > self.period { self.returns.pop_front(); }
+                if self.returns.len() > self.period {
+                    self.returns.pop_front();
+                }
 
                 if self.returns.len() < self.period {
                     SignalValue::Unavailable
@@ -104,7 +112,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,7 +133,10 @@ mod tests {
     fn test_rmd_unavailable_before_warm_up() {
         let mut rmd = ReturnMeanDeviation::new("rmd", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(rmd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rmd.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -136,7 +150,11 @@ mod tests {
             last = rmd.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v < dec!(0.001), "constant returns should give near-zero MAD: {}", v);
+            assert!(
+                v < dec!(0.001),
+                "constant returns should give near-zero MAD: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -151,7 +169,11 @@ mod tests {
             last = rmd.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "varying returns should give positive MAD: {}", v);
+            assert!(
+                v > dec!(0),
+                "varying returns should give positive MAD: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -160,7 +182,9 @@ mod tests {
     #[test]
     fn test_rmd_reset() {
         let mut rmd = ReturnMeanDeviation::new("rmd", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { rmd.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            rmd.update_bar(&bar(p)).unwrap();
+        }
         assert!(rmd.is_ready());
         rmd.reset();
         assert!(!rmd.is_ready());

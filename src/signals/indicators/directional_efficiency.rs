@@ -55,9 +55,15 @@ impl DirectionalEfficiency {
 }
 
 impl Signal for DirectionalEfficiency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -69,11 +75,19 @@ impl Signal for DirectionalEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
-        let total_path: Decimal = self.closes.iter()
+        let total_path: Decimal = self
+            .closes
+            .iter()
             .zip(self.closes.iter().skip(1))
             .map(|(a, b)| (*b - *a).abs())
             .sum();
@@ -106,7 +120,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -123,7 +140,10 @@ mod tests {
     fn test_de_unavailable_during_warmup() {
         let mut de = DirectionalEfficiency::new("de", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(de.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                de.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!de.is_ready());
     }
@@ -161,7 +181,11 @@ mod tests {
         for _ in 0..4 {
             let r = de.update_bar(&bar("100")).unwrap();
             if de.is_ready() {
-                assert_eq!(r, SignalValue::Unavailable, "flat price → zero path → Unavailable");
+                assert_eq!(
+                    r,
+                    SignalValue::Unavailable,
+                    "flat price → zero path → Unavailable"
+                );
             }
         }
     }
@@ -169,7 +193,9 @@ mod tests {
     #[test]
     fn test_de_reset() {
         let mut de = DirectionalEfficiency::new("de", 3).unwrap();
-        for i in 0..4 { de.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0..4 {
+            de.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(de.is_ready());
         de.reset();
         assert!(!de.is_ready());

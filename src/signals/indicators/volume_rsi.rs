@@ -41,7 +41,9 @@ impl VolumeRsi {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         let k = Decimal::ONE / Decimal::from(period as u32);
         Ok(Self {
             name: name.into(),
@@ -57,7 +59,9 @@ impl VolumeRsi {
 }
 
 impl Signal for VolumeRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
@@ -70,15 +74,25 @@ impl Signal for VolumeRsi {
         };
         self.prev_volume = Some(vol);
 
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_gain.is_none() {
             self.seed_gains.push(gain);
             self.seed_losses.push(loss);
             if self.seed_gains.len() == self.period {
-                let ag = self.seed_gains.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
-                let al = self.seed_losses.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
+                let ag =
+                    self.seed_gains.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
+                let al =
+                    self.seed_losses.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
                 self.avg_gain = Some(ag);
                 self.avg_loss = Some(al);
                 return Ok(SignalValue::Scalar(Self::rsi(ag, al)));
@@ -86,15 +100,23 @@ impl Signal for VolumeRsi {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + gain * self.k;
-        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + loss * self.k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)?
+            * (Decimal::ONE - self.k)
+            + gain * self.k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)?
+            * (Decimal::ONE - self.k)
+            + loss * self.k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
         Ok(SignalValue::Scalar(Self::rsi(ag, al)))
     }
 
-    fn is_ready(&self) -> bool { self.avg_gain.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.avg_gain.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_volume = None;
@@ -107,7 +129,9 @@ impl Signal for VolumeRsi {
 
 impl VolumeRsi {
     fn rsi(avg_gain: Decimal, avg_loss: Decimal) -> Decimal {
-        if avg_loss.is_zero() { return Decimal::from(100u32); }
+        if avg_loss.is_zero() {
+            return Decimal::from(100u32);
+        }
         let rs = avg_gain / avg_loss;
         Decimal::from(100u32) - Decimal::from(100u32) / (Decimal::ONE + rs)
     }
@@ -125,7 +149,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -141,7 +168,10 @@ mod tests {
     #[test]
     fn test_vrsi_unavailable_first_bar() {
         let mut v = VolumeRsi::new("v", 3).unwrap();
-        assert_eq!(v.update_bar(&bar_v("1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar_v("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -151,11 +181,15 @@ mod tests {
         // → loss is zero → returns 100
         let mut v = VolumeRsi::new("v", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..6 { last = v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..6 {
+            last = v.update_bar(&bar_v("1000")).unwrap();
+        }
         // All changes = 0, so avg_loss = 0 → returns 100
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -164,10 +198,14 @@ mod tests {
         let mut v = VolumeRsi::new("v", 3).unwrap();
         let mut last = SignalValue::Unavailable;
         let vols = ["1000", "1100", "1200", "1300", "1400"];
-        for vol in &vols { last = v.update_bar(&bar_v(vol)).unwrap(); }
+        for vol in &vols {
+            last = v.update_bar(&bar_v(vol)).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert!(val > dec!(50), "expected > 50, got {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

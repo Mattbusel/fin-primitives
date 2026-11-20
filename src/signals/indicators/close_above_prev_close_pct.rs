@@ -49,9 +49,15 @@ impl CloseAbovePrevClosePct {
 }
 
 impl Signal for CloseAbovePrevClosePct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -93,7 +99,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -138,7 +147,9 @@ mod tests {
     #[test]
     fn test_capc_reset() {
         let mut c = CloseAbovePrevClosePct::new("c", 3).unwrap();
-        for i in 0u32..4 { c.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..4 {
+            c.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

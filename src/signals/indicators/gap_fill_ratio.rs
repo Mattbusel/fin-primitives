@@ -1,9 +1,9 @@
 //! Gap Fill Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling proportion of bars that filled their opening gap.
 ///
@@ -76,15 +76,21 @@ impl Signal for GapFillRatio {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_close = None;
         self.window.clear();
         self.gap_count = 0;
         self.fill_count = 0;
     }
-    fn name(&self) -> &str { "GapFillRatio" }
+    fn name(&self) -> &str {
+        "GapFillRatio"
+    }
 }
 
 #[cfg(test)]
@@ -109,7 +115,7 @@ mod tests {
         sig.update(&bar("100", "100", "100", "100")).unwrap(); // sets prev_close=100
         sig.update(&bar("105", "107", "99", "103")).unwrap(); // gap up, filled
         let v = sig.update(&bar("103", "105", "102", "104")).unwrap(); // no gap
-        // window=[filled_gap, no_gap], gap_count=1, fill_count=1 → 1.0
+                                                                       // window=[filled_gap, no_gap], gap_count=1, fill_count=1 → 1.0
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 

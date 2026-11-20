@@ -49,7 +49,9 @@ impl Signal for BarQualityScore {
         }
 
         let body = (bar.close - bar.open).abs();
-        let body_ratio = body.checked_div(range).ok_or(FinError::ArithmeticOverflow)?;
+        let body_ratio = body
+            .checked_div(range)
+            .ok_or(FinError::ArithmeticOverflow)?;
 
         // Dominant wick opposes the direction
         let dominant_wick = if bar.close >= bar.open {

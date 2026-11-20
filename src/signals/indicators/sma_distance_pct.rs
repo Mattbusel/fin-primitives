@@ -68,14 +68,18 @@ impl Signal for SmaDistancePct {
         self.sum += bar.close;
         self.closes.push_back(bar.close);
         if self.closes.len() > self.period {
-            let removed = self.closes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .closes
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.closes.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let sma = self.sum
+        let sma = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -110,7 +114,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -126,8 +133,14 @@ mod tests {
     #[test]
     fn test_sdp_unavailable_before_period() {
         let mut sdp = SmaDistancePct::new("sdp", 3).unwrap();
-        assert_eq!(sdp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sdp.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sdp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sdp.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!sdp.is_ready());
     }
 
@@ -139,7 +152,10 @@ mod tests {
             sdp.update_bar(&bar("100")).unwrap();
         }
         if let SignalValue::Scalar(v) = sdp.update_bar(&bar("100")).unwrap() {
-            assert!(v.abs() < dec!(0.0001), "constant prices should give ~0 distance: {v}");
+            assert!(
+                v.abs() < dec!(0.0001),
+                "constant prices should give ~0 distance: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -154,7 +170,10 @@ mod tests {
         sdp.update_bar(&bar("100")).unwrap();
         let v = sdp.update_bar(&bar("110")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!(r > dec!(0), "above-SMA close should give positive distance: {r}");
+            assert!(
+                r > dec!(0),
+                "above-SMA close should give positive distance: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -168,7 +187,10 @@ mod tests {
         sdp.update_bar(&bar("110")).unwrap();
         let v = sdp.update_bar(&bar("90")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!(r < dec!(0), "below-SMA close should give negative distance: {r}");
+            assert!(
+                r < dec!(0),
+                "below-SMA close should give negative distance: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }

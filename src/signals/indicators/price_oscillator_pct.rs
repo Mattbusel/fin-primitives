@@ -1,9 +1,9 @@
 //! Price Oscillator Percentage indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Percentage difference between short-period and long-period SMA.
 ///
@@ -52,13 +52,24 @@ impl Signal for PriceOscillatorPct {
         }
         let short_sum: Decimal = self.window.iter().rev().take(self.short_period).sum();
         let short_sma = short_sum / Decimal::from(self.short_period as u32);
-        Ok(SignalValue::Scalar((short_sma - long_sma) / long_sma * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (short_sma - long_sma) / long_sma * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.long_period }
-    fn period(&self) -> usize { self.long_period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "PriceOscillatorPct" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.long_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "PriceOscillatorPct"
+    }
 }
 
 #[cfg(test)]

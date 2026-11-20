@@ -358,12 +358,30 @@ mod tests {
 
     fn sample_curve() -> YieldCurve {
         YieldCurve::new(vec![
-            YieldPoint { maturity_years: 0.25, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 1.0,  yield_rate: 0.045 },
-            YieldPoint { maturity_years: 2.0,  yield_rate: 0.050 },
-            YieldPoint { maturity_years: 5.0,  yield_rate: 0.055 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.060 },
-            YieldPoint { maturity_years: 30.0, yield_rate: 0.065 },
+            YieldPoint {
+                maturity_years: 0.25,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.045,
+            },
+            YieldPoint {
+                maturity_years: 2.0,
+                yield_rate: 0.050,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.055,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.060,
+            },
+            YieldPoint {
+                maturity_years: 30.0,
+                yield_rate: 0.065,
+            },
         ])
     }
 
@@ -400,11 +418,26 @@ mod tests {
     #[test]
     fn nelson_siegel_fit_and_yield() {
         let points: Vec<YieldPoint> = vec![
-            YieldPoint { maturity_years: 1.0,  yield_rate: 0.04 },
-            YieldPoint { maturity_years: 2.0,  yield_rate: 0.045 },
-            YieldPoint { maturity_years: 5.0,  yield_rate: 0.05 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.055 },
-            YieldPoint { maturity_years: 30.0, yield_rate: 0.06 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 2.0,
+                yield_rate: 0.045,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.05,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.055,
+            },
+            YieldPoint {
+                maturity_years: 30.0,
+                yield_rate: 0.06,
+            },
         ];
         let ns = NelsonSiegel::fit(&points);
         // Level should be near the long-end yield.
@@ -418,13 +451,23 @@ mod tests {
 
     #[test]
     fn nelson_siegel_instantaneous_forward() {
-        let ns = NelsonSiegel { beta0: 0.06, beta1: -0.02, beta2: 0.01, lambda: 0.5 };
+        let ns = NelsonSiegel {
+            beta0: 0.06,
+            beta1: -0.02,
+            beta2: 0.01,
+            lambda: 0.5,
+        };
         assert!((ns.instantaneous_forward() - 0.04).abs() < 1e-10);
     }
 
     #[test]
     fn curve_metrics_from_ns() {
-        let ns = NelsonSiegel { beta0: 0.05, beta1: -0.01, beta2: 0.02, lambda: 1.0 };
+        let ns = NelsonSiegel {
+            beta0: 0.05,
+            beta1: -0.01,
+            beta2: 0.02,
+            lambda: 1.0,
+        };
         let m = CurveMetrics::from_nelson_siegel(&ns);
         assert!((m.level - 0.05).abs() < 1e-10);
         assert!((m.slope - (-0.01)).abs() < 1e-10);

@@ -96,12 +96,13 @@ impl Tick {
     /// Positive delta indicates net buying pressure; negative indicates net selling.
     /// Equivalent to `buy_volume - sell_volume`.
     pub fn delta(ticks: &[Tick]) -> Decimal {
-        ticks.iter().map(|t| {
-            match t.side {
+        ticks
+            .iter()
+            .map(|t| match t.side {
                 Side::Bid => t.quantity.value(),
                 Side::Ask => -t.quantity.value(),
-            }
-        }).sum()
+            })
+            .sum()
     }
 
     /// Returns the running cumulative delta across a tick slice.
@@ -167,18 +168,27 @@ impl Tick {
         if total_qty.is_zero() {
             return None;
         }
-        let weighted: Decimal = ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum();
+        let weighted: Decimal = ticks
+            .iter()
+            .map(|t| t.price.value() * t.quantity.value())
+            .sum();
         Some(weighted / total_qty)
     }
 
     /// Returns the highest traded price in the slice, or `None` if empty.
     pub fn max_price(ticks: &[Tick]) -> Option<Price> {
-        ticks.iter().map(|t| t.price).max_by(|a, b| a.value().cmp(&b.value()))
+        ticks
+            .iter()
+            .map(|t| t.price)
+            .max_by(|a, b| a.value().cmp(&b.value()))
     }
 
     /// Returns the lowest traded price in the slice, or `None` if empty.
     pub fn min_price(ticks: &[Tick]) -> Option<Price> {
-        ticks.iter().map(|t| t.price).min_by(|a, b| a.value().cmp(&b.value()))
+        ticks
+            .iter()
+            .map(|t| t.price)
+            .min_by(|a, b| a.value().cmp(&b.value()))
     }
 
     /// Time-Weighted Average Price from a tick slice.
@@ -193,7 +203,9 @@ impl Tick {
         let mut total_weight = 0u128;
         let mut weighted_sum = Decimal::ZERO;
         for i in 1..ticks.len() {
-            let elapsed = ticks[i].timestamp.nanos()
+            let elapsed = ticks[i]
+                .timestamp
+                .nanos()
                 .saturating_sub(ticks[i - 1].timestamp.nanos())
                 .max(0) as u128;
             total_weight = total_weight.saturating_add(elapsed);
@@ -258,7 +270,10 @@ impl Tick {
     ///
     /// Zero when the slice is empty.
     pub fn notional_volume(ticks: &[Tick]) -> Decimal {
-        ticks.iter().map(|t| t.price.value() * t.quantity.value()).sum()
+        ticks
+            .iter()
+            .map(|t| t.price.value() * t.quantity.value())
+            .sum()
     }
 
     /// Returns tick direction for each tick relative to the prior: `+1` up, `-1` down, `0` flat.
@@ -274,7 +289,13 @@ impl Tick {
         for w in ticks.windows(2) {
             let prev = w[0].price.value();
             let curr = w[1].price.value();
-            result.push(if curr > prev { 1 } else if curr < prev { -1 } else { 0 });
+            result.push(if curr > prev {
+                1
+            } else if curr < prev {
+                -1
+            } else {
+                0
+            });
         }
         result
     }
@@ -711,8 +732,16 @@ impl TickReplayer {
                 }
             }
         }
-        let bid_vwap = if bid_vol.is_zero() { None } else { Some(bid_notional / bid_vol) };
-        let ask_vwap = if ask_vol.is_zero() { None } else { Some(ask_notional / ask_vol) };
+        let bid_vwap = if bid_vol.is_zero() {
+            None
+        } else {
+            Some(bid_notional / bid_vol)
+        };
+        let ask_vwap = if ask_vol.is_zero() {
+            None
+        } else {
+            Some(ask_notional / ask_vol)
+        };
         (bid_vwap, ask_vwap)
     }
 
@@ -721,9 +750,12 @@ impl TickReplayer {
     /// Returns a `HashMap` mapping each symbol to a `Vec<Tick>` in timestamp order.
     /// Ticks are cloned.
     pub fn collect_by_symbol(&self) -> std::collections::HashMap<Symbol, Vec<Tick>> {
-        let mut map: std::collections::HashMap<Symbol, Vec<Tick>> = std::collections::HashMap::new();
+        let mut map: std::collections::HashMap<Symbol, Vec<Tick>> =
+            std::collections::HashMap::new();
         for tick in &self.ticks {
-            map.entry(tick.symbol.clone()).or_default().push(tick.clone());
+            map.entry(tick.symbol.clone())
+                .or_default()
+                .push(tick.clone());
         }
         map
     }
@@ -736,8 +768,12 @@ impl TickReplayer {
         let mut min_p = max_p;
         for t in &self.ticks {
             let p = t.price.value();
-            if p > max_p { max_p = p; }
-            if p < min_p { min_p = p; }
+            if p > max_p {
+                max_p = p;
+            }
+            if p < min_p {
+                min_p = p;
+            }
         }
         Some(max_p - min_p)
     }
@@ -780,7 +816,11 @@ impl TickReplayer {
         if self.ticks.len() < 2 {
             return None;
         }
-        let total = self.ticks.last()?.timestamp.elapsed_since(self.ticks.first()?.timestamp);
+        let total = self
+            .ticks
+            .last()?
+            .timestamp
+            .elapsed_since(self.ticks.first()?.timestamp);
         Some(total / (self.ticks.len() as i64 - 1))
     }
 
@@ -798,7 +838,10 @@ impl TickReplayer {
         let mean = prices.iter().copied().sum::<Decimal>() / Decimal::from(n as u32);
         let variance = prices
             .iter()
-            .map(|p| { let d = *p - mean; d * d })
+            .map(|p| {
+                let d = *p - mean;
+                d * d
+            })
             .sum::<Decimal>()
             / Decimal::from((n - 1) as u32);
         use rust_decimal::prelude::ToPrimitive;
@@ -935,7 +978,9 @@ mod tests {
     fn test_tick_filter_quantity_range() {
         let min_qty = Quantity::new(dec!(3)).unwrap();
         let max_qty = Quantity::new(dec!(7)).unwrap();
-        let f = TickFilter::new().min_quantity(min_qty).max_quantity(max_qty);
+        let f = TickFilter::new()
+            .min_quantity(min_qty)
+            .max_quantity(max_qty);
         assert!(f.matches(&make_tick("X", "1", "5", Side::Bid, 0)));
         assert!(!f.matches(&make_tick("X", "1", "2", Side::Bid, 0)));
         assert!(!f.matches(&make_tick("X", "1", "10", Side::Bid, 0)));
@@ -1270,8 +1315,8 @@ mod tests {
             make_tick("AAPL", "101", "1", Side::Ask, 5),
             make_tick("AAPL", "102", "1", Side::Bid, 10),
         ];
-        let filter = TickFilter::new()
-            .timestamp_range(NanoTimestamp::new(3), NanoTimestamp::new(10));
+        let filter =
+            TickFilter::new().timestamp_range(NanoTimestamp::new(3), NanoTimestamp::new(10));
         let matched: Vec<_> = ticks.iter().filter(|t| filter.matches(t)).collect();
         assert_eq!(matched.len(), 2);
     }
@@ -1315,8 +1360,8 @@ mod tests {
     #[test]
     fn test_tick_replayer_vwap_by_side_correct_values() {
         let ticks = vec![
-            make_tick("AAPL", "100", "10", Side::Bid, 1),  // bid: notional=1000, vol=10
-            make_tick("AAPL", "200", "5", Side::Ask, 2),   // ask: notional=1000, vol=5
+            make_tick("AAPL", "100", "10", Side::Bid, 1), // bid: notional=1000, vol=10
+            make_tick("AAPL", "200", "5", Side::Ask, 2),  // ask: notional=1000, vol=5
         ];
         let replayer = TickReplayer::new(ticks);
         let (bid_vwap, ask_vwap) = replayer.vwap_by_side();
@@ -1372,8 +1417,8 @@ mod tests {
     #[test]
     fn test_tick_replayer_total_notional() {
         let ticks = vec![
-            make_tick("AAPL", "100", "10", Side::Bid, 1),  // 100*10 = 1000
-            make_tick("AAPL", "200", "5", Side::Ask, 2),   // 200*5  = 1000
+            make_tick("AAPL", "100", "10", Side::Bid, 1), // 100*10 = 1000
+            make_tick("AAPL", "200", "5", Side::Ask, 2),  // 200*5  = 1000
         ];
         let replayer = TickReplayer::new(ticks);
         assert_eq!(replayer.total_notional(), dec_from_str("2000"));

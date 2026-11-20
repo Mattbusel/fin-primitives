@@ -1,9 +1,9 @@
 //! Range Expansion Index indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of current range divided by previous range.
 ///
@@ -56,10 +56,20 @@ impl Signal for RangeExpansionIndex {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_range = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "RangeExpansionIndex" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_range = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "RangeExpansionIndex"
+    }
 }
 
 #[cfg(test)]
@@ -91,8 +101,8 @@ mod tests {
     fn test_rei_doubling_range() {
         // Range doubles each bar → ratio = 2
         let mut sig = RangeExpansionIndex::new(2).unwrap();
-        sig.update(&bar("110", "90")).unwrap();   // range=20
-        sig.update(&bar("120", "80")).unwrap();   // range=40, ratio=2
+        sig.update(&bar("110", "90")).unwrap(); // range=20
+        sig.update(&bar("120", "80")).unwrap(); // range=40, ratio=2
         let v = sig.update(&bar("140", "60")).unwrap(); // range=80, ratio=2, avg=2
         assert_eq!(v, SignalValue::Scalar(dec!(2)));
     }

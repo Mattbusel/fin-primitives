@@ -49,9 +49,15 @@ impl ReturnOverVolatility {
 }
 
 impl Signal for ReturnOverVolatility {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -70,7 +76,11 @@ impl Signal for ReturnOverVolatility {
             .filter_map(|w| {
                 let prev = w[0].to_f64()?;
                 let curr = w[1].to_f64()?;
-                if prev == 0.0 { None } else { Some((curr - prev) / prev) }
+                if prev == 0.0 {
+                    None
+                } else {
+                    Some((curr - prev) / prev)
+                }
             })
             .collect();
 
@@ -110,7 +120,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

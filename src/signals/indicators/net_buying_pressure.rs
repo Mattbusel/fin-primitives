@@ -66,8 +66,12 @@ impl Signal for NetBuyingPressure {
             Decimal::ZERO
         } else {
             let numerator = (bar.close + bar.close) - bar.high - bar.low;
-            let ratio = numerator.checked_div(range).ok_or(FinError::ArithmeticOverflow)?;
-            bar.volume.checked_mul(ratio).ok_or(FinError::ArithmeticOverflow)?
+            let ratio = numerator
+                .checked_div(range)
+                .ok_or(FinError::ArithmeticOverflow)?;
+            bar.volume
+                .checked_mul(ratio)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.net_pressures.push_back(net_p);
@@ -87,7 +91,9 @@ impl Signal for NetBuyingPressure {
         }
 
         let net_sum: Decimal = self.net_pressures.iter().copied().sum();
-        let normalized = net_sum.checked_div(total_vol).ok_or(FinError::ArithmeticOverflow)?;
+        let normalized = net_sum
+            .checked_div(total_vol)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(normalized))
     }
 
@@ -119,7 +125,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -129,13 +138,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(NetBuyingPressure::new("nbp", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            NetBuyingPressure::new("nbp", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut nbp = NetBuyingPressure::new("nbp", 3).unwrap();
-        assert_eq!(nbp.update_bar(&bar("12", "10", "11", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            nbp.update_bar(&bar("12", "10", "11", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

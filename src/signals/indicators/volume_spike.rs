@@ -47,7 +47,9 @@ impl VolumeSpike {
         period: usize,
         threshold: Decimal,
     ) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         if threshold <= Decimal::ZERO {
             return Err(FinError::InvalidInput("threshold must be positive".into()));
         }
@@ -67,13 +69,19 @@ impl VolumeSpike {
 }
 
 impl Signal for VolumeSpike {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
         self.volumes.push_back(vol);
-        if self.volumes.len() > self.period { self.volumes.pop_front(); }
-        if self.volumes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.volumes.len() > self.period {
+            self.volumes.pop_front();
+        }
+        if self.volumes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.volumes.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         if avg.is_zero() {
@@ -85,8 +93,12 @@ impl Signal for VolumeSpike {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.volumes.clear();
@@ -106,7 +118,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,7 +140,10 @@ mod tests {
     fn test_vs_unavailable_before_warmup() {
         let mut v = VolumeSpike::new("v", 3, dec!(2)).unwrap();
         for _ in 0..2 {
-            assert_eq!(v.update_bar(&bar_v("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                v.update_bar(&bar_v("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -133,10 +151,14 @@ mod tests {
     fn test_vs_uniform_is_one() {
         let mut v = VolumeSpike::new("v", 3, dec!(2)).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..5 {
+            last = v.update_bar(&bar_v("1000")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
         assert!(!v.is_spike());
     }
 
@@ -154,7 +176,9 @@ mod tests {
     #[test]
     fn test_vs_reset() {
         let mut v = VolumeSpike::new("v", 3, dec!(2)).unwrap();
-        for _ in 0..5 { v.update_bar(&bar_v("1000")).unwrap(); }
+        for _ in 0..5 {
+            v.update_bar(&bar_v("1000")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

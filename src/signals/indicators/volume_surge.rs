@@ -46,9 +46,15 @@ impl VolumeSurge {
 }
 
 impl Signal for VolumeSurge {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.volumes.push_back(bar.volume);
@@ -92,7 +98,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +118,10 @@ mod tests {
     fn test_vs_unavailable_before_warm_up() {
         let mut vs = VolumeSurge::new("vs", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vs.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vs.update_bar(&bar("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -136,7 +148,9 @@ mod tests {
     #[test]
     fn test_vs_reset() {
         let mut vs = VolumeSurge::new("vs", 3).unwrap();
-        for _ in 0..3 { vs.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            vs.update_bar(&bar("1000")).unwrap();
+        }
         assert!(vs.is_ready());
         vs.reset();
         assert!(!vs.is_ready());

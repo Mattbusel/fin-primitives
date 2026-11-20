@@ -135,7 +135,10 @@ mod tests {
         // period=4, shift=3, needs 7 bars
         let mut d = Dpo::new("d4", 4).unwrap();
         for _ in 0..6 {
-            assert_eq!(d.update_bar(&bar(dec!(100))).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                d.update_bar(&bar(dec!(100))).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!d.is_ready());
     }
@@ -162,6 +165,9 @@ mod tests {
         assert!(d.is_ready());
         d.reset();
         assert!(!d.is_ready());
-        assert_eq!(d.update_bar(&bar(dec!(100))).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            d.update_bar(&bar(dec!(100))).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

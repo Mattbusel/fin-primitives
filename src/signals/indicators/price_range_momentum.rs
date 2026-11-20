@@ -62,8 +62,14 @@ impl Signal for PriceRangeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.ranges.back().ok_or_else(crate::error::invariant_broken)?;
-        let reference = *self.ranges.front().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .ranges
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let reference = *self
+            .ranges
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if reference.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -154,7 +160,7 @@ mod tests {
         let mut prm = PriceRangeMomentum::new("prm", 1).unwrap();
         prm.update_bar(&bar("10", "9")).unwrap(); // range = 1
         let v = prm.update_bar(&bar("12", "9")).unwrap(); // range = 3
-        // ROC = (3 - 1) / 1 * 100 = 200
+                                                          // ROC = (3 - 1) / 1 * 100 = 200
         assert_eq!(v, SignalValue::Scalar(dec!(200)));
     }
 
@@ -163,7 +169,7 @@ mod tests {
         let mut prm = PriceRangeMomentum::new("prm", 1).unwrap();
         prm.update_bar(&bar("12", "8")).unwrap(); // range = 4
         let v = prm.update_bar(&bar("11", "10")).unwrap(); // range = 1
-        // ROC = (1 - 4) / 4 * 100 = -75
+                                                           // ROC = (1 - 4) / 4 * 100 = -75
         assert_eq!(v, SignalValue::Scalar(dec!(-75)));
     }
 

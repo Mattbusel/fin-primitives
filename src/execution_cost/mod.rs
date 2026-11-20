@@ -44,7 +44,8 @@ impl ExecutionCostModel {
             ExecutionCostModel::Tiered(tiers) => {
                 // Find last tier whose threshold <= notional
                 let rate_bps = tiers
-                    .iter().rfind(|(threshold, _)| notional >= *threshold)
+                    .iter()
+                    .rfind(|(threshold, _)| notional >= *threshold)
                     .map(|(_, rate)| *rate)
                     .unwrap_or_else(|| tiers.first().map(|(_, r)| *r).unwrap_or(0.0));
                 notional * rate_bps / 10_000.0
@@ -125,13 +126,7 @@ impl MarketImpact {
     ///
     /// - Permanent: `gamma * size` — persistent price shift
     /// - Temporary: `eta * sigma * sqrt(size / volume) * size`
-    pub fn almgren_chriss(
-        size: f64,
-        volume: f64,
-        sigma: f64,
-        gamma: f64,
-        eta: f64,
-    ) -> (f64, f64) {
+    pub fn almgren_chriss(size: f64, volume: f64, sigma: f64, gamma: f64, eta: f64) -> (f64, f64) {
         let permanent = gamma * size;
         let temporary = Self::sqrt_impact(size, volume, sigma, eta);
         (permanent, temporary)
@@ -244,11 +239,7 @@ mod tests {
         // Tier 0: 0 threshold -> 20 bps
         // Tier 1: 10_000 threshold -> 10 bps
         // Tier 2: 100_000 threshold -> 5 bps
-        let m = ExecutionCostModel::Tiered(vec![
-            (0.0, 20.0),
-            (10_000.0, 10.0),
-            (100_000.0, 5.0),
-        ]);
+        let m = ExecutionCostModel::Tiered(vec![(0.0, 20.0), (10_000.0, 10.0), (100_000.0, 5.0)]);
         // notional $5000 -> tier 0: 20 bps = $10
         assert!((m.commission_usd(5_000.0) - 10.0).abs() < 1e-9);
         // notional $50_000 -> tier 1: 10 bps = $50
@@ -337,7 +328,14 @@ mod tests {
         // market impact: eta=0.1, sigma=0.02, sqrt(1000/1_000_000)=0.03162, *1000 = 3.162*0.002 = 0.0632...
         // sqrt_impact = 0.1 * 0.02 * sqrt(0.001) * 1000 = 0.1 * 0.02 * 0.031623 * 1000 = 0.063246
         assert!(breakdown.market_impact_usd > 0.0);
-        assert!((breakdown.total_usd - (breakdown.commission_usd + breakdown.spread_cost_usd + breakdown.market_impact_usd)).abs() < 1e-9);
+        assert!(
+            (breakdown.total_usd
+                - (breakdown.commission_usd
+                    + breakdown.spread_cost_usd
+                    + breakdown.market_impact_usd))
+                .abs()
+                < 1e-9
+        );
     }
 
     #[test]

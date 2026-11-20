@@ -45,7 +45,9 @@ impl PriceEnvelope {
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     /// Returns [`FinError::InvalidInput`] if `pct` is not positive.
     pub fn new(name: impl Into<String>, period: usize, pct: Decimal) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         if pct <= Decimal::ZERO {
             return Err(FinError::InvalidInput("pct must be positive".into()));
         }
@@ -60,18 +62,28 @@ impl PriceEnvelope {
     }
 
     /// Returns the current upper envelope level.
-    pub fn upper(&self) -> Option<Decimal> { self.upper }
+    pub fn upper(&self) -> Option<Decimal> {
+        self.upper
+    }
     /// Returns the current lower envelope level.
-    pub fn lower(&self) -> Option<Decimal> { self.lower }
+    pub fn lower(&self) -> Option<Decimal> {
+        self.lower
+    }
 }
 
 impl Signal for PriceEnvelope {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         #[allow(clippy::cast_possible_truncation)]
         let sma = self.closes.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
@@ -79,12 +91,20 @@ impl Signal for PriceEnvelope {
         self.upper = Some(sma * (Decimal::ONE + factor));
         self.lower = Some(sma * (Decimal::ONE - factor));
 
-        if sma.is_zero() { return Ok(SignalValue::Scalar(Decimal::ZERO)); }
-        Ok(SignalValue::Scalar((bar.close - sma) / sma * Decimal::from(100u32)))
+        if sma.is_zero() {
+            return Ok(SignalValue::Scalar(Decimal::ZERO));
+        }
+        Ok(SignalValue::Scalar(
+            (bar.close - sma) / sma * Decimal::from(100u32),
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.upper.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.upper.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -104,7 +124,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -126,13 +149,17 @@ mod tests {
         pe.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(v) = pe.update_bar(&bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pe_bands_set() {
         let mut pe = PriceEnvelope::new("p", 3, dec!(2)).unwrap();
-        for _ in 0..3 { pe.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            pe.update_bar(&bar("100")).unwrap();
+        }
         assert_eq!(pe.upper(), Some(dec!(102)));
         assert_eq!(pe.lower(), Some(dec!(98)));
     }
@@ -140,7 +167,9 @@ mod tests {
     #[test]
     fn test_pe_reset() {
         let mut pe = PriceEnvelope::new("p", 3, dec!(2)).unwrap();
-        for _ in 0..3 { pe.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            pe.update_bar(&bar("100")).unwrap();
+        }
         assert!(pe.is_ready());
         pe.reset();
         assert!(!pe.is_ready());

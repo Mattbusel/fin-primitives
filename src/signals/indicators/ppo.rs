@@ -98,7 +98,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -144,7 +147,10 @@ mod tests {
             ppo.update_bar(&bar(p)).unwrap();
         }
         assert!(ppo.is_ready());
-        assert!(matches!(ppo.update_bar(&bar("108")).unwrap(), SignalValue::Scalar(_)));
+        assert!(matches!(
+            ppo.update_bar(&bar("108")).unwrap(),
+            SignalValue::Scalar(_)
+        ));
     }
 
     #[test]

@@ -69,11 +69,15 @@ impl Signal for WeightedMomentum {
             let ret = self.closes[i + 1] - self.closes[i];
             #[allow(clippy::cast_possible_truncation)]
             let weight = Decimal::from((i + 1) as u32);
-            weighted_sum += ret.checked_mul(weight).ok_or(FinError::ArithmeticOverflow)?;
+            weighted_sum += ret
+                .checked_mul(weight)
+                .ok_or(FinError::ArithmeticOverflow)?;
             weight_total += weight;
         }
 
-        let wm = weighted_sum.checked_div(weight_total).ok_or(FinError::ArithmeticOverflow)?;
+        let wm = weighted_sum
+            .checked_div(weight_total)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(wm))
     }
 
@@ -102,7 +106,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -112,13 +119,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(WeightedMomentum::new("wm", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            WeightedMomentum::new("wm", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut wm = WeightedMomentum::new("wm", 3).unwrap();
-        assert_eq!(wm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            wm.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

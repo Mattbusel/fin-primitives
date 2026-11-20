@@ -47,9 +47,15 @@ impl KeyReversal {
 }
 
 impl Signal for KeyReversal {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match (self.prev_high, self.prev_low, self.prev_close) {
@@ -94,7 +100,10 @@ mod tests {
         let op = lp;
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -106,7 +115,10 @@ mod tests {
     fn test_kr_first_bar_unavailable() {
         let mut s = KeyReversal::new("kr");
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(s.is_ready());
     }
 
@@ -114,9 +126,9 @@ mod tests {
     fn test_kr_bullish_reversal() {
         let mut s = KeyReversal::new("kr");
         // Prior: H=110, L=90, C=95 (bearish day)
-        s.update_bar(&bar("110","90","95")).unwrap();
+        s.update_bar(&bar("110", "90", "95")).unwrap();
         // Current: L < 90 (new low), C > 95 (reversal up) → bullish
-        let v = s.update_bar(&bar("108","85","100")).unwrap();
+        let v = s.update_bar(&bar("108", "85", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 
@@ -124,28 +136,31 @@ mod tests {
     fn test_kr_bearish_reversal() {
         let mut s = KeyReversal::new("kr");
         // Prior: H=110, L=90, C=105 (bullish day)
-        s.update_bar(&bar("110","90","105")).unwrap();
+        s.update_bar(&bar("110", "90", "105")).unwrap();
         // Current: H > 110 (new high), C < 105 (reversal down) → bearish
-        let v = s.update_bar(&bar("115","92","100")).unwrap();
+        let v = s.update_bar(&bar("115", "92", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-1)));
     }
 
     #[test]
     fn test_kr_no_reversal_gives_zero() {
         let mut s = KeyReversal::new("kr");
-        s.update_bar(&bar("110","90","100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
         // Normal bar, no reversal pattern
-        let v = s.update_bar(&bar("108","92","102")).unwrap();
+        let v = s.update_bar(&bar("108", "92", "102")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
     fn test_kr_reset() {
         let mut s = KeyReversal::new("kr");
-        s.update_bar(&bar("110","90","100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

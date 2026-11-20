@@ -106,7 +106,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,16 +125,27 @@ mod tests {
     #[test]
     fn test_pgo_unavailable_before_period() {
         let mut pgo = Pgo::new("p3", 3).unwrap();
-        assert_eq!(pgo.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pgo.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert!(pgo.update_bar(&bar("110","90","100")).unwrap().is_scalar());
+        assert_eq!(
+            pgo.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            pgo.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert!(pgo
+            .update_bar(&bar("110", "90", "100"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]
     fn test_pgo_flat_market_zero() {
         let mut pgo = Pgo::new("p3", 3).unwrap();
-        for _ in 0..5 { pgo.update_bar(&bar("110","90","100")).unwrap(); }
-        match pgo.update_bar(&bar("110","90","100")).unwrap() {
+        for _ in 0..5 {
+            pgo.update_bar(&bar("110", "90", "100")).unwrap();
+        }
+        match pgo.update_bar(&bar("110", "90", "100")).unwrap() {
             SignalValue::Scalar(v) => assert_eq!(v, dec!(0)),
             _ => panic!("expected scalar"),
         }
@@ -140,7 +154,9 @@ mod tests {
     #[test]
     fn test_pgo_reset() {
         let mut pgo = Pgo::new("p3", 3).unwrap();
-        for _ in 0..5 { pgo.update_bar(&bar("110","90","100")).unwrap(); }
+        for _ in 0..5 {
+            pgo.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(pgo.is_ready());
         pgo.reset();
         assert!(!pgo.is_ready());

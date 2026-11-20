@@ -81,7 +81,10 @@ impl crate::signals::Signal for CloseAbovePrevLow {
         let result = if let Some(pl) = self.prev_low {
             let delta = bar.close - pl;
             let ema = match self.ema {
-                None => { self.ema = Some(delta); delta }
+                None => {
+                    self.ema = Some(delta);
+                    delta
+                }
                 Some(prev) => {
                     let next = delta * self.k + prev * (Decimal::ONE - self.k);
                     self.ema = Some(next);
@@ -118,7 +121,10 @@ mod tests {
         let high = if c > l { c } else { l };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high, low: l, close: c,
+            open: l,
+            high,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -134,7 +140,10 @@ mod tests {
     #[test]
     fn test_capl_first_bar_unavailable() {
         let mut capl = CloseAbovePrevLow::new("capl", 5).unwrap();
-        assert_eq!(capl.update_bar(&bar("90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            capl.update_bar(&bar("90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!capl.is_ready());
     }
 
@@ -150,7 +159,7 @@ mod tests {
     fn test_capl_close_above_prev_low_positive() {
         let mut capl = CloseAbovePrevLow::new("capl", 5).unwrap();
         capl.update_bar(&bar("90", "105")).unwrap(); // low=90
-        // close=100 > 90 → delta = 10
+                                                     // close=100 > 90 → delta = 10
         let v = capl.update_bar(&bar("88", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(10)));
     }
@@ -159,7 +168,7 @@ mod tests {
     fn test_capl_close_below_prev_low_negative() {
         let mut capl = CloseAbovePrevLow::new("capl", 5).unwrap();
         capl.update_bar(&bar("90", "105")).unwrap(); // low=90
-        // close=85 < 90 → delta = -5 (breakdown)
+                                                     // close=85 < 90 → delta = -5 (breakdown)
         let v = capl.update_bar(&bar("80", "85")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-5)));
     }

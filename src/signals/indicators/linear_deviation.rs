@@ -49,7 +49,9 @@ impl LinearDeviation {
 }
 
 impl Signal for LinearDeviation {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.history.push_back(bar.close);
@@ -66,7 +68,10 @@ impl Signal for LinearDeviation {
         let sum_x = Decimal::from(n * (n - 1) / 2);
         let sum_x2 = Decimal::from(n * (n - 1) * (2 * n - 1) / 6);
         let sum_y: Decimal = self.history.iter().sum();
-        let sum_xy: Decimal = self.history.iter().enumerate()
+        let sum_xy: Decimal = self
+            .history
+            .iter()
+            .enumerate()
             .map(|(i, &y)| Decimal::from(i as i64) * y)
             .sum();
 
@@ -104,7 +109,9 @@ impl Signal for LinearDeviation {
         self.history.len() >= self.period
     }
 
-    fn period(&self) -> usize { self.period }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.history.clear();
@@ -122,7 +129,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -139,8 +149,14 @@ mod tests {
     #[test]
     fn test_ld_unavailable_early() {
         let mut ld = LinearDeviation::new("l", 3).unwrap();
-        assert_eq!(ld.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ld.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ld.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ld.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -151,7 +167,9 @@ mod tests {
         ld.update_bar(&bar("101")).unwrap();
         if let SignalValue::Scalar(v) = ld.update_bar(&bar("102")).unwrap() {
             assert!(v.abs() < dec!(0.001), "on-line deviation should be ~0: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -162,7 +180,9 @@ mod tests {
         ld.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(v) = ld.update_bar(&bar("110")).unwrap() {
             assert!(v > dec!(0), "above line → positive deviation: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -173,13 +193,17 @@ mod tests {
         ld.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(v) = ld.update_bar(&bar("90")).unwrap() {
             assert!(v < dec!(0), "below line → negative deviation: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_ld_reset() {
         let mut ld = LinearDeviation::new("l", 3).unwrap();
-        for p in &["100", "101", "102"] { ld.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102"] {
+            ld.update_bar(&bar(p)).unwrap();
+        }
         assert!(ld.is_ready());
         ld.reset();
         assert!(!ld.is_ready());

@@ -28,17 +28,29 @@ impl HigherCloseStreak {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None, streak: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+            streak: 0,
+        })
     }
 
     /// Returns the current streak count.
-    pub fn streak(&self) -> u32 { self.streak }
+    pub fn streak(&self) -> u32 {
+        self.streak
+    }
 }
 
 impl Signal for HigherCloseStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -74,7 +86,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -85,7 +100,10 @@ mod tests {
     #[test]
     fn test_hcs_unavailable_first_bar() {
         let mut hcs = HigherCloseStreak::new("hcs").unwrap();
-        assert_eq!(hcs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hcs.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -116,6 +134,9 @@ mod tests {
         hcs.update_bar(&bar("101")).unwrap();
         hcs.reset();
         assert_eq!(hcs.streak(), 0);
-        assert_eq!(hcs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hcs.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

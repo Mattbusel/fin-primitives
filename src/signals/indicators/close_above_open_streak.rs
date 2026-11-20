@@ -30,7 +30,10 @@ pub struct CloseAboveOpenStreak {
 impl CloseAboveOpenStreak {
     /// Constructs a new `CloseAboveOpenStreak`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), streak: 0 }
+        Self {
+            name: name.into(),
+            streak: 0,
+        }
     }
 }
 
@@ -81,7 +84,10 @@ mod tests {
         let lo = if op < cl { op } else { cl };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -92,16 +98,31 @@ mod tests {
     #[test]
     fn test_bullish_streak() {
         let mut s = CloseAboveOpenStreak::new("caos");
-        assert_eq!(s.update_bar(&bar("10", "12")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(s.update_bar(&bar("12", "14")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(s.update_bar(&bar("14", "16")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            s.update_bar(&bar("10", "12")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            s.update_bar(&bar("12", "14")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            s.update_bar(&bar("14", "16")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
     fn test_bearish_streak() {
         let mut s = CloseAboveOpenStreak::new("caos");
-        assert_eq!(s.update_bar(&bar("12", "10")).unwrap(), SignalValue::Scalar(dec!(-1)));
-        assert_eq!(s.update_bar(&bar("10", "8")).unwrap(), SignalValue::Scalar(dec!(-2)));
+        assert_eq!(
+            s.update_bar(&bar("12", "10")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
+        assert_eq!(
+            s.update_bar(&bar("10", "8")).unwrap(),
+            SignalValue::Scalar(dec!(-2))
+        );
     }
 
     #[test]
@@ -109,9 +130,15 @@ mod tests {
         let mut s = CloseAboveOpenStreak::new("caos");
         s.update_bar(&bar("10", "12")).unwrap();
         s.update_bar(&bar("12", "14")).unwrap();
-        assert_eq!(s.update_bar(&bar("14", "14")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            s.update_bar(&bar("14", "14")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
         // New streak after doji
-        assert_eq!(s.update_bar(&bar("10", "12")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            s.update_bar(&bar("10", "12")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]
@@ -120,7 +147,10 @@ mod tests {
         s.update_bar(&bar("10", "12")).unwrap();
         s.update_bar(&bar("12", "14")).unwrap();
         // Switch to bearish
-        assert_eq!(s.update_bar(&bar("14", "10")).unwrap(), SignalValue::Scalar(dec!(-1)));
+        assert_eq!(
+            s.update_bar(&bar("14", "10")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
     }
 
     #[test]
@@ -129,6 +159,9 @@ mod tests {
         s.update_bar(&bar("10", "12")).unwrap();
         s.update_bar(&bar("12", "14")).unwrap();
         s.reset();
-        assert_eq!(s.update_bar(&bar("10", "12")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            s.update_bar(&bar("10", "12")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 }

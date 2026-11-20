@@ -125,7 +125,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -154,14 +157,24 @@ mod tests {
     fn test_ra_constant_roc_zero_acceleration() {
         let mut ra = RocAcceleration::new("ra", 2).unwrap();
         // Steady +1% per bar → ROC stays constant → acceleration = 0
-        let prices = ["100", "101", "102.01", "103.0301", "104.060401", "105.10100401"];
+        let prices = [
+            "100",
+            "101",
+            "102.01",
+            "103.0301",
+            "104.060401",
+            "105.10100401",
+        ];
         let mut last = SignalValue::Unavailable;
         for p in &prices {
             last = ra.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
             // acceleration should be very close to 0 for constant ROC
-            assert!(v.abs() < dec!(0.1), "near-constant ROC → near-zero acceleration: {v}");
+            assert!(
+                v.abs() < dec!(0.1),
+                "near-constant ROC → near-zero acceleration: {v}"
+            );
         }
         // (Unavailable is also acceptable if not yet warm)
     }
@@ -173,7 +186,10 @@ mod tests {
             ra.update_bar(&bar(&(100 + i * 2).to_string())).unwrap();
         }
         let v = ra.update_bar(&bar("120")).unwrap();
-        assert!(matches!(v, SignalValue::Scalar(_)), "expected Scalar after warmup");
+        assert!(
+            matches!(v, SignalValue::Scalar(_)),
+            "expected Scalar after warmup"
+        );
     }
 
     #[test]

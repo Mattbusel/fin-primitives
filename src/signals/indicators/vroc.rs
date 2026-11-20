@@ -49,9 +49,15 @@ impl Vroc {
 }
 
 impl Signal for Vroc {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.volumes.push_back(bar.volume);
@@ -61,11 +67,17 @@ impl Signal for Vroc {
         if self.volumes.len() <= self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let vol_old = *self.volumes.front().ok_or_else(crate::error::invariant_broken)?;
+        let vol_old = *self
+            .volumes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         if vol_old.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let vol_now = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
+        let vol_now = *self
+            .volumes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let vroc = (vol_now - vol_old)
             .checked_div(vol_old)
             .ok_or(FinError::ArithmeticOverflow)?
@@ -91,7 +103,10 @@ mod tests {
         let q = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: q,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

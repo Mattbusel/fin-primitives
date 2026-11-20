@@ -18,8 +18,7 @@
 use crate::error::FinError;
 
 /// Normalization strategy applied to raw feature values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Normalization {
     /// No normalization; raw values are used as-is.
     #[default]
@@ -71,7 +70,10 @@ impl FeatureVector {
 
     /// Returns the raw value for a feature by name, or `None` if not found.
     pub fn get_by_name(&self, name: &str) -> Option<f64> {
-        self.names.iter().position(|n| n == name).map(|i| self.raw[i])
+        self.names
+            .iter()
+            .position(|n| n == name)
+            .map(|i| self.raw[i])
     }
 
     /// Normalizes raw values according to the configured [`Normalization`] mode
@@ -106,7 +108,11 @@ impl<const N: usize> From<&[f64; N]> for FeatureVector {
     fn from(arr: &[f64; N]) -> Self {
         let names: Vec<String> = (0..N).map(|i| format!("f{i}")).collect();
         let raw: Vec<f64> = arr.iter().copied().collect();
-        Self { names, raw, normalization: Normalization::None }
+        Self {
+            names,
+            raw,
+            normalization: Normalization::None,
+        }
     }
 }
 
@@ -133,11 +139,14 @@ pub struct FeatureVectorBuilder {
     normalization: Normalization,
 }
 
-
 impl FeatureVectorBuilder {
     /// Creates a new builder with the specified normalization mode.
     pub fn new(normalization: Normalization) -> Self {
-        Self { names: Vec::new(), raw: Vec::new(), normalization }
+        Self {
+            names: Vec::new(),
+            raw: Vec::new(),
+            normalization,
+        }
     }
 
     /// Adds a named feature with a raw `f64` value.
@@ -167,10 +176,7 @@ impl FeatureVectorBuilder {
     ///
     /// # Errors
     /// Propagates errors from [`Self::add`].
-    pub fn add_all(
-        mut self,
-        features: &[(&str, f64)],
-    ) -> Result<Self, FinError> {
+    pub fn add_all(mut self, features: &[(&str, f64)]) -> Result<Self, FinError> {
         for (name, value) in features {
             self = self.add(*name, *value)?;
         }
@@ -260,7 +266,10 @@ mod tests {
             .build();
         let norm: Vec<f64> = fv.into();
         // mean=20, std=8.165, so z(-10/8.165, 0, +10/8.165)
-        assert!((norm[1]).abs() < 1e-10, "middle value should be 0 after z-score");
+        assert!(
+            (norm[1]).abs() < 1e-10,
+            "middle value should be 0 after z-score"
+        );
         assert!(norm[0] < 0.0);
         assert!(norm[2] > 0.0);
     }

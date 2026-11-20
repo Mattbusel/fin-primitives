@@ -37,7 +37,9 @@ impl GannHiLo {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,7 +50,9 @@ impl GannHiLo {
     }
 
     /// Returns the current activator level.
-    pub fn activator_level(&self) -> Option<Decimal> { self.activator }
+    pub fn activator_level(&self) -> Option<Decimal> {
+        self.activator
+    }
 
     /// Returns `true` if the last close was above the activator (long bias).
     pub fn is_bullish(&self) -> bool {
@@ -62,7 +66,9 @@ impl GannHiLo {
 }
 
 impl Signal for GannHiLo {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -75,15 +81,19 @@ impl Signal for GannHiLo {
             return Ok(SignalValue::Unavailable);
         }
 
-        let sma_highs: Decimal = self.highs.iter().sum::<Decimal>()
-            / Decimal::from(self.period as u32);
-        let sma_lows: Decimal = self.lows.iter().sum::<Decimal>()
-            / Decimal::from(self.period as u32);
+        let sma_highs: Decimal =
+            self.highs.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
+        let sma_lows: Decimal =
+            self.lows.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
 
         let new_activator = match self.activator {
             None => sma_lows, // seed in uptrend by default
             Some(prev) => {
-                if bar.close > prev { sma_lows } else { sma_highs }
+                if bar.close > prev {
+                    sma_lows
+                } else {
+                    sma_highs
+                }
             }
         };
 
@@ -116,7 +126,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -150,7 +163,9 @@ mod tests {
     #[test]
     fn test_gann_hilo_flat_stays_at_price() {
         let mut g = GannHiLo::new("g", 3).unwrap();
-        for _ in 0..5 { g.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            g.update_bar(&bar("100")).unwrap();
+        }
         // After flat prices, activator should equal the price
         if let Some(a) = g.activator_level() {
             assert_eq!(a, rust_decimal_macros::dec!(100));
@@ -160,7 +175,9 @@ mod tests {
     #[test]
     fn test_gann_hilo_reset() {
         let mut g = GannHiLo::new("g", 3).unwrap();
-        for _ in 0..5 { g.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            g.update_bar(&bar("100")).unwrap();
+        }
         assert!(g.is_ready());
         g.reset();
         assert!(!g.is_ready());

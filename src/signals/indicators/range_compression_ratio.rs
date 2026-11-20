@@ -49,9 +49,15 @@ impl RangeCompressionRatio {
 }
 
 impl Signal for RangeCompressionRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -63,17 +69,26 @@ impl Signal for RangeCompressionRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_range = self.ranges.iter().copied().fold(Decimal::ZERO, Decimal::max);
+        let max_range = self
+            .ranges
+            .iter()
+            .copied()
+            .fold(Decimal::ZERO, Decimal::max);
         if max_range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current_range = *self.ranges.back().ok_or_else(crate::error::invariant_broken)?;
+        let current_range = *self
+            .ranges
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let ratio = current_range
             .checked_div(max_range)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        Ok(SignalValue::Scalar(ratio.max(Decimal::ZERO).min(Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            ratio.max(Decimal::ZERO).min(Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {
@@ -94,7 +109,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,8 +128,14 @@ mod tests {
     #[test]
     fn test_rcr_unavailable_before_period() {
         let mut s = RangeCompressionRatio::new("rcr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -119,18 +143,27 @@ mod tests {
     fn test_rcr_uniform_ranges_give_one() {
         // All bars same range → current is max → ratio = 1
         let mut s = RangeCompressionRatio::new("rcr", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("110","90")).unwrap(); }
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Scalar(dec!(1)));
+        for _ in 0..3 {
+            s.update_bar(&bar("110", "90")).unwrap();
+        }
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]
     fn test_rcr_narrow_after_wide_gives_low_ratio() {
         // Wide bars then narrow → ratio < 1
         let mut s = RangeCompressionRatio::new("rcr", 3).unwrap();
-        s.update_bar(&bar("120","80")).unwrap(); // range=40
-        s.update_bar(&bar("115","85")).unwrap(); // range=30
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("101","99")).unwrap() { // range=2
-            assert!(v < dec!(0.1), "narrow bar after wide should give low ratio: {v}");
+        s.update_bar(&bar("120", "80")).unwrap(); // range=40
+        s.update_bar(&bar("115", "85")).unwrap(); // range=30
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("101", "99")).unwrap() {
+            // range=2
+            assert!(
+                v < dec!(0.1),
+                "narrow bar after wide should give low ratio: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -139,8 +172,14 @@ mod tests {
     #[test]
     fn test_rcr_in_range_zero_to_one() {
         let mut s = RangeCompressionRatio::new("rcr", 3).unwrap();
-        for (h,l) in &[("110","90"),("115","85"),("108","92"),("112","88"),("101","99")] {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(h,l)).unwrap() {
+        for (h, l) in &[
+            ("110", "90"),
+            ("115", "85"),
+            ("108", "92"),
+            ("112", "88"),
+            ("101", "99"),
+        ] {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "ratio out of [0,1]: {v}");
             }
         }
@@ -149,8 +188,8 @@ mod tests {
     #[test]
     fn test_rcr_reset() {
         let mut s = RangeCompressionRatio::new("rcr", 2).unwrap();
-        s.update_bar(&bar("110","90")).unwrap();
-        s.update_bar(&bar("110","90")).unwrap();
+        s.update_bar(&bar("110", "90")).unwrap();
+        s.update_bar(&bar("110", "90")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

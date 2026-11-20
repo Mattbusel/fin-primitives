@@ -1,8 +1,8 @@
 //! ATR Percentage (ATRP) indicator.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use crate::signals::indicators::Atr;
+use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 
 /// ATR Percentage (ATRP) — normalised ATR expressed as a fraction of the close.
@@ -102,7 +102,10 @@ mod tests {
     #[test]
     fn test_atrp_unavailable_before_warmup() {
         let mut atrp = Atrp::new("atrp3", 3).unwrap();
-        assert_eq!(atrp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            atrp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!atrp.is_ready());
     }
 

@@ -103,7 +103,9 @@ impl CointegrationTest {
             ));
         }
         if y.len() < 5 {
-            return Err(FinError::InvalidInput("need at least 5 observations".into()));
+            return Err(FinError::InvalidInput(
+                "need at least 5 observations".into(),
+            ));
         }
         let n = y.len() as f64;
         let sum_x: f64 = x.iter().sum();
@@ -260,9 +262,7 @@ impl PairsStrategy {
         z_threshold: f64,
     ) -> Result<Self, FinError> {
         if spread_std <= 0.0 {
-            return Err(FinError::InvalidInput(
-                "spread_std must be positive".into(),
-            ));
+            return Err(FinError::InvalidInput("spread_std must be positive".into()));
         }
         if z_threshold <= 0.0 {
             return Err(FinError::InvalidInput(

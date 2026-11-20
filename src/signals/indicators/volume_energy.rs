@@ -32,7 +32,9 @@ impl VolumeEnergy {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -43,9 +45,15 @@ impl VolumeEnergy {
 }
 
 impl Signal for VolumeEnergy {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.energies.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.energies.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let energy = match self.prev_close {
@@ -57,8 +65,12 @@ impl Signal for VolumeEnergy {
         };
         self.prev_close = Some(bar.close);
         self.energies.push_back(energy);
-        if self.energies.len() > self.period { self.energies.pop_front(); }
-        if self.energies.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.energies.len() > self.period {
+            self.energies.pop_front();
+        }
+        if self.energies.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         Ok(SignalValue::Scalar(self.energies.iter().sum()))
     }
 
@@ -81,7 +93,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: cp, low: cp, close: cp,
+            open: cp,
+            high: cp,
+            low: cp,
+            close: cp,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -90,15 +105,23 @@ mod tests {
     }
 
     #[test]
-    fn test_ve_invalid() { assert!(VolumeEnergy::new("v", 0).is_err()); }
+    fn test_ve_invalid() {
+        assert!(VolumeEnergy::new("v", 0).is_err());
+    }
 
     #[test]
     fn test_ve_unavailable() {
         let mut ve = VolumeEnergy::new("v", 3).unwrap();
         // bar 1: no prev_close
-        assert_eq!(ve.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ve.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         // bar 2: 1 energy value, need 3
-        assert_eq!(ve.update_bar(&bar("105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ve.update_bar(&bar("105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -106,7 +129,9 @@ mod tests {
         let mut ve = VolumeEnergy::new("v", 3).unwrap();
         ve.update_bar(&bar("100", "1000")).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..3 { last = ve.update_bar(&bar("100", "1000")).unwrap(); }
+        for _ in 0..3 {
+            last = ve.update_bar(&bar("100", "1000")).unwrap();
+        }
         assert_eq!(last, SignalValue::Scalar(dec!(0)));
     }
 

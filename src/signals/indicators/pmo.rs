@@ -60,9 +60,15 @@ impl Pmo {
         pmo_smooth: usize,
         signal_smooth: usize,
     ) -> Result<Self, FinError> {
-        if roc_smooth == 0 { return Err(FinError::InvalidPeriod(roc_smooth)); }
-        if pmo_smooth == 0 { return Err(FinError::InvalidPeriod(pmo_smooth)); }
-        if signal_smooth == 0 { return Err(FinError::InvalidPeriod(signal_smooth)); }
+        if roc_smooth == 0 {
+            return Err(FinError::InvalidPeriod(roc_smooth));
+        }
+        if pmo_smooth == 0 {
+            return Err(FinError::InvalidPeriod(pmo_smooth));
+        }
+        if signal_smooth == 0 {
+            return Err(FinError::InvalidPeriod(signal_smooth));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let ema1_k = Decimal::TWO / Decimal::from((roc_smooth + 1) as u32);
         #[allow(clippy::cast_possible_truncation)]
@@ -105,7 +111,9 @@ impl Pmo {
 }
 
 impl Signal for Pmo {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -216,7 +224,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -267,11 +278,16 @@ mod tests {
     #[test]
     fn test_pmo_reset() {
         let mut pmo = Pmo::new("p", 3, 2, 2).unwrap();
-        for _ in 0..20 { pmo.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            pmo.update_bar(&bar("100")).unwrap();
+        }
         assert!(pmo.is_ready());
         pmo.reset();
         assert!(!pmo.is_ready());
-        assert_eq!(pmo.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pmo.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

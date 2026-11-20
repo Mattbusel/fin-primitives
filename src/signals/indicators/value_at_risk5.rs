@@ -38,7 +38,9 @@ impl ValueAtRisk5 {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,9 +51,15 @@ impl ValueAtRisk5 {
 }
 
 impl Signal for ValueAtRisk5 {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -64,7 +72,9 @@ impl Signal for ValueAtRisk5 {
             }
         }
         self.prev_close = Some(bar.close);
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         let mut sorted: Vec<Decimal> = self.window.iter().copied().collect();
         sorted.sort();
         // 5th percentile index
@@ -91,7 +101,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -100,7 +113,9 @@ mod tests {
     }
 
     #[test]
-    fn test_var5_period_0_error() { assert!(ValueAtRisk5::new("v", 0).is_err()); }
+    fn test_var5_period_0_error() {
+        assert!(ValueAtRisk5::new("v", 0).is_err());
+    }
 
     #[test]
     fn test_var5_unavailable_before_period() {
@@ -120,7 +135,10 @@ mod tests {
         let r = v.update_bar(&bar("104")).unwrap();
         if let SignalValue::Scalar(var) = r {
             // All returns are positive ~1%, VaR5 >= 0
-            assert!(var > dec!(0), "All positive returns, VaR5 should be > 0, got {var}");
+            assert!(
+                var > dec!(0),
+                "All positive returns, VaR5 should be > 0, got {var}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -131,7 +149,7 @@ mod tests {
         // One big loss should pull down the 5th percentile
         let mut v = ValueAtRisk5::new("v", 5).unwrap();
         v.update_bar(&bar("100")).unwrap();
-        v.update_bar(&bar("50")).unwrap();  // -50% return
+        v.update_bar(&bar("50")).unwrap(); // -50% return
         v.update_bar(&bar("51")).unwrap();
         v.update_bar(&bar("52")).unwrap();
         v.update_bar(&bar("53")).unwrap();
@@ -147,7 +165,9 @@ mod tests {
     #[test]
     fn test_var5_reset() {
         let mut v = ValueAtRisk5::new("v", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { v.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            v.update_bar(&bar(p)).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

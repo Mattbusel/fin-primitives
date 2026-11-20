@@ -84,16 +84,20 @@ impl Signal for VolumeWeightedAtr {
             return Ok(SignalValue::Unavailable);
         }
 
-        let (vol_tr_sum, vol_sum) = self.window.iter().fold(
-            (Decimal::ZERO, Decimal::ZERO),
-            |(vt, v), &(tr, vol)| (vt + tr * vol, v + vol),
-        );
+        let (vol_tr_sum, vol_sum) = self
+            .window
+            .iter()
+            .fold((Decimal::ZERO, Decimal::ZERO), |(vt, v), &(tr, vol)| {
+                (vt + tr * vol, v + vol)
+            });
 
         if vol_sum.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vwatr = vol_tr_sum.checked_div(vol_sum).ok_or(FinError::ArithmeticOverflow)?;
+        let vwatr = vol_tr_sum
+            .checked_div(vol_sum)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(vwatr))
     }
 
@@ -118,7 +122,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -135,7 +142,10 @@ mod tests {
     fn test_vwatr_unavailable_before_period_plus_1() {
         let mut vwatr = VolumeWeightedAtr::new("vwatr", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(vwatr.update_bar(&bar("110", "90", "100", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vwatr.update_bar(&bar("110", "90", "100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!vwatr.is_ready());
     }
@@ -170,7 +180,10 @@ mod tests {
             // TR bar2: high=120,low=100,prev=100 → max(20, |120-100|,|100-100|)=20
             // TR bar3: high=120,low=100,prev=110 → max(20, |120-110|,|100-110|)=20
             // TR bar4: same = 20. So all 3 bars have TR=20 → avg=20
-            assert!(r > dec!(0), "VWATR with equal volumes should be positive: {r}");
+            assert!(
+                r > dec!(0),
+                "VWATR with equal volumes should be positive: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }

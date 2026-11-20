@@ -46,14 +46,22 @@ impl BarRangeStdDev {
 }
 
 impl Signal for BarRangeStdDev {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.high - bar.low;
         self.ranges.push_back(range);
-        if self.ranges.len() > self.period { self.ranges.pop_front(); }
+        if self.ranges.len() > self.period {
+            self.ranges.pop_front();
+        }
 
         if self.ranges.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -66,7 +74,14 @@ impl Signal for BarRangeStdDev {
 
         let nf = vals.len() as f64;
         let mean = vals.iter().sum::<f64>() / nf;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / nf;
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / nf;
 
         match Decimal::from_f64(var.sqrt()) {
             Some(v) => Ok(SignalValue::Scalar(v)),
@@ -92,7 +107,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,7 +128,10 @@ mod tests {
     fn test_brsd_unavailable_before_warm_up() {
         let mut brsd = BarRangeStdDev::new("brsd", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(brsd.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                brsd.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -133,7 +154,11 @@ mod tests {
             last = brsd.update_bar(&bar(h, l)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "varying ranges should give positive std dev: {}", v);
+            assert!(
+                v > dec!(0),
+                "varying ranges should give positive std dev: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -142,7 +167,9 @@ mod tests {
     #[test]
     fn test_brsd_reset() {
         let mut brsd = BarRangeStdDev::new("brsd", 3).unwrap();
-        for _ in 0..3 { brsd.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            brsd.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(brsd.is_ready());
         brsd.reset();
         assert!(!brsd.is_ready());

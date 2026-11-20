@@ -47,7 +47,9 @@ impl VolatilityBreak {
             return Err(FinError::InvalidPeriod(period));
         }
         if multiplier <= Decimal::ZERO {
-            return Err(FinError::InvalidInput("multiplier must be positive".to_owned()));
+            return Err(FinError::InvalidInput(
+                "multiplier must be positive".to_owned(),
+            ));
         }
         Ok(Self {
             name: name.into(),
@@ -78,7 +80,7 @@ impl Signal for VolatilityBreak {
                 self.prev_close = Some(bar.close);
                 return Ok(SignalValue::Unavailable);
             }
-            Some(pc) => bar.true_range(Some(pc))
+            Some(pc) => bar.true_range(Some(pc)),
         };
         self.prev_close = Some(bar.close);
 
@@ -102,7 +104,11 @@ impl Signal for VolatilityBreak {
             .ok_or(FinError::ArithmeticOverflow)?;
 
         let current_range = bar.range();
-        let breakout = if current_range > threshold { Decimal::ONE } else { Decimal::ZERO };
+        let breakout = if current_range > threshold {
+            Decimal::ONE
+        } else {
+            Decimal::ZERO
+        };
         Ok(SignalValue::Scalar(breakout))
     }
 
@@ -126,7 +132,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -141,7 +150,10 @@ mod tests {
         let cp = Price::new(p).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

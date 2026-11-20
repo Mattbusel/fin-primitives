@@ -56,9 +56,15 @@ impl ReturnConsistency {
 }
 
 impl Signal for ReturnConsistency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -79,10 +85,15 @@ impl Signal for ReturnConsistency {
         let direction_positive = net > Decimal::ZERO;
 
         // Individual bar returns: (close[i] - close[i-1]) for i in 1..=period
-        let matches = prices.windows(2)
+        let matches = prices
+            .windows(2)
             .filter(|w| {
                 let r = w[1] - w[0];
-                if direction_positive { r > Decimal::ZERO } else { r < Decimal::ZERO }
+                if direction_positive {
+                    r > Decimal::ZERO
+                } else {
+                    r < Decimal::ZERO
+                }
             })
             .count();
 
@@ -111,7 +122,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -169,7 +183,10 @@ mod tests {
             rc.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = rc.update_bar(&bar("110")).unwrap() {
-            assert!(v < dec!(100) && v > dec!(0), "retracements → intermediate consistency: {v}");
+            assert!(
+                v < dec!(100) && v > dec!(0),
+                "retracements → intermediate consistency: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -178,7 +195,9 @@ mod tests {
     #[test]
     fn test_rc_reset() {
         let mut rc = ReturnConsistency::new("rc", 3).unwrap();
-        for p in &["100", "101", "102", "103"] { rc.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103"] {
+            rc.update_bar(&bar(p)).unwrap();
+        }
         assert!(rc.is_ready());
         rc.reset();
         assert!(!rc.is_ready());

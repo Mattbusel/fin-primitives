@@ -34,7 +34,9 @@ impl CandleRangeMa {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -45,18 +47,28 @@ impl CandleRangeMa {
 }
 
 impl Signal for CandleRangeMa {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         self.window.push_back(range);
         self.sum += range;
         if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
         let avg = self.sum / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
@@ -81,7 +93,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -90,12 +105,17 @@ mod tests {
     }
 
     #[test]
-    fn test_crm_period_0_error() { assert!(CandleRangeMa::new("crm", 0).is_err()); }
+    fn test_crm_period_0_error() {
+        assert!(CandleRangeMa::new("crm", 0).is_err());
+    }
 
     #[test]
     fn test_crm_unavailable_before_period() {
         let mut crm = CandleRangeMa::new("crm", 3).unwrap();
-        assert_eq!(crm.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            crm.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!crm.is_ready());
     }
 

@@ -63,9 +63,15 @@ impl PriceChangeMad {
 }
 
 impl Signal for PriceChangeMad {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.changes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.changes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -74,7 +80,10 @@ impl Signal for PriceChangeMad {
             self.sum += change;
             self.changes.push_back(change);
             if self.changes.len() > self.period {
-                let removed = self.changes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                let removed = self
+                    .changes
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
                 self.sum -= removed;
             }
         }
@@ -84,7 +93,8 @@ impl Signal for PriceChangeMad {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -109,7 +119,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,16 +138,27 @@ mod tests {
     #[test]
     fn test_pcm_unavailable_during_warmup() {
         let mut pcm = PriceChangeMad::new("pcm", 3).unwrap();
-        assert_eq!(pcm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pcm.update_bar(&bar("102")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pcm.update_bar(&bar("104")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcm.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            pcm.update_bar(&bar("102")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            pcm.update_bar(&bar("104")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pcm.is_ready());
     }
 
     #[test]
     fn test_pcm_flat_prices_zero() {
         let mut pcm = PriceChangeMad::new("pcm", 3).unwrap();
-        for _ in 0..4 { pcm.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            pcm.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = pcm.update_bar(&bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {
@@ -166,7 +190,10 @@ mod tests {
         if let SignalValue::Scalar(v) = pcm.update_bar(&bar("104")).unwrap() {
             // mean = (2+3+5)/3 = 10/3 ≈ 3.333...
             let expected = dec!(10) / dec!(3);
-            assert!((v - expected).abs() < dec!(0.0001), "expected ~{expected}, got {v}");
+            assert!(
+                (v - expected).abs() < dec!(0.0001),
+                "expected ~{expected}, got {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -196,6 +223,9 @@ mod tests {
         assert!(pcm.is_ready());
         pcm.reset();
         assert!(!pcm.is_ready());
-        assert_eq!(pcm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcm.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

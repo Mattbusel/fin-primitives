@@ -142,8 +142,14 @@ mod tests {
     #[test]
     fn test_cci_unavailable_before_period() {
         let mut cci = Cci::new("cci3", 3).unwrap();
-        assert_eq!(cci.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(cci.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cci.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            cci.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!cci.is_ready());
     }
 
@@ -164,7 +170,10 @@ mod tests {
         // Last bar far above the average of [90, 100, 150]
         let v = cci.update_bar(&flat_bar("150")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val > dec!(0), "CCI should be positive when close is above SMA, got {val}");
+            assert!(
+                val > dec!(0),
+                "CCI should be positive when close is above SMA, got {val}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -178,7 +187,10 @@ mod tests {
         // Last bar far below the average
         let v = cci.update_bar(&flat_bar("50")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val < dec!(0), "CCI should be negative when close is below SMA, got {val}");
+            assert!(
+                val < dec!(0),
+                "CCI should be negative when close is below SMA, got {val}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -203,6 +215,9 @@ mod tests {
         assert!(cci.is_ready());
         cci.reset();
         assert!(!cci.is_ready());
-        assert_eq!(cci.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cci.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

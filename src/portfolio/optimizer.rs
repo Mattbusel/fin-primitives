@@ -205,10 +205,8 @@ impl PortfolioOptimizer {
         // Handle EqualWeight immediately — no gradient needed.
         if matches!(objective, OptimizationObjective::EqualWeight) {
             let w = 1.0 / n as f64;
-            let weights: HashMap<String, f64> = assets
-                .iter()
-                .map(|a| (a.symbol.clone(), w))
-                .collect();
+            let weights: HashMap<String, f64> =
+                assets.iter().map(|a| (a.symbol.clone(), w)).collect();
             return Self::build_result(assets, cov_matrix, weights, 0.0);
         }
 
@@ -216,14 +214,28 @@ impl PortfolioOptimizer {
         let mut w: Vec<f64> = vec![1.0 / n as f64; n];
 
         // Determine min/max bounds from constraints.
-        let long_only = constraints.iter().any(|c| matches!(c, Constraint::LongOnly));
+        let long_only = constraints
+            .iter()
+            .any(|c| matches!(c, Constraint::LongOnly));
         let min_w: f64 = constraints
             .iter()
-            .filter_map(|c| if let Constraint::MinWeight(v) = c { Some(*v) } else { None })
+            .filter_map(|c| {
+                if let Constraint::MinWeight(v) = c {
+                    Some(*v)
+                } else {
+                    None
+                }
+            })
             .fold(if long_only { 0.0 } else { f64::NEG_INFINITY }, f64::max);
         let max_w: f64 = constraints
             .iter()
-            .filter_map(|c| if let Constraint::MaxWeight(v) = c { Some(*v) } else { None })
+            .filter_map(|c| {
+                if let Constraint::MaxWeight(v) = c {
+                    Some(*v)
+                } else {
+                    None
+                }
+            })
             .fold(1.0, f64::min);
 
         let sector_constraints: Vec<(&str, f64)> = constraints
@@ -321,7 +333,11 @@ impl PortfolioOptimizer {
             OptimizationObjective::MaxSharpe { risk_free_rate } => {
                 // Maximize (mu_p - rf) / sigma_p.
                 // Use negative gradient so that gradient descent increases Sharpe.
-                let mu_p: f64 = assets.iter().enumerate().map(|(i, a)| w[i] * a.expected_return).sum();
+                let mu_p: f64 = assets
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| w[i] * a.expected_return)
+                    .sum();
                 let sigma2_p: f64 = portfolio_variance(cov, w);
                 let sigma_p = sigma2_p.sqrt().max(1e-10);
                 let excess = mu_p - risk_free_rate;
@@ -360,10 +376,12 @@ impl PortfolioOptimizer {
                     for i in 0..n {
                         let d_rc_i_d_wk = if i == k {
                             sigma_w[i] / sigma2_p + w[i] * cov.get(i, k) / sigma2_p
-                                - w[i] * sigma_w[i] * 2.0 * sigma_w[k] * w[k] / (sigma2_p * sigma2_p)
+                                - w[i] * sigma_w[i] * 2.0 * sigma_w[k] * w[k]
+                                    / (sigma2_p * sigma2_p)
                         } else {
                             w[i] * cov.get(i, k) / sigma2_p
-                                - w[i] * sigma_w[i] * 2.0 * sigma_w[k] * w[k] / (sigma2_p * sigma2_p)
+                                - w[i] * sigma_w[i] * 2.0 * sigma_w[k] * w[k]
+                                    / (sigma2_p * sigma2_p)
                         };
                         g[k] += 2.0 * (rc[i] - rc_avg) * d_rc_i_d_wk;
                     }
@@ -389,7 +407,11 @@ impl PortfolioOptimizer {
             .map(|a| weights.get(&a.symbol).copied().unwrap_or(0.0))
             .collect();
 
-        let expected_return: f64 = assets.iter().enumerate().map(|(i, a)| w[i] * a.expected_return).sum();
+        let expected_return: f64 = assets
+            .iter()
+            .enumerate()
+            .map(|(i, a)| w[i] * a.expected_return)
+            .sum();
         let expected_variance = portfolio_variance(cov, &w);
         let sigma = expected_variance.sqrt().max(1e-10);
         let sharpe_ratio = (expected_return - rf) / sigma;
@@ -468,16 +490,36 @@ mod tests {
 
     fn two_assets() -> Vec<Asset> {
         vec![
-            Asset { symbol: "A".into(), expected_return: 0.10, variance: 0.04 },
-            Asset { symbol: "B".into(), expected_return: 0.15, variance: 0.09 },
+            Asset {
+                symbol: "A".into(),
+                expected_return: 0.10,
+                variance: 0.04,
+            },
+            Asset {
+                symbol: "B".into(),
+                expected_return: 0.15,
+                variance: 0.09,
+            },
         ]
     }
 
     fn three_assets() -> Vec<Asset> {
         vec![
-            Asset { symbol: "A".into(), expected_return: 0.08, variance: 0.04 },
-            Asset { symbol: "B".into(), expected_return: 0.12, variance: 0.09 },
-            Asset { symbol: "C".into(), expected_return: 0.06, variance: 0.01 },
+            Asset {
+                symbol: "A".into(),
+                expected_return: 0.08,
+                variance: 0.04,
+            },
+            Asset {
+                symbol: "B".into(),
+                expected_return: 0.12,
+                variance: 0.09,
+            },
+            Asset {
+                symbol: "C".into(),
+                expected_return: 0.06,
+                variance: 0.01,
+            },
         ]
     }
 
@@ -557,7 +599,8 @@ mod tests {
     fn equal_weight_two_assets() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let result = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
+        let result =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
         assert!((result.weights["A"] - 0.5).abs() < 1e-10);
         assert!((result.weights["B"] - 0.5).abs() < 1e-10);
     }
@@ -566,7 +609,8 @@ mod tests {
     fn equal_weight_effective_n_equals_n() {
         let assets = three_assets();
         let cov = three_asset_cov();
-        let result = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
+        let result =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
         assert!((result.effective_n - 3.0).abs() < 1e-6);
     }
 
@@ -576,7 +620,8 @@ mod tests {
     fn min_variance_weights_sum_to_one() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let result = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
+        let result =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
         let sum: f64 = result.weights.values().sum();
         assert!((sum - 1.0).abs() < 1e-6, "weights sum = {sum}");
     }
@@ -585,8 +630,10 @@ mod tests {
     fn min_variance_lower_than_equal_weight() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let mv = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
-        let ew = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
+        let mv =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
+        let ew =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
         assert!(mv.expected_variance <= ew.expected_variance + 1e-6);
     }
 
@@ -594,7 +641,8 @@ mod tests {
     fn min_variance_favors_lower_variance_asset() {
         let assets = two_assets(); // A has lower variance (0.04 vs 0.09)
         let cov = two_asset_cov();
-        let result = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
+        let result =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::MinVariance, &[]);
         assert!(result.weights["A"] > result.weights["B"]);
     }
 
@@ -603,7 +651,10 @@ mod tests {
         let assets = two_assets();
         let cov = two_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::MinVariance, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::MinVariance,
+            &[Constraint::LongOnly],
         );
         for w in result.weights.values() {
             assert!(*w >= -1e-9, "negative weight {w}");
@@ -615,7 +666,9 @@ mod tests {
         let assets = two_assets();
         let cov = two_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::MinVariance,
+            &assets,
+            &cov,
+            &OptimizationObjective::MinVariance,
             &[Constraint::MaxWeight(0.6), Constraint::LongOnly],
         );
         for w in result.weights.values() {
@@ -628,7 +681,9 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::MinVariance,
+            &assets,
+            &cov,
+            &OptimizationObjective::MinVariance,
             &[Constraint::MinWeight(0.1), Constraint::LongOnly],
         );
         for w in result.weights.values() {
@@ -642,7 +697,9 @@ mod tests {
     fn max_sharpe_weights_sum_to_one() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let obj = OptimizationObjective::MaxSharpe { risk_free_rate: 0.02 };
+        let obj = OptimizationObjective::MaxSharpe {
+            risk_free_rate: 0.02,
+        };
         let result = PortfolioOptimizer::optimize(&assets, &cov, &obj, &[Constraint::LongOnly]);
         let sum: f64 = result.weights.values().sum();
         assert!((sum - 1.0).abs() < 1e-6, "weights sum = {sum}");
@@ -652,20 +709,30 @@ mod tests {
     fn max_sharpe_higher_sharpe_than_equal_weight() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let obj = OptimizationObjective::MaxSharpe { risk_free_rate: 0.02 };
+        let obj = OptimizationObjective::MaxSharpe {
+            risk_free_rate: 0.02,
+        };
         let ms = PortfolioOptimizer::optimize(&assets, &cov, &obj, &[Constraint::LongOnly]);
-        let ew = PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
+        let ew =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
         // `sharpe_ratio` uses rf = 0 for EqualWeight (see OptimizedPortfolio docs)
         // but rf = 0.02 for MaxSharpe, so compare both at the same rf.
         let ew_sharpe_rf = (ew.expected_return - 0.02) / ew.expected_variance.sqrt();
-        assert!(ms.sharpe_ratio >= ew_sharpe_rf - 1e-4, "ms={} ew={}", ms.sharpe_ratio, ew_sharpe_rf);
+        assert!(
+            ms.sharpe_ratio >= ew_sharpe_rf - 1e-4,
+            "ms={} ew={}",
+            ms.sharpe_ratio,
+            ew_sharpe_rf
+        );
     }
 
     #[test]
     fn max_sharpe_positive_sharpe() {
         let assets = two_assets();
         let cov = two_asset_cov();
-        let obj = OptimizationObjective::MaxSharpe { risk_free_rate: 0.02 };
+        let obj = OptimizationObjective::MaxSharpe {
+            risk_free_rate: 0.02,
+        };
         let result = PortfolioOptimizer::optimize(&assets, &cov, &obj, &[]);
         assert!(result.sharpe_ratio > 0.0);
     }
@@ -677,7 +744,10 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::RiskParity, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::RiskParity,
+            &[Constraint::LongOnly],
         );
         let sum: f64 = result.weights.values().sum();
         assert!((sum - 1.0).abs() < 1e-5, "weights sum = {sum}");
@@ -688,7 +758,10 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::RiskParity, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::RiskParity,
+            &[Constraint::LongOnly],
         );
         for w in result.weights.values() {
             assert!(*w >= -1e-9);
@@ -702,7 +775,10 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::RiskParity, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::RiskParity,
+            &[Constraint::LongOnly],
         );
         let wb = result.weights["B"];
         let wc = result.weights["C"];
@@ -714,23 +790,45 @@ mod tests {
     #[test]
     fn sector_constraint_respected() {
         let assets = vec![
-            Asset { symbol: "TECH_A".into(), expected_return: 0.15, variance: 0.10 },
-            Asset { symbol: "TECH_B".into(), expected_return: 0.18, variance: 0.12 },
-            Asset { symbol: "BOND_A".into(), expected_return: 0.04, variance: 0.01 },
+            Asset {
+                symbol: "TECH_A".into(),
+                expected_return: 0.15,
+                variance: 0.10,
+            },
+            Asset {
+                symbol: "TECH_B".into(),
+                expected_return: 0.18,
+                variance: 0.12,
+            },
+            Asset {
+                symbol: "BOND_A".into(),
+                expected_return: 0.04,
+                variance: 0.01,
+            },
         ];
-        let mut cov = CovarianceMatrix::new(vec!["TECH_A".into(), "TECH_B".into(), "BOND_A".into()]);
+        let mut cov =
+            CovarianceMatrix::new(vec!["TECH_A".into(), "TECH_B".into(), "BOND_A".into()]);
         cov.set(0, 0, 0.10);
         cov.set(1, 1, 0.12);
         cov.set(2, 2, 0.01);
         let constraints = vec![
             Constraint::LongOnly,
-            Constraint::SectorConstraint { sector: "TECH".into(), max_weight: 0.5 },
+            Constraint::SectorConstraint {
+                sector: "TECH".into(),
+                max_weight: 0.5,
+            },
         ];
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::MinVariance, &constraints,
+            &assets,
+            &cov,
+            &OptimizationObjective::MinVariance,
+            &constraints,
         );
         let tech_total: f64 = result.weights["TECH_A"] + result.weights["TECH_B"];
-        assert!(tech_total <= 0.5 + 1e-6, "tech total {tech_total} exceeds limit");
+        assert!(
+            tech_total <= 0.5 + 1e-6,
+            "tech total {tech_total} exceeds limit"
+        );
     }
 
     // --- Empty asset list ---
@@ -738,7 +836,8 @@ mod tests {
     #[test]
     fn empty_assets_returns_zero_portfolio() {
         let cov = CovarianceMatrix::new(vec![]);
-        let result = PortfolioOptimizer::optimize(&[], &cov, &OptimizationObjective::MinVariance, &[]);
+        let result =
+            PortfolioOptimizer::optimize(&[], &cov, &OptimizationObjective::MinVariance, &[]);
         assert!(result.weights.is_empty());
         assert_eq!(result.expected_return, 0.0);
         assert_eq!(result.expected_variance, 0.0);
@@ -751,9 +850,8 @@ mod tests {
         let assets = two_assets();
         let cov = two_asset_cov();
         // Force a concentrated portfolio by extreme constraint.
-        let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::EqualWeight, &[],
-        );
+        let result =
+            PortfolioOptimizer::optimize(&assets, &cov, &OptimizationObjective::EqualWeight, &[]);
         // Equal weight → effective_n = 2.
         assert!((result.effective_n - 2.0).abs() < 1e-6);
         let _ = cov.get(0, 0); // suppress warning
@@ -766,7 +864,10 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::MinVariance, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::MinVariance,
+            &[Constraint::LongOnly],
         );
         let manual_ret: f64 = assets
             .iter()
@@ -780,7 +881,10 @@ mod tests {
         let assets = three_assets();
         let cov = three_asset_cov();
         let result = PortfolioOptimizer::optimize(
-            &assets, &cov, &OptimizationObjective::RiskParity, &[Constraint::LongOnly],
+            &assets,
+            &cov,
+            &OptimizationObjective::RiskParity,
+            &[Constraint::LongOnly],
         );
         assert!(result.expected_variance >= 0.0);
     }

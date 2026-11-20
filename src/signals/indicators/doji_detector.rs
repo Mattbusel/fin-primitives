@@ -44,14 +44,23 @@ impl DojiDetector {
         if threshold <= Decimal::ZERO || threshold > Decimal::ONE {
             return Err(FinError::InvalidInput("threshold must be in (0, 1]".into()));
         }
-        Ok(Self { name: name.into(), threshold })
+        Ok(Self {
+            name: name.into(),
+            threshold,
+        })
     }
 }
 
 impl Signal for DojiDetector {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -61,7 +70,11 @@ impl Signal for DojiDetector {
         let body = bar.body_size();
         let ratio = body / range;
         let is_doji = ratio < self.threshold;
-        Ok(SignalValue::Scalar(if is_doji { Decimal::ONE } else { Decimal::ZERO }))
+        Ok(SignalValue::Scalar(if is_doji {
+            Decimal::ONE
+        } else {
+            Decimal::ZERO
+        }))
     }
 
     fn reset(&mut self) {}
@@ -82,7 +95,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

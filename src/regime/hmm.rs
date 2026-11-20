@@ -106,7 +106,11 @@ pub fn viterbi(returns: &[f64], params: &HmmParams) -> Vec<RegimeState> {
     // ── Initialisation ──────────────────────────────────────────────────────
     for s in 0..NUM_STATES {
         let emission = gaussian_pdf(returns[0], params.emission_mean[s], params.emission_std[s]);
-        let log_em = if emission > 0.0 { emission.ln() } else { f64::NEG_INFINITY };
+        let log_em = if emission > 0.0 {
+            emission.ln()
+        } else {
+            f64::NEG_INFINITY
+        };
         let log_init = if params.initial[s] > 0.0 {
             params.initial[s].ln()
         } else {
@@ -119,8 +123,13 @@ pub fn viterbi(returns: &[f64], params: &HmmParams) -> Vec<RegimeState> {
     // ── Recursion ────────────────────────────────────────────────────────────
     for t in 1..n {
         for s in 0..NUM_STATES {
-            let emission = gaussian_pdf(returns[t], params.emission_mean[s], params.emission_std[s]);
-            let log_em = if emission > 0.0 { emission.ln() } else { f64::NEG_INFINITY };
+            let emission =
+                gaussian_pdf(returns[t], params.emission_mean[s], params.emission_std[s]);
+            let log_em = if emission > 0.0 {
+                emission.ln()
+            } else {
+                f64::NEG_INFINITY
+            };
 
             let mut best_val = f64::NEG_INFINITY;
             let mut best_prev = 0;
@@ -156,7 +165,13 @@ pub fn viterbi(returns: &[f64], params: &HmmParams) -> Vec<RegimeState> {
     }
 
     path.into_iter()
-        .map(|s| if s == 0 { RegimeState::Bull } else { RegimeState::Bear })
+        .map(|s| {
+            if s == 0 {
+                RegimeState::Bull
+            } else {
+                RegimeState::Bear
+            }
+        })
         .collect()
 }
 
@@ -242,7 +257,11 @@ impl RegimeAnalyzer {
         let n = states.len();
 
         let bull_count = states.iter().filter(|&&s| s == RegimeState::Bull).count();
-        let bull_fraction = if n == 0 { 0.0 } else { bull_count as f64 / n as f64 };
+        let bull_fraction = if n == 0 {
+            0.0
+        } else {
+            bull_count as f64 / n as f64
+        };
 
         let bull_periods = find_periods(&states, RegimeState::Bull);
         let bear_periods = find_periods(&states, RegimeState::Bear);
@@ -341,7 +360,9 @@ mod tests {
 
     #[test]
     fn state_sequence_length_matches_input() {
-        let returns: Vec<f64> = (0..100).map(|i| if i % 3 == 0 { -0.005 } else { 0.003 }).collect();
+        let returns: Vec<f64> = (0..100)
+            .map(|i| if i % 3 == 0 { -0.005 } else { 0.003 })
+            .collect();
         let params = HmmParams::default_financial();
         let states = viterbi(&returns, &params);
         assert_eq!(states.len(), returns.len());
@@ -371,7 +392,9 @@ mod tests {
 
     #[test]
     fn regime_adjusted_sharpe_returns_tuple() {
-        let returns: Vec<f64> = (0..100).map(|i| if i % 5 == 0 { -0.01 } else { 0.002 }).collect();
+        let returns: Vec<f64> = (0..100)
+            .map(|i| if i % 5 == 0 { -0.01 } else { 0.002 })
+            .collect();
         let params = HmmParams::default_financial();
         let states = viterbi(&returns, &params);
         let (bull_sharpe, bear_sharpe) = regime_adjusted_sharpe(&returns, &states);

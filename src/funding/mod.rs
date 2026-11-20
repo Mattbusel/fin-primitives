@@ -81,11 +81,7 @@ impl FundingRateCalculator {
     ///
     /// - Long positions: payment is positive when rate > 0 (they pay shorts).
     /// - Short positions: payment is positive when rate < 0 (they pay longs).
-    pub fn compute_payment(
-        position_size: f64,
-        funding_rate: f64,
-        is_long: bool,
-    ) -> FundingPayment {
+    pub fn compute_payment(position_size: f64, funding_rate: f64, is_long: bool) -> FundingPayment {
         // Payment = position_size * funding_rate; direction flips for shorts.
         let raw_payment = position_size * funding_rate;
         let payment = if is_long { raw_payment } else { -raw_payment };
@@ -169,12 +165,7 @@ impl FundingHistory {
     }
 
     /// Cumulative funding payment for a position across the most recent `window` settlements.
-    pub fn cumulative_payment(
-        &self,
-        position_size: f64,
-        is_long: bool,
-        window: usize,
-    ) -> f64 {
+    pub fn cumulative_payment(&self, position_size: f64, is_long: bool, window: usize) -> f64 {
         let len = self.records.len();
         let take = window.min(len);
         self.records
@@ -220,7 +211,11 @@ mod tests {
     use super::*;
 
     fn rate(r: f64) -> FundingRate {
-        FundingRate { rate: r, timestamp: 0, interval_hours: 8 }
+        FundingRate {
+            rate: r,
+            timestamp: 0,
+            interval_hours: 8,
+        }
     }
 
     // ── FundingRateCalculator ──────────────────────────────────────────────
@@ -252,8 +247,7 @@ mod tests {
 
     #[test]
     fn compute_funding_rate_within_clamp() {
-        let result =
-            FundingRateCalculator::compute_funding_rate(0.0002, 0.0001, 0.0005);
+        let result = FundingRateCalculator::compute_funding_rate(0.0002, 0.0001, 0.0005);
         assert!((result - 0.0003).abs() < 1e-12);
     }
 
@@ -319,7 +313,11 @@ mod tests {
     fn history_capacity_eviction() {
         let mut h = FundingHistory::new(3);
         for i in 0..5u64 {
-            h.add(FundingRate { rate: i as f64, timestamp: i, interval_hours: 8 });
+            h.add(FundingRate {
+                rate: i as f64,
+                timestamp: i,
+                interval_hours: 8,
+            });
         }
         // Should only retain last 3: 2.0, 3.0, 4.0
         assert_eq!(h.records.len(), 3);

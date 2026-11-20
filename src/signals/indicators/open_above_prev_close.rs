@@ -53,20 +53,33 @@ impl OpenAbovePrevClose {
 }
 
 impl Signal for OpenAbovePrevClose {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             let gap_up = bar.open > pc;
 
-            if gap_up { self.gap_up_count += 1; }
+            if gap_up {
+                self.gap_up_count += 1;
+            }
             self.gaps.push_back(gap_up);
 
             if self.gaps.len() > self.period {
-                let removed = self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
-                if removed { self.gap_up_count -= 1; }
+                let removed = self
+                    .gaps
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
+                if removed {
+                    self.gap_up_count -= 1;
+                }
             }
         }
 
@@ -105,7 +118,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,9 +138,15 @@ mod tests {
     fn test_oapc_unavailable_before_period() {
         let mut s = OpenAbovePrevClose::new("oapc", 3).unwrap();
         // First bar: no prev_close, gaps is empty → Unavailable
-        assert_eq!(s.update_bar(&bar("100","102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         // Second bar: 1 gap pair recorded, but < period → Unavailable
-        assert_eq!(s.update_bar(&bar("103","105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("103", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -132,11 +154,11 @@ mod tests {
     fn test_oapc_all_gap_up_gives_one() {
         let mut s = OpenAbovePrevClose::new("oapc", 2).unwrap();
         // Bar 1: close=100
-        s.update_bar(&bar("100","100")).unwrap();
+        s.update_bar(&bar("100", "100")).unwrap();
         // Bar 2: open=105 > 100 → gap up
-        s.update_bar(&bar("105","108")).unwrap();
+        s.update_bar(&bar("105", "108")).unwrap();
         // Bar 3: open=110 > 108 → gap up; window=[true,true]
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","112")).unwrap() {
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "112")).unwrap() {
             assert_eq!(v, dec!(1), "all gap-up should give 1.0: {v}");
         } else {
             panic!("expected Scalar");
@@ -146,9 +168,10 @@ mod tests {
     #[test]
     fn test_oapc_no_gap_up_gives_zero() {
         let mut s = OpenAbovePrevClose::new("oapc", 2).unwrap();
-        s.update_bar(&bar("105","105")).unwrap();
-        s.update_bar(&bar("103","103")).unwrap(); // open 103 < close 105 → gap down
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("101","101")).unwrap() { // open 101 < close 103 → gap down
+        s.update_bar(&bar("105", "105")).unwrap();
+        s.update_bar(&bar("103", "103")).unwrap(); // open 103 < close 105 → gap down
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("101", "101")).unwrap() {
+            // open 101 < close 103 → gap down
             assert_eq!(v, dec!(0), "all gap-down should give 0.0: {v}");
         } else {
             panic!("expected Scalar");
@@ -158,9 +181,15 @@ mod tests {
     #[test]
     fn test_oapc_in_range_zero_to_one() {
         let mut s = OpenAbovePrevClose::new("oapc", 3).unwrap();
-        let bars = [("100","102"),("103","101"),("99","100"),("101","103"),("102","100")];
-        for (o,c) in &bars {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(o,c)).unwrap() {
+        let bars = [
+            ("100", "102"),
+            ("103", "101"),
+            ("99", "100"),
+            ("101", "103"),
+            ("102", "100"),
+        ];
+        for (o, c) in &bars {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(o, c)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "fraction out of [0,1]: {v}");
             }
         }
@@ -169,7 +198,9 @@ mod tests {
     #[test]
     fn test_oapc_reset() {
         let mut s = OpenAbovePrevClose::new("oapc", 2).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100","102")).unwrap(); }
+        for _ in 0..4 {
+            s.update_bar(&bar("100", "102")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

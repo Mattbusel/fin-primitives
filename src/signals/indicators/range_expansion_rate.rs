@@ -100,7 +100,8 @@ impl Signal for RangeExpansionRate {
                 SignalValue::Unavailable
             } else {
                 #[allow(clippy::cast_possible_truncation)]
-                let mean = self.sum
+                let mean = self
+                    .sum
                     .checked_div(Decimal::from(self.period as u32))
                     .ok_or(FinError::ArithmeticOverflow)?;
                 SignalValue::Scalar(mean)
@@ -133,7 +134,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -150,10 +154,19 @@ mod tests {
     fn test_rer_unavailable_during_warmup() {
         let mut rer = RangeExpansionRate::new("rer", 3).unwrap();
         // First bar: no prev → Unavailable
-        assert_eq!(rer.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rer.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         // Bars 2 and 3: have ratio but window not full
-        assert_eq!(rer.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(rer.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rer.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            rer.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

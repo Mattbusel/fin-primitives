@@ -34,8 +34,8 @@
 //! ```
 
 use crate::position::PositionLedger;
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 // ── RiskFactor ────────────────────────────────────────────────────────────────
@@ -174,9 +174,11 @@ impl AttributionReport {
     ///
     /// Returns `None` if the report has no attribution entries.
     pub fn dominant_factor(&self) -> Option<&RiskAttribution> {
-        self.attributions
-            .iter()
-            .max_by(|a, b| a.contribution_pct.partial_cmp(&b.contribution_pct).unwrap_or(std::cmp::Ordering::Equal))
+        self.attributions.iter().max_by(|a, b| {
+            a.contribution_pct
+                .partial_cmp(&b.contribution_pct)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Returns all factors whose contribution exceeds `threshold_pct` percent.
@@ -260,7 +262,10 @@ impl Default for MarketData {
 impl MarketData {
     /// Creates a new `MarketData` with the given annualised market volatility.
     pub fn new(market_volatility: f64) -> Self {
-        Self { market_volatility, ..Default::default() }
+        Self {
+            market_volatility,
+            ..Default::default()
+        }
     }
 
     /// Sets the beta for a symbol.
@@ -350,7 +355,11 @@ impl BhbAttribution {
         self.sector_effects
             .iter()
             .filter(|s| s.allocation_effect > 0.0)
-            .max_by(|a, b| a.allocation_effect.partial_cmp(&b.allocation_effect).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.allocation_effect
+                    .partial_cmp(&b.allocation_effect)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// Returns the sector with the largest positive selection effect, or `None`.
@@ -358,7 +367,11 @@ impl BhbAttribution {
         self.sector_effects
             .iter()
             .filter(|s| s.selection_effect > 0.0)
-            .max_by(|a, b| a.selection_effect.partial_cmp(&b.selection_effect).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.selection_effect
+                    .partial_cmp(&b.selection_effect)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 }
 
@@ -441,7 +454,10 @@ pub struct RiskAttributor<'a> {
 impl<'a> RiskAttributor<'a> {
     /// Creates a new `RiskAttributor`.
     pub fn new(ledger: &'a PositionLedger, market_data: MarketData) -> Self {
-        Self { ledger, market_data }
+        Self {
+            ledger,
+            market_data,
+        }
     }
 
     /// Computes and returns an [`AttributionReport`].
@@ -457,9 +473,7 @@ impl<'a> RiskAttributor<'a> {
         let cash = self.ledger.cash();
         // Sum cost basis across all open positions as a proxy for invested capital.
         let positions: Vec<_> = self.ledger.positions().collect();
-        let total_cost_basis: Decimal = positions.iter()
-            .map(|p| p.total_cost_basis())
-            .sum();
+        let total_cost_basis: Decimal = positions.iter().map(|p| p.total_cost_basis()).sum();
         let equity_dec = cash + total_cost_basis;
         let equity = equity_dec.to_f64().unwrap_or(0.0);
 
@@ -478,14 +492,22 @@ impl<'a> RiskAttributor<'a> {
             .map(|p| (p.quantity * p.avg_cost).to_f64().unwrap_or(0.0).abs())
             .sum();
 
-        let leverage_ratio = if equity > 0.0 { gross_exposure / equity } else { 1.0 };
+        let leverage_ratio = if equity > 0.0 {
+            gross_exposure / equity
+        } else {
+            1.0
+        };
 
         // Per-symbol weights (fraction of gross exposure).
         let weights: Vec<(String, f64)> = positions
             .iter()
             .map(|p| {
                 let notional = (p.quantity * p.avg_cost).to_f64().unwrap_or(0.0).abs();
-                let w = if gross_exposure > 0.0 { notional / gross_exposure } else { 0.0 };
+                let w = if gross_exposure > 0.0 {
+                    notional / gross_exposure
+                } else {
+                    0.0
+                };
                 (p.symbol.to_string(), w)
             })
             .collect();
@@ -503,7 +525,10 @@ impl<'a> RiskAttributor<'a> {
         let avg_liquidity: f64 = if weights.is_empty() {
             1.0
         } else {
-            weights.iter().map(|(sym, w)| w * self.market_data.liquidity(sym)).sum()
+            weights
+                .iter()
+                .map(|(sym, w)| w * self.market_data.liquidity(sym))
+                .sum()
         };
 
         // Idiosyncratic variance contribution: Σ w_i² × σ²_idio_i
@@ -528,10 +553,18 @@ impl<'a> RiskAttributor<'a> {
         let concentration_var = hhi * mkt_var * 0.3; // concentration HHI premium
         let liquidity_var = (1.0 - avg_liquidity.clamp(0.0, 1.0)) * mkt_var;
 
-        let total_variance =
-            market_var + sector_var + idio_variance + leverage_premium + concentration_var + liquidity_var;
+        let total_variance = market_var
+            + sector_var
+            + idio_variance
+            + leverage_premium
+            + concentration_var
+            + liquidity_var;
 
-        let total_risk_vol = if total_variance > 0.0 { total_variance.sqrt() } else { 0.0 };
+        let total_risk_vol = if total_variance > 0.0 {
+            total_variance.sqrt()
+        } else {
+            0.0
+        };
         let total_risk_currency = total_risk_vol * equity;
 
         let factor_variances = [
@@ -546,7 +579,11 @@ impl<'a> RiskAttributor<'a> {
         let attributions = factor_variances
             .iter()
             .map(|(factor, var)| {
-                let pct = if total_variance > 0.0 { var / total_variance * 100.0 } else { 0.0 };
+                let pct = if total_variance > 0.0 {
+                    var / total_variance * 100.0
+                } else {
+                    0.0
+                };
                 let value = var.sqrt() * equity;
                 RiskAttribution {
                     factor: *factor,
@@ -577,10 +614,10 @@ impl<'a> RiskAttributor<'a> {
             .sectors
             .iter()
             .map(|s| {
-                let allocation = (s.portfolio_weight - s.benchmark_weight)
-                    * (s.benchmark_sector_return - r_b);
-                let selection = s.benchmark_weight
-                    * (s.portfolio_sector_return - s.benchmark_sector_return);
+                let allocation =
+                    (s.portfolio_weight - s.benchmark_weight) * (s.benchmark_sector_return - r_b);
+                let selection =
+                    s.benchmark_weight * (s.portfolio_sector_return - s.benchmark_sector_return);
                 let interaction = (s.portfolio_weight - s.benchmark_weight)
                     * (s.portfolio_sector_return - s.benchmark_sector_return);
 
@@ -614,7 +651,11 @@ impl<'a> RiskAttributor<'a> {
     fn empty_report(&self, equity: f64) -> AttributionReport {
         let attributions = RiskFactor::all()
             .iter()
-            .map(|&factor| RiskAttribution { factor, contribution_pct: 0.0, value: 0.0 })
+            .map(|&factor| RiskAttribution {
+                factor,
+                contribution_pct: 0.0,
+                value: 0.0,
+            })
             .collect();
         AttributionReport {
             attributions,
@@ -632,9 +673,9 @@ impl<'a> RiskAttributor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::position::Fill;
     use crate::position::PositionLedger;
     use crate::types::{NanoTimestamp, Price, Quantity, Side, Symbol};
-    use crate::position::Fill;
     use rust_decimal_macros::dec;
 
     fn make_fill(symbol: &str, side: Side, qty: &str, price: &str) -> Fill {
@@ -649,8 +690,12 @@ mod tests {
 
     fn ledger_with_position() -> PositionLedger {
         let mut ledger = PositionLedger::new(dec!(100_000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150")).unwrap();
-        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "300")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "150"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "300"))
+            .unwrap();
         ledger
     }
 
@@ -670,7 +715,10 @@ mod tests {
 
     #[test]
     fn test_risk_factor_market_name() {
-        assert!(RiskFactor::Market.name().contains("Market") || RiskFactor::Market.name().contains("Beta"));
+        assert!(
+            RiskFactor::Market.name().contains("Market")
+                || RiskFactor::Market.name().contains("Beta")
+        );
     }
 
     // ── AttributionReport ────────────────────────────────────────────────────
@@ -691,7 +739,10 @@ mod tests {
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();
         let total: f64 = report.attributions.iter().map(|a| a.contribution_pct).sum();
-        assert!((total - 100.0).abs() < 1.0, "percentages should sum to ~100, got {total}");
+        assert!(
+            (total - 100.0).abs() < 1.0,
+            "percentages should sum to ~100, got {total}"
+        );
     }
 
     #[test]
@@ -716,7 +767,10 @@ mod tests {
         let market_data = MarketData::default();
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();
-        assert!(report.total_risk > 0.0, "total risk should be positive for a non-empty portfolio");
+        assert!(
+            report.total_risk > 0.0,
+            "total risk should be positive for a non-empty portfolio"
+        );
     }
 
     #[test]
@@ -754,7 +808,10 @@ mod tests {
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();
         // ledger started with 100k; positions cost 1500 + 1500 = 3000, well within equity
-        assert!(report.leverage_ratio < 2.0, "leverage ratio should be < 2 for lightly invested portfolio");
+        assert!(
+            report.leverage_ratio < 2.0,
+            "leverage ratio should be < 2 for lightly invested portfolio"
+        );
     }
 
     #[test]
@@ -771,7 +828,9 @@ mod tests {
     #[test]
     fn test_attribution_report_hhi_single_position() {
         let mut ledger = PositionLedger::new(dec!(100_000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100"))
+            .unwrap();
         let market_data = MarketData::default();
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();
@@ -792,8 +851,16 @@ mod tests {
         let attributor = RiskAttributor::new(&ledger, market_data);
         let report = attributor.compute();
         // Weighted average beta should be between 1.2 and 1.5
-        assert!(report.portfolio_beta >= 1.2, "beta should be >= 1.2, got {}", report.portfolio_beta);
-        assert!(report.portfolio_beta <= 1.5, "beta should be <= 1.5, got {}", report.portfolio_beta);
+        assert!(
+            report.portfolio_beta >= 1.2,
+            "beta should be >= 1.2, got {}",
+            report.portfolio_beta
+        );
+        assert!(
+            report.portfolio_beta <= 1.5,
+            "beta should be <= 1.5, got {}",
+            report.portfolio_beta
+        );
     }
 
     #[test]

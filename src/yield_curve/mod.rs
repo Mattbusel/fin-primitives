@@ -25,7 +25,11 @@ pub struct YieldCurve {
 impl YieldCurve {
     /// Construct a new [`YieldCurve`], sorting points by maturity ascending.
     pub fn new(mut points: Vec<YieldPoint>) -> Self {
-        points.sort_by(|a, b| a.maturity_years.partial_cmp(&b.maturity_years).unwrap_or(std::cmp::Ordering::Equal));
+        points.sort_by(|a, b| {
+            a.maturity_years
+                .partial_cmp(&b.maturity_years)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Self { points }
     }
 
@@ -123,8 +127,8 @@ impl YieldCurve {
         let hi = h[i];
 
         let a = pts[i].yield_rate;
-        let b_coef = (pts[i + 1].yield_rate - pts[i].yield_rate) / hi
-            - hi * (2.0 * m[i] + m[i + 1]) / 6.0;
+        let b_coef =
+            (pts[i + 1].yield_rate - pts[i].yield_rate) / hi - hi * (2.0 * m[i] + m[i + 1]) / 6.0;
         let c_coef = m[i] / 2.0;
         let d_coef = (m[i + 1] - m[i]) / (6.0 * hi);
 
@@ -263,7 +267,12 @@ impl NelsonSiegel {
     /// Fit a Nelson-Siegel model to observed yield points using gradient descent (500 iterations).
     pub fn fit(points: &[YieldPoint]) -> Self {
         if points.is_empty() {
-            return Self { beta0: 0.05, beta1: -0.02, beta2: 0.01, tau: 1.5 };
+            return Self {
+                beta0: 0.05,
+                beta1: -0.02,
+                beta2: 0.01,
+                tau: 1.5,
+            };
         }
 
         let mut beta0 = 0.05f64;
@@ -324,7 +333,12 @@ impl NelsonSiegel {
             tau = tau.max(0.01); // keep tau positive
         }
 
-        Self { beta0, beta1, beta2, tau }
+        Self {
+            beta0,
+            beta1,
+            beta2,
+            tau,
+        }
     }
 }
 
@@ -341,19 +355,41 @@ fn tridiagonal_solve(lower: &[f64], diag: &[f64], upper: &[f64], rhs: &[f64]) ->
     let mut x = vec![0.0f64; n];
 
     // Forward sweep
-    c_prime[0] = if diag[0].abs() < 1e-15 { 0.0 } else { upper[0] / diag[0] };
-    d_prime[0] = if diag[0].abs() < 1e-15 { 0.0 } else { rhs[0] / diag[0] };
+    c_prime[0] = if diag[0].abs() < 1e-15 {
+        0.0
+    } else {
+        upper[0] / diag[0]
+    };
+    d_prime[0] = if diag[0].abs() < 1e-15 {
+        0.0
+    } else {
+        rhs[0] / diag[0]
+    };
 
     for i in 1..n {
         let denom = if i < n && i - 1 < lower.len() {
-            diag[i] - lower[i - 1] * if i - 1 < c_prime.len() { c_prime[i - 1] } else { 0.0 }
+            diag[i]
+                - lower[i - 1]
+                    * if i - 1 < c_prime.len() {
+                        c_prime[i - 1]
+                    } else {
+                        0.0
+                    }
         } else {
             diag[i]
         };
         if i < n - 1 && i < c_prime.len() {
-            c_prime[i] = if denom.abs() < 1e-15 { 0.0 } else { upper[i] / denom };
+            c_prime[i] = if denom.abs() < 1e-15 {
+                0.0
+            } else {
+                upper[i] / denom
+            };
         }
-        d_prime[i] = if denom.abs() < 1e-15 { 0.0 } else { (rhs[i] - lower.get(i - 1).copied().unwrap_or(0.0) * d_prime[i - 1]) / denom };
+        d_prime[i] = if denom.abs() < 1e-15 {
+            0.0
+        } else {
+            (rhs[i] - lower.get(i - 1).copied().unwrap_or(0.0) * d_prime[i - 1]) / denom
+        };
     }
 
     // Back substitution
@@ -370,22 +406,52 @@ mod tests {
 
     fn sample_curve() -> YieldCurve {
         YieldCurve::new(vec![
-            YieldPoint { maturity_years: 0.25, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 0.5,  yield_rate: 0.042 },
-            YieldPoint { maturity_years: 1.0,  yield_rate: 0.045 },
-            YieldPoint { maturity_years: 2.0,  yield_rate: 0.048 },
-            YieldPoint { maturity_years: 5.0,  yield_rate: 0.052 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.055 },
-            YieldPoint { maturity_years: 30.0, yield_rate: 0.058 },
+            YieldPoint {
+                maturity_years: 0.25,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 0.5,
+                yield_rate: 0.042,
+            },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.045,
+            },
+            YieldPoint {
+                maturity_years: 2.0,
+                yield_rate: 0.048,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.052,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.055,
+            },
+            YieldPoint {
+                maturity_years: 30.0,
+                yield_rate: 0.058,
+            },
         ])
     }
 
     #[test]
     fn test_curve_sorted_on_construction() {
         let curve = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.05 },
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 2.0, yield_rate: 0.045 },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.05,
+            },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 2.0,
+                yield_rate: 0.045,
+            },
         ]);
         assert!(curve.points[0].maturity_years <= curve.points[1].maturity_years);
         assert!(curve.points[1].maturity_years <= curve.points[2].maturity_years);
@@ -422,7 +488,10 @@ mod tests {
     fn test_cubic_spline_at_knot() {
         let c = sample_curve();
         let r = c.cubic_spline(1.0);
-        assert!((r - 0.045).abs() < 1e-6, "spline at knot should equal knot value, got {r}");
+        assert!(
+            (r - 0.045).abs() < 1e-6,
+            "spline at knot should equal knot value, got {r}"
+        );
     }
 
     #[test]
@@ -458,7 +527,10 @@ mod tests {
         let c = sample_curve();
         let f = c.forward_rate(0.5, 5.0).unwrap();
         assert!(f > 0.0);
-        assert!(matches!(c.forward_rate(2.0, 1.0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(
+            c.forward_rate(2.0, 1.0),
+            Err(FinError::InvalidInput(_))
+        ));
         assert!(c.forward_rate(1.0, f64::NAN).is_err());
     }
 
@@ -491,15 +563,27 @@ mod tests {
     fn test_convexity_single_cf() {
         let c = sample_curve();
         let conv = c.convexity(&[(3.0, 1000.0)]);
-        assert!((conv - 9.0).abs() < 1e-10, "single CF convexity = t^2 = 9, got {conv}");
+        assert!(
+            (conv - 9.0).abs() < 1e-10,
+            "single CF convexity = t^2 = 9, got {conv}"
+        );
     }
 
     #[test]
     fn test_shape_normal() {
         let c = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.03 },
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.05 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.03,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.05,
+            },
         ]);
         assert_eq!(c.shape(), CurveShape::Normal);
     }
@@ -507,9 +591,18 @@ mod tests {
     #[test]
     fn test_shape_inverted() {
         let c = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.05 },
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.03 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.05,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.03,
+            },
         ]);
         assert_eq!(c.shape(), CurveShape::Inverted);
     }
@@ -517,9 +610,18 @@ mod tests {
     #[test]
     fn test_shape_flat() {
         let c = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.0405 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.0402 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.0405,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.0402,
+            },
         ]);
         assert_eq!(c.shape(), CurveShape::Flat);
     }
@@ -527,23 +629,42 @@ mod tests {
     #[test]
     fn test_shape_humped() {
         let c = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 1.0,  yield_rate: 0.03 },
-            YieldPoint { maturity_years: 3.0,  yield_rate: 0.06 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.03 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.03,
+            },
+            YieldPoint {
+                maturity_years: 3.0,
+                yield_rate: 0.06,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.03,
+            },
         ]);
         assert_eq!(c.shape(), CurveShape::Humped);
     }
 
     #[test]
     fn test_nelson_siegel_rate_at_zero() {
-        let ns = NelsonSiegel { beta0: 0.05, beta1: -0.02, beta2: 0.01, tau: 1.5 };
+        let ns = NelsonSiegel {
+            beta0: 0.05,
+            beta1: -0.02,
+            beta2: 0.01,
+            tau: 1.5,
+        };
         // At t→0: rate = beta0 + beta1 = 0.03
         assert!((ns.rate(0.0) - 0.03).abs() < 1e-10);
     }
 
     #[test]
     fn test_nelson_siegel_rate_long_end() {
-        let ns = NelsonSiegel { beta0: 0.05, beta1: -0.02, beta2: 0.01, tau: 1.5 };
+        let ns = NelsonSiegel {
+            beta0: 0.05,
+            beta1: -0.02,
+            beta2: 0.01,
+            tau: 1.5,
+        };
         // At t→∞: rate → beta0 = 0.05
         let r = ns.rate(1000.0);
         assert!((r - 0.05).abs() < 0.001, "long-end rate = {r}");
@@ -552,26 +673,51 @@ mod tests {
     #[test]
     fn test_nelson_siegel_fit_convergence() {
         let pts = vec![
-            YieldPoint { maturity_years: 0.25, yield_rate: 0.03 },
-            YieldPoint { maturity_years: 1.0,  yield_rate: 0.035 },
-            YieldPoint { maturity_years: 2.0,  yield_rate: 0.04 },
-            YieldPoint { maturity_years: 5.0,  yield_rate: 0.045 },
-            YieldPoint { maturity_years: 10.0, yield_rate: 0.048 },
+            YieldPoint {
+                maturity_years: 0.25,
+                yield_rate: 0.03,
+            },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.035,
+            },
+            YieldPoint {
+                maturity_years: 2.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.045,
+            },
+            YieldPoint {
+                maturity_years: 10.0,
+                yield_rate: 0.048,
+            },
         ];
         let ns = NelsonSiegel::fit(&pts);
         // Fitted curve should approximate observed rates reasonably
         for pt in &pts {
             let fitted = ns.rate(pt.maturity_years);
-            assert!((fitted - pt.yield_rate).abs() < 0.02,
-                "NS fit at {} years: fitted={fitted}, obs={}", pt.maturity_years, pt.yield_rate);
+            assert!(
+                (fitted - pt.yield_rate).abs() < 0.02,
+                "NS fit at {} years: fitted={fitted}, obs={}",
+                pt.maturity_years,
+                pt.yield_rate
+            );
         }
     }
 
     #[test]
     fn test_nelson_siegel_tau_positive_after_fit() {
         let pts = vec![
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.05 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.05,
+            },
         ];
         let ns = NelsonSiegel::fit(&pts);
         assert!(ns.tau > 0.0, "tau must remain positive after fit");
@@ -581,9 +727,9 @@ mod tests {
     fn test_tridiagonal_identity() {
         // Solve [2,1; 1,2] * x = [3; 3] → x = [1; 1]
         let lower = vec![1.0f64];
-        let diag  = vec![2.0f64, 2.0f64];
+        let diag = vec![2.0f64, 2.0f64];
         let upper = vec![1.0f64];
-        let rhs   = vec![3.0f64, 3.0f64];
+        let rhs = vec![3.0f64, 3.0f64];
         let sol = tridiagonal_solve(&lower, &diag, &upper, &rhs);
         assert!((sol[0] - 1.0).abs() < 1e-10);
         assert!((sol[1] - 1.0).abs() < 1e-10);
@@ -592,8 +738,14 @@ mod tests {
     #[test]
     fn test_two_point_curve_cubic_equals_linear() {
         let c = YieldCurve::new(vec![
-            YieldPoint { maturity_years: 1.0, yield_rate: 0.04 },
-            YieldPoint { maturity_years: 5.0, yield_rate: 0.05 },
+            YieldPoint {
+                maturity_years: 1.0,
+                yield_rate: 0.04,
+            },
+            YieldPoint {
+                maturity_years: 5.0,
+                yield_rate: 0.05,
+            },
         ]);
         let m = 3.0;
         assert!((c.cubic_spline(m) - c.linear_interp(m)).abs() < 1e-10);

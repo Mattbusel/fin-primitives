@@ -33,9 +33,15 @@ impl PriceSymmetry {
 }
 
 impl Signal for PriceSymmetry {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -69,7 +75,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -87,7 +96,7 @@ mod tests {
     fn test_ps_symmetric_bar_gives_zero() {
         // Open=100, H=110, L=90 → mid=100, (100-100)/20 = 0
         let mut s = PriceSymmetry::new("ps");
-        let v = s.update_bar(&bar("100","110","90","100")).unwrap();
+        let v = s.update_bar(&bar("100", "110", "90", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
@@ -95,8 +104,11 @@ mod tests {
     fn test_ps_open_at_low_gives_half() {
         // Open=90, H=110, L=90 → mid=100, (100-90)/20 = 0.5
         let mut s = PriceSymmetry::new("ps");
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("90","110","90","100")).unwrap() {
-            assert!((v - dec!(0.5)).abs() < dec!(0.001), "open at low gives 0.5: {v}");
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("90", "110", "90", "100")).unwrap() {
+            assert!(
+                (v - dec!(0.5)).abs() < dec!(0.001),
+                "open at low gives 0.5: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -106,8 +118,11 @@ mod tests {
     fn test_ps_open_at_high_gives_neg_half() {
         // Open=110, H=110, L=90 → mid=100, (100-110)/20 = -0.5
         let mut s = PriceSymmetry::new("ps");
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","110","90","100")).unwrap() {
-            assert!((v - dec!(-0.5)).abs() < dec!(0.001), "open at high gives -0.5: {v}");
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "110", "90", "100")).unwrap() {
+            assert!(
+                (v - dec!(-0.5)).abs() < dec!(0.001),
+                "open at high gives -0.5: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -116,7 +131,7 @@ mod tests {
     #[test]
     fn test_ps_zero_range_gives_zero() {
         let mut s = PriceSymmetry::new("ps");
-        let v = s.update_bar(&bar("100","100","100","100")).unwrap();
+        let v = s.update_bar(&bar("100", "100", "100", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 

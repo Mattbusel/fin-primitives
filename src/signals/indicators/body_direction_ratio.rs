@@ -43,7 +43,9 @@ impl BodyDirectionRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -56,24 +58,46 @@ impl BodyDirectionRatio {
 }
 
 impl Signal for BodyDirectionRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bull_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bull_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.body_size();
-        let bull = if bar.is_bullish() { body } else { Decimal::ZERO };
-        let bear = if bar.is_bearish() { body } else { Decimal::ZERO };
+        let bull = if bar.is_bullish() {
+            body
+        } else {
+            Decimal::ZERO
+        };
+        let bear = if bar.is_bearish() {
+            body
+        } else {
+            Decimal::ZERO
+        };
         self.bull_window.push_back(bull);
         self.bear_window.push_back(bear);
         self.bull_sum += bull;
         self.bear_sum += bear;
         if self.bull_window.len() > self.period {
-            if let Some(old_b) = self.bull_window.pop_front() { self.bull_sum -= old_b; }
-            if let Some(old_r) = self.bear_window.pop_front() { self.bear_sum -= old_r; }
+            if let Some(old_b) = self.bull_window.pop_front() {
+                self.bull_sum -= old_b;
+            }
+            if let Some(old_r) = self.bear_window.pop_front() {
+                self.bear_sum -= old_r;
+            }
         }
-        if self.bull_window.len() < self.period { return Ok(SignalValue::Unavailable); }
-        if self.bear_sum.is_zero() { return Ok(SignalValue::Unavailable); }
+        if self.bull_window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
+        if self.bear_sum.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         Ok(SignalValue::Scalar(self.bull_sum / self.bear_sum))
     }
 
@@ -97,10 +121,13 @@ mod tests {
         let op = Price::new(o.parse().unwrap()).unwrap();
         let cp = Price::new(c.parse().unwrap()).unwrap();
         let high = if cp.value() > op.value() { cp } else { op };
-        let low  = if cp.value() < op.value() { cp } else { op };
+        let low = if cp.value() < op.value() { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp,
+            open: op,
+            high,
+            low,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,12 +136,17 @@ mod tests {
     }
 
     #[test]
-    fn test_bdr_period_0_error() { assert!(BodyDirectionRatio::new("bdr", 0).is_err()); }
+    fn test_bdr_period_0_error() {
+        assert!(BodyDirectionRatio::new("bdr", 0).is_err());
+    }
 
     #[test]
     fn test_bdr_unavailable_before_period() {
         let mut bdr = BodyDirectionRatio::new("bdr", 3).unwrap();
-        assert_eq!(bdr.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bdr.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

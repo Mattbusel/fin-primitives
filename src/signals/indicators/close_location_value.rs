@@ -39,7 +39,9 @@ impl CloseLocationValue {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,21 +51,31 @@ impl CloseLocationValue {
 }
 
 impl Signal for CloseLocationValue {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let clv = bar.close_location_value();
 
         self.clvs.push_back(clv);
-        if self.clvs.len() > self.period { self.clvs.pop_front(); }
-        if self.clvs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.clvs.len() > self.period {
+            self.clvs.pop_front();
+        }
+        if self.clvs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.clvs.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.clvs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.clvs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.clvs.clear();
@@ -83,7 +95,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -91,7 +106,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hlc(c, c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hlc(c, c, c)
+    }
 
     #[test]
     fn test_clv_invalid() {
@@ -112,7 +129,9 @@ mod tests {
         let mut c = CloseLocationValue::new("c", 1).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar_hlc("110", "90", "110")).unwrap() {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -120,7 +139,9 @@ mod tests {
         let mut c = CloseLocationValue::new("c", 1).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar_hlc("110", "90", "90")).unwrap() {
             assert_eq!(v, dec!(-1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -128,7 +149,9 @@ mod tests {
         let mut c = CloseLocationValue::new("c", 1).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar_hlc("110", "90", "100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -137,7 +160,9 @@ mod tests {
         let mut c = CloseLocationValue::new("c", 1).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -147,13 +172,17 @@ mod tests {
         c.update_bar(&bar_hlc("110", "90", "110")).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar_hlc("110", "90", "90")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_clv_reset() {
         let mut c = CloseLocationValue::new("c", 3).unwrap();
-        for _ in 0..5 { c.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            c.update_bar(&bar("100")).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

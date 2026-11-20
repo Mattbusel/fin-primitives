@@ -39,7 +39,9 @@ impl MaxDrawdownWindow {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,29 +51,43 @@ impl MaxDrawdownWindow {
 }
 
 impl Signal for MaxDrawdownWindow {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let mut running_max = self.closes[0];
         let mut max_dd = Decimal::ZERO;
 
         for &c in &self.closes {
-            if c > running_max { running_max = c; }
+            if c > running_max {
+                running_max = c;
+            }
             if !running_max.is_zero() {
                 let dd = (running_max - c) / running_max * Decimal::from(100u32);
-                if dd > max_dd { max_dd = dd; }
+                if dd > max_dd {
+                    max_dd = dd;
+                }
             }
         }
 
         Ok(SignalValue::Scalar(max_dd))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -89,7 +105,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,10 +134,14 @@ mod tests {
     fn test_mdw_flat_is_zero() {
         let mut m = MaxDrawdownWindow::new("m", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = m.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = m.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -131,7 +154,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -144,13 +169,17 @@ mod tests {
             let expected = (dec!(110) - dec!(90)) / dec!(110) * dec!(100);
             let diff = (v - expected).abs();
             assert!(diff < dec!(0.001), "expected {expected}, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_mdw_reset() {
         let mut m = MaxDrawdownWindow::new("m", 3).unwrap();
-        for _ in 0..5 { m.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            m.update_bar(&bar("100")).unwrap();
+        }
         assert!(m.is_ready());
         m.reset();
         assert!(!m.is_ready());

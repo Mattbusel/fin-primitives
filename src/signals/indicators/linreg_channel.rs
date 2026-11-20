@@ -43,7 +43,9 @@ impl LinRegChannel {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize, multiplier: f64) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -55,9 +57,13 @@ impl LinRegChannel {
     }
 
     /// Returns the upper channel line value from the most recent bar.
-    pub fn upper(&self) -> Option<Decimal> { self.upper }
+    pub fn upper(&self) -> Option<Decimal> {
+        self.upper
+    }
     /// Returns the lower channel line value from the most recent bar.
-    pub fn lower(&self) -> Option<Decimal> { self.lower }
+    pub fn lower(&self) -> Option<Decimal> {
+        self.lower
+    }
     /// Returns the channel width (`upper - lower`), if available.
     pub fn channel_width(&self) -> Option<Decimal> {
         Some(self.upper? - self.lower?)
@@ -65,7 +71,9 @@ impl LinRegChannel {
 }
 
 impl Signal for LinRegChannel {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -80,7 +88,9 @@ impl Signal for LinRegChannel {
 
         let n = self.period as f64;
         let xs: Vec<f64> = (0..self.period).map(|i| i as f64).collect();
-        let ys: Vec<f64> = self.closes.iter()
+        let ys: Vec<f64> = self
+            .closes
+            .iter()
             .map(|c| c.to_f64().unwrap_or(0.0))
             .collect();
 
@@ -88,14 +98,20 @@ impl Signal for LinRegChannel {
         let y_mean = ys.iter().sum::<f64>() / n;
 
         let ss_xx: f64 = xs.iter().map(|x| (x - x_mean).powi(2)).sum();
-        let ss_xy: f64 = xs.iter().zip(ys.iter()).map(|(x, y)| (x - x_mean) * (y - y_mean)).sum();
+        let ss_xy: f64 = xs
+            .iter()
+            .zip(ys.iter())
+            .map(|(x, y)| (x - x_mean) * (y - y_mean))
+            .sum();
 
         let b = if ss_xx == 0.0 { 0.0 } else { ss_xy / ss_xx };
         let a = y_mean - b * x_mean;
         let midline = a + b * (self.period as f64 - 1.0);
 
         // Residual standard deviation
-        let residuals: f64 = xs.iter().zip(ys.iter())
+        let residuals: f64 = xs
+            .iter()
+            .zip(ys.iter())
             .map(|(x, y)| (y - (a + b * x)).powi(2))
             .sum::<f64>()
             / n;
@@ -140,7 +156,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -158,7 +177,10 @@ mod tests {
     fn test_lrc_unavailable_before_period() {
         let mut lrc = LinRegChannel::new("l", 4, 2.0).unwrap();
         for _ in 0..3 {
-            assert_eq!(lrc.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                lrc.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!lrc.is_ready());
     }
@@ -166,7 +188,9 @@ mod tests {
     #[test]
     fn test_lrc_flat_mid_equals_price() {
         let mut lrc = LinRegChannel::new("l", 4, 2.0).unwrap();
-        for _ in 0..4 { lrc.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            lrc.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = lrc.update_bar(&bar("100")).unwrap() {
             let diff = (v - dec!(100)).abs();
             assert!(diff < dec!(0.001), "expected midline ~100, got {v}");
@@ -190,7 +214,9 @@ mod tests {
     #[test]
     fn test_lrc_reset() {
         let mut lrc = LinRegChannel::new("l", 3, 2.0).unwrap();
-        for _ in 0..5 { lrc.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            lrc.update_bar(&bar("100")).unwrap();
+        }
         assert!(lrc.is_ready());
         lrc.reset();
         assert!(!lrc.is_ready());

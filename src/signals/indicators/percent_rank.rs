@@ -63,16 +63,18 @@ impl Signal for PercentRank {
 
         let current = bar.close;
         // Compare current close against the prior `period` closes (all except the last pushed)
-        let count = self.values
+        let count = self
+            .values
             .iter()
             .rev()
-            .skip(1)          // skip current bar
+            .skip(1) // skip current bar
             .take(self.period)
             .filter(|&&v| v <= current)
             .count();
 
         #[allow(clippy::cast_possible_truncation)]
-        let pct = Decimal::from(count as u32) / Decimal::from(self.period as u32) * Decimal::ONE_HUNDRED;
+        let pct =
+            Decimal::from(count as u32) / Decimal::from(self.period as u32) * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(pct))
     }
 
@@ -101,7 +103,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cl, high: cl, low: cl, close: cl,
+            open: cl,
+            high: cl,
+            low: cl,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,7 +122,10 @@ mod tests {
     #[test]
     fn test_pr_unavailable_before_period() {
         let mut pr = PercentRank::new("pr", 3).unwrap();
-        assert_eq!(pr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pr.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pr.is_ready());
     }
 

@@ -54,9 +54,15 @@ impl BullBearBalance {
 }
 
 impl Signal for BullBearBalance {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let (bull, bear) = if bar.is_bullish() {
@@ -72,7 +78,10 @@ impl Signal for BullBearBalance {
         self.window.push_back((bull, bear));
 
         if self.window.len() > self.period {
-            let (ob, od) = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let (ob, od) = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.bull_sum -= ob;
             self.bear_sum -= od;
         }
@@ -85,7 +94,8 @@ impl Signal for BullBearBalance {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = self.bull_sum
+        let ratio = self
+            .bull_sum
             .checked_div(self.bear_sum)
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
@@ -111,7 +121,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp.max(op), low: cp.min(op), close: cp,
+            open: op,
+            high: cp.max(op),
+            low: cp.min(op),
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,8 +140,14 @@ mod tests {
     #[test]
     fn test_bbb_unavailable_before_period() {
         let mut s = BullBearBalance::new("bbb", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("105", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("105", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

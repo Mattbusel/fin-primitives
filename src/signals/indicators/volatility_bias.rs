@@ -118,7 +118,8 @@ impl crate::signals::Signal for VolatilityBias {
             return Ok(SignalValue::Unavailable);
         }
 
-        let bias = self.up_sum
+        let bias = self
+            .up_sum
             .checked_div(self.total_sum)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -165,7 +166,10 @@ mod tests {
     fn test_vb_unavailable_during_warmup() {
         let mut vb = VolatilityBias::new("vb", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vb.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vb.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

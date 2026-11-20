@@ -61,7 +61,11 @@ impl TrendAcceleration {
             num += (x - x_mean) * (y - y_mean);
             den += (x - x_mean).powi(2);
         }
-        if den == 0.0 { 0.0 } else { num / den }
+        if den == 0.0 {
+            0.0
+        } else {
+            num / den
+        }
     }
 }
 
@@ -170,7 +174,11 @@ mod tests {
         let v = ta.update_bar(&bar("60")).unwrap();
         if let SignalValue::Scalar(s) = v {
             // Acceleration of a perfectly linear series should be near 0
-            assert!(s.abs() < dec!(0.001), "expected near-zero acceleration, got {}", s);
+            assert!(
+                s.abs() < dec!(0.001),
+                "expected near-zero acceleration, got {}",
+                s
+            );
         } else {
             panic!("expected scalar");
         }

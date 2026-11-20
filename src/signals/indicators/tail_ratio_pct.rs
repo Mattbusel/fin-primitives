@@ -33,9 +33,15 @@ impl TailRatioPct {
 }
 
 impl Signal for TailRatioPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let upper_wick = bar.upper_wick();
@@ -50,7 +56,9 @@ impl Signal for TailRatioPct {
             .checked_div(total_wick)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        Ok(SignalValue::Scalar(ratio.clamp(Decimal::ZERO, Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            ratio.clamp(Decimal::ZERO, Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {}
@@ -71,7 +79,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -101,7 +112,10 @@ mod tests {
         // open=100, close=100, high=110, low=90 → upper=10, lower=10 → 0.5
         let v = s.update_bar(&bar("100", "110", "90", "100")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(0.5)).abs() < dec!(0.0001), "expected 0.5, got {r}");
+            assert!(
+                (r - dec!(0.5)).abs() < dec!(0.0001),
+                "expected 0.5, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -119,8 +133,8 @@ mod tests {
     fn test_trp_output_in_unit_interval() {
         let mut s = TailRatioPct::new("trp");
         let bars = [
-            bar("100","115","95","110"),
-            bar("110","120","105","112"),
+            bar("100", "115", "95", "110"),
+            bar("110", "120", "105", "112"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {

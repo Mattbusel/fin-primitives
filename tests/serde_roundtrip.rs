@@ -208,7 +208,13 @@ fn deserializing_invalid_values_is_an_error() {
 #[test]
 fn wire_format_is_unchanged() {
     // Prices and quantities are exact decimal strings, symbols plain strings.
-    assert_eq!(serde_json::to_string(&price("100.50")).unwrap(), r#""100.50""#);
+    assert_eq!(
+        serde_json::to_string(&price("100.50")).unwrap(),
+        r#""100.50""#
+    );
     assert_eq!(serde_json::to_string(&qty("0")).unwrap(), r#""0""#);
-    assert_eq!(serde_json::to_string(&sym("ETH-USD")).unwrap(), r#""ETH-USD""#);
+    assert_eq!(
+        serde_json::to_string(&sym("ETH-USD")).unwrap(),
+        r#""ETH-USD""#
+    );
 }

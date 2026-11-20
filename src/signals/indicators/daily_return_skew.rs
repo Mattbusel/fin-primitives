@@ -50,9 +50,15 @@ impl DailyReturnSkew {
 }
 
 impl Signal for DailyReturnSkew {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -64,21 +70,37 @@ impl Signal for DailyReturnSkew {
                 };
 
                 self.returns.push_back(ret);
-                if self.returns.len() > self.period { self.returns.pop_front(); }
+                if self.returns.len() > self.period {
+                    self.returns.pop_front();
+                }
 
                 if self.returns.len() < self.period {
                     SignalValue::Unavailable
                 } else {
                     let n = self.returns.len() as f64;
                     let mean = self.returns.iter().sum::<f64>() / n;
-                    let var = self.returns.iter().map(|r| { let d = r - mean; d * d }).sum::<f64>() / n;
+                    let var = self
+                        .returns
+                        .iter()
+                        .map(|r| {
+                            let d = r - mean;
+                            d * d
+                        })
+                        .sum::<f64>()
+                        / n;
                     let std_dev = var.sqrt();
                     if std_dev == 0.0 {
                         return Ok(SignalValue::Unavailable);
                     }
-                    let skew = self.returns.iter()
-                        .map(|r| { let d = (r - mean) / std_dev; d * d * d })
-                        .sum::<f64>() / n;
+                    let skew = self
+                        .returns
+                        .iter()
+                        .map(|r| {
+                            let d = (r - mean) / std_dev;
+                            d * d * d
+                        })
+                        .sum::<f64>()
+                        / n;
                     match Decimal::from_f64(skew) {
                         Some(v) => SignalValue::Scalar(v),
                         None => SignalValue::Unavailable,
@@ -108,7 +130,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -126,7 +151,10 @@ mod tests {
     fn test_drs_unavailable_before_warm_up() {
         let mut drs = DailyReturnSkew::new("drs", 5).unwrap();
         for _ in 0..5 {
-            assert_eq!(drs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                drs.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -141,7 +169,11 @@ mod tests {
             last = drs.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v.abs() < dec!(0.01), "symmetric returns should give near-zero skew: {}", v);
+            assert!(
+                v.abs() < dec!(0.01),
+                "symmetric returns should give near-zero skew: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -166,7 +198,9 @@ mod tests {
     #[test]
     fn test_drs_reset() {
         let mut drs = DailyReturnSkew::new("drs", 4).unwrap();
-        for p in ["100", "101", "100", "101", "100"] { drs.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "100", "101", "100"] {
+            drs.update_bar(&bar(p)).unwrap();
+        }
         assert!(drs.is_ready());
         drs.reset();
         assert!(!drs.is_ready());

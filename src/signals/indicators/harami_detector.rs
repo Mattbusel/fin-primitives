@@ -142,7 +142,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut hd = HaramiDetector::new("h", 50).unwrap();
-        assert_eq!(hd.update_bar(&bar("10", "12", "9", "8")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hd.update_bar(&bar("10", "12", "9", "8")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

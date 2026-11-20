@@ -40,9 +40,15 @@ impl RelativeVolatility {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero or `short >= long`.
     pub fn new(name: impl Into<String>, short: usize, long: usize) -> Result<Self, FinError> {
-        if short == 0 { return Err(FinError::InvalidPeriod(short)); }
-        if long == 0  { return Err(FinError::InvalidPeriod(long)); }
-        if short >= long { return Err(FinError::InvalidPeriod(short)); }
+        if short == 0 {
+            return Err(FinError::InvalidPeriod(short));
+        }
+        if long == 0 {
+            return Err(FinError::InvalidPeriod(long));
+        }
+        if short >= long {
+            return Err(FinError::InvalidPeriod(short));
+        }
         Ok(Self {
             name: name.into(),
             short,
@@ -54,18 +60,23 @@ impl RelativeVolatility {
 }
 
 impl Signal for RelativeVolatility {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         self.trs.push_back(tr);
-        if self.trs.len() > self.long { self.trs.pop_front(); }
-        if self.trs.len() < self.long { return Ok(SignalValue::Unavailable); }
+        if self.trs.len() > self.long {
+            self.trs.pop_front();
+        }
+        if self.trs.len() < self.long {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let atr_long = self.trs.iter().sum::<Decimal>()
-            / Decimal::from(self.long as u32);
+        let atr_long = self.trs.iter().sum::<Decimal>() / Decimal::from(self.long as u32);
         let atr_short = self.trs.iter().rev().take(self.short).sum::<Decimal>()
             / Decimal::from(self.short as u32);
 
@@ -75,8 +86,12 @@ impl Signal for RelativeVolatility {
         Ok(SignalValue::Scalar(atr_short / atr_long))
     }
 
-    fn is_ready(&self) -> bool { self.trs.len() >= self.long }
-    fn period(&self) -> usize { self.long }
+    fn is_ready(&self) -> bool {
+        self.trs.len() >= self.long
+    }
+    fn period(&self) -> usize {
+        self.long
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -93,9 +108,17 @@ mod tests {
 
     fn bar(c: &str) -> OhlcvBar {
         let p = Price::new(c.parse().unwrap()).unwrap();
-        OhlcvBar { symbol: Symbol::new("X").unwrap(), open: p, high: p, low: p, close: p,
-            volume: Quantity::zero(), ts_open: NanoTimestamp::new(0),
-            ts_close: NanoTimestamp::new(1), tick_count: 1 }
+        OhlcvBar {
+            symbol: Symbol::new("X").unwrap(),
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: Quantity::zero(),
+            ts_open: NanoTimestamp::new(0),
+            ts_close: NanoTimestamp::new(1),
+            tick_count: 1,
+        }
     }
 
     #[test]
@@ -107,23 +130,34 @@ mod tests {
     #[test]
     fn test_rv_unavailable_before_warmup() {
         let mut rv = RelativeVolatility::new("r", 3, 5).unwrap();
-        for _ in 0..4 { assert_eq!(rv.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable); }
+        for _ in 0..4 {
+            assert_eq!(
+                rv.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
+        }
     }
 
     #[test]
     fn test_rv_flat_is_one() {
         let mut rv = RelativeVolatility::new("r", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..10 { last = rv.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            last = rv.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_rv_reset() {
         let mut rv = RelativeVolatility::new("r", 3, 5).unwrap();
-        for _ in 0..10 { rv.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            rv.update_bar(&bar("100")).unwrap();
+        }
         assert!(rv.is_ready());
         rv.reset();
         assert!(!rv.is_ready());

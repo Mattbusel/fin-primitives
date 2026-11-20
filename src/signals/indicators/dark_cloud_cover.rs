@@ -32,7 +32,10 @@ pub struct DarkCloudCover {
 impl DarkCloudCover {
     /// Constructs a new `DarkCloudCover` detector.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev: None })
+        Ok(Self {
+            name: name.into(),
+            prev: None,
+        })
     }
 }
 
@@ -58,10 +61,7 @@ impl Signal for DarkCloudCover {
                     // Condition 2: current bar is bearish
                     // Condition 3: current bar opens above prev close
                     // Condition 4: current bar closes below prev midpoint
-                    if bar.close < bar.open
-                        && bar.open > prev.close
-                        && bar.close < midpoint
-                    {
+                    if bar.close < bar.open && bar.open > prev.close && bar.close < midpoint {
                         SignalValue::Scalar(Decimal::NEGATIVE_ONE)
                     } else {
                         SignalValue::Scalar(Decimal::ZERO)
@@ -114,7 +114,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut dc = DarkCloudCover::new("dc").unwrap();
-        assert_eq!(dc.update_bar(&bar("10", "21", "9", "20")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dc.update_bar(&bar("10", "21", "9", "20")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

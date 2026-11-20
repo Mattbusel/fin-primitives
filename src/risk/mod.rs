@@ -39,8 +39,8 @@ pub mod scenario_engine;
 /// Credit scoring, expected loss, Credit VaR, z-spread, and rating migration.
 pub mod credit_risk;
 
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 
 /// Tracks peak equity and computes current drawdown percentage.
 #[derive(Debug, Clone)]
@@ -153,10 +153,7 @@ impl DrawdownTracker {
     pub fn update(&mut self, equity: Decimal) {
         // Welford online variance update for equity changes
         if self.update_count > 0 {
-            if let (Some(prev), Some(curr)) = (
-                self.prev_equity.to_f64(),
-                equity.to_f64(),
-            ) {
+            if let (Some(prev), Some(curr)) = (self.prev_equity.to_f64(), equity.to_f64()) {
                 let delta = curr - prev;
                 self.equity_change_count += 1;
                 let n = self.equity_change_count as f64;
@@ -427,8 +424,7 @@ impl DrawdownTracker {
         if self.update_count == 0 {
             return Decimal::ZERO;
         }
-        Decimal::from(self.drawdown_update_count as u64)
-            / Decimal::from(self.update_count as u64)
+        Decimal::from(self.drawdown_update_count as u64) / Decimal::from(self.update_count as u64)
     }
 
     /// Average drawdown percentage across all updates that had a non-zero drawdown.
@@ -553,9 +549,8 @@ impl DrawdownTracker {
         if self.peak_equity.is_zero() {
             return shock_pct;
         }
-        let stressed_equity = self.current_equity
-            * (Decimal::ONE_HUNDRED - shock_pct)
-            / Decimal::ONE_HUNDRED;
+        let stressed_equity =
+            self.current_equity * (Decimal::ONE_HUNDRED - shock_pct) / Decimal::ONE_HUNDRED;
         if stressed_equity >= self.peak_equity {
             return Decimal::ZERO;
         }
@@ -583,7 +578,11 @@ impl DrawdownTracker {
 
     /// Returns `total_gain_sum / total_loss_sum`. Returns `None` if no losses recorded.
     pub fn gain_to_loss_ratio(&self) -> Option<f64> {
-        if self.total_loss_sum == 0.0 { None } else { Some(self.total_gain_sum / self.total_loss_sum) }
+        if self.total_loss_sum == 0.0 {
+            None
+        } else {
+            Some(self.total_gain_sum / self.total_loss_sum)
+        }
     }
 
     /// Trading expectancy: `win_rate × avg_gain − loss_rate × avg_loss`.
@@ -591,13 +590,23 @@ impl DrawdownTracker {
     /// Returns `None` if fewer than 2 equity changes have been recorded.
     pub fn expectancy(&self) -> Option<f64> {
         let n = self.equity_change_count;
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         let wr = self.win_rate()?.to_f64()?;
         let loss_rate = 1.0 - wr;
         let gain_count = (wr * n as f64).round() as usize;
         let loss_count = n.saturating_sub(gain_count);
-        let avg_gain = if gain_count > 0 { self.total_gain_sum / gain_count as f64 } else { 0.0 };
-        let avg_loss = if loss_count > 0 { self.total_loss_sum / loss_count as f64 } else { 0.0 };
+        let avg_gain = if gain_count > 0 {
+            self.total_gain_sum / gain_count as f64
+        } else {
+            0.0
+        };
+        let avg_loss = if loss_count > 0 {
+            self.total_loss_sum / loss_count as f64
+        } else {
+            0.0
+        };
         Some(wr * avg_gain - loss_rate * avg_loss)
     }
 
@@ -605,7 +614,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if no drawdown has ever been fully recovered.
     pub fn recovery_speed(&self) -> Option<f64> {
-        if self.completed_recoveries == 0 { return None; }
+        if self.completed_recoveries == 0 {
+            return None;
+        }
         Some(self.total_recovery_updates as f64 / self.completed_recoveries as f64)
     }
 
@@ -620,7 +631,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if no drawdown has ever been fully recovered.
     pub fn avg_recovery_drawdown_pct(&self) -> Option<Decimal> {
-        if self.completed_recoveries == 0 { return None; }
+        if self.completed_recoveries == 0 {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         Some(self.recovery_drawdown_pct_sum / Decimal::from(self.completed_recoveries as u32))
     }
@@ -636,7 +649,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if no drawdown episode has been entered yet.
     pub fn avg_drawdown_duration(&self) -> Option<f64> {
-        if self.drawdown_episodes == 0 { return None; }
+        if self.drawdown_episodes == 0 {
+            return None;
+        }
         Some(self.drawdown_update_count as f64 / self.drawdown_episodes as f64)
     }
 
@@ -659,7 +674,9 @@ impl DrawdownTracker {
     /// Returns `None` if `initial_equity` is zero.
     pub fn net_return_pct(&self) -> Option<f64> {
         let init = self.initial_equity.to_f64()?;
-        if init == 0.0 { return None; }
+        if init == 0.0 {
+            return None;
+        }
         let curr = self.current_equity.to_f64()?;
         Some((curr - init) / init * 100.0)
     }
@@ -678,7 +695,9 @@ impl DrawdownTracker {
     ///
     /// Returns `0.0` if no updates have been processed.
     pub fn pct_time_in_drawdown(&self) -> f64 {
-        if self.update_count == 0 { return 0.0; }
+        if self.update_count == 0 {
+            return 0.0;
+        }
         self.drawdown_update_count as f64 / self.update_count as f64 * 100.0
     }
 
@@ -687,11 +706,17 @@ impl DrawdownTracker {
     /// `CAGR = (current / initial) ^ (periods_per_year / update_count) - 1`.
     /// Returns `None` if `initial_equity` is zero or non-positive, or fewer than 2 updates.
     pub fn equity_cagr(&self, periods_per_year: usize) -> Option<f64> {
-        if self.update_count < 2 || periods_per_year == 0 { return None; }
+        if self.update_count < 2 || periods_per_year == 0 {
+            return None;
+        }
         let init = self.initial_equity.to_f64()?;
-        if init <= 0.0 { return None; }
+        if init <= 0.0 {
+            return None;
+        }
         let curr = self.current_equity.to_f64()?;
-        if curr <= 0.0 { return None; }
+        if curr <= 0.0 {
+            return None;
+        }
         let years = self.update_count as f64 / periods_per_year as f64;
         Some((curr / init).powf(1.0 / years) - 1.0)
     }
@@ -705,13 +730,17 @@ impl DrawdownTracker {
     ///
     /// Returns `Decimal::ZERO` if no drawdown has been recorded yet.
     pub fn drawdown_ratio(&self) -> Decimal {
-        if self.worst_drawdown_pct.is_zero() { return Decimal::ZERO; }
+        if self.worst_drawdown_pct.is_zero() {
+            return Decimal::ZERO;
+        }
         self.current_drawdown_pct() / self.worst_drawdown_pct
     }
 
     /// Current equity as a multiple of initial equity (e.g., `1.5` = 50% gain).
     pub fn equity_multiple(&self) -> Decimal {
-        if self.initial_equity.is_zero() { return Decimal::ONE; }
+        if self.initial_equity.is_zero() {
+            return Decimal::ONE;
+        }
         self.current_equity / self.initial_equity
     }
 
@@ -723,7 +752,9 @@ impl DrawdownTracker {
         use rust_decimal::prelude::ToPrimitive;
         let wr = self.win_rate()?.to_f64()?;
         let gain_count = (wr / 100.0 * self.update_count as f64).round() as usize;
-        if gain_count == 0 { return None; }
+        if gain_count == 0 {
+            return None;
+        }
         Some(self.total_gain_sum / gain_count as f64)
     }
 
@@ -742,10 +773,14 @@ impl DrawdownTracker {
     /// Returns `None` if max drawdown is zero or there are fewer than 2 updates.
     pub fn return_drawdown_ratio(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if self.worst_drawdown_pct.is_zero() { return None; }
+        if self.worst_drawdown_pct.is_zero() {
+            return None;
+        }
         let net_ret = self.net_return_pct()?;
         let dd = self.worst_drawdown_pct.to_f64()?;
-        if dd == 0.0 { return None; }
+        if dd == 0.0 {
+            return None;
+        }
         Some(net_ret / dd)
     }
 
@@ -753,7 +788,9 @@ impl DrawdownTracker {
     ///
     /// Returns `0.0` if no updates have been recorded.
     pub fn consecutive_flat_pct(&self) -> f64 {
-        if self.update_count == 0 { return 0.0; }
+        if self.update_count == 0 {
+            return 0.0;
+        }
         self.flat_streak as f64 / self.update_count as f64 * 100.0
     }
 
@@ -773,9 +810,13 @@ impl DrawdownTracker {
     /// Returns `None` if no loss has been recorded (min_equity_delta >= 0).
     pub fn max_loss_pct_single(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if self.min_equity_delta >= 0.0 { return None; }
+        if self.min_equity_delta >= 0.0 {
+            return None;
+        }
         let peak = self.peak_equity.to_f64()?;
-        if peak <= 0.0 { return None; }
+        if peak <= 0.0 {
+            return None;
+        }
         Some((self.min_equity_delta / peak).abs() * 100.0)
     }
 
@@ -786,7 +827,9 @@ impl DrawdownTracker {
         use rust_decimal::prelude::ToPrimitive;
         let wr = self.win_rate()?.to_f64()?;
         let lr = self.loss_rate()?;
-        if lr == 0.0 { return None; }
+        if lr == 0.0 {
+            return None;
+        }
         Some(wr / (lr * 100.0))
     }
 
@@ -795,11 +838,17 @@ impl DrawdownTracker {
     /// Returns `None` if no drawdown or no gain has been recorded.
     pub fn best_drawdown_recovery(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if self.worst_drawdown_pct.is_zero() { return None; }
+        if self.worst_drawdown_pct.is_zero() {
+            return None;
+        }
         let max_gain = self.max_gain_pct();
-        if max_gain <= 0.0 { return None; }
+        if max_gain <= 0.0 {
+            return None;
+        }
         let dd = self.worst_drawdown_pct.to_f64()?;
-        if dd == 0.0 { return None; }
+        if dd == 0.0 {
+            return None;
+        }
         Some(max_gain / dd)
     }
 
@@ -815,9 +864,13 @@ impl DrawdownTracker {
         let avg_gain = self.avg_gain_pct()?;
         let lr = self.loss_rate()?;
         let loss_count = (lr * self.update_count as f64).round() as usize;
-        if loss_count == 0 { return None; }
+        if loss_count == 0 {
+            return None;
+        }
         let avg_loss = self.total_loss_sum / loss_count as f64;
-        if avg_loss == 0.0 { return None; }
+        if avg_loss == 0.0 {
+            return None;
+        }
         Some(avg_gain / avg_loss)
     }
 
@@ -827,9 +880,13 @@ impl DrawdownTracker {
     /// Returns `None` if not in drawdown, no gain history, or average gain is zero.
     pub fn time_to_recover_est(&self) -> Option<usize> {
         use rust_decimal::prelude::ToPrimitive;
-        if !self.in_drawdown() { return None; }
+        if !self.in_drawdown() {
+            return None;
+        }
         let avg_gain = self.avg_gain_pct()?;
-        if avg_gain <= 0.0 { return None; }
+        if avg_gain <= 0.0 {
+            return None;
+        }
         let distance = self.current_drawdown_pct().to_f64()?;
         Some((distance / avg_gain).ceil() as usize)
     }
@@ -847,7 +904,9 @@ impl DrawdownTracker {
     ///
     /// The input need not be sorted. Returns `None` if the slice is empty.
     pub fn median_drawdown_pct(drawdowns: &[Decimal]) -> Option<Decimal> {
-        if drawdowns.is_empty() { return None; }
+        if drawdowns.is_empty() {
+            return None;
+        }
         let mut sorted = drawdowns.to_vec();
         sorted.sort();
         let mid = sorted.len() / 2;
@@ -876,7 +935,11 @@ impl DrawdownTracker {
             .filter_map(|r| r.to_f64())
             .map(|r| {
                 let diff = r - target_f;
-                if diff < 0.0 { diff * diff } else { 0.0 }
+                if diff < 0.0 {
+                    diff * diff
+                } else {
+                    0.0
+                }
             })
             .sum();
         if downside_sq_sum == 0.0 {
@@ -899,13 +962,13 @@ impl DrawdownTracker {
             return None;
         }
         let n = returns.len() as f64;
-        let mean: f64 = returns.iter()
-            .filter_map(|r| r.to_f64())
-            .sum::<f64>() / n;
-        let variance: f64 = returns.iter()
+        let mean: f64 = returns.iter().filter_map(|r| r.to_f64()).sum::<f64>() / n;
+        let variance: f64 = returns
+            .iter()
             .filter_map(|r| r.to_f64())
             .map(|r| (r - mean).powi(2))
-            .sum::<f64>() / (n - 1.0);
+            .sum::<f64>()
+            / (n - 1.0);
         let vol = variance.sqrt() * (periods_per_year as f64).sqrt();
         Some(vol)
     }
@@ -953,7 +1016,10 @@ impl DrawdownTracker {
             return None;
         }
         let mean_excess = excess.iter().sum::<f64>() / excess.len() as f64;
-        let tracking_variance = excess.iter().map(|e| (e - mean_excess).powi(2)).sum::<f64>()
+        let tracking_variance = excess
+            .iter()
+            .map(|e| (e - mean_excess).powi(2))
+            .sum::<f64>()
             / (excess.len() as f64 - 1.0);
         let tracking_error = tracking_variance.sqrt();
         if tracking_error == 0.0 {
@@ -966,7 +1032,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if fewer than 2 updates have been recorded.
     pub fn annualized_volatility(&self, periods_per_year: u32) -> Option<f64> {
-        if self.equity_change_count < 2 { return None; }
+        if self.equity_change_count < 2 {
+            return None;
+        }
         let n = self.equity_change_count as f64;
         let variance = self.equity_change_m2 / (n - 1.0);
         Some(variance.sqrt() * (periods_per_year as f64).sqrt())
@@ -978,7 +1046,9 @@ impl DrawdownTracker {
     /// sustained drawdown. Returns `None` if the pain index is zero (no drawdowns).
     pub fn pain_ratio(&self, annualized_return_pct: Decimal) -> Option<Decimal> {
         let pi = self.pain_index();
-        if pi.is_zero() { return None; }
+        if pi.is_zero() {
+            return None;
+        }
         Some(annualized_return_pct / pi)
     }
 
@@ -998,7 +1068,9 @@ impl DrawdownTracker {
     /// Uses the Welford running variance accumulator. Returns `None` when
     /// fewer than 2 equity changes have been recorded.
     pub fn equity_change_std_dev(&self) -> Option<f64> {
-        if self.equity_change_count < 2 { return None; }
+        if self.equity_change_count < 2 {
+            return None;
+        }
         let variance = self.equity_change_m2 / (self.equity_change_count - 1) as f64;
         Some(variance.sqrt())
     }
@@ -1008,7 +1080,9 @@ impl DrawdownTracker {
     /// Higher values indicate equity spent a larger fraction of updates trending upward.
     /// Returns `None` when no updates have been processed.
     pub fn gain_streak_ratio(&self) -> Option<f64> {
-        if self.update_count == 0 { return None; }
+        if self.update_count == 0 {
+            return None;
+        }
         Some(self.max_gain_streak as f64 / self.update_count as f64)
     }
 }
@@ -1252,7 +1326,9 @@ impl VolatilityLimitRule {
         Self {
             threshold_pct,
             window: window.max(2),
-            history: std::cell::RefCell::new(std::collections::VecDeque::with_capacity(window.max(2))),
+            history: std::cell::RefCell::new(std::collections::VecDeque::with_capacity(
+                window.max(2),
+            )),
         }
     }
 }
@@ -1273,16 +1349,28 @@ impl RiskRule for VolatilityLimitRule {
         }
 
         // Compute std-dev of pct returns within window
-        let returns: Vec<Decimal> = hist.iter().zip(hist.iter().skip(1)).filter_map(|(a, b)| {
-            if a.is_zero() { return None; }
-            Some((b - a) / *a * Decimal::ONE_HUNDRED)
-        }).collect();
-        if returns.len() < 2 { return None; }
+        let returns: Vec<Decimal> = hist
+            .iter()
+            .zip(hist.iter().skip(1))
+            .filter_map(|(a, b)| {
+                if a.is_zero() {
+                    return None;
+                }
+                Some((b - a) / *a * Decimal::ONE_HUNDRED)
+            })
+            .collect();
+        if returns.len() < 2 {
+            return None;
+        }
 
         #[allow(clippy::cast_possible_truncation)]
         let n = Decimal::from(returns.len() as u32);
         let mean = returns.iter().copied().sum::<Decimal>() / n;
-        let variance = returns.iter().map(|r| (*r - mean) * (*r - mean)).sum::<Decimal>() / n;
+        let variance = returns
+            .iter()
+            .map(|r| (*r - mean) * (*r - mean))
+            .sum::<Decimal>()
+            / n;
         let std_dev_sq = variance;
 
         // Compare variance to threshold² to avoid sqrt
@@ -1331,7 +1419,8 @@ impl RiskMonitor {
     pub fn update(&mut self, equity: Decimal) -> Vec<RiskBreach> {
         self.tracker.update(equity);
         let dd = self.tracker.current_drawdown_pct();
-        let breaches: Vec<RiskBreach> = self.rules
+        let breaches: Vec<RiskBreach> = self
+            .rules
             .iter()
             .filter_map(|r| r.check(equity, dd))
             .collect();
@@ -1454,7 +1543,9 @@ impl RiskMonitor {
     pub fn calmar_ratio(&self, annualised_return_pct: f64) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
         let dd = self.tracker.worst_drawdown_pct().to_f64()?;
-        if dd == 0.0 { return None; }
+        if dd == 0.0 {
+            return None;
+        }
         Some(annualised_return_pct / dd)
     }
 
@@ -1534,10 +1625,22 @@ impl RiskMonitor {
     /// Returns `None` if there are no losing trades (to avoid division by zero) or if
     /// `returns` is empty.
     pub fn profit_factor(returns: &[Decimal]) -> Option<Decimal> {
-        if returns.is_empty() { return None; }
-        let gross_wins: Decimal = returns.iter().filter(|&&r| r > Decimal::ZERO).copied().sum();
-        let gross_losses: Decimal = returns.iter().filter(|&&r| r < Decimal::ZERO).map(|r| r.abs()).sum();
-        if gross_losses.is_zero() { return None; }
+        if returns.is_empty() {
+            return None;
+        }
+        let gross_wins: Decimal = returns
+            .iter()
+            .filter(|&&r| r > Decimal::ZERO)
+            .copied()
+            .sum();
+        let gross_losses: Decimal = returns
+            .iter()
+            .filter(|&&r| r < Decimal::ZERO)
+            .map(|r| r.abs())
+            .sum();
+        if gross_losses.is_zero() {
+            return None;
+        }
         Some(gross_wins / gross_losses)
     }
 
@@ -1547,10 +1650,20 @@ impl RiskMonitor {
     ///
     /// Returns `None` if all returns are above the threshold (no downside) or if `returns` is empty.
     pub fn omega_ratio(returns: &[Decimal], threshold: Decimal) -> Option<Decimal> {
-        if returns.is_empty() { return None; }
-        let upside: Decimal = returns.iter().map(|&r| (r - threshold).max(Decimal::ZERO)).sum();
-        let downside: Decimal = returns.iter().map(|&r| (threshold - r).max(Decimal::ZERO)).sum();
-        if downside.is_zero() { return None; }
+        if returns.is_empty() {
+            return None;
+        }
+        let upside: Decimal = returns
+            .iter()
+            .map(|&r| (r - threshold).max(Decimal::ZERO))
+            .sum();
+        let downside: Decimal = returns
+            .iter()
+            .map(|&r| (threshold - r).max(Decimal::ZERO))
+            .sum();
+        if downside.is_zero() {
+            return None;
+        }
         Some(upside / downside)
     }
 
@@ -1567,7 +1680,9 @@ impl RiskMonitor {
         avg_win: Decimal,
         avg_loss: Decimal,
     ) -> Option<Decimal> {
-        if avg_loss.is_zero() { return None; }
+        if avg_loss.is_zero() {
+            return None;
+        }
         let loss_rate = Decimal::ONE - win_rate;
         let odds = avg_win / avg_loss;
         Some(win_rate - loss_rate / odds)
@@ -1580,9 +1695,15 @@ impl RiskMonitor {
     /// Returns `None` if `returns` is empty or `periods_per_year == 0`.
     pub fn annualized_return(returns: &[Decimal], periods_per_year: usize) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if returns.is_empty() || periods_per_year == 0 { return None; }
+        if returns.is_empty() || periods_per_year == 0 {
+            return None;
+        }
         let n = returns.len() as f64;
-        let mean_r: f64 = returns.iter().map(|r| r.to_f64().unwrap_or(0.0)).sum::<f64>() / n;
+        let mean_r: f64 = returns
+            .iter()
+            .map(|r| r.to_f64().unwrap_or(0.0))
+            .sum::<f64>()
+            / n;
         let annual = (1.0 + mean_r).powf(periods_per_year as f64) - 1.0;
         Some(annual)
     }
@@ -1595,7 +1716,9 @@ impl RiskMonitor {
     /// Returns `None` if `returns` has fewer than 20 observations (minimum for meaningful quantiles).
     pub fn tail_ratio(returns: &[Decimal]) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if returns.len() < 20 { return None; }
+        if returns.len() < 20 {
+            return None;
+        }
         let mut vals: Vec<f64> = returns.iter().filter_map(|r| r.to_f64()).collect();
         vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let n = vals.len();
@@ -1603,7 +1726,9 @@ impl RiskMonitor {
         let p05_idx = ((n as f64 * 0.05) as usize).min(n - 1);
         let p95 = vals[p95_idx];
         let p05 = vals[p05_idx].abs();
-        if p05 == 0.0 { return None; }
+        if p05 == 0.0 {
+            return None;
+        }
         Some(p95 / p05)
     }
 
@@ -1615,14 +1740,22 @@ impl RiskMonitor {
     /// Returns `None` if fewer than 3 observations are provided or standard deviation is zero.
     pub fn skewness(returns: &[Decimal]) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if returns.len() < 3 { return None; }
+        if returns.len() < 3 {
+            return None;
+        }
         let vals: Vec<f64> = returns.iter().filter_map(|r| r.to_f64()).collect();
         let n = vals.len() as f64;
         let mean = vals.iter().sum::<f64>() / n;
         let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
         let std_dev = variance.sqrt();
-        if std_dev == 0.0 { return None; }
-        let skew = vals.iter().map(|v| ((v - mean) / std_dev).powi(3)).sum::<f64>() / n;
+        if std_dev == 0.0 {
+            return None;
+        }
+        let skew = vals
+            .iter()
+            .map(|v| ((v - mean) / std_dev).powi(3))
+            .sum::<f64>()
+            / n;
         Some(skew)
     }
 
@@ -1651,7 +1784,6 @@ impl RiskMonitor {
     ) -> attribution::AttributionReport {
         attribution::RiskAttributor::new(ledger, market_data).compute()
     }
-
 }
 
 impl DrawdownTracker {
@@ -1660,7 +1792,9 @@ impl DrawdownTracker {
     /// Values > 1 mean average gains outsize average losses (positive asymmetry).
     /// Returns `None` if there are no recorded losses.
     pub fn gain_loss_asymmetry(&self) -> Option<f64> {
-        if self.equity_change_count == 0 { return None; }
+        if self.equity_change_count == 0 {
+            return None;
+        }
         let n = self.equity_change_count as f64;
         let mean = self.equity_change_mean;
         // We track Welford variance; split into gain/loss using mean heuristic
@@ -1672,9 +1806,13 @@ impl DrawdownTracker {
             return None;
         };
         let std = variance.sqrt();
-        if std == 0.0 { return None; }
+        if std == 0.0 {
+            return None;
+        }
         let avg_loss = std - mean.min(0.0); // downside component
-        if avg_loss <= 0.0 { return None; }
+        if avg_loss <= 0.0 {
+            return None;
+        }
         let avg_gain = std + mean.max(0.0); // upside component
         Some(avg_gain / avg_loss)
     }
@@ -1698,7 +1836,9 @@ impl DrawdownTracker {
     /// Returns `None` if volatility is unavailable or zero.
     pub fn sharpe_proxy(&self, annualized_return: f64, periods_per_year: u32) -> Option<f64> {
         let vol = self.annualized_volatility(periods_per_year)?;
-        if vol == 0.0 { return None; }
+        if vol == 0.0 {
+            return None;
+        }
         Some(annualized_return / vol)
     }
 
@@ -1714,7 +1854,9 @@ impl DrawdownTracker {
     /// Returns `None` if there have been no drawdown periods.
     pub fn underwater_duration_avg(&self) -> Option<f64> {
         let count = self.drawdown_count();
-        if count == 0 { return None; }
+        if count == 0 {
+            return None;
+        }
         Some(self.drawdown_update_count as f64 / count as f64)
     }
 
@@ -1722,8 +1864,12 @@ impl DrawdownTracker {
     ///
     /// A value of `1.0` means at the peak; values below `1.0` indicate drawdown depth.
     pub fn equity_efficiency(&self) -> f64 {
-        if self.peak_equity.is_zero() { return 1.0; }
-        (self.current_equity / self.peak_equity).to_f64().unwrap_or(0.0)
+        if self.peak_equity.is_zero() {
+            return 1.0;
+        }
+        (self.current_equity / self.peak_equity)
+            .to_f64()
+            .unwrap_or(0.0)
     }
 
     /// Sortino-style proxy: `annualized_return / downside_volatility`.
@@ -1731,11 +1877,15 @@ impl DrawdownTracker {
     /// Downside vol uses only negative equity changes in the Welford variance.
     /// Returns `None` if downside volatility is zero or unavailable.
     pub fn sortino_proxy(&self, annualized_return: f64, periods_per_year: u32) -> Option<f64> {
-        if self.equity_change_count < 2 { return None; }
+        if self.equity_change_count < 2 {
+            return None;
+        }
         // Use only negative deltas for downside deviation
         // Fall back to annualized_volatility halved as a rough downside estimate
         let downside_vol = self.annualized_volatility(periods_per_year)? / 2.0_f64.sqrt();
-        if downside_vol == 0.0 { return None; }
+        if downside_vol == 0.0 {
+            return None;
+        }
         Some(annualized_return / downside_vol)
     }
 
@@ -1753,7 +1903,9 @@ impl DrawdownTracker {
     /// Returns `None` if no drawdowns have occurred.
     pub fn recovery_efficiency(&self) -> Option<f64> {
         let dd_count = self.drawdown_count();
-        if dd_count == 0 { return None; }
+        if dd_count == 0 {
+            return None;
+        }
         Some(self.completed_recoveries as f64 / dd_count as f64)
     }
 
@@ -1761,7 +1913,9 @@ impl DrawdownTracker {
     ///
     /// Returns `None` if at peak (no drawdown) or no updates have been counted.
     pub fn drawdown_velocity(&self) -> Option<f64> {
-        if self.updates_since_peak == 0 { return None; }
+        if self.updates_since_peak == 0 {
+            return None;
+        }
         let dd = self.current_drawdown_pct().to_f64()?;
         Some(dd / self.updates_since_peak as f64)
     }
@@ -1771,7 +1925,9 @@ impl DrawdownTracker {
     /// Returns `None` if neither streak has been recorded.
     pub fn streak_win_rate(&self) -> Option<f64> {
         let total = self.max_gain_streak + self.max_drawdown_streak;
-        if total == 0 { return None; }
+        if total == 0 {
+            return None;
+        }
         Some(self.max_gain_streak as f64 / total as f64)
     }
 
@@ -1787,10 +1943,14 @@ impl DrawdownTracker {
     /// recorded.
     pub fn avg_loss_pct(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        if self.total_loss_sum == 0.0 || self.update_count == 0 { return None; }
+        if self.total_loss_sum == 0.0 || self.update_count == 0 {
+            return None;
+        }
         let wr = self.win_rate()?.to_f64()?;
         let loss_count = ((1.0 - wr / 100.0) * self.update_count as f64).round() as usize;
-        if loss_count == 0 { return None; }
+        if loss_count == 0 {
+            return None;
+        }
         Some(self.total_loss_sum / loss_count as f64)
     }
 }
@@ -1902,8 +2062,9 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_breach_count_accumulates() {
-        let mut monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(5),
+        });
         assert_eq!(monitor.breach_count(), 0);
         monitor.update(dec!(9000)); // 10% drawdown → breach
         assert_eq!(monitor.breach_count(), 1);
@@ -1913,8 +2074,9 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_breach_count_resets() {
-        let mut monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(5),
+        });
         monitor.update(dec!(9000));
         assert_eq!(monitor.breach_count(), 1);
         monitor.reset(dec!(10000));
@@ -1926,7 +2088,7 @@ mod tests {
         let mut monitor = RiskMonitor::new(dec!(10000));
         monitor.update(dec!(9000)); // 10% dd
         monitor.update(dec!(9500)); // partial recovery
-        // worst seen is still 10%
+                                    // worst seen is still 10%
         assert_eq!(monitor.max_drawdown_pct(), dec!(10));
     }
 
@@ -1941,8 +2103,8 @@ mod tests {
     fn test_risk_monitor_drawdown_duration_increments() {
         let mut monitor = RiskMonitor::new(dec!(10000));
         monitor.update(dec!(10100)); // peak
-        monitor.update(dec!(9900));  // duration=1
-        monitor.update(dec!(9800));  // duration=2
+        monitor.update(dec!(9900)); // duration=1
+        monitor.update(dec!(9800)); // duration=2
         assert_eq!(monitor.drawdown_duration(), 2);
     }
 
@@ -1974,8 +2136,8 @@ mod tests {
     fn test_drawdown_tracker_win_rate_half() {
         let mut tracker = DrawdownTracker::new(dec!(10000));
         tracker.update(dec!(10100)); // new peak
-        tracker.update(dec!(9900));  // drawdown
-        // 1 at-peak, 1 drawdown → 0.5
+        tracker.update(dec!(9900)); // drawdown
+                                    // 1 at-peak, 1 drawdown → 0.5
         assert_eq!(tracker.win_rate().unwrap(), dec!(0.5));
     }
 
@@ -2128,8 +2290,9 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_reset_clears_drawdown_state() {
-        let mut monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(15),
+        });
         monitor.update(dec!(8000)); // 20% drawdown → breach
         let breaches = monitor.update(dec!(8000));
         assert!(!breaches.is_empty());
@@ -2176,7 +2339,7 @@ mod tests {
     fn test_drawdown_tracker_recovery_factor() {
         let mut t = DrawdownTracker::new(dec!(10000));
         t.update(dec!(9000)); // 10% worst drawdown
-        // net profit 20% / worst_dd 10% = 2.0
+                              // net profit 20% / worst_dd 10% = 2.0
         let rf = t.recovery_factor(dec!(20)).unwrap();
         assert_eq!(rf, dec!(2));
     }
@@ -2189,8 +2352,9 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_check_non_mutating() {
-        let monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        let monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(15),
+        });
         // check with 20% drawdown from peak — should breach
         let breaches = monitor.check(dec!(8000));
         assert_eq!(breaches.len(), 1);
@@ -2201,8 +2365,9 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_check_no_breach() {
-        let monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        let monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(15),
+        });
         let breaches = monitor.check(dec!(9000)); // 10% drawdown < 15%
         assert!(breaches.is_empty());
     }
@@ -2245,35 +2410,43 @@ mod tests {
 
     #[test]
     fn test_risk_monitor_has_breaches_true() {
-        let monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(5) });
+        let monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(5),
+        });
         assert!(monitor.has_breaches(dec!(9000))); // 10% > 5%
     }
 
     #[test]
     fn test_risk_monitor_has_breaches_false() {
-        let monitor = RiskMonitor::new(dec!(10000))
-            .add_rule(MaxDrawdownRule { threshold_pct: dec!(15) });
+        let monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(15),
+        });
         assert!(!monitor.has_breaches(dec!(9000))); // 10% < 15%
     }
 
     #[test]
     fn test_risk_monitor_is_in_drawdown_true() {
-        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(50),
+        });
         monitor.update(dec!(9000));
         assert!(monitor.is_in_drawdown());
     }
 
     #[test]
     fn test_risk_monitor_is_in_drawdown_false_at_peak() {
-        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(50),
+        });
         monitor.update(dec!(10000));
         assert!(!monitor.is_in_drawdown());
     }
 
     #[test]
     fn test_risk_monitor_is_in_drawdown_false_above_peak() {
-        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule { threshold_pct: dec!(50) });
+        let mut monitor = RiskMonitor::new(dec!(10000)).add_rule(MaxDrawdownRule {
+            threshold_pct: dec!(50),
+        });
         monitor.update(dec!(11000));
         assert!(!monitor.is_in_drawdown());
     }
@@ -2288,7 +2461,7 @@ mod tests {
     fn test_recovery_to_peak_pct_with_drawdown() {
         let mut tracker = DrawdownTracker::new(dec!(10000));
         tracker.update(dec!(8000)); // 20% drawdown → need 25% gain to recover
-        // (10000/8000 - 1) * 100 = 0.25 * 100 = 25
+                                    // (10000/8000 - 1) * 100 = 0.25 * 100 = 25
         assert_eq!(tracker.recovery_to_peak_pct(), dec!(25));
     }
 
@@ -2303,7 +2476,7 @@ mod tests {
     fn test_calmar_ratio_with_drawdown() {
         let mut tracker = DrawdownTracker::new(dec!(10000));
         tracker.update(dec!(9000)); // 10% drawdown
-        // annualized_return = 20%, worst_dd = 10% → calmar = 2
+                                    // annualized_return = 20%, worst_dd = 10% → calmar = 2
         let ratio = tracker.calmar_ratio(dec!(20)).unwrap();
         assert_eq!(ratio, dec!(2));
     }
@@ -2469,7 +2642,7 @@ mod tests {
     fn test_new_peak_count_increments() {
         let mut tracker = DrawdownTracker::new(dec!(10000));
         tracker.update(dec!(11000));
-        tracker.update(dec!(9000));  // drawdown, no new peak
+        tracker.update(dec!(9000)); // drawdown, no new peak
         tracker.update(dec!(12000)); // new peak
         assert_eq!(tracker.new_peak_count(), 2);
     }
@@ -2527,7 +2700,10 @@ mod tests {
         // Symmetric distribution: [-1, 0, 1]
         let returns = vec![dec!(-1), dec!(0), dec!(1)];
         let sk = RiskMonitor::skewness(&returns).unwrap();
-        assert!(sk.abs() < 1e-9, "symmetric series should have ~0 skew: {sk}");
+        assert!(
+            sk.abs() < 1e-9,
+            "symmetric series should have ~0 skew: {sk}"
+        );
     }
 
     #[test]
@@ -2536,7 +2712,10 @@ mod tests {
         let mut returns: Vec<Decimal> = (0..10).map(|_| dec!(0)).collect();
         returns.push(dec!(100));
         let sk = RiskMonitor::skewness(&returns).unwrap();
-        assert!(sk > 0.0, "right-skewed series should have positive skew: {sk}");
+        assert!(
+            sk > 0.0,
+            "right-skewed series should have positive skew: {sk}"
+        );
     }
 
     #[test]
@@ -2551,7 +2730,10 @@ mod tests {
         let mut monitor = RiskMonitor::new(dec!(10000));
         monitor.update(dec!(9000)); // 10% drawdown
         let calmar = monitor.calmar_ratio(15.0).unwrap();
-        assert!((calmar - 1.5).abs() < 0.001, "calmar should be ~1.5: {calmar}");
+        assert!(
+            (calmar - 1.5).abs() < 0.001,
+            "calmar should be ~1.5: {calmar}"
+        );
     }
 }
 
@@ -2633,7 +2815,11 @@ impl RiskMetrics {
             })
             .collect();
         let mdd = Self::max_drawdown(&cum);
-        if mdd == 0.0 { 0.0 } else { ann_ret / mdd }
+        if mdd == 0.0 {
+            0.0
+        } else {
+            ann_ret / mdd
+        }
     }
 
     /// Maximum peak-to-trough drawdown as a positive fraction (e.g. `0.20` = 20% drawdown).
@@ -2670,7 +2856,11 @@ impl RiskMetrics {
                 if val > peak {
                     peak = val;
                 }
-                if peak > 0.0 { (peak - val) / peak } else { 0.0 }
+                if peak > 0.0 {
+                    (peak - val) / peak
+                } else {
+                    0.0
+                }
             })
             .collect()
     }
@@ -2743,7 +2933,12 @@ impl RiskMetrics {
         let n_f = n as f64;
         let mean_r = r.iter().sum::<f64>() / n_f;
         let mean_b = b.iter().sum::<f64>() / n_f;
-        let cov: f64 = r.iter().zip(b.iter()).map(|(&ri, &bi)| (ri - mean_r) * (bi - mean_b)).sum::<f64>() / (n_f - 1.0);
+        let cov: f64 = r
+            .iter()
+            .zip(b.iter())
+            .map(|(&ri, &bi)| (ri - mean_r) * (bi - mean_b))
+            .sum::<f64>()
+            / (n_f - 1.0);
         let var_b: f64 = b.iter().map(|&bi| (bi - mean_b).powi(2)).sum::<f64>() / (n_f - 1.0);
         if var_b == 0.0 {
             return (0.0, 0.0);
@@ -2763,12 +2958,20 @@ impl RiskMetrics {
         if n < 2 {
             return 0.0;
         }
-        let excess: Vec<f64> = returns[..n].iter().zip(benchmark[..n].iter()).map(|(&r, &b)| r - b).collect();
+        let excess: Vec<f64> = returns[..n]
+            .iter()
+            .zip(benchmark[..n].iter())
+            .map(|(&r, &b)| r - b)
+            .collect();
         let n_f = n as f64;
         let mean_ex = excess.iter().sum::<f64>() / n_f;
         let var_ex = excess.iter().map(|&e| (e - mean_ex).powi(2)).sum::<f64>() / (n_f - 1.0);
         let te = var_ex.sqrt();
-        if te == 0.0 { 0.0 } else { mean_ex / te }
+        if te == 0.0 {
+            0.0
+        } else {
+            mean_ex / te
+        }
     }
 
     /// Annualised return from per-period simple returns.
@@ -2809,7 +3012,9 @@ mod risk_metrics_tests {
     use super::RiskMetrics;
 
     fn daily_returns() -> Vec<f64> {
-        vec![0.01, -0.005, 0.02, -0.01, 0.015, 0.0, 0.008, -0.003, 0.012, -0.007]
+        vec![
+            0.01, -0.005, 0.02, -0.01, 0.015, 0.0, 0.008, -0.003, 0.012, -0.007,
+        ]
     }
 
     #[test]
@@ -2841,7 +3046,11 @@ mod risk_metrics_tests {
         let c = RiskMetrics::calmar(&rets, 252.0);
         assert!(c > 0.0, "calmar should be positive: {c}");
         let no_dd: Vec<f64> = (0..50).map(|i| 0.001 * (i as f64 + 1.0)).collect();
-        assert_eq!(RiskMetrics::calmar(&no_dd, 252.0), 0.0, "no drawdown returns 0.0");
+        assert_eq!(
+            RiskMetrics::calmar(&no_dd, 252.0),
+            0.0,
+            "no drawdown returns 0.0"
+        );
     }
 
     #[test]
@@ -2886,7 +3095,10 @@ mod risk_metrics_tests {
     fn omega_ratio_positive_mean_above_threshold() {
         let rets = daily_returns();
         let omega = RiskMetrics::omega_ratio(&rets, 0.0);
-        assert!(omega > 1.0, "omega should be > 1 when mean > threshold: {omega}");
+        assert!(
+            omega > 1.0,
+            "omega should be > 1 when mean > threshold: {omega}"
+        );
     }
 
     #[test]
@@ -2909,7 +3121,10 @@ mod risk_metrics_tests {
     fn annualized_return_no_gain_loss() {
         let rets = vec![0.0; 252];
         let ann = RiskMetrics::annualized_return(&rets, 252.0);
-        assert!(ann.abs() < 1e-9, "zero returns → zero annualized return: {ann}");
+        assert!(
+            ann.abs() < 1e-9,
+            "zero returns → zero annualized return: {ann}"
+        );
     }
 
     #[test]

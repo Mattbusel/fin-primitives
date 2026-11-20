@@ -36,20 +36,36 @@ impl BarCloseRank {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        Ok(Self { name: name.into(), period, window: VecDeque::with_capacity(period) })
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        Ok(Self {
+            name: name.into(),
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
 impl Signal for BarCloseRank {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.close);
-        if self.window.len() > self.period { self.window.pop_front(); }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() > self.period {
+            self.window.pop_front();
+        }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         if self.period == 1 {
             return Ok(SignalValue::Scalar(Decimal::from(50u32)));
@@ -58,8 +74,7 @@ impl Signal for BarCloseRank {
         let current = bar.close;
         let below = self.window.iter().filter(|&&v| v < current).count();
         #[allow(clippy::cast_possible_truncation)]
-        let rank = Decimal::from(below as u32)
-            / Decimal::from((self.period - 1) as u32)
+        let rank = Decimal::from(below as u32) / Decimal::from((self.period - 1) as u32)
             * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(rank))
     }
@@ -81,7 +96,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -90,7 +108,9 @@ mod tests {
     }
 
     #[test]
-    fn test_bcr_period_0_error() { assert!(BarCloseRank::new("b", 0).is_err()); }
+    fn test_bcr_period_0_error() {
+        assert!(BarCloseRank::new("b", 0).is_err());
+    }
 
     #[test]
     fn test_bcr_unavailable_before_period() {

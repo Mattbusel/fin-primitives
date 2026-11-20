@@ -28,14 +28,23 @@ pub struct OpenGapDirection {
 impl OpenGapDirection {
     /// Constructs a new `OpenGapDirection`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_close: None }
+        Self {
+            name: name.into(),
+            prev_close: None,
+        }
     }
 }
 
 impl Signal for OpenGapDirection {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
@@ -73,7 +82,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp.max(op), low: cp.min(op), close: cp,
+            open: op,
+            high: cp.max(op),
+            low: cp.min(op),
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -84,7 +96,10 @@ mod tests {
     #[test]
     fn test_ogd_first_bar_unavailable() {
         let mut s = OpenGapDirection::new("ogd");
-        assert_eq!(s.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(s.is_ready());
     }
 

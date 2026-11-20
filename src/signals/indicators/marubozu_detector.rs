@@ -210,7 +210,7 @@ mod tests {
         let b = make_bar("11", "18", "10", "17"); // body=6, range=8, upper_wick=1(12.5%), lower_wick=1(12.5%)
         let vs = md_strict.update_bar(&b).unwrap();
         let vl = md_loose.update_bar(&b).unwrap();
-        assert_eq!(vs, SignalValue::Scalar(dec!(0)));   // strict misses it
-        assert_eq!(vl, SignalValue::Scalar(dec!(1)));   // loose catches it
+        assert_eq!(vs, SignalValue::Scalar(dec!(0))); // strict misses it
+        assert_eq!(vl, SignalValue::Scalar(dec!(1))); // loose catches it
     }
 }

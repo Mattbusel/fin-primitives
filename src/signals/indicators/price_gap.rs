@@ -38,7 +38,9 @@ impl PriceGap {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,24 +51,34 @@ impl PriceGap {
 }
 
 impl Signal for PriceGap {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             let gap = bar.close - pc;
             self.gaps.push_back(gap);
-            if self.gaps.len() > self.period { self.gaps.pop_front(); }
+            if self.gaps.len() > self.period {
+                self.gaps.pop_front();
+            }
         }
         self.prev_close = Some(bar.close);
 
-        if self.gaps.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.gaps.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.gaps.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -85,7 +97,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,10 +125,14 @@ mod tests {
     fn test_pg_flat_is_zero() {
         let mut p = PriceGap::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..6 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -127,7 +146,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(2));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -140,13 +161,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pg_reset() {
         let mut p = PriceGap::new("p", 3).unwrap();
-        for _ in 0..6 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

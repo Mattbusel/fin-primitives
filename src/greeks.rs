@@ -76,19 +76,13 @@ impl OptionSpec {
     /// Validates all fields and returns `FinError::InvalidInput` on the first violation.
     fn validate(&self) -> Result<(), FinError> {
         if self.strike <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(
-                "strike must be positive".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("strike must be positive".to_owned()));
         }
         if self.expiry_days == 0 {
-            return Err(FinError::InvalidInput(
-                "expiry_days must be > 0".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("expiry_days must be > 0".to_owned()));
         }
         if self.spot <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(
-                "spot must be positive".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("spot must be positive".to_owned()));
         }
         if self.volatility <= Decimal::ZERO {
             return Err(FinError::InvalidInput(
@@ -154,8 +148,7 @@ impl BlackScholes {
                 let delta = nd1;
                 let gamma = phi_d1 / (s * v * sqrt_t);
                 // Theta: daily decay (divide annualised by 365)
-                let theta =
-                    (-(s * phi_d1 * v) / (2.0 * sqrt_t) - r * k * exp_rt * nd2) / 365.0;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t) - r * k * exp_rt * nd2) / 365.0;
                 let vega = s * phi_d1 * sqrt_t / 100.0; // per 1 vol-point
                 let rho = k * t * exp_rt * nd2 / 100.0; // per 1 rate-point
 
@@ -170,8 +163,7 @@ impl BlackScholes {
                 // put delta = N(d1) - 1 = -N(-d1)
                 let delta = -nd1_neg;
                 let gamma = phi_d1 / (s * v * sqrt_t);
-                let theta =
-                    (-(s * phi_d1 * v) / (2.0 * sqrt_t) + r * k * exp_rt * nd2_neg) / 365.0;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t) + r * k * exp_rt * nd2_neg) / 365.0;
                 let vega = s * phi_d1 * sqrt_t / 100.0;
                 let rho = -k * t * exp_rt * nd2_neg / 100.0;
 
@@ -233,19 +225,13 @@ impl BlackScholes {
         }
         // Validate all fields except volatility (which we are solving for)
         if spec.strike <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(
-                "strike must be positive".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("strike must be positive".to_owned()));
         }
         if spec.expiry_days == 0 {
-            return Err(FinError::InvalidInput(
-                "expiry_days must be > 0".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("expiry_days must be > 0".to_owned()));
         }
         if spec.spot <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(
-                "spot must be positive".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("spot must be positive".to_owned()));
         }
 
         let target = to_f64(market_price)?;
@@ -466,7 +452,13 @@ impl SpreadGreeks {
             rho += g.rho;
         }
 
-        Ok(OptionGreeks { delta, gamma, theta, vega, rho })
+        Ok(OptionGreeks {
+            delta,
+            gamma,
+            theta,
+            vega,
+            rho,
+        })
     }
 
     /// Returns the number of legs in this spread.
@@ -570,9 +562,7 @@ impl BSCalculator {
                 let nd1 = norm_cdf(d1);
                 let nd2 = norm_cdf(d2);
                 let delta = nd1;
-                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t)
-                    - r * k * exp_rt * nd2)
-                    / 365.0;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t) - r * k * exp_rt * nd2) / 365.0;
                 let rho = k * t * exp_rt * nd2 / 100.0;
                 (delta, theta, rho)
             }
@@ -580,9 +570,7 @@ impl BSCalculator {
                 let nd1_neg = norm_cdf(-d1);
                 let nd2_neg = norm_cdf(-d2);
                 let delta = nd1_neg - 1.0;
-                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t)
-                    + r * k * exp_rt * nd2_neg)
-                    / 365.0;
+                let theta = (-(s * phi_d1 * v) / (2.0 * sqrt_t) + r * k * exp_rt * nd2_neg) / 365.0;
                 let rho = -k * t * exp_rt * nd2_neg / 100.0;
                 (delta, theta, rho)
             }
@@ -604,23 +592,27 @@ impl BSCalculator {
         // Call: -phi(d1) * [2rT - d2 * v * sqrt(T)] / [2T * v * sqrt(T)] / 365
         let charm = match p.option_type {
             OptionType::Call => {
-                (-phi_d1
-                    * (2.0 * r * t - d2 * v * sqrt_t)
-                    / (2.0 * t * v * sqrt_t))
-                    / 365.0
+                (-phi_d1 * (2.0 * r * t - d2 * v * sqrt_t) / (2.0 * t * v * sqrt_t)) / 365.0
             }
             OptionType::Put => {
-                (phi_d1
-                    * (2.0 * r * t - d2 * v * sqrt_t)
-                    / (2.0 * t * v * sqrt_t))
-                    / 365.0
+                (phi_d1 * (2.0 * r * t - d2 * v * sqrt_t) / (2.0 * t * v * sqrt_t)) / 365.0
             }
         };
 
         // Speed: dGamma/dS = -Gamma/S * (d1 / (v * sqrt_t) + 1)
         let speed = -gamma / s * (d1 / (v * sqrt_t) + 1.0);
 
-        Some(Greeks { delta, gamma, theta, vega, rho, vanna, volga, charm, speed })
+        Some(Greeks {
+            delta,
+            gamma,
+            theta,
+            vega,
+            rho,
+            vanna,
+            volga,
+            charm,
+            speed,
+        })
     }
 
     /// Delta only (faster than computing all Greeks).
@@ -646,8 +638,12 @@ impl BSCalculator {
         let sqrt_t = p.time_to_expiry.sqrt();
         let base = -(p.spot * phi_d1 * p.volatility) / (2.0 * sqrt_t);
         let theta = match p.option_type {
-            OptionType::Call => (base - p.risk_free_rate * p.strike * exp_rt * norm_cdf(d2)) / 365.0,
-            OptionType::Put => (base + p.risk_free_rate * p.strike * exp_rt * norm_cdf(-d2)) / 365.0,
+            OptionType::Call => {
+                (base - p.risk_free_rate * p.strike * exp_rt * norm_cdf(d2)) / 365.0
+            }
+            OptionType::Put => {
+                (base + p.risk_free_rate * p.strike * exp_rt * norm_cdf(-d2)) / 365.0
+            }
         };
         Some(theta)
     }
@@ -687,14 +683,16 @@ impl BSCalculator {
         }
 
         // Initial guess: Brenner-Subrahmanyam approximation
-        let mut sigma = (2.0 * std::f64::consts::PI / p.time_to_expiry).sqrt()
-            * market_price
-            / p.spot;
+        let mut sigma =
+            (2.0 * std::f64::consts::PI / p.time_to_expiry).sqrt() * market_price / p.spot;
         // Clamp to a reasonable range
         sigma = sigma.clamp(1e-4, 5.0);
 
         for _ in 0..max_iter {
-            let trial = BSParams { volatility: sigma, ..*p };
+            let trial = BSParams {
+                volatility: sigma,
+                ..*p
+            };
             let price = Self::price(&trial)?;
             let error = price - market_price;
             if error.abs() < tolerance {
@@ -711,7 +709,10 @@ impl BSCalculator {
         }
 
         // Last attempt: return current sigma if within 10× tolerance
-        let trial = BSParams { volatility: sigma, ..*p };
+        let trial = BSParams {
+            volatility: sigma,
+            ..*p
+        };
         let final_price = Self::price(&trial)?;
         if (final_price - market_price).abs() < tolerance * 10.0 {
             Some(sigma)
@@ -764,7 +765,10 @@ mod bs_tests {
     }
 
     fn atm_put() -> BSParams {
-        BSParams { option_type: OptionType::Put, ..atm_call() }
+        BSParams {
+            option_type: OptionType::Put,
+            ..atm_call()
+        }
     }
 
     #[test]
@@ -778,9 +782,13 @@ mod bs_tests {
         let c = BSCalculator::price(&atm_call()).unwrap();
         let p = BSCalculator::price(&atm_put()).unwrap();
         let params = atm_call();
-        let forward = params.spot
-            - params.strike * (-params.risk_free_rate * params.time_to_expiry).exp();
-        assert!((c - p - forward).abs() < 1e-6, "put-call parity violated: {}", c - p - forward);
+        let forward =
+            params.spot - params.strike * (-params.risk_free_rate * params.time_to_expiry).exp();
+        assert!(
+            (c - p - forward).abs() < 1e-6,
+            "put-call parity violated: {}",
+            c - p - forward
+        );
     }
 
     #[test]
@@ -827,7 +835,11 @@ mod bs_tests {
         let params = atm_call();
         let market_price = BSCalculator::price(&params).unwrap();
         let iv = BSCalculator::implied_volatility(market_price, &params, 1e-6, 100).unwrap();
-        assert!((iv - params.volatility).abs() < 1e-4, "IV roundtrip error: {}", iv - params.volatility);
+        assert!(
+            (iv - params.volatility).abs() < 1e-4,
+            "IV roundtrip error: {}",
+            iv - params.volatility
+        );
     }
 
     #[test]
@@ -837,7 +849,10 @@ mod bs_tests {
 
     #[test]
     fn invalid_params_return_none() {
-        let bad = BSParams { spot: -1.0, ..atm_call() };
+        let bad = BSParams {
+            spot: -1.0,
+            ..atm_call()
+        };
         assert!(BSCalculator::price(&bad).is_none());
         assert!(BSCalculator::greeks(&bad).is_none());
     }
@@ -877,7 +892,10 @@ mod tests {
     }
 
     fn sample_put() -> OptionSpec {
-        OptionSpec { option_type: OptionType::Put, ..sample_call() }
+        OptionSpec {
+            option_type: OptionType::Put,
+            ..sample_call()
+        }
     }
 
     #[test]
@@ -948,25 +966,25 @@ mod tests {
 
     #[test]
     fn test_invalid_strike_errors() {
-        let spec = OptionSpec { strike: dec!(0), ..sample_call() };
+        let spec = OptionSpec {
+            strike: dec!(0),
+            ..sample_call()
+        };
         assert!(BlackScholes::price(&spec).is_err());
     }
 
     #[test]
     fn test_invalid_spot_errors() {
-        let spec = OptionSpec { spot: dec!(-1), ..sample_call() };
+        let spec = OptionSpec {
+            spot: dec!(-1),
+            ..sample_call()
+        };
         assert!(BlackScholes::greeks(&spec).is_err());
     }
 
     #[test]
     fn test_straddle_delta_near_zero_atm() {
-        let spread = SpreadGreeks::straddle(
-            dec!(100),
-            dec!(100),
-            30,
-            dec!(0.05),
-            dec!(0.20),
-        );
+        let spread = SpreadGreeks::straddle(dec!(100), dec!(100), 30, dec!(0.05), dec!(0.20));
         let g = spread.net_greeks().unwrap();
         // ATM straddle: delta ≈ 0 (call ~0.5, put ~-0.5)
         assert!(g.delta.abs() < dec!(0.1), "straddle delta={}", g.delta);

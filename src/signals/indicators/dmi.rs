@@ -92,8 +92,16 @@ impl Signal for Dmi {
 
         let up_move = h - ph;
         let down_move = pl - l;
-        let dm_plus = if up_move > down_move && up_move > Decimal::ZERO { up_move } else { Decimal::ZERO };
-        let dm_minus = if down_move > up_move && down_move > Decimal::ZERO { down_move } else { Decimal::ZERO };
+        let dm_plus = if up_move > down_move && up_move > Decimal::ZERO {
+            up_move
+        } else {
+            Decimal::ZERO
+        };
+        let dm_minus = if down_move > up_move && down_move > Decimal::ZERO {
+            down_move
+        } else {
+            Decimal::ZERO
+        };
         let tr = (h - l).max((h - pc).abs()).max((l - pc).abs());
 
         self.prev_high = Some(h);
@@ -159,7 +167,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -176,9 +187,15 @@ mod tests {
     fn test_dmi_unavailable_before_period() {
         let mut dmi = Dmi::new("d3", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(dmi.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                dmi.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
-        assert!(dmi.update_bar(&bar("110","90","100")).unwrap().is_scalar());
+        assert!(dmi
+            .update_bar(&bar("110", "90", "100"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]
@@ -200,7 +217,9 @@ mod tests {
     #[test]
     fn test_dmi_reset() {
         let mut dmi = Dmi::new("d3", 3).unwrap();
-        for _ in 0..10 { dmi.update_bar(&bar("110","90","100")).unwrap(); }
+        for _ in 0..10 {
+            dmi.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(dmi.is_ready());
         dmi.reset();
         assert!(!dmi.is_ready());
@@ -211,7 +230,9 @@ mod tests {
     #[test]
     fn test_dmi_flat_market_near_zero() {
         let mut dmi = Dmi::new("d3", 3).unwrap();
-        for _ in 0..10 { dmi.update_bar(&bar("100","100","100")).unwrap(); }
+        for _ in 0..10 {
+            dmi.update_bar(&bar("100", "100", "100")).unwrap();
+        }
         // flat → str=0 → Unavailable or near-zero
         assert!(!dmi.is_ready() || dmi.di_plus().unwrap_or(dec!(0)) < dec!(1));
     }

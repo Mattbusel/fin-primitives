@@ -41,7 +41,11 @@ impl DualRsi {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero or `fast_period >= slow_period`.
-    pub fn new(name: impl Into<String>, fast_period: usize, slow_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        fast_period: usize,
+        slow_period: usize,
+    ) -> Result<Self, FinError> {
         if fast_period == 0 || slow_period == 0 {
             return Err(FinError::InvalidPeriod(fast_period.min(slow_period)));
         }
@@ -60,8 +64,14 @@ impl DualRsi {
         })
     }
 
-    fn rsi(gains: &VecDeque<Decimal>, losses: &VecDeque<Decimal>, period: usize) -> Option<Decimal> {
-        if gains.len() < period { return None; }
+    fn rsi(
+        gains: &VecDeque<Decimal>,
+        losses: &VecDeque<Decimal>,
+        period: usize,
+    ) -> Option<Decimal> {
+        if gains.len() < period {
+            return None;
+        }
         let n = Decimal::from(period as u32);
         let avg_gain = gains.iter().sum::<Decimal>() / n;
         let avg_loss = losses.iter().sum::<Decimal>() / n;
@@ -74,7 +84,9 @@ impl DualRsi {
 }
 
 impl Signal for DualRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -89,8 +101,16 @@ impl Signal for DualRsi {
         self.prev_close = Some(close);
 
         let change = close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         // Push to both buffers
         self.fast_gains.push_back(gain);
@@ -147,7 +167,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -175,17 +198,26 @@ mod tests {
         let mut d = DualRsi::new("d", 3, 6).unwrap();
         let prices: Vec<String> = (100..115).map(|i| i.to_string()).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = d.update_bar(&bar(p)).unwrap(); }
-        assert!(matches!(last, SignalValue::Scalar(_)), "expected Scalar, got {last:?}");
+        for p in &prices {
+            last = d.update_bar(&bar(p)).unwrap();
+        }
+        assert!(
+            matches!(last, SignalValue::Scalar(_)),
+            "expected Scalar, got {last:?}"
+        );
     }
 
     #[test]
     fn test_dual_rsi_value_in_range() {
         // Result is always in [-100, 100]
         let mut d = DualRsi::new("d", 3, 6).unwrap();
-        let prices = ["100", "102", "101", "104", "103", "106", "104", "107", "108", "110"];
+        let prices = [
+            "100", "102", "101", "104", "103", "106", "104", "107", "108", "110",
+        ];
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = d.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            last = d.update_bar(&bar(p)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v >= dec!(-100) && v <= dec!(100), "out of range: {v}");
         }

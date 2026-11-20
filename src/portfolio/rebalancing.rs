@@ -134,15 +134,13 @@ impl RebalancingEngine {
         days_since_last: u32,
     ) -> bool {
         match trigger {
-            RebalancingTrigger::Calendar { frequency_days } => {
-                days_since_last >= *frequency_days
+            RebalancingTrigger::Calendar { frequency_days } => days_since_last >= *frequency_days,
+            RebalancingTrigger::Threshold { drift_pct } => {
+                drifts.iter().any(|d| d.drift_pct.abs() >= *drift_pct)
             }
-            RebalancingTrigger::Threshold { drift_pct } => drifts
-                .iter()
-                .any(|d| d.drift_pct.abs() >= *drift_pct),
-            RebalancingTrigger::BandBased { outer_band, .. } => drifts
-                .iter()
-                .any(|d| d.drift_pct.abs() >= *outer_band),
+            RebalancingTrigger::BandBased { outer_band, .. } => {
+                drifts.iter().any(|d| d.drift_pct.abs() >= *outer_band)
+            }
             RebalancingTrigger::Hybrid {
                 max_days,
                 threshold_pct,
@@ -333,7 +331,10 @@ impl RebalancingEngine {
     ) -> String {
         match trigger {
             RebalancingTrigger::Calendar { frequency_days } => {
-                format!("Calendar: {} days elapsed (freq={})", days_since_last, frequency_days)
+                format!(
+                    "Calendar: {} days elapsed (freq={})",
+                    days_since_last, frequency_days
+                )
             }
             RebalancingTrigger::Threshold { drift_pct } => {
                 let max_drift = drifts
@@ -342,13 +343,16 @@ impl RebalancingEngine {
                     .fold(0.0_f64, f64::max);
                 format!("Threshold: max drift {:.4} >= {:.4}", max_drift, drift_pct)
             }
-            RebalancingTrigger::BandBased { inner_band, outer_band } => {
-                format!(
-                    "BandBased: inner={:.4} outer={:.4}",
-                    inner_band, outer_band
-                )
+            RebalancingTrigger::BandBased {
+                inner_band,
+                outer_band,
+            } => {
+                format!("BandBased: inner={:.4} outer={:.4}", inner_band, outer_band)
             }
-            RebalancingTrigger::Hybrid { max_days: _, threshold_pct } => {
+            RebalancingTrigger::Hybrid {
+                max_days: _,
+                threshold_pct,
+            } => {
                 format!(
                     "Hybrid: days={} threshold={:.4}",
                     days_since_last, threshold_pct
@@ -397,7 +401,11 @@ mod tests {
         let trigger = RebalancingTrigger::Threshold { drift_pct: 0.03 };
         assert!(RebalancingEngine::should_rebalance(&drifts, &trigger, 0));
         let trigger_high = RebalancingTrigger::Threshold { drift_pct: 0.10 };
-        assert!(!RebalancingEngine::should_rebalance(&drifts, &trigger_high, 0));
+        assert!(!RebalancingEngine::should_rebalance(
+            &drifts,
+            &trigger_high,
+            0
+        ));
     }
 
     #[test]

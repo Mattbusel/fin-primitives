@@ -43,7 +43,9 @@ impl Rsx {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -57,7 +59,9 @@ impl Rsx {
 }
 
 impl Signal for Rsx {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let Some(prev) = self.prev_close else {
@@ -66,8 +70,16 @@ impl Signal for Rsx {
         };
         let change = bar.close - prev;
         self.prev_close = Some(bar.close);
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_gain.is_none() {
             self.seed_gains.push(gain);
@@ -93,7 +105,11 @@ impl Signal for Rsx {
         let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)?;
         let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)?;
         let rsx = if al.is_zero() {
-            if ag.is_zero() { Decimal::from(50u32) } else { Decimal::ONE_HUNDRED }
+            if ag.is_zero() {
+                Decimal::from(50u32)
+            } else {
+                Decimal::ONE_HUNDRED
+            }
         } else {
             let rs = ag / al;
             Decimal::ONE_HUNDRED - Decimal::ONE_HUNDRED / (Decimal::ONE + rs)
@@ -101,9 +117,13 @@ impl Signal for Rsx {
         Ok(SignalValue::Scalar(rsx))
     }
 
-    fn is_ready(&self) -> bool { self.avg_gain.is_some() }
+    fn is_ready(&self) -> bool {
+        self.avg_gain.is_some()
+    }
 
-    fn period(&self) -> usize { self.period }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -126,7 +146,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -181,7 +204,9 @@ mod tests {
     fn test_rsx_range() {
         let mut r = Rsx::new("r", 5).unwrap();
         for i in 0..20 {
-            if let SignalValue::Scalar(v) = r.update_bar(&bar(&format!("{}", 100 + (i % 5)))).unwrap() {
+            if let SignalValue::Scalar(v) =
+                r.update_bar(&bar(&format!("{}", 100 + (i % 5)))).unwrap()
+            {
                 assert!(v >= dec!(0) && v <= dec!(100), "RSX out of range: {v}");
             }
         }
@@ -190,7 +215,9 @@ mod tests {
     #[test]
     fn test_rsx_reset() {
         let mut r = Rsx::new("r", 3).unwrap();
-        for _ in 0..10 { r.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            r.update_bar(&bar("100")).unwrap();
+        }
         assert!(r.is_ready());
         r.reset();
         assert!(!r.is_ready());

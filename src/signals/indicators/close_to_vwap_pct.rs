@@ -136,7 +136,9 @@ mod tests {
     fn test_cv_pct_close_at_vwap_returns_zero() {
         let mut cv = CloseToVwapPct::new("cv").unwrap();
         // typical_price = (110 + 90 + 100) / 3 = 100; close = 100 = vwap → 0%
-        let v = cv.update_bar(&bar("100", "110", "90", "100", "1000")).unwrap();
+        let v = cv
+            .update_bar(&bar("100", "110", "90", "100", "1000"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
@@ -144,7 +146,9 @@ mod tests {
     fn test_cv_pct_close_above_vwap_positive() {
         let mut cv = CloseToVwapPct::new("cv").unwrap();
         // tp = (110+90+100)/3 = 100, vwap = 100, close = 110 → +10%
-        let v = cv.update_bar(&bar("100", "110", "90", "110", "1000")).unwrap();
+        let v = cv
+            .update_bar(&bar("100", "110", "90", "110", "1000"))
+            .unwrap();
         if let SignalValue::Scalar(pct) = v {
             assert!(pct > dec!(0), "above-VWAP close should be positive: {pct}");
         } else {
@@ -156,7 +160,9 @@ mod tests {
     fn test_cv_pct_close_below_vwap_negative() {
         let mut cv = CloseToVwapPct::new("cv").unwrap();
         // tp = (110+90+100)/3 = 100, vwap = 100, close = 90 → -10%
-        let v = cv.update_bar(&bar("100", "110", "90", "90", "1000")).unwrap();
+        let v = cv
+            .update_bar(&bar("100", "110", "90", "90", "1000"))
+            .unwrap();
         if let SignalValue::Scalar(pct) = v {
             assert!(pct < dec!(0), "below-VWAP close should be negative: {pct}");
         } else {
@@ -167,14 +173,16 @@ mod tests {
     #[test]
     fn test_cv_pct_ready_after_bar_with_volume() {
         let mut cv = CloseToVwapPct::new("cv").unwrap();
-        cv.update_bar(&bar("100", "110", "90", "105", "500")).unwrap();
+        cv.update_bar(&bar("100", "110", "90", "105", "500"))
+            .unwrap();
         assert!(cv.is_ready());
     }
 
     #[test]
     fn test_cv_pct_reset() {
         let mut cv = CloseToVwapPct::new("cv").unwrap();
-        cv.update_bar(&bar("100", "110", "90", "105", "500")).unwrap();
+        cv.update_bar(&bar("100", "110", "90", "105", "500"))
+            .unwrap();
         assert!(cv.is_ready());
         cv.reset();
         assert!(!cv.is_ready());

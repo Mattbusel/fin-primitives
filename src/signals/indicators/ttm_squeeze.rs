@@ -58,7 +58,9 @@ impl TtmSqueeze {
         k_bb: Decimal,
         k_kc: Decimal,
     ) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         if k_bb <= Decimal::ZERO {
             return Err(FinError::InvalidInput("k_bb must be positive".into()));
         }
@@ -79,19 +81,29 @@ impl TtmSqueeze {
     }
 
     /// Returns `true` when Bollinger Bands are inside Keltner Channels (squeeze active).
-    pub fn squeeze_on(&self) -> bool { self.squeeze_on }
+    pub fn squeeze_on(&self) -> bool {
+        self.squeeze_on
+    }
 }
 
 impl Signal for TtmSqueeze {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
 
         let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
@@ -104,9 +116,15 @@ impl Signal for TtmSqueeze {
         let sma = self.closes.iter().sum::<Decimal>() / n;
 
         // Bollinger Band std dev (population)
-        let variance = self.closes.iter()
-            .map(|&c| { let d = c - sma; d * d })
-            .sum::<Decimal>() / n;
+        let variance = self
+            .closes
+            .iter()
+            .map(|&c| {
+                let d = c - sma;
+                d * d
+            })
+            .sum::<Decimal>()
+            / n;
         let std_dev = {
             use rust_decimal::prelude::ToPrimitive;
             let v_f = variance.to_f64().unwrap_or(0.0);
@@ -119,9 +137,13 @@ impl Signal for TtmSqueeze {
         // Keltner Channel ATR (simple mean of TRs — approximate using current TR + period-1 bars)
         // Use mean of highs-lows as ATR proxy (true range per bar already tracked via prev_close)
         // For simplicity: ATR ≈ mean(high - low) over window (sufficient for squeeze detection)
-        let atr: Decimal = self.highs.iter().zip(self.lows.iter())
+        let atr: Decimal = self
+            .highs
+            .iter()
+            .zip(self.lows.iter())
             .map(|(&h, &l)| h - l)
-            .sum::<Decimal>() / n;
+            .sum::<Decimal>()
+            / n;
         // Use current true range for the most recent bar
         let _ = tr;
 
@@ -140,8 +162,12 @@ impl Signal for TtmSqueeze {
         Ok(SignalValue::Scalar(momentum))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period && self.prev_close.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period && self.prev_close.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -163,7 +189,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -177,7 +206,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -204,7 +236,9 @@ mod tests {
     fn test_ttm_wide_range_squeeze_on() {
         // Wide H-L range with flat close → std_dev=0, ATR wide → BB inside KC → squeeze on
         let mut t = TtmSqueeze::new("t", 3, dec!(2), dec!(1.5)).unwrap();
-        for _ in 0..3 { t.update_bar(&bar_hlc("200", "1", "100")).unwrap(); }
+        for _ in 0..3 {
+            t.update_bar(&bar_hlc("200", "1", "100")).unwrap();
+        }
         assert!(t.squeeze_on());
     }
 
@@ -213,7 +247,9 @@ mod tests {
         // Closes alternate wildly with flat bars → high std_dev, near-zero ATR → BB > KC → no squeeze
         let mut t = TtmSqueeze::new("t", 4, dec!(2), dec!(1.5)).unwrap();
         let prices = ["1", "199", "1", "199"];
-        for p in &prices { t.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            t.update_bar(&bar(p)).unwrap();
+        }
         assert!(!t.squeeze_on());
     }
 
@@ -221,16 +257,22 @@ mod tests {
     fn test_ttm_flat_momentum_zero() {
         let mut t = TtmSqueeze::new("t", 3, dec!(2), dec!(1.5)).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = t.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_ttm_reset() {
         let mut t = TtmSqueeze::new("t", 3, dec!(2), dec!(1.5)).unwrap();
-        for _ in 0..5 { t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            t.update_bar(&bar("100")).unwrap();
+        }
         assert!(t.is_ready());
         t.reset();
         assert!(!t.is_ready());

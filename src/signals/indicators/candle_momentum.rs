@@ -37,7 +37,9 @@ impl CandleMomentum {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -47,20 +49,30 @@ impl CandleMomentum {
 }
 
 impl Signal for CandleMomentum {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.net_move();
         self.bodies.push_back(body);
-        if self.bodies.len() > self.period { self.bodies.pop_front(); }
-        if self.bodies.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.bodies.len() > self.period {
+            self.bodies.pop_front();
+        }
+        if self.bodies.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.bodies.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.bodies.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.bodies.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.bodies.clear();
@@ -83,7 +95,10 @@ mod tests {
         let lp = Price::new(ov.min(cv)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -91,7 +106,9 @@ mod tests {
         }
     }
 
-    fn doji() -> OhlcvBar { bar_oc("100", "100") }
+    fn doji() -> OhlcvBar {
+        bar_oc("100", "100")
+    }
 
     #[test]
     fn test_cm_invalid() {
@@ -110,10 +127,14 @@ mod tests {
     fn test_cm_doji_is_zero() {
         let mut c = CandleMomentum::new("c", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = c.update_bar(&doji()).unwrap(); }
+        for _ in 0..5 {
+            last = c.update_bar(&doji()).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -121,20 +142,28 @@ mod tests {
         // body = close-open = 5 each bar → mean = 5
         let mut c = CandleMomentum::new("c", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = c.update_bar(&bar_oc("100", "105")).unwrap(); }
+        for _ in 0..5 {
+            last = c.update_bar(&bar_oc("100", "105")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_cm_all_bear_negative() {
         let mut c = CandleMomentum::new("c", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = c.update_bar(&bar_oc("105", "100")).unwrap(); }
+        for _ in 0..5 {
+            last = c.update_bar(&bar_oc("105", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(-5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -148,13 +177,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_cm_reset() {
         let mut c = CandleMomentum::new("c", 3).unwrap();
-        for _ in 0..5 { c.update_bar(&doji()).unwrap(); }
+        for _ in 0..5 {
+            c.update_bar(&doji()).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

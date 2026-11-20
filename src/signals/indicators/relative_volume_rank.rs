@@ -46,9 +46,15 @@ impl RelativeVolumeRank {
 }
 
 impl Signal for RelativeVolumeRank {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.volume);
@@ -60,7 +66,8 @@ impl Signal for RelativeVolumeRank {
         }
 
         let current = bar.volume;
-        let count_below = self.window
+        let count_below = self
+            .window
             .iter()
             .take(self.period - 1) // exclude current bar
             .filter(|&&v| v < current)
@@ -90,7 +97,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -107,8 +117,14 @@ mod tests {
     #[test]
     fn test_rvr_unavailable_before_period() {
         let mut s = RelativeVolumeRank::new("rvr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("2000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("2000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -142,7 +158,9 @@ mod tests {
     #[test]
     fn test_rvr_reset() {
         let mut s = RelativeVolumeRank::new("rvr", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("1000")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

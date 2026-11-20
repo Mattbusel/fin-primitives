@@ -1,9 +1,9 @@
 //! Inside Bar Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling fraction of bars where `high < prev_high AND low > prev_low` (inside bars).
 ///
@@ -55,10 +55,21 @@ impl Signal for InsideBarRatio {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_high = None; self.prev_low = None; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "InsideBarRatio" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_high = None;
+        self.prev_low = None;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "InsideBarRatio"
+    }
 }
 
 #[cfg(test)]

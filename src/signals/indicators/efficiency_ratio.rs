@@ -38,7 +38,9 @@ impl EfficiencyRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,12 +50,18 @@ impl EfficiencyRatio {
 }
 
 impl Signal for EfficiencyRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period + 1 { self.closes.pop_front(); }
-        if self.closes.len() < self.period + 1 { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period + 1 {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period + 1 {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let closes: Vec<&Decimal> = self.closes.iter().collect();
         let first = *closes[0];
@@ -61,9 +69,7 @@ impl Signal for EfficiencyRatio {
 
         let direction = (last - first).abs();
 
-        let path: Decimal = closes.windows(2)
-            .map(|w| (*w[1] - *w[0]).abs())
-            .sum();
+        let path: Decimal = closes.windows(2).map(|w| (*w[1] - *w[0]).abs()).sum();
 
         if path.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -72,8 +78,12 @@ impl Signal for EfficiencyRatio {
         Ok(SignalValue::Scalar(direction / path))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -91,7 +101,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,7 +135,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -130,10 +145,14 @@ mod tests {
         // Flat market: path > 0 only if prices vary; flat → both zero → ER = 0
         let mut e = EfficiencyRatio::new("e", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = e.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -146,7 +165,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v < dec!(1), "expected ER < 1, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -162,7 +183,9 @@ mod tests {
     #[test]
     fn test_er_reset() {
         let mut e = EfficiencyRatio::new("e", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { e.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            e.update_bar(&bar(p)).unwrap();
+        }
         assert!(e.is_ready());
         e.reset();
         assert!(!e.is_ready());

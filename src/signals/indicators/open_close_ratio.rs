@@ -1,9 +1,9 @@
 //! Open-Close Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `open / close`.
 ///
@@ -21,7 +21,11 @@ impl OpenCloseRatio {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -45,10 +49,19 @@ impl Signal for OpenCloseRatio {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "OpenCloseRatio" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "OpenCloseRatio"
+    }
 }
 
 #[cfg(test)]
@@ -82,7 +95,11 @@ mod tests {
         sig.update(&bar("95", "100")).unwrap();
         let v = sig.update(&bar("95", "100")).unwrap();
         if let SignalValue::Scalar(x) = v {
-            assert!(x < dec!(1), "bullish bars should produce ratio < 1, got {}", x);
+            assert!(
+                x < dec!(1),
+                "bullish bars should produce ratio < 1, got {}",
+                x
+            );
         }
     }
 }

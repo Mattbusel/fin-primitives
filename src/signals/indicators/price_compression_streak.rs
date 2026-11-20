@@ -43,7 +43,12 @@ impl PriceCompressionStreak {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_range: None, streak: 0, seen_bars: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_range: None,
+            streak: 0,
+            seen_bars: 0,
+        })
     }
 }
 
@@ -99,7 +104,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,7 +118,10 @@ mod tests {
     #[test]
     fn test_pcs_first_bar_unavailable() {
         let mut pcs = PriceCompressionStreak::new("pcs").unwrap();
-        assert_eq!(pcs.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcs.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pcs.is_ready());
     }
 
@@ -126,9 +137,18 @@ mod tests {
     fn test_pcs_counts_narrowing_ranges() {
         let mut pcs = PriceCompressionStreak::new("pcs").unwrap();
         pcs.update_bar(&bar("120", "80")).unwrap(); // range 40
-        assert_eq!(pcs.update_bar(&bar("115", "85")).unwrap(), SignalValue::Scalar(dec!(1))); // 30 < 40
-        assert_eq!(pcs.update_bar(&bar("112", "88")).unwrap(), SignalValue::Scalar(dec!(2))); // 24 < 30
-        assert_eq!(pcs.update_bar(&bar("111", "90")).unwrap(), SignalValue::Scalar(dec!(3))); // 21 < 24
+        assert_eq!(
+            pcs.update_bar(&bar("115", "85")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        ); // 30 < 40
+        assert_eq!(
+            pcs.update_bar(&bar("112", "88")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        ); // 24 < 30
+        assert_eq!(
+            pcs.update_bar(&bar("111", "90")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        ); // 21 < 24
     }
 
     #[test]
@@ -146,7 +166,7 @@ mod tests {
     fn test_pcs_equal_range_resets() {
         let mut pcs = PriceCompressionStreak::new("pcs").unwrap();
         pcs.update_bar(&bar("120", "100")).unwrap(); // range 20
-        // Same range: not strictly narrower → streak = 0
+                                                     // Same range: not strictly narrower → streak = 0
         let v = pcs.update_bar(&bar("120", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }

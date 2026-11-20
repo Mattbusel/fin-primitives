@@ -43,7 +43,9 @@ impl EmaConvergence {
     /// Returns [`FinError::InvalidPeriod`] if `fast == 0`.
     /// Returns [`FinError::InvalidInput`] if `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         if fast >= slow {
             return Err(FinError::InvalidInput("fast must be less than slow".into()));
         }
@@ -60,7 +62,9 @@ impl EmaConvergence {
 }
 
 impl Signal for EmaConvergence {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let kf = Decimal::from(2u32) / Decimal::from((self.fast + 1) as u32);
@@ -70,12 +74,12 @@ impl Signal for EmaConvergence {
         if self.fast_ema.is_none() {
             self.fast_seed.push(bar.close);
             if self.fast_seed.len() == self.fast {
-                let sma = self.fast_seed.iter().sum::<Decimal>()
-                    / Decimal::from(self.fast as u32);
+                let sma = self.fast_seed.iter().sum::<Decimal>() / Decimal::from(self.fast as u32);
                 self.fast_ema = Some(sma);
             }
         } else {
-            let fe = self.fast_ema.ok_or_else(crate::error::invariant_broken)? + kf * (bar.close - self.fast_ema.ok_or_else(crate::error::invariant_broken)?);
+            let fe = self.fast_ema.ok_or_else(crate::error::invariant_broken)?
+                + kf * (bar.close - self.fast_ema.ok_or_else(crate::error::invariant_broken)?);
             self.fast_ema = Some(fe);
         }
 
@@ -83,12 +87,12 @@ impl Signal for EmaConvergence {
         if self.slow_ema.is_none() {
             self.slow_seed.push(bar.close);
             if self.slow_seed.len() == self.slow {
-                let sma = self.slow_seed.iter().sum::<Decimal>()
-                    / Decimal::from(self.slow as u32);
+                let sma = self.slow_seed.iter().sum::<Decimal>() / Decimal::from(self.slow as u32);
                 self.slow_ema = Some(sma);
             }
         } else {
-            let se = self.slow_ema.ok_or_else(crate::error::invariant_broken)? + ks * (bar.close - self.slow_ema.ok_or_else(crate::error::invariant_broken)?);
+            let se = self.slow_ema.ok_or_else(crate::error::invariant_broken)?
+                + ks * (bar.close - self.slow_ema.ok_or_else(crate::error::invariant_broken)?);
             self.slow_ema = Some(se);
         }
 
@@ -102,8 +106,12 @@ impl Signal for EmaConvergence {
         }
     }
 
-    fn is_ready(&self) -> bool { self.fast_ema.is_some() && self.slow_ema.is_some() }
-    fn period(&self) -> usize { self.slow }
+    fn is_ready(&self) -> bool {
+        self.fast_ema.is_some() && self.slow_ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
 
     fn reset(&mut self) {
         self.fast_ema = None;
@@ -124,7 +132,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -152,21 +163,29 @@ mod tests {
         // Flat prices: fast_EMA = slow_EMA = price → convergence = 0
         let mut e = EmaConvergence::new("e", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..20 { last = e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            last = e.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             let diff = v.abs();
             assert!(diff < dec!(0.001), "expected ~0, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_ec_diverging_positive() {
         // After step-up, EMAs diverge: fast closer to new price than slow
         let mut e = EmaConvergence::new("e", 3, 5).unwrap();
-        for _ in 0..20 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = e.update_bar(&bar("200")).unwrap() {
             assert!(v > dec!(0), "expected positive divergence, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -183,7 +202,9 @@ mod tests {
     #[test]
     fn test_ec_reset() {
         let mut e = EmaConvergence::new("e", 3, 5).unwrap();
-        for _ in 0..20 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         assert!(e.is_ready());
         e.reset();
         assert!(!e.is_ready());

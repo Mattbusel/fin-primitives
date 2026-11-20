@@ -53,9 +53,15 @@ impl CloseOpenEma {
 }
 
 impl Signal for CloseOpenEma {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bars_seen > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.net_move();
@@ -94,7 +100,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -111,7 +120,10 @@ mod tests {
     fn test_coe_unavailable_during_warmup() {
         let mut s = CloseOpenEma::new("coe", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(s.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                s.update_bar(&bar("100", "102")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!s.is_ready());
     }
@@ -119,9 +131,14 @@ mod tests {
     #[test]
     fn test_coe_positive_for_consistent_bull_bars() {
         let mut s = CloseOpenEma::new("coe", 2).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100", "105")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "105")).unwrap();
+        }
         if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "105")).unwrap() {
-            assert!(v > dec!(0), "consistent bull bars should give positive EMA: {v}");
+            assert!(
+                v > dec!(0),
+                "consistent bull bars should give positive EMA: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -130,9 +147,14 @@ mod tests {
     #[test]
     fn test_coe_negative_for_consistent_bear_bars() {
         let mut s = CloseOpenEma::new("coe", 2).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("105", "100")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("105", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "100")).unwrap() {
-            assert!(v < dec!(0), "consistent bear bars should give negative EMA: {v}");
+            assert!(
+                v < dec!(0),
+                "consistent bear bars should give negative EMA: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -141,7 +163,9 @@ mod tests {
     #[test]
     fn test_coe_reset() {
         let mut s = CloseOpenEma::new("coe", 2).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100", "105")).unwrap(); }
+        for _ in 0..4 {
+            s.update_bar(&bar("100", "105")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

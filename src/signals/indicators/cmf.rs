@@ -139,7 +139,9 @@ mod tests {
     fn test_cmf_zero_range_bar_contributes_zero_mfv() {
         let mut cmf = Cmf::new("cmf1", 1).unwrap();
         // high == low, so MFM = 0, MFV = 0
-        let result = cmf.update(&bar("100", "100", "100", "100", "1000")).unwrap();
+        let result = cmf
+            .update(&bar("100", "100", "100", "100", "1000"))
+            .unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(0)));
     }
 

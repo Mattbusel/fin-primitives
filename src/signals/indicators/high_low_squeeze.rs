@@ -55,9 +55,15 @@ impl HighLowSqueeze {
 }
 
 impl Signal for HighLowSqueeze {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let r = bar.range();
@@ -69,7 +75,11 @@ impl Signal for HighLowSqueeze {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_range = self.ranges.iter().copied().fold(Decimal::ZERO, Decimal::max);
+        let max_range = self
+            .ranges
+            .iter()
+            .copied()
+            .fold(Decimal::ZERO, Decimal::max);
         if max_range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
@@ -100,7 +110,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,8 +129,14 @@ mod tests {
     #[test]
     fn test_hls_unavailable_during_warmup() {
         let mut hls = HighLowSqueeze::new("hls", 3).unwrap();
-        assert_eq!(hls.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hls.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hls.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hls.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!hls.is_ready());
     }
 
@@ -163,7 +182,9 @@ mod tests {
     #[test]
     fn test_hls_reset() {
         let mut hls = HighLowSqueeze::new("hls", 3).unwrap();
-        for _ in 0..3 { hls.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            hls.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(hls.is_ready());
         hls.reset();
         assert!(!hls.is_ready());

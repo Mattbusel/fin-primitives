@@ -11,8 +11,7 @@ use super::{Close, High, Low, Next, Period, Reset, Volume};
 use crate::error::FinError;
 use crate::signals::float::{
     AtrF64, BollingerF64, CciF64, EfficiencyRatioF64, EmaF64, MacdF64, MaxF64, MeanAbsDevF64,
-    MfiF64, MinF64, ObvF64, PpoF64, RocF64, RsiF64, SmaF64, StdDevF64, StochasticF64,
-    TrueRangeF64,
+    MfiF64, MinF64, ObvF64, PpoF64, RocF64, RsiF64, SmaF64, StdDevF64, StochasticF64, TrueRangeF64,
 };
 use std::collections::VecDeque;
 use std::fmt;
@@ -73,7 +72,9 @@ impl SimpleMovingAverage {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(SmaF64::new(period))? })
+        Ok(Self {
+            inner: param(SmaF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -104,7 +105,9 @@ impl Reset for SimpleMovingAverage {
 
 impl Default for SimpleMovingAverage {
     fn default() -> Self {
-        Self { inner: valid(SmaF64::new(9)) }
+        Self {
+            inner: valid(SmaF64::new(9)),
+        }
     }
 }
 
@@ -133,7 +136,9 @@ impl ExponentialMovingAverage {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(EmaF64::new(period))? })
+        Ok(Self {
+            inner: param(EmaF64::new(period))?,
+        })
     }
 
     /// `true` once seeded.
@@ -164,7 +169,9 @@ impl Reset for ExponentialMovingAverage {
 
 impl Default for ExponentialMovingAverage {
     fn default() -> Self {
-        Self { inner: valid(EmaF64::new(9)) }
+        Self {
+            inner: valid(EmaF64::new(9)),
+        }
     }
 }
 
@@ -192,7 +199,9 @@ impl StandardDeviation {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(StdDevF64::new(period))? })
+        Ok(Self {
+            inner: param(StdDevF64::new(period))?,
+        })
     }
 
     /// The mean of the current window (`NaN` during warm-up).
@@ -228,7 +237,9 @@ impl Reset for StandardDeviation {
 
 impl Default for StandardDeviation {
     fn default() -> Self {
-        Self { inner: valid(StdDevF64::new(9)) }
+        Self {
+            inner: valid(StdDevF64::new(9)),
+        }
     }
 }
 
@@ -254,7 +265,9 @@ impl MeanAbsoluteDeviation {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(MeanAbsDevF64::new(period))? })
+        Ok(Self {
+            inner: param(MeanAbsDevF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -285,7 +298,9 @@ impl Reset for MeanAbsoluteDeviation {
 
 impl Default for MeanAbsoluteDeviation {
     fn default() -> Self {
-        Self { inner: valid(MeanAbsDevF64::new(9)) }
+        Self {
+            inner: valid(MeanAbsDevF64::new(9)),
+        }
     }
 }
 
@@ -314,7 +329,9 @@ impl RelativeStrengthIndex {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(RsiF64::new(period))? })
+        Ok(Self {
+            inner: param(RsiF64::new(period))?,
+        })
     }
 
     /// `true` once seeded.
@@ -345,7 +362,9 @@ impl Reset for RelativeStrengthIndex {
 
 impl Default for RelativeStrengthIndex {
     fn default() -> Self {
-        Self { inner: valid(RsiF64::new(14)) }
+        Self {
+            inner: valid(RsiF64::new(14)),
+        }
     }
 }
 
@@ -372,7 +391,9 @@ impl Maximum {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(MaxF64::new(period))? })
+        Ok(Self {
+            inner: param(MaxF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -409,7 +430,9 @@ impl Reset for Maximum {
 
 impl Default for Maximum {
     fn default() -> Self {
-        Self { inner: valid(MaxF64::new(14)) }
+        Self {
+            inner: valid(MaxF64::new(14)),
+        }
     }
 }
 
@@ -434,7 +457,9 @@ impl Minimum {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(MinF64::new(period))? })
+        Ok(Self {
+            inner: param(MinF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -471,7 +496,9 @@ impl Reset for Minimum {
 
 impl Default for Minimum {
     fn default() -> Self {
-        Self { inner: valid(MinF64::new(14)) }
+        Self {
+            inner: valid(MinF64::new(14)),
+        }
     }
 }
 
@@ -499,7 +526,9 @@ impl FastStochastic {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(StochasticF64::new(period))? })
+        Ok(Self {
+            inner: param(StochasticF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -536,7 +565,9 @@ impl Reset for FastStochastic {
 
 impl Default for FastStochastic {
     fn default() -> Self {
-        Self { inner: valid(StochasticF64::new(14)) }
+        Self {
+            inner: valid(StochasticF64::new(14)),
+        }
     }
 }
 
@@ -617,7 +648,12 @@ impl Default for SlowStochastic {
 
 impl fmt::Display for SlowStochastic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SLOW_STOCH({}, {})", self.fast.period(), self.ema.period())
+        write!(
+            f,
+            "SLOW_STOCH({}, {})",
+            self.fast.period(),
+            self.ema.period()
+        )
     }
 }
 
@@ -682,7 +718,9 @@ impl AverageTrueRange {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(AtrF64::wilder(period))? })
+        Ok(Self {
+            inner: param(AtrF64::wilder(period))?,
+        })
     }
 
     /// `true` once seeded.
@@ -719,7 +757,9 @@ impl Reset for AverageTrueRange {
 
 impl Default for AverageTrueRange {
     fn default() -> Self {
-        Self { inner: valid(AtrF64::wilder(14)) }
+        Self {
+            inner: valid(AtrF64::wilder(14)),
+        }
     }
 }
 
@@ -777,7 +817,9 @@ impl MovingAverageConvergenceDivergence {
     /// # Errors
     /// [`TaError::InvalidParameter`] if a period is zero.
     pub fn new(fast_period: usize, slow_period: usize, signal_period: usize) -> Result<Self> {
-        Ok(Self { inner: param(MacdF64::talib(fast_period, slow_period, signal_period))? })
+        Ok(Self {
+            inner: param(MacdF64::talib(fast_period, slow_period, signal_period))?,
+        })
     }
 
     /// `true` once the signal line is seeded.
@@ -813,7 +855,9 @@ impl Reset for MovingAverageConvergenceDivergence {
 
 impl Default for MovingAverageConvergenceDivergence {
     fn default() -> Self {
-        Self { inner: valid(MacdF64::talib(12, 26, 9)) }
+        Self {
+            inner: valid(MacdF64::talib(12, 26, 9)),
+        }
     }
 }
 
@@ -882,7 +926,11 @@ impl Next<f64> for PercentagePriceOscillator {
             };
         };
         let signal = or_nan(self.signal.update(ppo));
-        PercentagePriceOscillatorOutput { ppo, signal, histogram: ppo - signal }
+        PercentagePriceOscillatorOutput {
+            ppo,
+            signal,
+            histogram: ppo - signal,
+        }
     }
 }
 next_on_close!(PercentagePriceOscillator);
@@ -927,7 +975,9 @@ impl CommodityChannelIndex {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(CciF64::new(period))? })
+        Ok(Self {
+            inner: param(CciF64::new(period))?,
+        })
     }
 
     /// `true` once the window is full.
@@ -957,7 +1007,9 @@ impl Reset for CommodityChannelIndex {
 
 impl Default for CommodityChannelIndex {
     fn default() -> Self {
-        Self { inner: valid(CciF64::new(20)) }
+        Self {
+            inner: valid(CciF64::new(20)),
+        }
     }
 }
 
@@ -985,7 +1037,9 @@ impl EfficiencyRatio {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(EfficiencyRatioF64::new(period))? })
+        Ok(Self {
+            inner: param(EfficiencyRatioF64::new(period))?,
+        })
     }
 
     /// `true` once `period + 1` inputs have been seen.
@@ -1016,7 +1070,9 @@ impl Reset for EfficiencyRatio {
 
 impl Default for EfficiencyRatio {
     fn default() -> Self {
-        Self { inner: valid(EfficiencyRatioF64::new(14)) }
+        Self {
+            inner: valid(EfficiencyRatioF64::new(14)),
+        }
     }
 }
 
@@ -1055,7 +1111,9 @@ impl BollingerBands {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0` or `multiplier` is not finite.
     pub fn new(period: usize, multiplier: f64) -> Result<Self> {
-        Ok(Self { inner: param(BollingerF64::new(period, multiplier))? })
+        Ok(Self {
+            inner: param(BollingerF64::new(period, multiplier))?,
+        })
     }
 
     /// The band multiplier.
@@ -1079,8 +1137,16 @@ impl Next<f64> for BollingerBands {
     type Output = BollingerBandsOutput;
     fn next(&mut self, input: f64) -> Self::Output {
         match self.inner.update(input) {
-            Some(o) => BollingerBandsOutput { average: o.middle, upper: o.upper, lower: o.lower },
-            None => BollingerBandsOutput { average: f64::NAN, upper: f64::NAN, lower: f64::NAN },
+            Some(o) => BollingerBandsOutput {
+                average: o.middle,
+                upper: o.upper,
+                lower: o.lower,
+            },
+            None => BollingerBandsOutput {
+                average: f64::NAN,
+                upper: f64::NAN,
+                lower: f64::NAN,
+            },
         }
     }
 }
@@ -1094,13 +1160,20 @@ impl Reset for BollingerBands {
 
 impl Default for BollingerBands {
     fn default() -> Self {
-        Self { inner: valid(BollingerF64::new(9, 2.0)) }
+        Self {
+            inner: valid(BollingerF64::new(9, 2.0)),
+        }
     }
 }
 
 impl fmt::Display for BollingerBands {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BB({}, {})", self.inner.period(), self.inner.multiplier())
+        write!(
+            f,
+            "BB({}, {})",
+            self.inner.period(),
+            self.inner.multiplier()
+        )
     }
 }
 
@@ -1156,7 +1229,11 @@ impl KeltnerChannel {
     fn output(&self, average: Option<f64>, atr: Option<f64>) -> KeltnerChannelOutput {
         let average = or_nan(average);
         let width = or_nan(atr) * self.multiplier;
-        KeltnerChannelOutput { average, upper: average + width, lower: average - width }
+        KeltnerChannelOutput {
+            average,
+            upper: average + width,
+            lower: average - width,
+        }
     }
 }
 
@@ -1270,10 +1347,14 @@ impl Period for ChandelierExit {
 impl<T: Low + High + Close> Next<&T> for ChandelierExit {
     type Output = ChandelierExitOutput;
     fn next(&mut self, input: &T) -> Self::Output {
-        let atr = or_nan(self.atr.update(input.high(), input.low(), input.close())) * self.multiplier;
+        let atr =
+            or_nan(self.atr.update(input.high(), input.low(), input.close())) * self.multiplier;
         let min = or_nan(self.min.update(input.low()));
         let max = or_nan(self.max.update(input.high()));
-        ChandelierExitOutput { long: max - atr, short: min + atr }
+        ChandelierExitOutput {
+            long: max - atr,
+            short: min + atr,
+        }
     }
 }
 
@@ -1320,7 +1401,9 @@ impl RateOfChange {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(RocF64::new(period))? })
+        Ok(Self {
+            inner: param(RocF64::new(period))?,
+        })
     }
 
     /// `true` once `period + 1` inputs have been seen.
@@ -1351,7 +1434,9 @@ impl Reset for RateOfChange {
 
 impl Default for RateOfChange {
     fn default() -> Self {
-        Self { inner: valid(RocF64::new(9)) }
+        Self {
+            inner: valid(RocF64::new(9)),
+        }
     }
 }
 
@@ -1378,7 +1463,9 @@ impl MoneyFlowIndex {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { inner: param(MfiF64::new(period))? })
+        Ok(Self {
+            inner: param(MfiF64::new(period))?,
+        })
     }
 
     /// `true` once `period + 1` bars have been seen.
@@ -1396,7 +1483,10 @@ impl Period for MoneyFlowIndex {
 impl<T: High + Low + Close + Volume> Next<&T> for MoneyFlowIndex {
     type Output = f64;
     fn next(&mut self, input: &T) -> f64 {
-        or_nan(self.inner.update(input.high(), input.low(), input.close(), input.volume()))
+        or_nan(
+            self.inner
+                .update(input.high(), input.low(), input.close(), input.volume()),
+        )
     }
 }
 
@@ -1408,7 +1498,9 @@ impl Reset for MoneyFlowIndex {
 
 impl Default for MoneyFlowIndex {
     fn default() -> Self {
-        Self { inner: valid(MfiF64::new(14)) }
+        Self {
+            inner: valid(MfiF64::new(14)),
+        }
     }
 }
 
@@ -1502,7 +1594,10 @@ impl WeightedMovingAverage {
         if period == 0 {
             return Err(TaError::InvalidParameter);
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 
     /// `true` once `period` inputs have been seen.
@@ -1550,7 +1645,10 @@ impl Reset for WeightedMovingAverage {
 
 impl Default for WeightedMovingAverage {
     fn default() -> Self {
-        Self { period: 9, window: VecDeque::with_capacity(9) }
+        Self {
+            period: 9,
+            window: VecDeque::with_capacity(9),
+        }
     }
 }
 
@@ -1588,7 +1686,10 @@ impl DoubleExponentialMovingAverage {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { ema1: param(EmaF64::new(period))?, ema2: param(EmaF64::new(period))? })
+        Ok(Self {
+            ema1: param(EmaF64::new(period))?,
+            ema2: param(EmaF64::new(period))?,
+        })
     }
 
     /// `true` once both EMAs are seeded.
@@ -1626,7 +1727,10 @@ impl Reset for DoubleExponentialMovingAverage {
 
 impl Default for DoubleExponentialMovingAverage {
     fn default() -> Self {
-        Self { ema1: valid(EmaF64::new(9)), ema2: valid(EmaF64::new(9)) }
+        Self {
+            ema1: valid(EmaF64::new(9)),
+            ema2: valid(EmaF64::new(9)),
+        }
     }
 }
 
@@ -1726,9 +1830,18 @@ impl Default for HullMovingAverage {
     fn default() -> Self {
         Self {
             period: 9,
-            half: WeightedMovingAverage { period: 4, window: VecDeque::with_capacity(4) },
-            full: WeightedMovingAverage { period: 9, window: VecDeque::with_capacity(9) },
-            smooth: WeightedMovingAverage { period: 3, window: VecDeque::with_capacity(3) },
+            half: WeightedMovingAverage {
+                period: 4,
+                window: VecDeque::with_capacity(4),
+            },
+            full: WeightedMovingAverage {
+                period: 9,
+                window: VecDeque::with_capacity(9),
+            },
+            smooth: WeightedMovingAverage {
+                period: 3,
+                window: VecDeque::with_capacity(3),
+            },
         }
     }
 }
@@ -1775,7 +1888,15 @@ impl DirectionalMovement {
     }
 
     fn empty(period: usize) -> Self {
-        Self { period, bars: 0, prev: None, plus_dm: 0.0, minus_dm: 0.0, tr: 0.0, last_dx: 0.0 }
+        Self {
+            period,
+            bars: 0,
+            prev: None,
+            plus_dm: 0.0,
+            minus_dm: 0.0,
+            tr: 0.0,
+            last_dx: 0.0,
+        }
     }
 
     fn reset(&mut self) {
@@ -1813,16 +1934,28 @@ impl DirectionalMovement {
         // units). It is a sum of non-negative ranges, so it is zero only when every range
         // in the window is.
         if self.tr <= 0.0 {
-            return Some(DmiStep { plus_di: 0.0, minus_di: 0.0, dx: None });
+            return Some(DmiStep {
+                plus_di: 0.0,
+                minus_di: 0.0,
+                dx: None,
+            });
         }
         let plus_di = 100.0 * (self.plus_dm / self.tr);
         let minus_di = 100.0 * (self.minus_dm / self.tr);
         let sum = plus_di + minus_di;
-        let dx = if di_sum_is_zero(sum) { None } else { Some(100.0 * ((minus_di - plus_di).abs() / sum)) };
+        let dx = if di_sum_is_zero(sum) {
+            None
+        } else {
+            Some(100.0 * ((minus_di - plus_di).abs() / sum))
+        };
         if let Some(d) = dx {
             self.last_dx = d;
         }
-        Some(DmiStep { plus_di, minus_di, dx })
+        Some(DmiStep {
+            plus_di,
+            minus_di,
+            dx,
+        })
     }
 }
 
@@ -1856,7 +1989,9 @@ impl DirectionalIndex {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { dm: DirectionalMovement::new(period)? })
+        Ok(Self {
+            dm: DirectionalMovement::new(period)?,
+        })
     }
 
     /// `true` once the first value has been produced.
@@ -1875,7 +2010,11 @@ impl<T: High + Low + Close> Next<&T> for DirectionalIndex {
     type Output = DirectionalIndexOutput;
     fn next(&mut self, input: &T) -> DirectionalIndexOutput {
         match self.dm.update(input.high(), input.low(), input.close()) {
-            None => DirectionalIndexOutput { plus_di: f64::NAN, minus_di: f64::NAN, dx: f64::NAN },
+            None => DirectionalIndexOutput {
+                plus_di: f64::NAN,
+                minus_di: f64::NAN,
+                dx: f64::NAN,
+            },
             Some(s) => DirectionalIndexOutput {
                 plus_di: s.plus_di,
                 minus_di: s.minus_di,
@@ -1893,7 +2032,9 @@ impl Reset for DirectionalIndex {
 
 impl Default for DirectionalIndex {
     fn default() -> Self {
-        Self { dm: DirectionalMovement::empty(14) }
+        Self {
+            dm: DirectionalMovement::empty(14),
+        }
     }
 }
 
@@ -1937,7 +2078,12 @@ impl AverageDirectionalIndex {
     /// # Errors
     /// [`TaError::InvalidParameter`] if `period == 0`.
     pub fn new(period: usize) -> Result<Self> {
-        Ok(Self { dm: DirectionalMovement::new(period)?, dx_sum: 0.0, dx_count: 0, adx: None })
+        Ok(Self {
+            dm: DirectionalMovement::new(period)?,
+            dx_sum: 0.0,
+            dx_count: 0,
+            adx: None,
+        })
     }
 
     /// `true` once the first value has been produced.
@@ -1995,7 +2141,12 @@ impl Reset for AverageDirectionalIndex {
 
 impl Default for AverageDirectionalIndex {
     fn default() -> Self {
-        Self { dm: DirectionalMovement::empty(14), dx_sum: 0.0, dx_count: 0, adx: None }
+        Self {
+            dm: DirectionalMovement::empty(14),
+            dx_sum: 0.0,
+            dx_count: 0,
+            adx: None,
+        }
     }
 }
 

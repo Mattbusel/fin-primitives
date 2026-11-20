@@ -37,7 +37,11 @@ impl ParkinsonVolatility {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, log_hl_sq: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            log_hl_sq: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -175,10 +179,15 @@ mod tests {
         let mut pv_narrow = ParkinsonVolatility::new("pv", 3).unwrap();
         let mut pv_wide = ParkinsonVolatility::new("pv", 3).unwrap();
         for _ in 0..3 {
-            pv_narrow.update_bar(&bar("100", "101", "99", "100")).unwrap();
+            pv_narrow
+                .update_bar(&bar("100", "101", "99", "100"))
+                .unwrap();
             pv_wide.update_bar(&bar("100", "110", "90", "100")).unwrap();
         }
-        let narrow_val = match pv_narrow.update_bar(&bar("100", "101", "99", "100")).unwrap() {
+        let narrow_val = match pv_narrow
+            .update_bar(&bar("100", "101", "99", "100"))
+            .unwrap()
+        {
             SignalValue::Scalar(v) => v,
             _ => panic!("expected scalar"),
         };

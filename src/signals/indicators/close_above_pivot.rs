@@ -57,9 +57,15 @@ impl CloseAbovePivot {
 }
 
 impl Signal for CloseAbovePivot {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.above_flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.above_flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tp = bar.typical_price();
@@ -115,7 +121,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -136,7 +145,10 @@ mod tests {
     fn test_cap_unavailable_during_warmup() {
         let mut cap = CloseAbovePivot::new("cap", 3).unwrap();
         for _ in 0..5 {
-            assert_eq!(cap.update_bar(&close_bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                cap.update_bar(&close_bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!cap.is_ready());
     }
@@ -162,7 +174,9 @@ mod tests {
     #[test]
     fn test_cap_reset() {
         let mut cap = CloseAbovePivot::new("cap", 3).unwrap();
-        for _ in 0..8 { cap.update_bar(&close_bar("100")).unwrap(); }
+        for _ in 0..8 {
+            cap.update_bar(&close_bar("100")).unwrap();
+        }
         assert!(cap.is_ready());
         cap.reset();
         assert!(!cap.is_ready());

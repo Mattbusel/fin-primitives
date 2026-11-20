@@ -58,7 +58,11 @@ impl PerformanceCalculator {
             .iter()
             .map(|&r| {
                 let diff = r - target;
-                if diff < 0.0 { diff * diff } else { 0.0 }
+                if diff < 0.0 {
+                    diff * diff
+                } else {
+                    0.0
+                }
             })
             .sum::<f64>()
             / returns.len() as f64;
@@ -95,7 +99,11 @@ impl PerformanceCalculator {
         let gains: f64 = returns.iter().map(|&r| (r - threshold).max(0.0)).sum();
         let losses: f64 = returns.iter().map(|&r| (threshold - r).max(0.0)).sum();
         if losses == 0.0 {
-            if gains > 0.0 { f64::INFINITY } else { 0.0 }
+            if gains > 0.0 {
+                f64::INFINITY
+            } else {
+                0.0
+            }
         } else {
             gains / losses
         }
@@ -327,7 +335,10 @@ mod tests {
         let r = sample_returns();
         let s = PerformanceCalculator::sharpe_ratio(&r, 0.0);
         // Mean is positive, std > 0, result should be positive
-        assert!(s > 0.0, "Sharpe should be positive for net-positive returns");
+        assert!(
+            s > 0.0,
+            "Sharpe should be positive for net-positive returns"
+        );
     }
 
     #[test]

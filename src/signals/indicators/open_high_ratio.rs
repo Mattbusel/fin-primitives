@@ -32,20 +32,33 @@ pub struct OpenHighRatio {
 impl OpenHighRatio {
     /// Constructs a new `OpenHighRatio`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+        Self {
+            name: name.into(),
+            ready: false,
+        }
     }
 }
 
 impl Signal for OpenHighRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.ready }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
         let range = bar.range();
-        if range.is_zero() { return Ok(SignalValue::Unavailable); }
-        Ok(SignalValue::Scalar((bar.high - bar.open) / range * Decimal::ONE_HUNDRED))
+        if range.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        Ok(SignalValue::Scalar(
+            (bar.high - bar.open) / range * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn reset(&mut self) {
@@ -67,7 +80,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: op,
+            open: op,
+            high: hp,
+            low: lp,
+            close: op,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

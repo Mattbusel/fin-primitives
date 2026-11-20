@@ -42,7 +42,9 @@ impl WickRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -52,24 +54,38 @@ impl WickRatio {
 }
 
 impl Signal for WickRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         let body = bar.body_size();
         let wick = range - body;
-        let ratio = if body.is_zero() { Decimal::ZERO } else { wick / body };
+        let ratio = if body.is_zero() {
+            Decimal::ZERO
+        } else {
+            wick / body
+        };
 
         self.ratios.push_back(ratio);
-        if self.ratios.len() > self.period { self.ratios.pop_front(); }
-        if self.ratios.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.ratios.len() > self.period {
+            self.ratios.pop_front();
+        }
+        if self.ratios.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.ratios.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.ratios.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.ratios.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.ratios.clear();
@@ -90,7 +106,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -98,8 +117,12 @@ mod tests {
         }
     }
 
-    fn full_body_bar() -> OhlcvBar { bar_hloc("110", "90", "90", "110") }
-    fn doji_bar() -> OhlcvBar { bar_hloc("110", "90", "100", "100") }
+    fn full_body_bar() -> OhlcvBar {
+        bar_hloc("110", "90", "90", "110")
+    }
+    fn doji_bar() -> OhlcvBar {
+        bar_hloc("110", "90", "100", "100")
+    }
 
     #[test]
     fn test_wr_invalid() {
@@ -110,7 +133,10 @@ mod tests {
     fn test_wr_unavailable_before_warmup() {
         let mut w = WickRatio::new("w", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(w.update_bar(&full_body_bar()).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                w.update_bar(&full_body_bar()).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -119,10 +145,14 @@ mod tests {
         // h=110, l=90, o=90, c=110 → body=20, wick=range-body=20-20=0 → ratio=0
         let mut w = WickRatio::new("w", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = w.update_bar(&full_body_bar()).unwrap(); }
+        for _ in 0..5 {
+            last = w.update_bar(&full_body_bar()).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -130,10 +160,14 @@ mod tests {
         // doji: body=0 → ratio=0
         let mut w = WickRatio::new("w", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = w.update_bar(&doji_bar()).unwrap(); }
+        for _ in 0..5 {
+            last = w.update_bar(&doji_bar()).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -142,13 +176,19 @@ mod tests {
         let mut w = WickRatio::new("w", 1).unwrap();
         if let SignalValue::Scalar(v) = w.update_bar(&bar_hloc("115", "85", "99", "101")).unwrap() {
             assert_eq!(v, dec!(14));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_wr_non_negative() {
         let mut w = WickRatio::new("w", 3).unwrap();
-        for bar in [full_body_bar(), doji_bar(), bar_hloc("115", "85", "99", "101")] {
+        for bar in [
+            full_body_bar(),
+            doji_bar(),
+            bar_hloc("115", "85", "99", "101"),
+        ] {
             if let SignalValue::Scalar(v) = w.update_bar(&bar).unwrap() {
                 assert!(v >= dec!(0), "expected non-negative, got {v}");
             }
@@ -158,7 +198,9 @@ mod tests {
     #[test]
     fn test_wr_reset() {
         let mut w = WickRatio::new("w", 3).unwrap();
-        for _ in 0..5 { w.update_bar(&full_body_bar()).unwrap(); }
+        for _ in 0..5 {
+            w.update_bar(&full_body_bar()).unwrap();
+        }
         assert!(w.is_ready());
         w.reset();
         assert!(!w.is_ready());

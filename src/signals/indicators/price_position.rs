@@ -51,7 +51,9 @@ impl PricePosition {
 }
 
 impl Signal for PricePosition {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -64,8 +66,18 @@ impl Signal for PricePosition {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_high = self.highs.iter().copied().max().ok_or_else(crate::error::invariant_broken)?;
-        let min_low = self.lows.iter().copied().min().ok_or_else(crate::error::invariant_broken)?;
+        let max_high = self
+            .highs
+            .iter()
+            .copied()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let min_low = self
+            .lows
+            .iter()
+            .copied()
+            .min()
+            .ok_or_else(crate::error::invariant_broken)?;
         let range = max_high - min_low;
 
         if range.is_zero() {
@@ -123,7 +135,10 @@ mod tests {
     #[test]
     fn test_pp_unavailable_before_period() {
         let mut pp = PricePosition::new("p", 3).unwrap();
-        assert_eq!(pp.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pp.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -135,7 +150,9 @@ mod tests {
         if let SignalValue::Scalar(v) = pp.update_bar(&bar("110", "92", "110")).unwrap() {
             // max_high = 110, min_low = 90, range = 20, close=110 → 100%
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -146,14 +163,19 @@ mod tests {
         if let SignalValue::Scalar(v) = pp.update_bar(&bar("107", "90", "90")).unwrap() {
             // close = min_low = 90 → 0%
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pp_flat_unavailable() {
         let mut pp = PricePosition::new("p", 2).unwrap();
         pp.update_bar(&bar("100", "100", "100")).unwrap();
-        assert_eq!(pp.update_bar(&bar("100", "100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pp.update_bar(&bar("100", "100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -49,9 +49,15 @@ impl NetBarBias {
 }
 
 impl Signal for NetBarBias {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let flag: i8 = if bar.is_bullish() {
@@ -66,7 +72,10 @@ impl Signal for NetBarBias {
         self.window.push_back(flag);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.net -= i32::from(removed);
         }
 
@@ -100,7 +109,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp.max(op), low: cp.min(op), close: cp,
+            open: op,
+            high: cp.max(op),
+            low: cp.min(op),
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,42 +128,55 @@ mod tests {
     #[test]
     fn test_nbb_unavailable_before_period() {
         let mut s = NetBarBias::new("nbb", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100","105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("105","110")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("105", "110")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_nbb_all_bullish_gives_one() {
         let mut s = NetBarBias::new("nbb", 3).unwrap();
-        s.update_bar(&bar("100","105")).unwrap();
-        s.update_bar(&bar("105","110")).unwrap();
-        let v = s.update_bar(&bar("110","115")).unwrap();
+        s.update_bar(&bar("100", "105")).unwrap();
+        s.update_bar(&bar("105", "110")).unwrap();
+        let v = s.update_bar(&bar("110", "115")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 
     #[test]
     fn test_nbb_all_bearish_gives_neg_one() {
         let mut s = NetBarBias::new("nbb", 3).unwrap();
-        s.update_bar(&bar("105","100")).unwrap();
-        s.update_bar(&bar("110","105")).unwrap();
-        let v = s.update_bar(&bar("115","110")).unwrap();
+        s.update_bar(&bar("105", "100")).unwrap();
+        s.update_bar(&bar("110", "105")).unwrap();
+        let v = s.update_bar(&bar("115", "110")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-1)));
     }
 
     #[test]
     fn test_nbb_balanced_gives_zero() {
         let mut s = NetBarBias::new("nbb", 4).unwrap();
-        s.update_bar(&bar("100","105")).unwrap(); // up
-        s.update_bar(&bar("105","100")).unwrap(); // down
-        s.update_bar(&bar("100","105")).unwrap(); // up
-        let v = s.update_bar(&bar("105","100")).unwrap(); // down; net=0 → 0
+        s.update_bar(&bar("100", "105")).unwrap(); // up
+        s.update_bar(&bar("105", "100")).unwrap(); // down
+        s.update_bar(&bar("100", "105")).unwrap(); // up
+        let v = s.update_bar(&bar("105", "100")).unwrap(); // down; net=0 → 0
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
     fn test_nbb_output_in_unit_interval() {
         let mut s = NetBarBias::new("nbb", 5).unwrap();
-        for (o, c) in &[("100","105"),("105","102"),("102","107"),("107","104"),("104","109"),("109","106")] {
+        for (o, c) in &[
+            ("100", "105"),
+            ("105", "102"),
+            ("102", "107"),
+            ("107", "104"),
+            ("104", "109"),
+            ("109", "106"),
+        ] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(o, c)).unwrap() {
                 assert!(v >= dec!(-1) && v <= dec!(1), "out of [-1,1]: {v}");
             }
@@ -161,7 +186,9 @@ mod tests {
     #[test]
     fn test_nbb_reset() {
         let mut s = NetBarBias::new("nbb", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100","105")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "105")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

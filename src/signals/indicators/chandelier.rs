@@ -38,7 +38,11 @@ impl ChandelierExit {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize, multiplier: Decimal) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        multiplier: Decimal,
+    ) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
@@ -97,7 +101,8 @@ impl Signal for ChandelierExit {
             .iter()
             .map(|b| b.high)
             .fold(Decimal::MIN, Decimal::max);
-        let long_exit = highest_high - self.multiplier * self.atr.ok_or_else(crate::error::invariant_broken)?;
+        let long_exit =
+            highest_high - self.multiplier * self.atr.ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar(long_exit))
     }
 
@@ -147,9 +152,18 @@ mod tests {
     #[test]
     fn test_chandelier_unavailable_before_period() {
         let mut ce = ChandelierExit::new("ce3", 3, dec!(2)).unwrap();
-        assert_eq!(ce.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ce.update_bar(&bar("105", "115", "95", "110")).unwrap(), SignalValue::Unavailable);
-        assert!(ce.update_bar(&bar("110", "120", "100", "115")).unwrap().is_scalar());
+        assert_eq!(
+            ce.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ce.update_bar(&bar("105", "115", "95", "110")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert!(ce
+            .update_bar(&bar("110", "120", "100", "115"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]

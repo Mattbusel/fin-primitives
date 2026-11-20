@@ -42,10 +42,20 @@ impl PriceOscillator2 {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `fast_period == 0`, `slow_period == 0`,
     /// or `fast_period >= slow_period`.
-    pub fn new(name: impl Into<String>, fast_period: usize, slow_period: usize) -> Result<Self, FinError> {
-        if fast_period == 0 { return Err(FinError::InvalidPeriod(fast_period)); }
-        if slow_period == 0 { return Err(FinError::InvalidPeriod(slow_period)); }
-        if fast_period >= slow_period { return Err(FinError::InvalidPeriod(fast_period)); }
+    pub fn new(
+        name: impl Into<String>,
+        fast_period: usize,
+        slow_period: usize,
+    ) -> Result<Self, FinError> {
+        if fast_period == 0 {
+            return Err(FinError::InvalidPeriod(fast_period));
+        }
+        if slow_period == 0 {
+            return Err(FinError::InvalidPeriod(slow_period));
+        }
+        if fast_period >= slow_period {
+            return Err(FinError::InvalidPeriod(fast_period));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::TWO / Decimal::from((fast_period + 1) as u32);
         Ok(Self {
@@ -60,9 +70,15 @@ impl PriceOscillator2 {
 }
 
 impl Signal for PriceOscillator2 {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow_period }
-    fn is_ready(&self) -> bool { self.sma_window.len() >= self.slow_period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
+    fn is_ready(&self) -> bool {
+        self.sma_window.len() >= self.slow_period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Update EMA
@@ -74,14 +90,22 @@ impl Signal for PriceOscillator2 {
         self.sma_window.push_back(bar.close);
         self.sma_sum += bar.close;
         if self.sma_window.len() > self.slow_period {
-            if let Some(old) = self.sma_window.pop_front() { self.sma_sum -= old; }
+            if let Some(old) = self.sma_window.pop_front() {
+                self.sma_sum -= old;
+            }
         }
-        if self.sma_window.len() < self.slow_period { return Ok(SignalValue::Unavailable); }
+        if self.sma_window.len() < self.slow_period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
         let slow_sma = self.sma_sum / Decimal::from(self.slow_period as u32);
-        if slow_sma.is_zero() { return Ok(SignalValue::Unavailable); }
+        if slow_sma.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         let fast_ema = self.ema.unwrap_or(bar.close);
-        Ok(SignalValue::Scalar((fast_ema - slow_sma) / slow_sma * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (fast_ema - slow_sma) / slow_sma * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn reset(&mut self) {
@@ -103,7 +127,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,17 +149,25 @@ mod tests {
     #[test]
     fn test_po2_unavailable_before_slow_period() {
         let mut po = PriceOscillator2::new("po", 2, 5).unwrap();
-        assert_eq!(po.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            po.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_po2_flat_price_is_zero() {
         // When all prices are the same, EMA == SMA -> oscillator = 0
         let mut po = PriceOscillator2::new("po", 2, 5).unwrap();
-        for _ in 0..5 { po.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            po.update_bar(&bar("100")).unwrap();
+        }
         let v = po.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(s) = v {
-            assert!(s.abs() < dec!(0.001), "flat prices, oscillator near 0, got {s}");
+            assert!(
+                s.abs() < dec!(0.001),
+                "flat prices, oscillator near 0, got {s}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -142,7 +177,9 @@ mod tests {
     fn test_po2_rising_prices_positive() {
         // With rising prices, fast EMA rises faster than slow SMA -> positive oscillator
         let mut po = PriceOscillator2::new("po", 2, 4).unwrap();
-        for i in 0u32..4 { po.update_bar(&bar(&(100 + i * 5).to_string())).unwrap(); }
+        for i in 0u32..4 {
+            po.update_bar(&bar(&(100 + i * 5).to_string())).unwrap();
+        }
         // After warmup: fast EMA will have responded more to recent price rises
         let v = po.update_bar(&bar("125")).unwrap();
         if let SignalValue::Scalar(s) = v {
@@ -155,7 +192,9 @@ mod tests {
     #[test]
     fn test_po2_reset() {
         let mut po = PriceOscillator2::new("po", 2, 4).unwrap();
-        for _ in 0..5 { po.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            po.update_bar(&bar("100")).unwrap();
+        }
         assert!(po.is_ready());
         po.reset();
         assert!(!po.is_ready());

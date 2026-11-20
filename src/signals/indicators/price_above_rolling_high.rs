@@ -45,14 +45,24 @@ impl PriceAboveRollingHigh {
 }
 
 impl Signal for PriceAboveRollingHigh {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Compare against historical closes BEFORE adding current
         let result = if self.closes.len() >= self.period {
-            let max_close = self.closes.iter().copied().fold(self.closes[0], |acc, v| acc.max(v));
+            let max_close = self
+                .closes
+                .iter()
+                .copied()
+                .fold(self.closes[0], |acc, v| acc.max(v));
             if bar.close > max_close {
                 SignalValue::Scalar(Decimal::ONE)
             } else {
@@ -63,7 +73,9 @@ impl Signal for PriceAboveRollingHigh {
         };
 
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
 
         Ok(result)
     }
@@ -85,7 +97,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -102,14 +117,19 @@ mod tests {
     fn test_parh_unavailable_before_warm_up() {
         let mut parh = PriceAboveRollingHigh::new("parh", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(parh.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                parh.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
     #[test]
     fn test_parh_breakout_gives_one() {
         let mut parh = PriceAboveRollingHigh::new("parh", 3).unwrap();
-        for _ in 0..3 { parh.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            parh.update_bar(&bar("100")).unwrap();
+        }
         // close=150 > max(100,100,100) → +1
         let result = parh.update_bar(&bar("150")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(1)));
@@ -118,7 +138,9 @@ mod tests {
     #[test]
     fn test_parh_no_breakout_gives_zero() {
         let mut parh = PriceAboveRollingHigh::new("parh", 3).unwrap();
-        for _ in 0..3 { parh.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            parh.update_bar(&bar("100")).unwrap();
+        }
         // close=80 < max → 0
         let result = parh.update_bar(&bar("80")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(0)));
@@ -127,7 +149,9 @@ mod tests {
     #[test]
     fn test_parh_reset() {
         let mut parh = PriceAboveRollingHigh::new("parh", 3).unwrap();
-        for _ in 0..3 { parh.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            parh.update_bar(&bar("100")).unwrap();
+        }
         assert!(parh.is_ready());
         parh.reset();
         assert!(!parh.is_ready());

@@ -22,15 +22,21 @@ use ta::Next;
 fn main() -> Result<(), FinError> {
     let sym = Symbol::new("BTC-USD")?;
     let mut bars = OhlcvAggregator::new(sym.clone(), Timeframe::Minutes(1))?;
-    let mut macd = MovingAverageConvergenceDivergence::new(12, 26, 9).map_err(|e| FinError::InvalidInput(e.to_string()))?;
+    let mut macd = MovingAverageConvergenceDivergence::new(12, 26, 9)
+        .map_err(|e| FinError::InvalidInput(e.to_string()))?;
     let mut bb = BollingerBands::new(20, 2.0).map_err(|e| FinError::InvalidInput(e.to_string()))?;
     let mut rsi = Rsi::new("rsi14", 14)?;
 
     let mut cents: i64 = 6_425_050;
     let mut state: u64 = 42;
-    println!("{:>5} {:>10} {:>9} {:>9} {:>10} {:>10}", "bar", "close", "rsi14", "macd", "bb upper", "bb lower");
+    println!(
+        "{:>5} {:>10} {:>9} {:>9} {:>10} {:>10}",
+        "bar", "close", "rsi14", "macd", "bb upper", "bb lower"
+    );
     for i in 0..60 * 50 {
-        state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         cents += ((state >> 33) % 2_001) as i64 - 1_000;
         let tick = Tick::new(
             sym.clone(),
@@ -50,7 +56,13 @@ fn main() -> Result<(), FinError> {
                     SignalValue::Scalar(v) => format!("{:.2}", v),
                     SignalValue::Unavailable => "-".into(),
                 };
-                println!("{n:>5} {:>10} {r:>9} {:>9.2} {:>10.2} {:>10.2}", bar.close.value(), m.macd, b.upper, b.lower);
+                println!(
+                    "{n:>5} {:>10} {r:>9} {:>9.2} {:>10.2} {:>10.2}",
+                    bar.close.value(),
+                    m.macd,
+                    b.upper,
+                    b.lower
+                );
             }
         }
     }

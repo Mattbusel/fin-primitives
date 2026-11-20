@@ -72,9 +72,15 @@ impl Ichimoku {
         kijun: usize,
         senkou_b: usize,
     ) -> Result<Self, FinError> {
-        if tenkan == 0 { return Err(FinError::InvalidPeriod(tenkan)); }
-        if kijun == 0 { return Err(FinError::InvalidPeriod(kijun)); }
-        if senkou_b == 0 { return Err(FinError::InvalidPeriod(senkou_b)); }
+        if tenkan == 0 {
+            return Err(FinError::InvalidPeriod(tenkan));
+        }
+        if kijun == 0 {
+            return Err(FinError::InvalidPeriod(kijun));
+        }
+        if senkou_b == 0 {
+            return Err(FinError::InvalidPeriod(senkou_b));
+        }
         let max_window = tenkan.max(kijun).max(senkou_b);
         Ok(Self {
             name: name.into(),
@@ -108,8 +114,18 @@ impl Ichimoku {
         if highs.len() < n || lows.len() < n {
             return None;
         }
-        let h = highs.iter().rev().take(n).copied().fold(Decimal::MIN, Decimal::max);
-        let l = lows.iter().rev().take(n).copied().fold(Decimal::MAX, Decimal::min);
+        let h = highs
+            .iter()
+            .rev()
+            .take(n)
+            .copied()
+            .fold(Decimal::MIN, Decimal::max);
+        let l = lows
+            .iter()
+            .rev()
+            .take(n)
+            .copied()
+            .fold(Decimal::MAX, Decimal::min);
         Some((h + l) / Decimal::TWO)
     }
 }
@@ -185,7 +201,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cl, high: hi, low: lo, close: cl,
+            open: cl,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -214,8 +233,14 @@ mod tests {
     #[test]
     fn test_ichimoku_unavailable_before_tenkan_bars() {
         let mut ichi = Ichimoku::new("ichi", 3, 5, 7).unwrap();
-        assert_eq!(ichi.update_bar(&bar("100", "90", "95")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ichi.update_bar(&bar("100", "90", "95")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ichi.update_bar(&bar("100", "90", "95")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ichi.update_bar(&bar("100", "90", "95")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ichi.is_ready());
     }
 

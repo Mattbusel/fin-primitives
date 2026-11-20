@@ -59,22 +59,32 @@ impl OpenCloseVelocity {
 }
 
 impl Signal for OpenCloseVelocity {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.moves.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.moves.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let m = bar.net_move();
         self.sum += m;
         self.moves.push_back(m);
         if self.moves.len() > self.period {
-            let removed = self.moves.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .moves
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.moves.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -120,8 +130,14 @@ mod tests {
     #[test]
     fn test_ocv_unavailable_during_warmup() {
         let mut ocv = OpenCloseVelocity::new("ocv", 3).unwrap();
-        assert_eq!(ocv.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ocv.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ocv.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ocv.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ocv.is_ready());
     }
 
@@ -169,7 +185,9 @@ mod tests {
     #[test]
     fn test_ocv_reset() {
         let mut ocv = OpenCloseVelocity::new("ocv", 3).unwrap();
-        for _ in 0..3 { ocv.update_bar(&bar("100", "102")).unwrap(); }
+        for _ in 0..3 {
+            ocv.update_bar(&bar("100", "102")).unwrap();
+        }
         assert!(ocv.is_ready());
         ocv.reset();
         assert!(!ocv.is_ready());

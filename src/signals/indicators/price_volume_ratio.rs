@@ -76,13 +76,15 @@ impl crate::signals::Signal for PriceVolumeRatio {
                 return Ok(SignalValue::Unavailable);
             }
             #[allow(clippy::cast_possible_truncation)]
-            let mean = self.sum
+            let mean = self
+                .sum
                 .checked_div(Decimal::from(self.period as u32))
                 .ok_or(FinError::ArithmeticOverflow)?;
             return Ok(SignalValue::Scalar(mean));
         }
 
-        let ratio = bar.close
+        let ratio = bar
+            .close
             .checked_div(bar.volume)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -100,7 +102,8 @@ impl crate::signals::Signal for PriceVolumeRatio {
         }
 
         #[allow(clippy::cast_possible_truncation)]
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -125,7 +128,10 @@ mod tests {
         let c = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: c, high: c, low: c, close: c,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -141,8 +147,14 @@ mod tests {
     #[test]
     fn test_pvr_unavailable_during_warmup() {
         let mut pvr = PriceVolumeRatio::new("pvr", 3).unwrap();
-        assert_eq!(pvr.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pvr.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pvr.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            pvr.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

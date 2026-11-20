@@ -377,7 +377,11 @@ mod tests {
             day_count: DayCount::Actual365,
         };
         let npv = swap_npv(&spec, &curve, true);
-        assert!(npv.abs() < 1.0, "NPV at par rate should be near zero, got {}", npv);
+        assert!(
+            npv.abs() < 1.0,
+            "NPV at par rate should be near zero, got {}",
+            npv
+        );
     }
 
     #[test]
@@ -446,6 +450,9 @@ mod tests {
             day_count: DayCount::Actual365,
         };
         let pv = fixed_leg_pv(&spec, &curve);
-        assert!(pv > spec.notional, "Fixed leg PV should exceed notional at very high coupon");
+        assert!(
+            pv > spec.notional,
+            "Fixed leg PV should exceed notional at very high coupon"
+        );
     }
 }

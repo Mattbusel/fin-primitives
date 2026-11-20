@@ -89,14 +89,14 @@ impl Signal for ZigZag {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let high = bar.high;
-        let low  = bar.low;
+        let low = bar.low;
         let threshold = self.threshold_pct / Decimal::ONE_HUNDRED;
 
         match self.last_was_high {
             None => {
                 // Bootstrap: treat first bar's high as initial extreme upward
                 self.last_was_high = Some(true);
-                self.last_extreme  = Some(high);
+                self.last_extreme = Some(high);
                 Ok(SignalValue::Scalar(Decimal::ZERO))
             }
             Some(was_high) => {
@@ -107,13 +107,11 @@ impl Signal for ZigZag {
                         // New high — extend current swing up
                         self.last_extreme = Some(high);
                         Ok(SignalValue::Scalar(Decimal::NEGATIVE_ONE))
-                    } else if extreme > Decimal::ZERO
-                        && (extreme - low) / extreme >= threshold
-                    {
+                    } else if extreme > Decimal::ZERO && (extreme - low) / extreme >= threshold {
                         // Reversal confirmed — swing low
                         self.last_was_high = Some(false);
-                        self.last_extreme  = Some(low);
-                        self.last_pivot       = Some(Decimal::ONE);
+                        self.last_extreme = Some(low);
+                        self.last_pivot = Some(Decimal::ONE);
                         self.last_pivot_price = Some(low);
                         Ok(SignalValue::Scalar(Decimal::ONE))
                     } else {
@@ -125,13 +123,11 @@ impl Signal for ZigZag {
                         // New low — extend current swing down
                         self.last_extreme = Some(low);
                         Ok(SignalValue::Scalar(Decimal::ONE))
-                    } else if extreme > Decimal::ZERO
-                        && (high - extreme) / extreme >= threshold
-                    {
+                    } else if extreme > Decimal::ZERO && (high - extreme) / extreme >= threshold {
                         // Reversal confirmed — swing high
                         self.last_was_high = Some(true);
-                        self.last_extreme  = Some(high);
-                        self.last_pivot       = Some(Decimal::NEGATIVE_ONE);
+                        self.last_extreme = Some(high);
+                        self.last_pivot = Some(Decimal::NEGATIVE_ONE);
                         self.last_pivot_price = Some(high);
                         Ok(SignalValue::Scalar(Decimal::NEGATIVE_ONE))
                     } else {
@@ -143,9 +139,9 @@ impl Signal for ZigZag {
     }
 
     fn reset(&mut self) {
-        self.last_was_high    = None;
-        self.last_extreme     = None;
-        self.last_pivot       = None;
+        self.last_was_high = None;
+        self.last_extreme = None;
+        self.last_pivot = None;
         self.last_pivot_price = None;
     }
 }
@@ -163,7 +159,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -207,8 +206,8 @@ mod tests {
     fn test_zigzag_detects_reversal_high() {
         let mut z = ZigZag::new("zz", dec!(5)).unwrap();
         z.update_bar(&bar("100", "95")).unwrap(); // init
-        z.update_bar(&bar("90", "85")).unwrap();  // low extends
-        // Rise > 5% from 85: need 85 * 1.05 = 89.25 → high=100 qualifies
+        z.update_bar(&bar("90", "85")).unwrap(); // low extends
+                                                 // Rise > 5% from 85: need 85 * 1.05 = 89.25 → high=100 qualifies
         let v = z.update_bar(&bar("100", "88")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-1))); // swing high detected
     }

@@ -80,7 +80,9 @@ impl OptionParams {
             ));
         }
         if self.volatility <= 0.0 {
-            return Err(GreekError::InvalidParams("volatility must be > 0".to_owned()));
+            return Err(GreekError::InvalidParams(
+                "volatility must be > 0".to_owned(),
+            ));
         }
         Ok(())
     }
@@ -183,12 +185,8 @@ pub fn bsm_greeks(params: &OptionParams) -> Result<Greeks, GreekError> {
 
     // Theta: ∂V/∂T (annualised; positive T means time remaining shrinks as we move forward)
     let theta = match params.option_type {
-        OptionType::Call => {
-            -(s * phi_d1 * v / (2.0 * sqrt_t)) - r * k * disc * big_phi(d2)
-        }
-        OptionType::Put => {
-            -(s * phi_d1 * v / (2.0 * sqrt_t)) + r * k * disc * big_phi(-d2)
-        }
+        OptionType::Call => -(s * phi_d1 * v / (2.0 * sqrt_t)) - r * k * disc * big_phi(d2),
+        OptionType::Put => -(s * phi_d1 * v / (2.0 * sqrt_t)) + r * k * disc * big_phi(-d2),
     };
 
     let vega = s * phi_d1 * sqrt_t;
@@ -204,7 +202,15 @@ pub fn bsm_greeks(params: &OptionParams) -> Result<Greeks, GreekError> {
     // Volga (Vomma): S * N'(d1) * sqrt(T) * d1 * d2 / σ
     let volga = s * phi_d1 * sqrt_t * d1 * d2 / v;
 
-    Ok(Greeks { delta, gamma, theta, vega, rho, vanna, volga })
+    Ok(Greeks {
+        delta,
+        gamma,
+        theta,
+        vega,
+        rho,
+        vanna,
+        volga,
+    })
 }
 
 /// Solve for implied volatility given a market price using Brent's method.
@@ -238,7 +244,10 @@ pub fn implied_volatility(market_price: f64, params: &OptionParams) -> Result<f6
 
     // Objective: f(sigma) = bsm_price(sigma) - market_price
     let f = |sigma: f64| -> f64 {
-        let p = OptionParams { volatility: sigma, ..*params };
+        let p = OptionParams {
+            volatility: sigma,
+            ..*params
+        };
         bsm_price(&p).unwrap_or(f64::NAN) - market_price
     };
 
@@ -295,8 +304,14 @@ pub fn implied_volatility(market_price: f64, params: &OptionParams) -> Result<f6
                 )
             };
             let (mut p_brent, mut q_brent) = (p_brent, q_brent);
-            if p_brent > 0.0 { q_brent = -q_brent; } else { p_brent = -p_brent; }
-            if 2.0 * p_brent < (3.0 * xm * q_brent - (tol1 * q_brent).abs()).min(e.abs() * q_brent.abs()) {
+            if p_brent > 0.0 {
+                q_brent = -q_brent;
+            } else {
+                p_brent = -p_brent;
+            }
+            if 2.0 * p_brent
+                < (3.0 * xm * q_brent - (tol1 * q_brent).abs()).min(e.abs() * q_brent.abs())
+            {
                 e = d;
                 d = p_brent / q_brent;
             } else {
@@ -335,7 +350,10 @@ mod tests {
     }
 
     fn put_atm() -> OptionParams {
-        OptionParams { option_type: OptionType::Put, ..call_atm() }
+        OptionParams {
+            option_type: OptionType::Put,
+            ..call_atm()
+        }
     }
 
     // ── price ──
@@ -358,8 +376,8 @@ mod tests {
         let call = bsm_price(&call_atm()).unwrap();
         let put = bsm_price(&put_atm()).unwrap();
         let params = call_atm();
-        let expected = params.spot
-            - params.strike * (-params.risk_free_rate * params.time_to_expiry).exp();
+        let expected =
+            params.spot - params.strike * (-params.risk_free_rate * params.time_to_expiry).exp();
         assert!(
             (call - put - expected).abs() < 1e-8,
             "put-call parity violation: {:.6} vs {:.6}",
@@ -401,27 +419,49 @@ mod tests {
     #[test]
     fn call_delta_between_0_and_1() {
         let g = bsm_greeks(&call_atm()).unwrap();
-        assert!(g.delta > 0.0 && g.delta < 1.0, "call delta out of range: {}", g.delta);
+        assert!(
+            g.delta > 0.0 && g.delta < 1.0,
+            "call delta out of range: {}",
+            g.delta
+        );
     }
 
     #[test]
     fn put_delta_between_neg1_and_0() {
         let g = bsm_greeks(&put_atm()).unwrap();
-        assert!(g.delta > -1.0 && g.delta < 0.0, "put delta out of range: {}", g.delta);
+        assert!(
+            g.delta > -1.0 && g.delta < 0.0,
+            "put delta out of range: {}",
+            g.delta
+        );
     }
 
     #[test]
     fn deep_itm_call_delta_near_1() {
-        let p = OptionParams { spot: 200.0, ..call_atm() };
+        let p = OptionParams {
+            spot: 200.0,
+            ..call_atm()
+        };
         let g = bsm_greeks(&p).unwrap();
-        assert!(g.delta > 0.99, "deep ITM call delta should be ~1, got {}", g.delta);
+        assert!(
+            g.delta > 0.99,
+            "deep ITM call delta should be ~1, got {}",
+            g.delta
+        );
     }
 
     #[test]
     fn deep_otm_call_delta_near_0() {
-        let p = OptionParams { spot: 10.0, ..call_atm() };
+        let p = OptionParams {
+            spot: 10.0,
+            ..call_atm()
+        };
         let g = bsm_greeks(&p).unwrap();
-        assert!(g.delta < 0.01, "deep OTM call delta should be ~0, got {}", g.delta);
+        assert!(
+            g.delta < 0.01,
+            "deep OTM call delta should be ~0, got {}",
+            g.delta
+        );
     }
 
     #[test]
@@ -448,8 +488,16 @@ mod tests {
     fn gamma_peaks_atm() {
         // Gamma for ATM should be higher than OTM or ITM
         let atm = bsm_greeks(&call_atm()).unwrap();
-        let otm = bsm_greeks(&OptionParams { spot: 150.0, ..call_atm() }).unwrap();
-        let itm = bsm_greeks(&OptionParams { spot: 50.0, ..call_atm() }).unwrap();
+        let otm = bsm_greeks(&OptionParams {
+            spot: 150.0,
+            ..call_atm()
+        })
+        .unwrap();
+        let itm = bsm_greeks(&OptionParams {
+            spot: 50.0,
+            ..call_atm()
+        })
+        .unwrap();
         assert!(atm.gamma > otm.gamma, "ATM gamma should exceed OTM");
         assert!(atm.gamma > itm.gamma, "ATM gamma should exceed deep ITM");
     }
@@ -458,7 +506,10 @@ mod tests {
     fn call_put_gamma_equal() {
         let cg = bsm_greeks(&call_atm()).unwrap();
         let pg = bsm_greeks(&put_atm()).unwrap();
-        assert!((cg.gamma - pg.gamma).abs() < 1e-12, "call and put gamma differ");
+        assert!(
+            (cg.gamma - pg.gamma).abs() < 1e-12,
+            "call and put gamma differ"
+        );
     }
 
     // ── vega ──
@@ -550,18 +601,32 @@ mod tests {
 
     #[test]
     fn iv_roundtrip_high_vol() {
-        let params = OptionParams { volatility: 0.80, ..call_atm() };
+        let params = OptionParams {
+            volatility: 0.80,
+            ..call_atm()
+        };
         let price = bsm_price(&params).unwrap();
         let iv = implied_volatility(price, &params).unwrap();
-        assert!((iv - 0.80).abs() < 1e-4, "high-vol IV error: {:.6}", iv - 0.80);
+        assert!(
+            (iv - 0.80).abs() < 1e-4,
+            "high-vol IV error: {:.6}",
+            iv - 0.80
+        );
     }
 
     #[test]
     fn iv_roundtrip_low_vol() {
-        let params = OptionParams { volatility: 0.05, ..call_atm() };
+        let params = OptionParams {
+            volatility: 0.05,
+            ..call_atm()
+        };
         let price = bsm_price(&params).unwrap();
         let iv = implied_volatility(price, &params).unwrap();
-        assert!((iv - 0.05).abs() < 1e-4, "low-vol IV error: {:.6}", iv - 0.05);
+        assert!(
+            (iv - 0.05).abs() < 1e-4,
+            "low-vol IV error: {:.6}",
+            iv - 0.05
+        );
     }
 }
 
@@ -615,12 +680,8 @@ pub fn bsm_price_q(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
     let eq = (-inputs.q * inputs.T).exp();
     let er = (-inputs.r * inputs.T).exp();
     match opt_type {
-        OptionType::Call => {
-            inputs.S * eq * norm_cdf(d1v) - inputs.K * er * norm_cdf(d2v)
-        }
-        OptionType::Put => {
-            inputs.K * er * norm_cdf(-d2v) - inputs.S * eq * norm_cdf(-d1v)
-        }
+        OptionType::Call => inputs.S * eq * norm_cdf(d1v) - inputs.K * er * norm_cdf(d2v),
+        OptionType::Put => inputs.K * er * norm_cdf(-d2v) - inputs.S * eq * norm_cdf(-d1v),
     }
 }
 
@@ -703,12 +764,8 @@ pub fn charm(inputs: &BSMInputs, opt_type: OptionType) -> f64 {
     let inner = (2.0 * (inputs.r - inputs.q) * inputs.T - d2v * inputs.sigma * inputs.T.sqrt())
         / (2.0 * inputs.T * inputs.sigma * inputs.T.sqrt());
     match opt_type {
-        OptionType::Call => {
-            -inputs.q * eq * norm_cdf(d1v) + eq * norm_pdf(d1v) * inner
-        }
-        OptionType::Put => {
-            inputs.q * eq * norm_cdf(-d1v) + eq * norm_pdf(d1v) * inner
-        }
+        OptionType::Call => -inputs.q * eq * norm_cdf(d1v) + eq * norm_pdf(d1v) * inner,
+        OptionType::Put => inputs.q * eq * norm_cdf(-d1v) + eq * norm_pdf(d1v) * inner,
     }
 }
 
@@ -759,11 +816,7 @@ pub fn compute_all(inputs: &BSMInputs, opt_type: OptionType) -> GreeksResult {
 ///
 /// Returns `None` if the market price is outside the bounds that can be
 /// produced by any vol in the search range.
-pub fn implied_vol(
-    market_price: f64,
-    inputs: &BSMInputs,
-    opt_type: OptionType,
-) -> Option<f64> {
+pub fn implied_vol(market_price: f64, inputs: &BSMInputs, opt_type: OptionType) -> Option<f64> {
     if market_price.is_nan() || market_price <= 0.0 {
         return None;
     }
@@ -789,7 +842,8 @@ pub fn implied_vol(
     // Price increases with vol, so f(lo) < 0 < f(hi).
     // Start from the Brenner-Subrahmanyam at-the-money estimate, clamped into the bracket.
     let t = inputs.T.max(1e-12);
-    let mut sigma = (market_price / inputs.S.max(1e-12) * (2.0 * std::f64::consts::PI / t).sqrt()).clamp(0.01, 5.0);
+    let mut sigma = (market_price / inputs.S.max(1e-12) * (2.0 * std::f64::consts::PI / t).sqrt())
+        .clamp(0.01, 5.0);
     for _ in 0..100 {
         let fx = f(sigma);
         if fx == 0.0 {
@@ -803,7 +857,11 @@ pub fn implied_vol(
         // `vega()` is per 1% vol; the derivative per unit vol is 100x that.
         let v = vega(&BSMInputs { sigma, ..*inputs }) * 100.0;
         let newton = sigma - fx / v;
-        let next = if v > 1e-14 && newton > lo && newton < hi { newton } else { 0.5 * (lo + hi) };
+        let next = if v > 1e-14 && newton > lo && newton < hi {
+            newton
+        } else {
+            0.5 * (lo + hi)
+        };
         if (next - sigma).abs() < 1e-12 || (hi - lo) < 1e-12 {
             return Some(next);
         }
@@ -828,15 +886,32 @@ mod bsm_inputs_tests {
             (80.0, 0.15, 0.002_482_333_774_393_376),
         ];
         for (k, sigma, want) in cases {
-            let inp = BSMInputs { S: 100.0, K: k, r: 0.01, q: 0.0, sigma, T: 0.25 };
+            let inp = BSMInputs {
+                S: 100.0,
+                K: k,
+                r: 0.01,
+                q: 0.0,
+                sigma,
+                T: 0.25,
+            };
             let got = bsm_price_q(&inp, OptionType::Put);
-            assert!(((got - want) / want).abs() < 1e-9, "K={k}: got {got}, want {want}");
+            assert!(
+                ((got - want) / want).abs() < 1e-9,
+                "K={k}: got {got}, want {want}"
+            );
         }
     }
 
     #[test]
     fn implied_vol_recovers_cheap_otm_put() {
-        let inp = BSMInputs { S: 100.0, K: 70.0, r: 0.01, q: 0.0, sigma: 0.5, T: 0.25 };
+        let inp = BSMInputs {
+            S: 100.0,
+            K: 70.0,
+            r: 0.01,
+            q: 0.0,
+            sigma: 0.5,
+            T: 0.25,
+        };
         let iv = implied_vol(0.000_337_584_771_904_171_2, &inp, OptionType::Put).unwrap();
         assert!((iv - 0.20).abs() < 1e-8, "iv={iv}");
     }
@@ -865,7 +940,10 @@ mod bsm_inputs_tests {
         // Spot-ATM (K = S) with r = 5%, sigma = 20%, T = 1: d1 = (r + sigma^2/2) T / (sigma sqrt T)
         // = 0.35, so delta = N(0.35) = 0.636831, well above 0.5 (the old +-0.1
         // band around 0.5 was wrong). Tolerance covers the normal-CDF approximation.
-        assert!((d - 0.636_830_651_175_619).abs() < 1e-6, "ATM call delta should be N(0.35), got {d}");
+        assert!(
+            (d - 0.636_830_651_175_619).abs() < 1e-6,
+            "ATM call delta should be N(0.35), got {d}"
+        );
     }
 
     #[test]
@@ -873,7 +951,10 @@ mod bsm_inputs_tests {
         let (inp, ot) = atm_put();
         let d = delta(&inp, ot);
         // Put delta = N(d1) - 1 = N(0.35) - 1 (see call_delta_near_half_atm).
-        assert!((d + 0.363_169_348_824_381).abs() < 1e-6, "ATM put delta should be N(0.35) - 1, got {d}");
+        assert!(
+            (d + 0.363_169_348_824_381).abs() < 1e-6,
+            "ATM put delta should be N(0.35) - 1, got {d}"
+        );
     }
 
     #[test]
@@ -898,7 +979,10 @@ mod bsm_inputs_tests {
         assert!(g_call > 0.0, "gamma must be positive");
         // verify it matches explicitly computed value
         let g_put = gamma(&inp);
-        assert!((g_call - g_put).abs() < 1e-15, "gamma must be same for call and put");
+        assert!(
+            (g_call - g_put).abs() < 1e-15,
+            "gamma must be same for call and put"
+        );
     }
 
     #[test]
@@ -906,7 +990,10 @@ mod bsm_inputs_tests {
         let (inp, _) = atm_call();
         let v_call = vega(&inp);
         let v_put = vega(&inp);
-        assert!((v_call - v_put).abs() < 1e-15, "vega must be same for call and put");
+        assert!(
+            (v_call - v_put).abs() < 1e-15,
+            "vega must be same for call and put"
+        );
         assert!(v_call > 0.0, "vega must be positive");
     }
 

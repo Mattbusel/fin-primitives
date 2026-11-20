@@ -119,10 +119,15 @@ mod tests {
     fn bar(h: &str, l: &str) -> OhlcvBar {
         let hp = Price::new(h.parse().unwrap()).unwrap();
         let lp = Price::new(l.parse().unwrap()).unwrap();
-        let mid = Price::new(((hp.value() + lp.value()) / Decimal::TWO).max(rust_decimal::Decimal::ONE)).unwrap();
+        let mid =
+            Price::new(((hp.value() + lp.value()) / Decimal::TWO).max(rust_decimal::Decimal::ONE))
+                .unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: mid, high: hp, low: lp, close: mid,
+            open: mid,
+            high: hp,
+            low: lp,
+            close: mid,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -138,8 +143,14 @@ mod tests {
     #[test]
     fn test_aroon_osc_unavailable_before_period() {
         let mut ao = AroonOscillator::new("ao", 3).unwrap();
-        assert_eq!(ao.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ao.update_bar(&bar("108", "92")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ao.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ao.update_bar(&bar("108", "92")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ao.is_ready());
     }
 

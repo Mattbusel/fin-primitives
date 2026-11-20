@@ -1,8 +1,8 @@
 //! Close-Relative-to-EMA indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Percentage deviation of close from its EMA: `(close - EMA) / EMA * 100`.
 ///
@@ -22,7 +22,12 @@ impl CloseRelativeToEma {
             return Err(FinError::InvalidPeriod(period));
         }
         let k = Decimal::TWO / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { period, k, ema: None, bars_seen: 0 })
+        Ok(Self {
+            period,
+            k,
+            ema: None,
+            bars_seen: 0,
+        })
     }
 }
 
@@ -40,13 +45,24 @@ impl Signal for CloseRelativeToEma {
         if ema.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        Ok(SignalValue::Scalar((bar.close - ema) / ema * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (bar.close - ema) / ema * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.bars_seen >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.ema = None; self.bars_seen = 0; }
-    fn name(&self) -> &str { "CloseRelativeToEma" }
+    fn is_ready(&self) -> bool {
+        self.bars_seen >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.ema = None;
+        self.bars_seen = 0;
+    }
+    fn name(&self) -> &str {
+        "CloseRelativeToEma"
+    }
 }
 
 #[cfg(test)]

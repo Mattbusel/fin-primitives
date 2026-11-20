@@ -31,7 +31,10 @@ pub struct CandleEfficiency {
 impl CandleEfficiency {
     /// Constructs a new `CandleEfficiency`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+        Self {
+            name: name.into(),
+            ready: false,
+        }
     }
 }
 

@@ -39,7 +39,9 @@ impl PriceReversalStrength {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -50,22 +52,36 @@ impl PriceReversalStrength {
 }
 
 impl Signal for PriceReversalStrength {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
-        if range.is_zero() { return Ok(SignalValue::Unavailable); }
+        if range.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         let strength = (bar.close - bar.low) / range * Decimal::ONE_HUNDRED;
         self.window.push_back(strength);
         self.sum += strength;
         if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
-        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            self.sum / Decimal::from(self.period as u32),
+        ))
     }
 
     fn reset(&mut self) {
@@ -88,7 +104,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,7 +116,9 @@ mod tests {
     }
 
     #[test]
-    fn test_prs_period_0_error() { assert!(PriceReversalStrength::new("prs", 0).is_err()); }
+    fn test_prs_period_0_error() {
+        assert!(PriceReversalStrength::new("prs", 0).is_err());
+    }
 
     #[test]
     fn test_prs_zero_range_unavailable() {

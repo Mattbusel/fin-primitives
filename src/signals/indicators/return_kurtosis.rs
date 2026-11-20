@@ -60,9 +60,15 @@ impl ReturnKurtosis {
 }
 
 impl Signal for ReturnKurtosis {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -92,7 +98,8 @@ impl Signal for ReturnKurtosis {
             return Ok(SignalValue::Unavailable);
         }
 
-        let kurt = self.returns
+        let kurt = self
+            .returns
             .iter()
             .map(|r| ((r - mean) / std_dev).powi(4))
             .sum::<f64>()
@@ -122,7 +129,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -148,8 +158,13 @@ mod tests {
     #[test]
     fn test_rk_flat_prices_unavailable() {
         let mut rk = ReturnKurtosis::new("rk", 4).unwrap();
-        for _ in 0..7 { rk.update_bar(&bar("100")).unwrap(); }
-        assert_eq!(rk.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        for _ in 0..7 {
+            rk.update_bar(&bar("100")).unwrap();
+        }
+        assert_eq!(
+            rk.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -161,8 +176,12 @@ mod tests {
         rk.update_bar(&bar("100.02")).unwrap(); // ~0.01%
         rk.update_bar(&bar("100.03")).unwrap(); // ~0.01%
         rk.update_bar(&bar("100.04")).unwrap(); // ~0.01%
-        if let SignalValue::Scalar(v) = rk.update_bar(&bar("120")).unwrap() { // big +~20%
-            assert!(v > dec!(0), "outlier return → positive excess kurtosis: {v}");
+        if let SignalValue::Scalar(v) = rk.update_bar(&bar("120")).unwrap() {
+            // big +~20%
+            assert!(
+                v > dec!(0),
+                "outlier return → positive excess kurtosis: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -171,7 +190,9 @@ mod tests {
     #[test]
     fn test_rk_reset() {
         let mut rk = ReturnKurtosis::new("rk", 4).unwrap();
-        for p in &["100","101","99","102","100"] { rk.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "99", "102", "100"] {
+            rk.update_bar(&bar(p)).unwrap();
+        }
         assert!(rk.is_ready());
         rk.reset();
         assert!(!rk.is_ready());

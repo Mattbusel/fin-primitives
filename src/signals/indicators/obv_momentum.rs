@@ -43,7 +43,9 @@ impl ObvMomentum {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -54,11 +56,15 @@ impl ObvMomentum {
     }
 
     /// Returns the current OBV value.
-    pub fn obv(&self) -> Decimal { self.obv }
+    pub fn obv(&self) -> Decimal {
+        self.obv
+    }
 }
 
 impl Signal for ObvMomentum {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -71,8 +77,11 @@ impl Signal for ObvMomentum {
                 return Ok(SignalValue::Unavailable);
             }
             Some(pc) => {
-                if close > pc { self.obv += vol; }
-                else if close < pc { self.obv -= vol; }
+                if close > pc {
+                    self.obv += vol;
+                } else if close < pc {
+                    self.obv -= vol;
+                }
                 self.prev_close = Some(close);
             }
         }
@@ -86,7 +95,11 @@ impl Signal for ObvMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let obv_old = self.obv_history.front().copied().ok_or_else(crate::error::invariant_broken)?;
+        let obv_old = self
+            .obv_history
+            .front()
+            .copied()
+            .ok_or_else(crate::error::invariant_broken)?;
         let momentum = if obv_old.is_zero() {
             Decimal::ZERO
         } else {
@@ -122,7 +135,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -139,7 +155,10 @@ mod tests {
     fn test_obvm_unavailable_before_warmup() {
         let mut om = ObvMomentum::new("o", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(om.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                om.update_bar(&bar("100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -163,13 +182,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0), "flat OBV → momentum = 0");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_obvm_reset() {
         let mut om = ObvMomentum::new("o", 3).unwrap();
-        for i in 0..10usize { om.update_bar(&bar(&(100+i).to_string(), "1000")).unwrap(); }
+        for i in 0..10usize {
+            om.update_bar(&bar(&(100 + i).to_string(), "1000")).unwrap();
+        }
         assert!(om.is_ready());
         om.reset();
         assert!(!om.is_ready());

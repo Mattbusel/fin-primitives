@@ -44,13 +44,20 @@ impl T3 {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     /// Returns [`FinError::InvalidInput`] if `v_factor` is outside (0.0, 1.0].
-    pub fn new(name: impl Into<String>, period: usize, v_factor: Option<f64>) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        v_factor: Option<f64>,
+    ) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
         let v = v_factor.unwrap_or(0.7);
         if v <= 0.0 || v > 1.0 {
-            return Err(FinError::InvalidInput(format!("v_factor must be in (0,1], got {}", v)));
+            return Err(FinError::InvalidInput(format!(
+                "v_factor must be in (0,1], got {}",
+                v
+            )));
         }
         let v_dec = Decimal::try_from(v).map_err(|_| FinError::ArithmeticOverflow)?;
         let v2 = v_dec * v_dec;

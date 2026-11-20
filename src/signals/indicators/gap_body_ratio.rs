@@ -46,7 +46,11 @@ impl GapBodyRatio {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None, seen_bars: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+            seen_bars: 0,
+        })
     }
 }
 
@@ -81,9 +85,7 @@ impl Signal for GapBodyRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = gap
-            .checked_div(body)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = gap.checked_div(body).ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(ratio))
     }
@@ -123,7 +125,10 @@ mod tests {
     #[test]
     fn test_gbr_first_bar_unavailable() {
         let mut gbr = GapBodyRatio::new("gbr").unwrap();
-        assert_eq!(gbr.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            gbr.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!gbr.is_ready());
     }
 
@@ -186,6 +191,9 @@ mod tests {
         assert!(gbr.is_ready());
         gbr.reset();
         assert!(!gbr.is_ready());
-        assert_eq!(gbr.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            gbr.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

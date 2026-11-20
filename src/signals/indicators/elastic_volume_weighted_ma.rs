@@ -79,7 +79,8 @@ impl Signal for Evwma {
                     // Zero volume window: treat as equal weight
                     bar.close
                 } else {
-                    let alpha = bar.volume
+                    let alpha = bar
+                        .volume
                         .checked_div(vol_sum)
                         .ok_or(FinError::ArithmeticOverflow)?;
                     let one_minus_alpha = Decimal::ONE
@@ -91,7 +92,9 @@ impl Signal for Evwma {
                     let term2 = alpha
                         .checked_mul(bar.close)
                         .ok_or(FinError::ArithmeticOverflow)?;
-                    term1.checked_add(term2).ok_or(FinError::ArithmeticOverflow)?
+                    term1
+                        .checked_add(term2)
+                        .ok_or(FinError::ArithmeticOverflow)?
                 };
                 self.evwma = Some(new_evwma);
                 if self.count >= self.period {
@@ -142,7 +145,10 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(Evwma::new("ev", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            Evwma::new("ev", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]

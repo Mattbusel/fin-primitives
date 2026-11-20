@@ -38,7 +38,11 @@ impl RsiMa {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero.
-    pub fn new(name: impl Into<String>, rsi_period: usize, ma_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        rsi_period: usize,
+        ma_period: usize,
+    ) -> Result<Self, FinError> {
         if rsi_period == 0 {
             return Err(FinError::InvalidPeriod(rsi_period));
         }
@@ -72,7 +76,9 @@ impl RsiMa {
 }
 
 impl Signal for RsiMa {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -87,8 +93,16 @@ impl Signal for RsiMa {
         self.prev_close = Some(close);
 
         let change = close - prev;
-        self.gains.push_back(if change > Decimal::ZERO { change } else { Decimal::ZERO });
-        self.losses.push_back(if change < Decimal::ZERO { -change } else { Decimal::ZERO });
+        self.gains.push_back(if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        });
+        self.losses.push_back(if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        });
         if self.gains.len() > self.rsi_period {
             self.gains.pop_front();
             self.losses.pop_front();
@@ -138,7 +152,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -157,8 +174,13 @@ mod tests {
         let mut r = RsiMa::new("r", 3, 3).unwrap();
         let prices: Vec<String> = (100..115).map(|i| i.to_string()).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = r.update_bar(&bar(p)).unwrap(); }
-        assert!(matches!(last, SignalValue::Scalar(_)), "expected Scalar, got {last:?}");
+        for p in &prices {
+            last = r.update_bar(&bar(p)).unwrap();
+        }
+        assert!(
+            matches!(last, SignalValue::Scalar(_)),
+            "expected Scalar, got {last:?}"
+        );
     }
 
     #[test]
@@ -166,7 +188,9 @@ mod tests {
         let mut r = RsiMa::new("r", 3, 3).unwrap();
         let prices: Vec<String> = (100..120).map(|i| i.to_string()).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = r.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            last = r.update_bar(&bar(p)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(50), "uptrend RSI MA should be above 50: {v}");
         }
@@ -175,9 +199,13 @@ mod tests {
     #[test]
     fn test_rsi_ma_range_0_100() {
         let mut r = RsiMa::new("r", 3, 3).unwrap();
-        let prices = ["100", "105", "103", "108", "106", "110", "109", "112", "111", "115"];
+        let prices = [
+            "100", "105", "103", "108", "106", "110", "109", "112", "111", "115",
+        ];
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = r.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            last = r.update_bar(&bar(p)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v >= dec!(0) && v <= dec!(100), "RSI MA out of range: {v}");
         }

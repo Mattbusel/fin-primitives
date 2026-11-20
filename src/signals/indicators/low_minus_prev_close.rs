@@ -80,7 +80,10 @@ impl crate::signals::Signal for LowMinusPrevClose {
         let result = if let Some(pc) = self.prev_close {
             let delta = bar.low - pc;
             let ema = match self.ema {
-                None => { self.ema = Some(delta); delta }
+                None => {
+                    self.ema = Some(delta);
+                    delta
+                }
                 Some(prev) => {
                     let next = delta * self.k + prev * (Decimal::ONE - self.k);
                     self.ema = Some(next);
@@ -117,7 +120,10 @@ mod tests {
         let high = if c > l { c } else { l };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high, low: l, close: c,
+            open: l,
+            high,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +139,10 @@ mod tests {
     #[test]
     fn test_lmpc_first_bar_unavailable() {
         let mut lmpc = LowMinusPrevClose::new("lmpc", 5).unwrap();
-        assert_eq!(lmpc.update_bar(&bar("90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            lmpc.update_bar(&bar("90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!lmpc.is_ready());
     }
 
@@ -149,7 +158,7 @@ mod tests {
     fn test_lmpc_gap_down_negative() {
         let mut lmpc = LowMinusPrevClose::new("lmpc", 5).unwrap();
         lmpc.update_bar(&bar("90", "100")).unwrap(); // close=100
-        // low=85 < 100 → delta = -15
+                                                     // low=85 < 100 → delta = -15
         let v = lmpc.update_bar(&bar("85", "90")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-15)));
     }
@@ -158,7 +167,7 @@ mod tests {
     fn test_lmpc_gap_up_positive() {
         let mut lmpc = LowMinusPrevClose::new("lmpc", 5).unwrap();
         lmpc.update_bar(&bar("90", "100")).unwrap(); // close=100
-        // low=105 > 100 → delta = 5
+                                                     // low=105 > 100 → delta = 5
         let v = lmpc.update_bar(&bar("105", "110")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(5)));
     }

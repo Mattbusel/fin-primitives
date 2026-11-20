@@ -84,13 +84,21 @@ impl Signal for Rmi {
         }
 
         let prior = self.close_window[0];
-        let diff  = close - prior;
-        let up    = if diff > Decimal::ZERO { diff } else { Decimal::ZERO };
-        let down  = if diff < Decimal::ZERO { -diff } else { Decimal::ZERO };
+        let diff = close - prior;
+        let up = if diff > Decimal::ZERO {
+            diff
+        } else {
+            Decimal::ZERO
+        };
+        let down = if diff < Decimal::ZERO {
+            -diff
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_up.is_none() {
             // Seed phase: accumulate `period` momentum values.
-            self.seed_up   += up;
+            self.seed_up += up;
             self.seed_down += down;
             self.seed_count += 1;
 
@@ -100,9 +108,9 @@ impl Signal for Rmi {
 
             #[allow(clippy::cast_possible_truncation)]
             let p = Decimal::from(self.period as u32);
-            let au = self.seed_up   / p;
+            let au = self.seed_up / p;
             let ad = self.seed_down / p;
-            self.avg_up   = Some(au);
+            self.avg_up = Some(au);
             self.avg_down = Some(ad);
 
             if ad.is_zero() {
@@ -116,11 +124,11 @@ impl Signal for Rmi {
 
         // Wilder smoothing phase.
         #[allow(clippy::cast_possible_truncation)]
-        let p   = Decimal::from(self.period as u32);
+        let p = Decimal::from(self.period as u32);
         let pm1 = p - Decimal::ONE;
-        let au  = (self.avg_up.ok_or_else(crate::error::invariant_broken)?   * pm1 + up)   / p;
-        let ad  = (self.avg_down.ok_or_else(crate::error::invariant_broken)? * pm1 + down) / p;
-        self.avg_up   = Some(au);
+        let au = (self.avg_up.ok_or_else(crate::error::invariant_broken)? * pm1 + up) / p;
+        let ad = (self.avg_down.ok_or_else(crate::error::invariant_broken)? * pm1 + down) / p;
+        self.avg_up = Some(au);
         self.avg_down = Some(ad);
 
         if ad.is_zero() {
@@ -142,9 +150,9 @@ impl Signal for Rmi {
 
     fn reset(&mut self) {
         self.close_window.clear();
-        self.avg_up    = None;
-        self.avg_down  = None;
-        self.seed_up   = Decimal::ZERO;
+        self.avg_up = None;
+        self.avg_down = None;
+        self.seed_up = Decimal::ZERO;
         self.seed_down = Decimal::ZERO;
         self.seed_count = 0;
     }
@@ -162,7 +170,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -181,7 +192,10 @@ mod tests {
         let mut rmi = Rmi::new("r", 3, 2).unwrap();
         // Need 2+1=3 closes for first momentum, then 3 more for seed → 5 bars for first value.
         for _ in 0..4 {
-            assert_eq!(rmi.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rmi.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -219,7 +233,9 @@ mod tests {
     #[test]
     fn test_rmi_in_bounds() {
         let mut rmi = Rmi::new("r", 5, 2).unwrap();
-        let prices = ["100", "102", "101", "103", "102", "104", "103", "105", "101", "106", "102", "107"];
+        let prices = [
+            "100", "102", "101", "103", "102", "104", "103", "105", "101", "106", "102", "107",
+        ];
         for &c in &prices {
             if let SignalValue::Scalar(v) = rmi.update_bar(&bar(c)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(100), "RMI out of bounds: {v}");

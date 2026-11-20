@@ -54,9 +54,15 @@ impl DemaCross {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero or `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
-        if fast >= slow { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
+        if fast >= slow {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         let fast_k = Decimal::from(2u32) / Decimal::from((fast + 1) as u32);
         let slow_k = Decimal::from(2u32) / Decimal::from((slow + 1) as u32);
         Ok(Self {
@@ -124,19 +130,29 @@ impl DemaCross {
 }
 
 impl Signal for DemaCross {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let fast_dema = Self::update_dema(
-            bar.close, self.fast_k, self.fast_period,
-            &mut self.fast_ema1, &mut self.fast_ema2,
-            &mut self.fast_seed1, &mut self.fast_seed2,
+            bar.close,
+            self.fast_k,
+            self.fast_period,
+            &mut self.fast_ema1,
+            &mut self.fast_ema2,
+            &mut self.fast_seed1,
+            &mut self.fast_seed2,
             &mut self.fast_ema1_ready,
         );
         let slow_dema = Self::update_dema(
-            bar.close, self.slow_k, self.slow_period,
-            &mut self.slow_ema1, &mut self.slow_ema2,
-            &mut self.slow_seed1, &mut self.slow_seed2,
+            bar.close,
+            self.slow_k,
+            self.slow_period,
+            &mut self.slow_ema1,
+            &mut self.slow_ema2,
+            &mut self.slow_seed1,
+            &mut self.slow_seed2,
             &mut self.slow_ema1_ready,
         );
 
@@ -144,9 +160,13 @@ impl Signal for DemaCross {
             (Some(f), Some(s)) => {
                 let signal = match (self.prev_fast, self.prev_slow) {
                     (Some(pf), Some(ps)) => {
-                        if f > s && pf <= ps { Decimal::from(100u32) }
-                        else if f < s && pf >= ps { -Decimal::from(100u32) }
-                        else { Decimal::ZERO }
+                        if f > s && pf <= ps {
+                            Decimal::from(100u32)
+                        } else if f < s && pf >= ps {
+                            -Decimal::from(100u32)
+                        } else {
+                            Decimal::ZERO
+                        }
                     }
                     _ => Decimal::ZERO,
                 };
@@ -155,15 +175,23 @@ impl Signal for DemaCross {
                 Ok(SignalValue::Scalar(signal))
             }
             _ => {
-                if let Some(f) = fast_dema { self.prev_fast = Some(f); }
-                if let Some(s) = slow_dema { self.prev_slow = Some(s); }
+                if let Some(f) = fast_dema {
+                    self.prev_fast = Some(f);
+                }
+                if let Some(s) = slow_dema {
+                    self.prev_slow = Some(s);
+                }
                 Ok(SignalValue::Unavailable)
             }
         }
     }
 
-    fn is_ready(&self) -> bool { self.prev_fast.is_some() && self.prev_slow.is_some() }
-    fn period(&self) -> usize { self.slow_period }
+    fn is_ready(&self) -> bool {
+        self.prev_fast.is_some() && self.prev_slow.is_some()
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
 
     fn reset(&mut self) {
         self.fast_ema1 = None;
@@ -192,7 +220,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -218,22 +249,31 @@ mod tests {
     fn test_dema_cross_flat_no_cross() {
         let mut d = DemaCross::new("d", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..20 { last = d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            last = d.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_dema_cross_bullish_cross() {
         let mut d = DemaCross::new("d", 3, 5).unwrap();
         // Warm up with flat price then spike up
-        for _ in 0..20 { d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            d.update_bar(&bar("100")).unwrap();
+        }
         // Feed rising prices to trigger bullish cross
         let mut found_cross = false;
         for i in 1..=30u32 {
             if let SignalValue::Scalar(v) = d.update_bar(&bar(&(100 + i).to_string())).unwrap() {
-                if v == dec!(100) { found_cross = true; break; }
+                if v == dec!(100) {
+                    found_cross = true;
+                    break;
+                }
             }
         }
         assert!(found_cross);
@@ -242,7 +282,9 @@ mod tests {
     #[test]
     fn test_dema_cross_reset() {
         let mut d = DemaCross::new("d", 3, 5).unwrap();
-        for _ in 0..20 { d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            d.update_bar(&bar("100")).unwrap();
+        }
         assert!(d.is_ready());
         d.reset();
         assert!(!d.is_ready());

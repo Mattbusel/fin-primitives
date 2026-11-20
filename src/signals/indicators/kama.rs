@@ -45,8 +45,8 @@ impl Kama {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        let fast_sc = Decimal::TWO / Decimal::from(3u32);   // 2/(2+1)
-        let slow_sc = Decimal::TWO / Decimal::from(31u32);  // 2/(30+1)
+        let fast_sc = Decimal::TWO / Decimal::from(3u32); // 2/(2+1)
+        let slow_sc = Decimal::TWO / Decimal::from(31u32); // 2/(30+1)
         Ok(Self {
             name: name.into(),
             period,
@@ -73,10 +73,19 @@ impl Signal for Kama {
         }
 
         // Efficiency ratio
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let direction = (last - first).abs();
-        let path: Decimal = self.closes.make_contiguous().windows(2)
+        let path: Decimal = self
+            .closes
+            .make_contiguous()
+            .windows(2)
             .map(|w| (w[1] - w[0]).abs())
             .sum();
 

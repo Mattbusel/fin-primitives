@@ -27,16 +27,28 @@ fn delta(side: Side, price: Decimal, qty: Decimal, seq: u64) -> Result<BookDelta
 
 #[test]
 fn price_and_quantity_validate_at_construction() -> Result<(), FinError> {
-    assert!(matches!(Price::new(dec!(0)), Err(FinError::InvalidPrice(_))));
-    assert!(matches!(Price::new(dec!(-1.5)), Err(FinError::InvalidPrice(_))));
-    assert!(matches!(Quantity::new(dec!(-0.001)), Err(FinError::InvalidQuantity(_))));
+    assert!(matches!(
+        Price::new(dec!(0)),
+        Err(FinError::InvalidPrice(_))
+    ));
+    assert!(matches!(
+        Price::new(dec!(-1.5)),
+        Err(FinError::InvalidPrice(_))
+    ));
+    assert!(matches!(
+        Quantity::new(dec!(-0.001)),
+        Err(FinError::InvalidQuantity(_))
+    ));
     assert!(Symbol::new("   ").is_err());
 
     let p = Price::new(dec!(101.25))?;
     let q = Quantity::new(dec!(3))?;
     assert_eq!(p.value(), dec!(101.25));
     assert_eq!(p.checked_mul(q), Some(dec!(303.75)));
-    assert_eq!(q.checked_add(Quantity::new(dec!(2))?), Some(Quantity::new(dec!(5))?));
+    assert_eq!(
+        q.checked_add(Quantity::new(dec!(2))?),
+        Some(Quantity::new(dec!(5))?)
+    );
     // Quantities never go negative: 3 - 5 is refused, not wrapped.
     assert_eq!(q.checked_sub(Quantity::new(dec!(5))?), None);
     // Zero is a valid quantity (an empty level), not a valid price.
@@ -62,11 +74,19 @@ fn order_book_tracks_top_of_book_and_rejects_bad_deltas() -> Result<(), FinError
     let vwap = book.vwap_for_qty(Side::Ask, Quantity::new(dec!(3))?)?;
     assert_eq!(vwap, dec!(302) / dec!(3));
     // More than the whole ask side is refused.
-    assert!(book.vwap_for_qty(Side::Ask, Quantity::new(dec!(6))?).is_err());
+    assert!(book
+        .vwap_for_qty(Side::Ask, Quantity::new(dec!(6))?)
+        .is_err());
 
     // A gap in the sequence is refused and changes nothing.
     let gap = book.apply_delta(delta(Side::Bid, dec!(99.0), dec!(1), 7)?);
-    assert!(matches!(gap, Err(FinError::SequenceMismatch { expected: 5, got: 7 })));
+    assert!(matches!(
+        gap,
+        Err(FinError::SequenceMismatch {
+            expected: 5,
+            got: 7
+        })
+    ));
     assert_eq!(book.sequence(), 4);
 
     // A bid through the best ask would cross the book: rolled back.
@@ -122,7 +142,9 @@ fn aggregator_turns_ticks_into_bars() -> Result<(), FinError> {
     assert_eq!(bar.tick_count, 4);
 
     // The open second bar comes out on flush.
-    let last = agg.flush().ok_or_else(|| FinError::InvalidInput("no open bar".into()))?;
+    let last = agg
+        .flush()
+        .ok_or_else(|| FinError::InvalidInput("no open bar".into()))?;
     assert_eq!(last.open.value(), dec!(11.5));
     assert_eq!(last.tick_count, 1);
     Ok(())
@@ -162,7 +184,11 @@ impl Signal for RangeAvg {
 
 #[test]
 fn custom_signal_runs_on_core_bars() -> Result<(), FinError> {
-    let mut sig = RangeAvg { sum: Decimal::ZERO, n: 0, period: 2 };
+    let mut sig = RangeAvg {
+        sum: Decimal::ZERO,
+        n: 0,
+        period: 2,
+    };
     let a = BarInput::new(dec!(10), dec!(11), dec!(9), dec!(10), dec!(1));
     let b = BarInput::new(dec!(10), dec!(14), dec!(10), dec!(10), dec!(1));
     assert_eq!(sig.update(&a)?, SignalValue::Unavailable);

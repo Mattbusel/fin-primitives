@@ -192,7 +192,10 @@ mod tests {
         let mut dema = Dema::new("d3", 3).unwrap();
         // Needs 2*3-1 = 5 bars before first ready value
         for _ in 0..4 {
-            assert_eq!(dema.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                dema.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!dema.is_ready());
     }
@@ -228,7 +231,10 @@ mod tests {
         assert!(dema.is_ready());
         dema.reset();
         assert!(!dema.is_ready());
-        assert_eq!(dema.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dema.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

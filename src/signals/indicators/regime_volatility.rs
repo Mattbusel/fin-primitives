@@ -66,7 +66,10 @@ impl RegimeVolatility {
         if highs.len() < period || closes.len() < 2 {
             return Decimal::ZERO;
         }
-        let trs: Vec<Decimal> = highs.iter().rev().take(period)
+        let trs: Vec<Decimal> = highs
+            .iter()
+            .rev()
+            .take(period)
             .zip(lows.iter().rev().take(period))
             .zip(closes.iter().rev().skip(1).take(period))
             .map(|((h, l), pc)| {
@@ -76,7 +79,9 @@ impl RegimeVolatility {
                 hl.max(hc).max(lc)
             })
             .collect();
-        if trs.is_empty() { return Decimal::ZERO; }
+        if trs.is_empty() {
+            return Decimal::ZERO;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let n = trs.len() as u32;
         trs.iter().sum::<Decimal>() / Decimal::from(n)
@@ -84,17 +89,29 @@ impl RegimeVolatility {
 }
 
 impl Signal for RegimeVolatility {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow_period }
-    fn is_ready(&self) -> bool { self.highs.len() >= self.slow_period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.slow_period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
-        if self.highs.len() > self.slow_period + 1 { self.highs.pop_front(); }
+        if self.highs.len() > self.slow_period + 1 {
+            self.highs.pop_front();
+        }
         self.lows.push_back(bar.low);
-        if self.lows.len() > self.slow_period + 1 { self.lows.pop_front(); }
+        if self.lows.len() > self.slow_period + 1 {
+            self.lows.pop_front();
+        }
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.slow_period + 2 { self.closes.pop_front(); }
+        if self.closes.len() > self.slow_period + 2 {
+            self.closes.pop_front();
+        }
 
         if self.highs.len() < self.slow_period {
             return Ok(SignalValue::Unavailable);
@@ -130,7 +147,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -149,7 +169,10 @@ mod tests {
     fn test_rv_unavailable_before_warm_up() {
         let mut rv = RegimeVolatility::new("rv", 3, 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(rv.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rv.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -183,7 +206,9 @@ mod tests {
     #[test]
     fn test_rv_reset() {
         let mut rv = RegimeVolatility::new("rv", 3, 5).unwrap();
-        for _ in 0..8 { rv.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..8 {
+            rv.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(rv.is_ready());
         rv.reset();
         assert!(!rv.is_ready());

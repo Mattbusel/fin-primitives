@@ -28,17 +28,29 @@ impl RangeContractionCount {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_range: None, count: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_range: None,
+            count: 0,
+        })
     }
 
     /// Returns the current contraction streak.
-    pub fn count(&self) -> u32 { self.count }
+    pub fn count(&self) -> u32 {
+        self.count
+    }
 }
 
 impl Signal for RangeContractionCount {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_range.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_range.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -76,7 +88,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -87,7 +102,10 @@ mod tests {
     #[test]
     fn test_rcc_unavailable_first_bar() {
         let mut rcc = RangeContractionCount::new("rcc").unwrap();
-        assert_eq!(rcc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rcc.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -117,6 +135,9 @@ mod tests {
         rcc.update_bar(&bar("115", "85")).unwrap();
         rcc.reset();
         assert_eq!(rcc.count(), 0);
-        assert_eq!(rcc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rcc.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

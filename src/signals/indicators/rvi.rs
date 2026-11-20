@@ -54,8 +54,7 @@ impl Rvi {
 
     fn wma4(a: Decimal, b: Decimal, c: Decimal, d: Decimal) -> Decimal {
         // weights: 1,2,3,4 (d is newest)
-        (a + b * Decimal::TWO + c * Decimal::from(3u32) + d * Decimal::from(4u32))
-            / Decimal::TEN
+        (a + b * Decimal::TWO + c * Decimal::from(3u32) + d * Decimal::from(4u32)) / Decimal::TEN
     }
 }
 
@@ -138,7 +137,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,19 +157,25 @@ mod tests {
     fn test_rvi_unavailable_before_warmup() {
         let mut rvi = Rvi::new("rvi4", 4).unwrap();
         for _ in 0..6 {
-            assert_eq!(rvi.update_bar(&bar("100","110","90","105")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rvi.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         // needs 4+4-1 = 7 bars
-        assert!(rvi.update_bar(&bar("100","110","90","105")).unwrap().is_scalar());
+        assert!(rvi
+            .update_bar(&bar("100", "110", "90", "105"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]
     fn test_rvi_bullish_bars_positive() {
         let mut rvi = Rvi::new("rvi4", 4).unwrap();
         for _ in 0..10 {
-            rvi.update_bar(&bar("90","110","88","108")).unwrap();
+            rvi.update_bar(&bar("90", "110", "88", "108")).unwrap();
         }
-        match rvi.update_bar(&bar("90","110","88","108")).unwrap() {
+        match rvi.update_bar(&bar("90", "110", "88", "108")).unwrap() {
             SignalValue::Scalar(v) => assert!(v > Decimal::ZERO),
             _ => panic!("expected scalar"),
         }
@@ -176,7 +184,9 @@ mod tests {
     #[test]
     fn test_rvi_reset() {
         let mut rvi = Rvi::new("rvi4", 4).unwrap();
-        for _ in 0..15 { rvi.update_bar(&bar("90","110","88","108")).unwrap(); }
+        for _ in 0..15 {
+            rvi.update_bar(&bar("90", "110", "88", "108")).unwrap();
+        }
         assert!(rvi.is_ready());
         rvi.reset();
         assert!(!rvi.is_ready());

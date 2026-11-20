@@ -47,9 +47,15 @@ impl VolumeAcceleration {
 }
 
 impl Signal for VolumeAcceleration {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.volumes.push_back(bar.volume);
@@ -60,7 +66,10 @@ impl Signal for VolumeAcceleration {
             return Ok(SignalValue::Unavailable);
         }
         let old_vol = self.volumes[0];
-        let new_vol = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
+        let new_vol = *self
+            .volumes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         if old_vol.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
@@ -86,7 +95,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -103,7 +115,10 @@ mod tests {
     fn test_va_unavailable_before_warm_up() {
         let mut va = VolumeAcceleration::new("va", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(va.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                va.update_bar(&bar("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -130,7 +145,9 @@ mod tests {
     #[test]
     fn test_va_reset() {
         let mut va = VolumeAcceleration::new("va", 2).unwrap();
-        for _ in 0..3 { va.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            va.update_bar(&bar("1000")).unwrap();
+        }
         assert!(va.is_ready());
         va.reset();
         assert!(!va.is_ready());

@@ -56,9 +56,15 @@ impl CusumPriceChange {
 }
 
 impl Signal for CusumPriceChange {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -78,7 +84,11 @@ impl Signal for CusumPriceChange {
         let returns: Vec<f64> = closes
             .windows(2)
             .filter_map(|w| {
-                if w[0] <= 0.0 { None } else { Some((w[1] - w[0]) / w[0]) }
+                if w[0] <= 0.0 {
+                    None
+                } else {
+                    Some((w[1] - w[0]) / w[0])
+                }
             })
             .collect();
 
@@ -129,7 +139,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +168,9 @@ mod tests {
     #[test]
     fn test_cusum_flat_prices_unavailable() {
         let mut s = CusumPriceChange::new("cusum", 3).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         // zero variance → Unavailable
         assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
     }
@@ -164,14 +179,19 @@ mod tests {
     fn test_cusum_noisy_uptrend_gives_scalar() {
         // Noisy uptrend: variance > 0 so CUSUM can be computed
         let mut s = CusumPriceChange::new("cusum", 4).unwrap();
-        let prices = ["100","103","101","105","102","107","104","109","106","111"];
+        let prices = [
+            "100", "103", "101", "105", "102", "107", "104", "109", "106", "111",
+        ];
         let mut got_scalar = false;
         for p in &prices {
             if let SignalValue::Scalar(_) = s.update_bar(&bar(p)).unwrap() {
                 got_scalar = true;
             }
         }
-        assert!(got_scalar, "noisy uptrend should eventually produce a Scalar value");
+        assert!(
+            got_scalar,
+            "noisy uptrend should eventually produce a Scalar value"
+        );
     }
 
     #[test]
@@ -179,7 +199,9 @@ mod tests {
         // A zig-zag series makes the running sum change sign often. Every crossing
         // must land on exactly zero; before the fix the sum flipped sign directly.
         let mut s = CusumPriceChange::new("cusum", 3).unwrap();
-        let prices = ["100", "104", "101", "108", "99", "103", "97", "110", "95", "112", "90", "115"];
+        let prices = [
+            "100", "104", "101", "108", "99", "103", "97", "110", "95", "112", "90", "115",
+        ];
         let mut prev: Option<Decimal> = None;
         let mut resets = 0;
         for p in &prices {
@@ -201,7 +223,9 @@ mod tests {
     #[test]
     fn test_cusum_reset() {
         let mut s = CusumPriceChange::new("cusum", 3).unwrap();
-        for p in &["100","102","104","106","108"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "102", "104", "106", "108"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

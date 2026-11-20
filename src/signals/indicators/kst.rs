@@ -55,7 +55,9 @@ impl Kst {
         sma_periods: [usize; 4],
     ) -> Result<Self, FinError> {
         for &p in roc_periods.iter().chain(sma_periods.iter()) {
-            if p == 0 { return Err(FinError::InvalidPeriod(p)); }
+            if p == 0 {
+                return Err(FinError::InvalidPeriod(p));
+            }
         }
         let max_hist = roc_periods.iter().max().copied().unwrap_or(0);
         Ok(Self {
@@ -75,10 +77,16 @@ impl Kst {
 }
 
 impl Signal for Kst {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let max_roc = *self.roc_periods.iter().max().ok_or_else(crate::error::invariant_broken)?;
+        let max_roc = *self
+            .roc_periods
+            .iter()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
         self.closes.push_back(bar.close);
         if self.closes.len() > max_roc + 1 {
             self.closes.pop_front();
@@ -109,8 +117,7 @@ impl Signal for Kst {
                 continue;
             }
             #[allow(clippy::cast_possible_truncation)]
-            let sma = self.sma_bufs[i].iter().copied().sum::<Decimal>()
-                / Decimal::from(sp as u32);
+            let sma = self.sma_bufs[i].iter().copied().sum::<Decimal>() / Decimal::from(sp as u32);
             #[allow(clippy::cast_possible_truncation)]
             let weight = Decimal::from((i + 1) as u32);
             kst += sma * weight;
@@ -123,13 +130,19 @@ impl Signal for Kst {
         Ok(SignalValue::Scalar(kst))
     }
 
-    fn is_ready(&self) -> bool { self.ready }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
 
-    fn period(&self) -> usize { *self.roc_periods.iter().max().unwrap_or(&0) }
+    fn period(&self) -> usize {
+        *self.roc_periods.iter().max().unwrap_or(&0)
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
-        for buf in &mut self.sma_bufs { buf.clear(); }
+        for buf in &mut self.sma_bufs {
+            buf.clear();
+        }
         self.ready = false;
     }
 }
@@ -146,7 +159,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -182,16 +198,22 @@ mod tests {
     fn test_kst_flat_market_near_zero() {
         let mut k = Kst::new("k", [3, 4, 5, 6], [2, 2, 2, 2]).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..30 { last = k.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..30 {
+            last = k.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v.abs() < dec!(1), "KST flat should be near 0: {v}");
-        } else { panic!("expected scalar"); }
+        } else {
+            panic!("expected scalar");
+        }
     }
 
     #[test]
     fn test_kst_reset() {
         let mut k = Kst::new("k", [3, 4, 5, 6], [2, 2, 2, 2]).unwrap();
-        for _ in 0..20 { k.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            k.update_bar(&bar("100")).unwrap();
+        }
         assert!(k.is_ready());
         k.reset();
         assert!(!k.is_ready());

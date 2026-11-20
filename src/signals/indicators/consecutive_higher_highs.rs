@@ -31,7 +31,11 @@ pub struct ConsecutiveHigherHighs {
 impl ConsecutiveHigherHighs {
     /// Constructs a new `ConsecutiveHigherHighs`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_high: None, streak: 0 }
+        Self {
+            name: name.into(),
+            prev_high: None,
+            streak: 0,
+        }
     }
 }
 
@@ -85,7 +89,10 @@ mod tests {
         let l = Price::new("1".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -96,24 +103,42 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut chh = ConsecutiveHigherHighs::new("chh");
-        assert_eq!(chh.update_bar(&bar("15")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            chh.update_bar(&bar("15")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_consecutive_higher_highs() {
         let mut chh = ConsecutiveHigherHighs::new("chh");
         chh.update_bar(&bar("10")).unwrap();
-        assert_eq!(chh.update_bar(&bar("12")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(chh.update_bar(&bar("14")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(chh.update_bar(&bar("16")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            chh.update_bar(&bar("12")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            chh.update_bar(&bar("14")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            chh.update_bar(&bar("16")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
     fn test_consecutive_lower_highs() {
         let mut chh = ConsecutiveHigherHighs::new("chh");
         chh.update_bar(&bar("16")).unwrap();
-        assert_eq!(chh.update_bar(&bar("14")).unwrap(), SignalValue::Scalar(dec!(-1)));
-        assert_eq!(chh.update_bar(&bar("12")).unwrap(), SignalValue::Scalar(dec!(-2)));
+        assert_eq!(
+            chh.update_bar(&bar("14")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
+        assert_eq!(
+            chh.update_bar(&bar("12")).unwrap(),
+            SignalValue::Scalar(dec!(-2))
+        );
     }
 
     #[test]
@@ -122,8 +147,14 @@ mod tests {
         chh.update_bar(&bar("10")).unwrap();
         chh.update_bar(&bar("12")).unwrap();
         chh.update_bar(&bar("14")).unwrap();
-        assert_eq!(chh.update_bar(&bar("14")).unwrap(), SignalValue::Scalar(dec!(0)));
-        assert_eq!(chh.update_bar(&bar("15")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            chh.update_bar(&bar("14")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
+        assert_eq!(
+            chh.update_bar(&bar("15")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]

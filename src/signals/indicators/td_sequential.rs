@@ -94,7 +94,7 @@ impl Signal for TdSequential {
         }
 
         let current = self.closes[4];
-        let prior4  = self.closes[0]; // close 4 bars ago
+        let prior4 = self.closes[0]; // close 4 bars ago
 
         if current > prior4 {
             self.buy_count = (self.buy_count + 1).min(9);
@@ -106,7 +106,7 @@ impl Signal for TdSequential {
             Ok(SignalValue::Scalar(-Decimal::from(self.sell_count)))
         } else {
             // Equal close — reset both counts
-            self.buy_count  = 0;
+            self.buy_count = 0;
             self.sell_count = 0;
             Ok(SignalValue::Scalar(Decimal::ZERO))
         }
@@ -114,7 +114,7 @@ impl Signal for TdSequential {
 
     fn reset(&mut self) {
         self.closes.clear();
-        self.buy_count  = 0;
+        self.buy_count = 0;
         self.sell_count = 0;
     }
 }
@@ -130,7 +130,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -142,7 +145,10 @@ mod tests {
     fn test_td_unavailable_before_five_bars() {
         let mut td = TdSequential::new("td").unwrap();
         for _ in 0..4 {
-            assert_eq!(td.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                td.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!td.is_ready());
     }
@@ -157,11 +163,18 @@ mod tests {
         // Use incrementing prices so current > close[4] on every bar:
         // bar5=101>100, bar6=102>100, bar7=103>100, bar8=104>100,
         // bar9=105>101, bar10=106>102, bar11=107>103, bar12=108>104, bar13=109>105
-        let prices = ["101","102","103","104","105","106","107","108","109"];
+        let prices = [
+            "101", "102", "103", "104", "105", "106", "107", "108", "109",
+        ];
         for (i, p) in prices.iter().enumerate() {
             let v = td.update_bar(&bar(p)).unwrap();
             let expected = Decimal::from((i + 1) as u32);
-            assert_eq!(v, SignalValue::Scalar(expected), "buy count should be {}", i + 1);
+            assert_eq!(
+                v,
+                SignalValue::Scalar(expected),
+                "buy count should be {}",
+                i + 1
+            );
         }
         assert!(td.is_buy_setup_complete());
     }
@@ -173,11 +186,16 @@ mod tests {
             td.update_bar(&bar("100")).unwrap();
         }
         // Decrementing prices so current < close[4] on every bar
-        let prices = ["99","98","97","96","95","94","93","92","91"];
+        let prices = ["99", "98", "97", "96", "95", "94", "93", "92", "91"];
         for (i, p) in prices.iter().enumerate() {
             let v = td.update_bar(&bar(p)).unwrap();
             let expected = -Decimal::from((i + 1) as u32);
-            assert_eq!(v, SignalValue::Scalar(expected), "sell count should be -{}", i + 1);
+            assert_eq!(
+                v,
+                SignalValue::Scalar(expected),
+                "sell count should be -{}",
+                i + 1
+            );
         }
         assert!(td.is_sell_setup_complete());
     }
@@ -185,7 +203,9 @@ mod tests {
     #[test]
     fn test_td_buy_count_capped_at_9() {
         let mut td = TdSequential::new("td").unwrap();
-        for _ in 0..4 { td.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            td.update_bar(&bar("100")).unwrap();
+        }
         // Push 12 incrementing bars — count caps at 9
         for i in 0u32..12 {
             td.update_bar(&bar(&(101 + i).to_string())).unwrap();
@@ -196,7 +216,9 @@ mod tests {
     #[test]
     fn test_td_reset() {
         let mut td = TdSequential::new("td").unwrap();
-        for _ in 0..10 { td.update_bar(&bar("101")).unwrap(); }
+        for _ in 0..10 {
+            td.update_bar(&bar("101")).unwrap();
+        }
         td.reset();
         assert!(!td.is_ready());
         assert_eq!(td.buy_count(), 0);

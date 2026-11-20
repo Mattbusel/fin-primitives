@@ -310,10 +310,7 @@ impl ExprState {
                 v.mul(*factor)
             }
 
-            (
-                Self::Lag { inner, buffer, n },
-                SignalExpr::Lag(inner_expr, _),
-            ) => {
+            (Self::Lag { inner, buffer, n }, SignalExpr::Lag(inner_expr, _)) => {
                 let v = inner.eval(inner_expr, leaf_values);
                 if *n == 0 {
                     return v;
@@ -329,7 +326,13 @@ impl ExprState {
             }
 
             (
-                Self::Normalize { inner, window, window_size, method, .. },
+                Self::Normalize {
+                    inner,
+                    window,
+                    window_size,
+                    method,
+                    ..
+                },
                 SignalExpr::Normalize(inner_expr, _, _),
             ) => {
                 let v = inner.eval(inner_expr, leaf_values);
@@ -349,7 +352,12 @@ impl ExprState {
             }
 
             (
-                Self::Threshold { inner, prev, direction, level },
+                Self::Threshold {
+                    inner,
+                    prev,
+                    direction,
+                    level,
+                },
                 SignalExpr::Threshold(inner_expr, threshold_level, _),
             ) => {
                 *level = *threshold_level;
@@ -369,21 +377,18 @@ impl ExprState {
                         SignalValue::Scalar(_) => SignalValue::Scalar(Decimal::ZERO),
                         SignalValue::Unavailable => SignalValue::Unavailable,
                     },
-                    Direction::Cross => {
-                        
-                        match (&v, &*prev) {
-                            (SignalValue::Scalar(curr), SignalValue::Scalar(p)) => {
-                                if *curr > *level && *p <= *level {
-                                    SignalValue::Scalar(Decimal::ONE)
-                                } else if *curr < *level && *p >= *level {
-                                    SignalValue::Scalar(-Decimal::ONE)
-                                } else {
-                                    SignalValue::Scalar(Decimal::ZERO)
-                                }
+                    Direction::Cross => match (&v, &*prev) {
+                        (SignalValue::Scalar(curr), SignalValue::Scalar(p)) => {
+                            if *curr > *level && *p <= *level {
+                                SignalValue::Scalar(Decimal::ONE)
+                            } else if *curr < *level && *p >= *level {
+                                SignalValue::Scalar(-Decimal::ONE)
+                            } else {
+                                SignalValue::Scalar(Decimal::ZERO)
                             }
-                            _ => SignalValue::Unavailable,
                         }
-                    }
+                        _ => SignalValue::Unavailable,
+                    },
                 };
                 *prev = v;
                 result
@@ -406,7 +411,12 @@ impl ExprState {
                 inner.reset();
                 buffer.clear();
             }
-            Self::Normalize { inner, window, prev, .. } => {
+            Self::Normalize {
+                inner,
+                window,
+                prev,
+                ..
+            } => {
                 inner.reset();
                 window.clear();
                 *prev = SignalValue::Unavailable;
@@ -420,11 +430,7 @@ impl ExprState {
 }
 
 /// Computes a normalised value from a rolling window.
-fn compute_norm(
-    window: &VecDeque<Decimal>,
-    method: NormMethod,
-    current: Decimal,
-) -> SignalValue {
+fn compute_norm(window: &VecDeque<Decimal>, method: NormMethod, current: Decimal) -> SignalValue {
     if window.is_empty() {
         return SignalValue::Unavailable;
     }
@@ -675,7 +681,13 @@ impl<S: Signal + 'static> SignalBuilder<S> {
         // the value directly instead of unwrapping that `Result`.
         let leaves: Vec<Box<dyn Signal>> = vec![Box::new(self.signal)];
         let state = ExprState::from_expr(&self.expr);
-        ComposedSignal { name: name.into(), expr: self.expr, state, leaves, bars_seen: 0 }
+        ComposedSignal {
+            name: name.into(),
+            expr: self.expr,
+            state,
+            leaves,
+            bars_seen: 0,
+        }
     }
 }
 
@@ -850,7 +862,10 @@ mod tests {
         }
         let v = composed.update(&bar("10")).unwrap();
         if let SignalValue::Scalar(z) = v {
-            assert!(z.abs() < dec!(0.001), "z-score of mean should be near 0, got {z}");
+            assert!(
+                z.abs() < dec!(0.001),
+                "z-score of mean should be near 0, got {z}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -870,7 +885,10 @@ mod tests {
         composed.update(&bar("30")).unwrap();
         let v = composed.update(&bar("100")).unwrap(); // clearly the max
         if let SignalValue::Scalar(pct) = v {
-            assert!(pct > dec!(0.5), "max value should have pct > 0.5, got {pct}");
+            assert!(
+                pct > dec!(0.5),
+                "max value should have pct > 0.5, got {pct}"
+            );
         } else {
             panic!("expected Scalar");
         }

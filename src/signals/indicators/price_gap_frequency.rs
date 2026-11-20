@@ -39,7 +39,11 @@ impl PriceGapFrequency {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     /// Returns [`FinError::InvalidInput`] if `threshold <= 0`.
-    pub fn new(name: impl Into<String>, period: usize, threshold: Decimal) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        threshold: Decimal,
+    ) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
@@ -57,9 +61,15 @@ impl PriceGapFrequency {
 }
 
 impl Signal for PriceGapFrequency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -72,12 +82,16 @@ impl Signal for PriceGapFrequency {
                 };
                 let exceeded = gap > self.threshold;
                 self.flags.push_back(exceeded);
-                if self.flags.len() > self.period { self.flags.pop_front(); }
+                if self.flags.len() > self.period {
+                    self.flags.pop_front();
+                }
                 if self.flags.len() < self.period {
                     SignalValue::Unavailable
                 } else {
                     let count = self.flags.iter().filter(|&&f| f).count();
-                    SignalValue::Scalar(Decimal::from(count as u32) / Decimal::from(self.period as u32))
+                    SignalValue::Scalar(
+                        Decimal::from(count as u32) / Decimal::from(self.period as u32),
+                    )
                 }
             }
         };
@@ -104,7 +118,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,7 +139,10 @@ mod tests {
     fn test_pgf_unavailable_before_warm_up() {
         let mut pgf = PriceGapFrequency::new("pgf", 3, dec!(0.5)).unwrap();
         pgf.update_bar(&bar("100", "100")).unwrap();
-        assert_eq!(pgf.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pgf.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -151,7 +171,9 @@ mod tests {
     #[test]
     fn test_pgf_reset() {
         let mut pgf = PriceGapFrequency::new("pgf", 3, dec!(0.5)).unwrap();
-        for _ in 0..4 { pgf.update_bar(&bar("100", "100")).unwrap(); }
+        for _ in 0..4 {
+            pgf.update_bar(&bar("100", "100")).unwrap();
+        }
         assert!(pgf.is_ready());
         pgf.reset();
         assert!(!pgf.is_ready());

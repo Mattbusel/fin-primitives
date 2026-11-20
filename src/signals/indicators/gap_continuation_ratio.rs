@@ -67,9 +67,15 @@ impl GapContinuationRatio {
 }
 
 impl Signal for GapContinuationRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let pc = self.prev_close;
@@ -93,7 +99,10 @@ impl Signal for GapContinuationRatio {
         self.sum += flag;
         self.flags.push_back(flag);
         if self.flags.len() > self.period {
-            let removed = self.flags.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .flags
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -101,7 +110,8 @@ impl Signal for GapContinuationRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = self.sum
+        let ratio = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
@@ -145,7 +155,10 @@ mod tests {
     fn test_gcr_first_bar_unavailable() {
         let mut gcr = GapContinuationRatio::new("gcr", 3).unwrap();
         // First bar has no prev_close
-        assert_eq!(gcr.update_bar(&bar("100", "105", "98", "103")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            gcr.update_bar(&bar("100", "105", "98", "103")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

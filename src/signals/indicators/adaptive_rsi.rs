@@ -54,10 +54,16 @@ impl AdaptiveRsi {
         min_period: usize,
         max_period: usize,
     ) -> Result<Self, FinError> {
-        if er_period == 0 { return Err(FinError::InvalidPeriod(er_period)); }
-        if min_period == 0 { return Err(FinError::InvalidPeriod(min_period)); }
+        if er_period == 0 {
+            return Err(FinError::InvalidPeriod(er_period));
+        }
+        if min_period == 0 {
+            return Err(FinError::InvalidPeriod(min_period));
+        }
         if min_period >= max_period {
-            return Err(FinError::InvalidInput("min_period must be < max_period".into()));
+            return Err(FinError::InvalidInput(
+                "min_period must be < max_period".into(),
+            ));
         }
         Ok(Self {
             name: name.into(),
@@ -75,13 +81,19 @@ impl AdaptiveRsi {
     }
 
     fn compute_er(closes: &VecDeque<Decimal>, er_period: usize) -> Decimal {
-        if closes.len() < er_period + 1 { return Decimal::ZERO; }
+        if closes.len() < er_period + 1 {
+            return Decimal::ZERO;
+        }
         let n = closes.len();
         let direction = (closes[n - 1] - closes[n - 1 - er_period]).abs();
         let path: Decimal = (n - 1 - er_period..n - 1)
             .map(|i| (closes[i + 1] - closes[i]).abs())
             .sum();
-        if path.is_zero() { Decimal::ZERO } else { direction / path }
+        if path.is_zero() {
+            Decimal::ZERO
+        } else {
+            direction / path
+        }
     }
 
     fn effective_period(er: Decimal, min: usize, max: usize) -> usize {
@@ -93,11 +105,15 @@ impl AdaptiveRsi {
 }
 
 impl Signal for AdaptiveRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.er_period + 1 { self.closes.pop_front(); }
+        if self.closes.len() > self.er_period + 1 {
+            self.closes.pop_front();
+        }
 
         // Need enough bars for ER calculation
         if self.closes.len() < self.er_period + 1 {
@@ -118,8 +134,16 @@ impl Signal for AdaptiveRsi {
         self.prev_rsi_close = Some(bar.close);
 
         let change = bar.close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_gain.is_none() || self.current_period != Some(eff_period) {
             // Reset RSI seed when period changes or not yet seeded
@@ -146,8 +170,10 @@ impl Signal for AdaptiveRsi {
         }
 
         let k = Decimal::ONE / Decimal::from(eff_period as u32);
-        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + gain * k;
-        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + loss * k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + gain * k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + loss * k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
 
@@ -159,8 +185,12 @@ impl Signal for AdaptiveRsi {
         Ok(SignalValue::Scalar(rsi))
     }
 
-    fn is_ready(&self) -> bool { self.avg_gain.is_some() }
-    fn period(&self) -> usize { self.er_period }
+    fn is_ready(&self) -> bool {
+        self.avg_gain.is_some()
+    }
+    fn period(&self) -> usize {
+        self.er_period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -184,7 +214,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -210,7 +243,11 @@ mod tests {
     fn test_arsi_range_0_to_100() {
         let mut a = AdaptiveRsi::new("a", 5, 2, 10).unwrap();
         for i in 0u32..30 {
-            let p = if i % 3 == 0 { format!("{}", 100 + i) } else { format!("{}", 100 + 10 - i % 5) };
+            let p = if i % 3 == 0 {
+                format!("{}", 100 + i)
+            } else {
+                format!("{}", 100 + 10 - i % 5)
+            };
             if let SignalValue::Scalar(v) = a.update_bar(&bar(&p)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(100), "out of range: {v}");
             }

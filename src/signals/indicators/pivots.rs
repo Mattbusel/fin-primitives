@@ -78,7 +78,7 @@ impl Signal for Pivots {
             let h = prev.high;
             let l = prev.low;
             let c = prev.close;
-            let p  = (h + l + c) / Decimal::from(3u32);
+            let p = (h + l + c) / Decimal::from(3u32);
             let r1 = Decimal::TWO * p - l;
             let s1 = Decimal::TWO * p - h;
             let r2 = p + (h - l);
@@ -120,7 +120,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,7 +134,10 @@ mod tests {
     #[test]
     fn test_pivots_unavailable_first_bar() {
         let mut p = Pivots::new("piv").unwrap();
-        assert_eq!(p.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            p.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!p.is_ready());
     }
 

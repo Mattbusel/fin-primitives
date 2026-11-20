@@ -37,7 +37,9 @@ impl WeightedClose {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -47,20 +49,30 @@ impl WeightedClose {
 }
 
 impl Signal for WeightedClose {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let wc = (bar.high + bar.low + Decimal::from(2u32) * bar.close) / Decimal::from(4u32);
         self.wcs.push_back(wc);
-        if self.wcs.len() > self.period { self.wcs.pop_front(); }
-        if self.wcs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.wcs.len() > self.period {
+            self.wcs.pop_front();
+        }
+        if self.wcs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.wcs.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.wcs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.wcs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.wcs.clear();
@@ -80,7 +92,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -88,7 +103,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hlc(c, c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hlc(c, c, c)
+    }
 
     #[test]
     fn test_wc_invalid() {
@@ -108,10 +125,14 @@ mod tests {
         // H=L=C=100 → wc = (100+100+200)/4 = 100; MA = 100
         let mut w = WeightedClose::new("w", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = w.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = w.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -121,7 +142,9 @@ mod tests {
         let mut w = WeightedClose::new("w", 1).unwrap();
         if let SignalValue::Scalar(v) = w.update_bar(&bar_hlc("110", "90", "110")).unwrap() {
             assert_eq!(v, dec!(105));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -131,13 +154,17 @@ mod tests {
         let mut w = WeightedClose::new("w", 1).unwrap();
         if let SignalValue::Scalar(v) = w.update_bar(&bar_hlc("110", "90", "90")).unwrap() {
             assert_eq!(v, dec!(95));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_wc_reset() {
         let mut w = WeightedClose::new("w", 3).unwrap();
-        for _ in 0..5 { w.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            w.update_bar(&bar("100")).unwrap();
+        }
         assert!(w.is_ready());
         w.reset();
         assert!(!w.is_ready());

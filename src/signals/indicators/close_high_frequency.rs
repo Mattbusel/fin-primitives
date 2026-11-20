@@ -53,9 +53,15 @@ impl CloseHighFrequency {
 }
 
 impl Signal for CloseHighFrequency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.scores.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.scores.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let two = Decimal::TWO;
@@ -73,9 +79,8 @@ impl Signal for CloseHighFrequency {
 
         let count = self.scores.iter().filter(|&&s| s).count();
         #[allow(clippy::cast_possible_truncation)]
-        let pct = Decimal::from(count as u32)
-            / Decimal::from(self.period as u32)
-            * Decimal::ONE_HUNDRED;
+        let pct =
+            Decimal::from(count as u32) / Decimal::from(self.period as u32) * Decimal::ONE_HUNDRED;
 
         Ok(SignalValue::Scalar(pct))
     }
@@ -99,7 +104,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,7 +124,10 @@ mod tests {
     fn test_chf_unavailable_during_warmup() {
         let mut chf = CloseHighFrequency::new("chf", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(chf.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                chf.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!chf.is_ready());
     }
@@ -148,16 +159,18 @@ mod tests {
         // Alternating above/below midpoint over 4 bars → 50%
         let mut chf = CloseHighFrequency::new("chf", 4).unwrap();
         chf.update_bar(&bar("110", "90", "109")).unwrap(); // above
-        chf.update_bar(&bar("110", "90", "91")).unwrap();  // below
+        chf.update_bar(&bar("110", "90", "91")).unwrap(); // below
         chf.update_bar(&bar("110", "90", "109")).unwrap(); // above
-        let result = chf.update_bar(&bar("110", "90", "91")).unwrap();  // below
+        let result = chf.update_bar(&bar("110", "90", "91")).unwrap(); // below
         assert_eq!(result, SignalValue::Scalar(dec!(50)));
     }
 
     #[test]
     fn test_chf_reset() {
         let mut chf = CloseHighFrequency::new("chf", 3).unwrap();
-        for _ in 0..3 { chf.update_bar(&bar("110", "90", "105")).unwrap(); }
+        for _ in 0..3 {
+            chf.update_bar(&bar("110", "90", "105")).unwrap();
+        }
         assert!(chf.is_ready());
         chf.reset();
         assert!(!chf.is_ready());

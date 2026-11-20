@@ -148,7 +148,11 @@ mod tests {
     #[test]
     fn test_choppiness_between_0_and_100() {
         let mut c = ChoppinessIndex::new("c", 3).unwrap();
-        let prices = [("110", "90", "100"), ("112", "95", "108"), ("115", "100", "110")];
+        let prices = [
+            ("110", "90", "100"),
+            ("112", "95", "108"),
+            ("115", "100", "110"),
+        ];
         let mut last = SignalValue::Unavailable;
         for (h, l, cl) in &prices {
             last = c.update(&bar(h, l, cl)).unwrap();
@@ -168,7 +172,10 @@ mod tests {
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());
-        assert_eq!(c.update(&bar("105", "95", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            c.update(&bar("105", "95", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -47,22 +47,39 @@ impl ReturnSignChanges {
 }
 
 impl Signal for ReturnSignChanges {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.signs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.signs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
             None => SignalValue::Unavailable,
             Some(pc) => {
-                let sign: i8 = if bar.close > pc { 1 } else if bar.close < pc { -1 } else { 0 };
+                let sign: i8 = if bar.close > pc {
+                    1
+                } else if bar.close < pc {
+                    -1
+                } else {
+                    0
+                };
                 self.signs.push_back(sign);
-                if self.signs.len() > self.period { self.signs.pop_front(); }
+                if self.signs.len() > self.period {
+                    self.signs.pop_front();
+                }
 
                 if self.signs.len() < self.period {
                     SignalValue::Unavailable
                 } else {
-                    let changes = self.signs.iter().zip(self.signs.iter().skip(1))
+                    let changes = self
+                        .signs
+                        .iter()
+                        .zip(self.signs.iter().skip(1))
                         .filter(|(&a, &b)| a != 0 && b != 0 && a != b)
                         .count();
                     SignalValue::Scalar(Decimal::from(changes as u32))
@@ -91,7 +108,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +129,10 @@ mod tests {
     fn test_rsc_unavailable_before_warm_up() {
         let mut rsc = ReturnSignChanges::new("rsc", 3).unwrap();
         rsc.update_bar(&bar("100")).unwrap();
-        assert_eq!(rsc.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rsc.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -136,7 +159,11 @@ mod tests {
         }
         // signs over window = [-1, +1, -1, +1] or [+1,-1,+1,-1] → 3 changes
         if let SignalValue::Scalar(v) = last {
-            assert!(v >= dec!(2), "alternating prices should give multiple changes: {}", v);
+            assert!(
+                v >= dec!(2),
+                "alternating prices should give multiple changes: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -145,7 +172,9 @@ mod tests {
     #[test]
     fn test_rsc_reset() {
         let mut rsc = ReturnSignChanges::new("rsc", 3).unwrap();
-        for p in ["100", "101", "100", "101"] { rsc.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "100", "101"] {
+            rsc.update_bar(&bar(p)).unwrap();
+        }
         assert!(rsc.is_ready());
         rsc.reset();
         assert!(!rsc.is_ready());

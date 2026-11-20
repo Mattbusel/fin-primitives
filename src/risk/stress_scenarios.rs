@@ -77,7 +77,10 @@ pub struct StressTester {
 impl StressTester {
     /// Create a new tester with the given positions and no scenarios.
     pub fn new(positions: Vec<PortfolioPosition>) -> Self {
-        Self { positions, scenarios: Vec::new() }
+        Self {
+            positions,
+            scenarios: Vec::new(),
+        }
     }
 
     /// Register a new stress scenario.
@@ -139,7 +142,10 @@ impl StressTester {
 
     /// Run all registered scenarios and return their results.
     pub fn run_all(&self) -> Vec<StressResult> {
-        self.scenarios.iter().map(|s| self.run_scenario(s)).collect()
+        self.scenarios
+            .iter()
+            .map(|s| self.run_scenario(s))
+            .collect()
     }
 
     /// Return a reference to the result with the minimum portfolio P&L, if any.
@@ -149,7 +155,9 @@ impl StressTester {
     pub fn worst_scenario(&self) -> Option<StressResult> {
         let results = self.run_all();
         results.into_iter().min_by(|a, b| {
-            a.portfolio_pnl.partial_cmp(&b.portfolio_pnl).unwrap_or(std::cmp::Ordering::Equal)
+            a.portfolio_pnl
+                .partial_cmp(&b.portfolio_pnl)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
     }
 }
@@ -277,7 +285,11 @@ mod tests {
             name: "test".to_string(),
             description: "".to_string(),
             risk_factors: vec![
-                RiskFactor { name: "rate_10y".to_string(), current_value: 0.04, shock_bps: 50.0 },
+                RiskFactor {
+                    name: "rate_10y".to_string(),
+                    current_value: 0.04,
+                    shock_bps: 50.0,
+                },
                 RiskFactor {
                     name: "equity_sp500".to_string(),
                     current_value: 4500.0,
@@ -287,7 +299,10 @@ mod tests {
             correlation_shock: 1.0,
         };
         let result = tester.run_scenario(&scenario);
-        assert!(result.portfolio_pnl < 0.0, "combined shock should be negative");
+        assert!(
+            result.portfolio_pnl < 0.0,
+            "combined shock should be negative"
+        );
         assert!(!result.worst_position.is_empty());
     }
 
@@ -295,9 +310,7 @@ mod tests {
     fn correlation_matrix_diagonal_is_one() {
         let mat = CorrelationStressMatrix {
             n: 3,
-            base_correlations: vec![
-                1.0, 0.5, 0.3, 0.5, 1.0, 0.4, 0.3, 0.4, 1.0,
-            ],
+            base_correlations: vec![1.0, 0.5, 0.3, 0.5, 1.0, 0.4, 0.3, 0.4, 1.0],
             shock_multiplier: 2.0,
         };
         for i in 0..3 {
@@ -343,7 +356,10 @@ mod tests {
             Err(FinError::InvalidInput(_))
         ));
 
-        assert!(var_high > var_low, "higher corr => higher VaR: {var_low} vs {var_high}");
+        assert!(
+            var_high > var_low,
+            "higher corr => higher VaR: {var_low} vs {var_high}"
+        );
     }
 
     #[test]

@@ -54,9 +54,15 @@ impl PriceImpulse {
 }
 
 impl Signal for PriceImpulse {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period && self.trs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period && self.trs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -65,7 +71,10 @@ impl Signal for PriceImpulse {
         self.trs.push_back(tr);
         self.tr_sum += tr;
         if self.trs.len() > self.period {
-            self.tr_sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.tr_sum -= self
+                .trs
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         self.closes.push_back(bar.close);
@@ -109,7 +118,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -126,7 +138,10 @@ mod tests {
     fn test_pi_unavailable_before_warm_up() {
         let mut pi = PriceImpulse::new("pi", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(pi.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pi.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -134,10 +149,16 @@ mod tests {
     fn test_pi_positive_impulse() {
         let mut pi = PriceImpulse::new("pi", 3).unwrap();
         // Seed 3 bars at 100 (TR=10 each), then spike to 130
-        for _ in 0..3 { pi.update_bar(&bar("105", "95", "100")).unwrap(); }
+        for _ in 0..3 {
+            pi.update_bar(&bar("105", "95", "100")).unwrap();
+        }
         let result = pi.update_bar(&bar("135", "125", "130")).unwrap();
         if let SignalValue::Scalar(v) = result {
-            assert!(v > dec!(0), "rising close should give positive impulse: {}", v);
+            assert!(
+                v > dec!(0),
+                "rising close should give positive impulse: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -146,7 +167,9 @@ mod tests {
     #[test]
     fn test_pi_reset() {
         let mut pi = PriceImpulse::new("pi", 3).unwrap();
-        for _ in 0..4 { pi.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..4 {
+            pi.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(pi.is_ready());
         pi.reset();
         assert!(!pi.is_ready());

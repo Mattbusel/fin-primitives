@@ -77,7 +77,12 @@ impl Signal for Vidya {
         }
 
         let up_sum: Decimal = self.changes.iter().filter(|&&d| d > Decimal::ZERO).sum();
-        let down_sum: Decimal = self.changes.iter().filter(|&&d| d < Decimal::ZERO).map(|d| d.abs()).sum();
+        let down_sum: Decimal = self
+            .changes
+            .iter()
+            .filter(|&&d| d < Decimal::ZERO)
+            .map(|d| d.abs())
+            .sum();
         let denom = up_sum + down_sum;
         let cmo_abs = if denom == Decimal::ZERO {
             Decimal::ZERO
@@ -118,7 +123,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,7 +151,9 @@ mod tests {
     #[test]
     fn test_vidya_flat_market_tracks_price() {
         let mut v = Vidya::new("v3", 3).unwrap();
-        for _ in 0..10 { v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            v.update_bar(&bar("100")).unwrap();
+        }
         // flat → cmo=0 → alpha=0 → vidya stays at seed
         match v.update_bar(&bar("100")).unwrap() {
             SignalValue::Scalar(val) => assert!(val >= dec!(99) && val <= dec!(101)),
@@ -154,7 +164,9 @@ mod tests {
     #[test]
     fn test_vidya_reset() {
         let mut v = Vidya::new("v3", 3).unwrap();
-        for _ in 0..10 { v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            v.update_bar(&bar("100")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

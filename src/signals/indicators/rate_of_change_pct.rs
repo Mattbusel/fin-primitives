@@ -60,8 +60,14 @@ impl Signal for RateOfChangePct {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let base = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if base.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -100,7 +106,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,13 +119,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(RateOfChangePct::new("rocp", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            RateOfChangePct::new("rocp", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut rocp = RateOfChangePct::new("rocp", 3).unwrap();
-        assert_eq!(rocp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rocp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

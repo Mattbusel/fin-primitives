@@ -60,7 +60,7 @@ impl Signal for WilliamsAD {
         };
 
         let true_high = bar.high.max(prev_close);
-        let true_low  = bar.low.min(prev_close);
+        let true_low = bar.low.min(prev_close);
         let vol = bar.volume;
 
         if bar.close > prev_close {
@@ -75,8 +75,7 @@ impl Signal for WilliamsAD {
     }
 
     fn is_ready(&self) -> bool {
-        self.prev_close.is_some() && !self.ad.is_zero()
-            || self.prev_close.is_some()
+        self.prev_close.is_some() && !self.ad.is_zero() || self.prev_close.is_some()
     }
 
     fn period(&self) -> usize {
@@ -101,7 +100,7 @@ mod tests {
         let hi = Price::new(h.parse().unwrap()).unwrap();
         let lo = Price::new(l.parse().unwrap()).unwrap();
         let cl = Price::new(c.parse().unwrap()).unwrap();
-        let v  = Quantity::new(vol.parse().unwrap()).unwrap();
+        let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
             open: cl,
@@ -118,7 +117,10 @@ mod tests {
     #[test]
     fn test_wad_first_bar_unavailable() {
         let mut wad = WilliamsAD::new("wad");
-        assert_eq!(wad.update_bar(&bar("110", "90", "100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            wad.update_bar(&bar("110", "90", "100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

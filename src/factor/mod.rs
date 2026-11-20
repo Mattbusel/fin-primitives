@@ -25,7 +25,10 @@ pub struct Factor {
 impl Factor {
     /// Creates a new [`Factor`] with the given name and return series.
     pub fn new(name: impl Into<String>, returns: Vec<f64>) -> Self {
-        Self { name: name.into(), returns }
+        Self {
+            name: name.into(),
+            returns,
+        }
     }
 }
 
@@ -156,7 +159,12 @@ impl FactorModel {
         let y_mean = asset_returns.iter().sum::<f64>() / t as f64;
 
         for row in 0..t {
-            let fitted = alpha + betas.iter().enumerate().map(|(j, &b)| b * factors[j].returns[row]).sum::<f64>();
+            let fitted = alpha
+                + betas
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &b)| b * factors[j].returns[row])
+                    .sum::<f64>();
             let residual = asset_returns[row] - fitted;
             ss_res += residual * residual;
             let dev = asset_returns[row] - y_mean;
@@ -198,21 +206,38 @@ impl FactorModel {
         // Compute β' Σ β via explicit double sum.
         for i in 0..k {
             for j in 0..k {
-                let ci = factor_cov.symbols.iter().position(|s| s == &factor_names[i]).unwrap_or(i);
-                let cj = factor_cov.symbols.iter().position(|s| s == &factor_names[j]).unwrap_or(j);
-                systematic_variance += exposure.betas[i] * exposure.betas[j] * factor_cov.get(ci, cj);
+                let ci = factor_cov
+                    .symbols
+                    .iter()
+                    .position(|s| s == &factor_names[i])
+                    .unwrap_or(i);
+                let cj = factor_cov
+                    .symbols
+                    .iter()
+                    .position(|s| s == &factor_names[j])
+                    .unwrap_or(j);
+                systematic_variance +=
+                    exposure.betas[i] * exposure.betas[j] * factor_cov.get(ci, cj);
             }
         }
 
         // Per-factor contributions (diagonal + cross terms with j > i).
         let mut factor_contributions = Vec::with_capacity(k);
         for i in 0..k {
-            let ci = factor_cov.symbols.iter().position(|s| s == &factor_names[i]).unwrap_or(i);
+            let ci = factor_cov
+                .symbols
+                .iter()
+                .position(|s| s == &factor_names[i])
+                .unwrap_or(i);
             // Diagonal term: β_i² * σ_i²
             let mut contrib = exposure.betas[i] * exposure.betas[i] * factor_cov.get(ci, ci);
             // Cross terms with j > i: 2 * β_i * β_j * cov(i,j)
             for j in (i + 1)..k {
-                let cj = factor_cov.symbols.iter().position(|s| s == &factor_names[j]).unwrap_or(j);
+                let cj = factor_cov
+                    .symbols
+                    .iter()
+                    .position(|s| s == &factor_names[j])
+                    .unwrap_or(j);
                 contrib += 2.0 * exposure.betas[i] * exposure.betas[j] * factor_cov.get(ci, cj);
             }
             factor_contributions.push((factor_names[i].clone(), contrib));
@@ -276,8 +301,16 @@ impl FactorPortfolio {
         Some(FactorExposure {
             asset: label,
             betas: portfolio_betas,
-            alpha: if total_weight.abs() > 1e-12 { portfolio_alpha } else { 0.0 },
-            r_squared: if total_weight.abs() > 1e-12 { portfolio_r2 / total_weight } else { 0.0 },
+            alpha: if total_weight.abs() > 1e-12 {
+                portfolio_alpha
+            } else {
+                0.0
+            },
+            r_squared: if total_weight.abs() > 1e-12 {
+                portfolio_r2 / total_weight
+            } else {
+                0.0
+            },
             residual_variance: portfolio_resid_var,
         })
     }
@@ -303,7 +336,10 @@ fn invert_and_solve(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
             if det.abs() < 1e-15 {
                 return None;
             }
-            let inv = [[a[1][1] / det, -a[0][1] / det], [-a[1][0] / det, a[0][0] / det]];
+            let inv = [
+                [a[1][1] / det, -a[0][1] / det],
+                [-a[1][0] / det, a[0][0] / det],
+            ];
             Some(vec![
                 inv[0][0] * b[0] + inv[0][1] * b[1],
                 inv[1][0] * b[0] + inv[1][1] * b[1],
@@ -313,8 +349,7 @@ fn invert_and_solve(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
             let (a00, a01, a02) = (a[0][0], a[0][1], a[0][2]);
             let (a10, a11, a12) = (a[1][0], a[1][1], a[1][2]);
             let (a20, a21, a22) = (a[2][0], a[2][1], a[2][2]);
-            let det = a00 * (a11 * a22 - a12 * a21)
-                - a01 * (a10 * a22 - a12 * a20)
+            let det = a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20)
                 + a02 * (a10 * a21 - a11 * a20);
             if det.abs() < 1e-15 {
                 return None;
@@ -359,8 +394,12 @@ fn gaussian_solve(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
 
     for col in 0..n {
         // Find pivot.
-        let pivot_row = (col..n)
-            .max_by(|&r1, &r2| mat[r1][col].abs().partial_cmp(&mat[r2][col].abs()).unwrap_or(std::cmp::Ordering::Equal))?;
+        let pivot_row = (col..n).max_by(|&r1, &r2| {
+            mat[r1][col]
+                .abs()
+                .partial_cmp(&mat[r2][col].abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })?;
         mat.swap(col, pivot_row);
 
         let pivot = mat[col][col];
@@ -415,9 +454,7 @@ mod tests {
         let n = 30;
         let x1: Vec<f64> = (0..n).map(|i| i as f64 * 0.01).collect();
         let x2: Vec<f64> = (0..n).map(|i| (i as f64 * 0.02).sin()).collect();
-        let y: Vec<f64> = (0..n)
-            .map(|i| 0.02 + 0.7 * x1[i] + 0.3 * x2[i])
-            .collect();
+        let y: Vec<f64> = (0..n).map(|i| 0.02 + 0.7 * x1[i] + 0.3 * x2[i]).collect();
         let factors = vec![make_factor("MKT", x1), make_factor("HML", x2)];
         let exp = FactorModel::fit("ASSET", &y, &factors);
         assert!((exp.alpha - 0.02).abs() < 1e-7, "alpha={}", exp.alpha);
@@ -495,7 +532,11 @@ mod tests {
         let xs: Vec<f64> = (0..20).map(|i| i as f64 * 0.01).collect();
         let ys: Vec<f64> = xs.iter().map(|&x| 0.5 * x).collect();
         let exp = FactorModel::fit("X", &ys, &[make_factor("F", xs)]);
-        assert!(exp.residual_variance < 1e-12, "resid_var={}", exp.residual_variance);
+        assert!(
+            exp.residual_variance < 1e-12,
+            "resid_var={}",
+            exp.residual_variance
+        );
     }
 
     // ── VarianceDecomposition ────────────────────────────────────────────────
@@ -536,8 +577,11 @@ mod tests {
         let decomp = FactorModel::decompose(&exp, &cov, &factor_names);
         // Sum of factor_contributions should equal systematic_variance
         let sum_contrib: f64 = decomp.factor_contributions.iter().map(|(_, v)| v).sum();
-        assert!((sum_contrib - decomp.systematic_variance).abs() < 1e-10,
-            "sum_contrib={sum_contrib}, sys_var={}", decomp.systematic_variance);
+        assert!(
+            (sum_contrib - decomp.systematic_variance).abs() < 1e-10,
+            "sum_contrib={sum_contrib}, sys_var={}",
+            decomp.systematic_variance
+        );
     }
 
     #[test]
@@ -580,8 +624,20 @@ mod tests {
 
     #[test]
     fn portfolio_weighted_alpha() {
-        let exp_a = FactorExposure { asset: "A".to_string(), betas: vec![1.0], alpha: 0.01, r_squared: 0.9, residual_variance: 0.001 };
-        let exp_b = FactorExposure { asset: "B".to_string(), betas: vec![0.5], alpha: 0.03, r_squared: 0.8, residual_variance: 0.002 };
+        let exp_a = FactorExposure {
+            asset: "A".to_string(),
+            betas: vec![1.0],
+            alpha: 0.01,
+            r_squared: 0.9,
+            residual_variance: 0.001,
+        };
+        let exp_b = FactorExposure {
+            asset: "B".to_string(),
+            betas: vec![0.5],
+            alpha: 0.03,
+            r_squared: 0.8,
+            residual_variance: 0.002,
+        };
         let portfolio = FactorPortfolio::new(vec![("A".to_string(), 0.5), ("B".to_string(), 0.5)]);
         let agg = portfolio.aggregate(&[exp_a, exp_b]).expect("aggregate");
         // alpha: 0.5*0.01 + 0.5*0.03 = 0.02
@@ -596,7 +652,13 @@ mod tests {
 
     #[test]
     fn portfolio_missing_asset_ignored() {
-        let exp_a = FactorExposure { asset: "A".to_string(), betas: vec![1.0], alpha: 0.01, r_squared: 0.9, residual_variance: 0.0 };
+        let exp_a = FactorExposure {
+            asset: "A".to_string(),
+            betas: vec![1.0],
+            alpha: 0.01,
+            r_squared: 0.9,
+            residual_variance: 0.0,
+        };
         let portfolio = FactorPortfolio::new(vec![("A".to_string(), 0.6), ("Z".to_string(), 0.4)]);
         let agg = portfolio.aggregate(&[exp_a]).expect("aggregate");
         // Only A contributes
@@ -665,8 +727,20 @@ mod tests {
 
     #[test]
     fn portfolio_r_squared_weighted_average() {
-        let exp_a = FactorExposure { asset: "A".to_string(), betas: vec![1.0], alpha: 0.0, r_squared: 0.8, residual_variance: 0.0 };
-        let exp_b = FactorExposure { asset: "B".to_string(), betas: vec![1.0], alpha: 0.0, r_squared: 0.6, residual_variance: 0.0 };
+        let exp_a = FactorExposure {
+            asset: "A".to_string(),
+            betas: vec![1.0],
+            alpha: 0.0,
+            r_squared: 0.8,
+            residual_variance: 0.0,
+        };
+        let exp_b = FactorExposure {
+            asset: "B".to_string(),
+            betas: vec![1.0],
+            alpha: 0.0,
+            r_squared: 0.6,
+            residual_variance: 0.0,
+        };
         // Equal weights → R² should be (0.8+0.6)/2 / 1.0 = 0.7
         let portfolio = FactorPortfolio::new(vec![("A".to_string(), 0.5), ("B".to_string(), 0.5)]);
         let agg = portfolio.aggregate(&[exp_a, exp_b]).expect("aggregate");
@@ -689,7 +763,11 @@ mod tests {
         let xs: Vec<f64> = (0..20).map(|i| i as f64 * 0.01).collect();
         let ys: Vec<f64> = xs.iter().map(|&x| -0.5 * x).collect();
         let exp = FactorModel::fit("A", &ys, &[make_factor("F", xs)]);
-        assert!((exp.betas[0] - (-0.5)).abs() < 1e-9, "beta={}", exp.betas[0]);
+        assert!(
+            (exp.betas[0] - (-0.5)).abs() < 1e-9,
+            "beta={}",
+            exp.betas[0]
+        );
     }
 
     #[test]

@@ -48,9 +48,15 @@ impl BodySizeRank {
 }
 
 impl Signal for BodySizeRank {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bodies.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bodies.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.body_size();
@@ -63,11 +69,15 @@ impl Signal for BodySizeRank {
         }
 
         // Rank: fraction of historical bodies strictly less than current
-        let current = *self.bodies.back().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .bodies
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let n = (self.period - 1) as u32; // compare against prior period-1 bodies
 
         // Exclude the current bar from the comparison window
-        let below = self.bodies
+        let below = self
+            .bodies
             .iter()
             .take(self.period - 1)
             .filter(|&&b| b < current)
@@ -104,7 +114,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -120,8 +133,14 @@ mod tests {
     #[test]
     fn test_bsr_unavailable_before_period() {
         let mut s = BodySizeRank::new("bsr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100","105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("100","103")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("100", "103")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -129,10 +148,11 @@ mod tests {
     fn test_bsr_largest_body_gives_one() {
         // Prior bodies: 1, 2, 3. Current = 10 → all prior are below → rank = 1.0
         let mut s = BodySizeRank::new("bsr", 4).unwrap();
-        s.update_bar(&bar("100","101")).unwrap(); // body=1
-        s.update_bar(&bar("100","102")).unwrap(); // body=2
-        s.update_bar(&bar("100","103")).unwrap(); // body=3
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","110")).unwrap() { // body=10
+        s.update_bar(&bar("100", "101")).unwrap(); // body=1
+        s.update_bar(&bar("100", "102")).unwrap(); // body=2
+        s.update_bar(&bar("100", "103")).unwrap(); // body=3
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "110")).unwrap() {
+            // body=10
             assert_eq!(v, dec!(1), "largest body should rank 1.0: {v}");
         } else {
             panic!("expected Scalar");
@@ -143,10 +163,10 @@ mod tests {
     fn test_bsr_smallest_body_gives_zero() {
         // Prior bodies: 5, 8, 10. Current = 1 → none are below → rank = 0.0
         let mut s = BodySizeRank::new("bsr", 4).unwrap();
-        s.update_bar(&bar("100","105")).unwrap();
-        s.update_bar(&bar("100","108")).unwrap();
-        s.update_bar(&bar("100","110")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","101")).unwrap() {
+        s.update_bar(&bar("100", "105")).unwrap();
+        s.update_bar(&bar("100", "108")).unwrap();
+        s.update_bar(&bar("100", "110")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "101")).unwrap() {
             assert_eq!(v, dec!(0), "smallest body should rank 0.0: {v}");
         } else {
             panic!("expected Scalar");
@@ -156,7 +176,12 @@ mod tests {
     #[test]
     fn test_bsr_in_range() {
         let mut s = BodySizeRank::new("bsr", 3).unwrap();
-        let bars = [("100","103"), ("100","107"), ("100","105"), ("100","102")];
+        let bars = [
+            ("100", "103"),
+            ("100", "107"),
+            ("100", "105"),
+            ("100", "102"),
+        ];
         for (o, c) in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(o, c)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "rank out of [0,1]: {v}");
@@ -167,8 +192,8 @@ mod tests {
     #[test]
     fn test_bsr_reset() {
         let mut s = BodySizeRank::new("bsr", 2).unwrap();
-        s.update_bar(&bar("100","105")).unwrap();
-        s.update_bar(&bar("100","108")).unwrap();
+        s.update_bar(&bar("100", "105")).unwrap();
+        s.update_bar(&bar("100", "108")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

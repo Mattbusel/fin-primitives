@@ -6,8 +6,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Rolling Pearson correlation between `close` and `volume`.
@@ -125,7 +125,10 @@ mod tests {
         let c = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: c, high: c, low: c, close: c,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,7 +146,10 @@ mod tests {
     fn test_vpc_unavailable_during_warmup() {
         let mut vpc = VolumePriceCorrelation::new("vpc", 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(vpc.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vpc.update_bar(&bar("100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -151,8 +157,13 @@ mod tests {
     fn test_vpc_perfect_positive_correlation() {
         // price and volume rise together → correlation = 1
         let mut vpc = VolumePriceCorrelation::new("vpc", 5).unwrap();
-        let pairs = [("100", "100"), ("110", "200"), ("120", "300"),
-                     ("130", "400"), ("140", "500")];
+        let pairs = [
+            ("100", "100"),
+            ("110", "200"),
+            ("120", "300"),
+            ("130", "400"),
+            ("140", "500"),
+        ];
         let mut last = SignalValue::Unavailable;
         for (c, v) in pairs {
             last = vpc.update_bar(&bar(c, v)).unwrap();
@@ -177,7 +188,12 @@ mod tests {
     #[test]
     fn test_vpc_result_in_range() {
         let mut vpc = VolumePriceCorrelation::new("vpc", 4).unwrap();
-        let pairs = [("100", "500"), ("110", "100"), ("90", "800"), ("105", "200")];
+        let pairs = [
+            ("100", "500"),
+            ("110", "100"),
+            ("90", "800"),
+            ("105", "200"),
+        ];
         let mut last = SignalValue::Unavailable;
         for (c, v) in pairs {
             last = vpc.update_bar(&bar(c, v)).unwrap();

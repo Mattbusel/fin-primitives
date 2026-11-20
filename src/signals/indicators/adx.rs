@@ -89,8 +89,16 @@ impl Signal for Adx {
         // Directional movement
         let up_move = h - ph;
         let down_move = pl - l;
-        let dm_plus = if up_move > down_move && up_move > Decimal::ZERO { up_move } else { Decimal::ZERO };
-        let dm_minus = if down_move > up_move && down_move > Decimal::ZERO { down_move } else { Decimal::ZERO };
+        let dm_plus = if up_move > down_move && up_move > Decimal::ZERO {
+            up_move
+        } else {
+            Decimal::ZERO
+        };
+        let dm_minus = if down_move > up_move && down_move > Decimal::ZERO {
+            down_move
+        } else {
+            Decimal::ZERO
+        };
 
         // True range
         let tr = (h - l).max((h - pc).abs()).max((l - pc).abs());
@@ -189,7 +197,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cl, high: hi, low: lo, close: cl,
+            open: cl,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -207,7 +218,10 @@ mod tests {
         let mut adx = Adx::new("adx3", 3).unwrap();
         // needs 2*3 = 6 bars minimum (1 prev + period sums + period DX)
         for _ in 0..5 {
-            assert_eq!(adx.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                adx.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!adx.is_ready());
     }
@@ -220,7 +234,10 @@ mod tests {
         }
         adx.reset();
         assert!(!adx.is_ready());
-        assert_eq!(adx.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            adx.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -236,7 +253,10 @@ mod tests {
             last = adx.update_bar(&b).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v >= rust_decimal_macros::dec!(20), "ADX should be > 20 in strong trend, got {v}");
+            assert!(
+                v >= rust_decimal_macros::dec!(20),
+                "ADX should be > 20 in strong trend, got {v}"
+            );
         } else {
             panic!("expected Scalar after 30 bars");
         }

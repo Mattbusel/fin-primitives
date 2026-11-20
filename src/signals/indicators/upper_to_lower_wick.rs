@@ -37,7 +37,9 @@ impl UpperToLowerWick {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,23 +50,37 @@ impl UpperToLowerWick {
 }
 
 impl Signal for UpperToLowerWick {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let upper_wick = bar.upper_wick();
         let lower_wick = bar.lower_wick();
-        if lower_wick.is_zero() { return Ok(SignalValue::Unavailable); }
+        if lower_wick.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         let ratio = upper_wick / lower_wick;
         self.window.push_back(ratio);
         self.sum += ratio;
         if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
-        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            self.sum / Decimal::from(self.period as u32),
+        ))
     }
 
     fn reset(&mut self) {
@@ -88,7 +104,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,7 +116,9 @@ mod tests {
     }
 
     #[test]
-    fn test_utlw_period_0_error() { assert!(UpperToLowerWick::new("utlw", 0).is_err()); }
+    fn test_utlw_period_0_error() {
+        assert!(UpperToLowerWick::new("utlw", 0).is_err());
+    }
 
     #[test]
     fn test_utlw_zero_lower_wick_unavailable() {

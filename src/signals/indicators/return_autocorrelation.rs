@@ -1,10 +1,10 @@
 //! Return Auto-Correlation indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Lag-1 autocorrelation of close returns over the rolling window.
 ///
@@ -23,7 +23,11 @@ impl ReturnAutoCorrelation {
         if period < 3 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, returns: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            returns: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -45,9 +49,7 @@ impl Signal for ReturnAutoCorrelation {
         }
 
         let n = self.returns.len();
-        let vals: Vec<f64> = self.returns.iter()
-            .filter_map(|r| r.to_f64())
-            .collect();
+        let vals: Vec<f64> = self.returns.iter().filter_map(|r| r.to_f64()).collect();
         if vals.len() < n {
             return Ok(SignalValue::Unavailable);
         }
@@ -58,14 +60,18 @@ impl Signal for ReturnAutoCorrelation {
             return Ok(SignalValue::Unavailable);
         }
 
-        let x: Vec<f64> = vals[..n_pairs].to_vec();  // r[t]
-        let y: Vec<f64> = vals[1..].to_vec();         // r[t+1]
+        let x: Vec<f64> = vals[..n_pairs].to_vec(); // r[t]
+        let y: Vec<f64> = vals[1..].to_vec(); // r[t+1]
 
         let np = n_pairs as f64;
         let mx = x.iter().sum::<f64>() / np;
         let my = y.iter().sum::<f64>() / np;
 
-        let num: f64 = x.iter().zip(y.iter()).map(|(xi, yi)| (xi - mx) * (yi - my)).sum();
+        let num: f64 = x
+            .iter()
+            .zip(y.iter())
+            .map(|(xi, yi)| (xi - mx) * (yi - my))
+            .sum();
         let dx: f64 = x.iter().map(|xi| (xi - mx) * (xi - mx)).sum::<f64>().sqrt();
         let dy: f64 = y.iter().map(|yi| (yi - my) * (yi - my)).sum::<f64>().sqrt();
 
@@ -81,10 +87,19 @@ impl Signal for ReturnAutoCorrelation {
         }
     }
 
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.returns.clear(); }
-    fn name(&self) -> &str { "ReturnAutoCorrelation" }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.returns.clear();
+    }
+    fn name(&self) -> &str {
+        "ReturnAutoCorrelation"
+    }
 }
 
 #[cfg(test)]
@@ -120,7 +135,11 @@ mod tests {
             last = sig.update(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(x) = last {
-            assert!(x > dec!(0), "trending series should have positive autocorr, got {}", x);
+            assert!(
+                x > dec!(0),
+                "trending series should have positive autocorr, got {}",
+                x
+            );
         }
     }
 }

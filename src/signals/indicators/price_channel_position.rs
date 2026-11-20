@@ -1,9 +1,9 @@
 //! Price Channel Position indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Position of close within rolling highest-high / lowest-low channel (0-100%).
 ///
@@ -46,13 +46,24 @@ impl Signal for PriceChannelPosition {
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::from(50u32)));
         }
-        Ok(SignalValue::Scalar((bar.close - lowest) / range * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (bar.close - lowest) / range * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.highs.clear(); self.lows.clear(); }
-    fn name(&self) -> &str { "PriceChannelPosition" }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.highs.clear();
+        self.lows.clear();
+    }
+    fn name(&self) -> &str {
+        "PriceChannelPosition"
+    }
 }
 
 #[cfg(test)]

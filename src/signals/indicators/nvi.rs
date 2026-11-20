@@ -100,7 +100,10 @@ mod tests {
     #[test]
     fn test_nvi_unavailable_on_first_bar() {
         let mut n = Nvi::new("nvi").unwrap();
-        assert_eq!(n.update(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            n.update(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -118,7 +121,11 @@ mod tests {
         n.update(&bar("100", "2000")).unwrap();
         let sv = n.update(&bar("110", "1000")).unwrap(); // lower vol → nvi should update
         if let SignalValue::Scalar(v) = sv {
-            assert!(v > dec!(1000), "nvi should increase on price up with lower vol: {}", v);
+            assert!(
+                v > dec!(1000),
+                "nvi should increase on price up with lower vol: {}",
+                v
+            );
         } else {
             panic!("expected scalar");
         }
@@ -143,7 +150,10 @@ mod tests {
         n.update(&bar("110", "1000")).unwrap();
         n.reset();
         assert!(!n.is_ready());
-        assert_eq!(n.update(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            n.update(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -1,9 +1,9 @@
 //! Rolling Maximum Drawdown indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Maximum peak-to-trough drawdown of close prices within the rolling window.
 ///
@@ -23,7 +23,10 @@ impl RollingMaxDrawdown {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -41,21 +44,33 @@ impl Signal for RollingMaxDrawdown {
         let vals: Vec<Decimal> = self.closes.iter().cloned().collect();
         let mut max_dd = Decimal::ZERO;
         for i in 0..vals.len() {
-            if vals[i].is_zero() { continue; }
-            for j in (i+1)..vals.len() {
+            if vals[i].is_zero() {
+                continue;
+            }
+            for j in (i + 1)..vals.len() {
                 if vals[j] < vals[i] {
                     let dd = (vals[i] - vals[j]) / vals[i];
-                    if dd > max_dd { max_dd = dd; }
+                    if dd > max_dd {
+                        max_dd = dd;
+                    }
                 }
             }
         }
         Ok(SignalValue::Scalar(max_dd * Decimal::ONE_HUNDRED))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "RollingMaxDrawdown" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "RollingMaxDrawdown"
+    }
 }
 
 #[cfg(test)]

@@ -34,15 +34,23 @@ pub struct ConsecutiveBars {
 impl ConsecutiveBars {
     /// Creates a new `ConsecutiveBars`.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None, count: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+            count: 0,
+        })
     }
 
     /// Returns the current consecutive bar count.
-    pub fn count(&self) -> i32 { self.count }
+    pub fn count(&self) -> i32 {
+        self.count
+    }
 }
 
 impl Signal for ConsecutiveBars {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let prev = match self.prev_close {
@@ -55,9 +63,17 @@ impl Signal for ConsecutiveBars {
         self.prev_close = Some(bar.close);
 
         self.count = if bar.close > prev {
-            if self.count > 0 { self.count + 1 } else { 1 }
+            if self.count > 0 {
+                self.count + 1
+            } else {
+                1
+            }
         } else if bar.close < prev {
-            if self.count < 0 { self.count - 1 } else { -1 }
+            if self.count < 0 {
+                self.count - 1
+            } else {
+                -1
+            }
         } else {
             0
         };
@@ -65,8 +81,12 @@ impl Signal for ConsecutiveBars {
         Ok(SignalValue::Scalar(Decimal::from(self.count)))
     }
 
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
-    fn period(&self) -> usize { 1 }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
+    fn period(&self) -> usize {
+        1
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -85,7 +105,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -96,25 +119,46 @@ mod tests {
     #[test]
     fn test_cb_unavailable_first_bar() {
         let mut cb = ConsecutiveBars::new("cb").unwrap();
-        assert_eq!(cb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_cb_consecutive_up() {
         let mut cb = ConsecutiveBars::new("cb").unwrap();
         cb.update_bar(&bar("100")).unwrap();
-        assert_eq!(cb.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(cb.update_bar(&bar("102")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(cb.update_bar(&bar("103")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            cb.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            cb.update_bar(&bar("102")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            cb.update_bar(&bar("103")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
     fn test_cb_consecutive_down() {
         let mut cb = ConsecutiveBars::new("cb").unwrap();
         cb.update_bar(&bar("100")).unwrap();
-        assert_eq!(cb.update_bar(&bar("99")).unwrap(), SignalValue::Scalar(dec!(-1)));
-        assert_eq!(cb.update_bar(&bar("98")).unwrap(), SignalValue::Scalar(dec!(-2)));
-        assert_eq!(cb.update_bar(&bar("97")).unwrap(), SignalValue::Scalar(dec!(-3)));
+        assert_eq!(
+            cb.update_bar(&bar("99")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
+        assert_eq!(
+            cb.update_bar(&bar("98")).unwrap(),
+            SignalValue::Scalar(dec!(-2))
+        );
+        assert_eq!(
+            cb.update_bar(&bar("97")).unwrap(),
+            SignalValue::Scalar(dec!(-3))
+        );
     }
 
     #[test]
@@ -124,22 +168,33 @@ mod tests {
         cb.update_bar(&bar("101")).unwrap();
         cb.update_bar(&bar("102")).unwrap();
         // Reversal: drop
-        assert_eq!(cb.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(-1)));
+        assert_eq!(
+            cb.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
         // Reversal again: rise
-        assert_eq!(cb.update_bar(&bar("102")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            cb.update_bar(&bar("102")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]
     fn test_cb_flat_is_zero() {
         let mut cb = ConsecutiveBars::new("cb").unwrap();
         cb.update_bar(&bar("100")).unwrap();
-        assert_eq!(cb.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            cb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
     fn test_cb_reset() {
         let mut cb = ConsecutiveBars::new("cb").unwrap();
-        for c in ["100", "101", "102", "103"] { cb.update_bar(&bar(c)).unwrap(); }
+        for c in ["100", "101", "102", "103"] {
+            cb.update_bar(&bar(c)).unwrap();
+        }
         assert!(cb.is_ready());
         assert_eq!(cb.count(), 3);
         cb.reset();

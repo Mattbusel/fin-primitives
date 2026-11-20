@@ -62,9 +62,15 @@ impl SignedBodyRatio {
 }
 
 impl Signal for SignedBodyRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.values.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.values.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -72,13 +78,17 @@ impl Signal for SignedBodyRatio {
             Decimal::ZERO
         } else {
             let body = bar.close - bar.open;
-            body.checked_div(range).ok_or(FinError::ArithmeticOverflow)?
+            body.checked_div(range)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.sum += sbr;
         self.values.push_back(sbr);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .values
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -86,7 +96,8 @@ impl Signal for SignedBodyRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -128,8 +139,14 @@ mod tests {
     #[test]
     fn test_sbr_unavailable_during_warmup() {
         let mut sbr = SignedBodyRatio::new("sbr", 3).unwrap();
-        assert_eq!(sbr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sbr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sbr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sbr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!sbr.is_ready());
     }
 
@@ -137,7 +154,9 @@ mod tests {
     fn test_sbr_full_bullish_body_one() {
         // open=low, close=high → body=range → sbr=1
         let mut sbr = SignedBodyRatio::new("sbr", 3).unwrap();
-        for _ in 0..3 { sbr.update_bar(&bar("90", "110", "90", "110")).unwrap(); }
+        for _ in 0..3 {
+            sbr.update_bar(&bar("90", "110", "90", "110")).unwrap();
+        }
         if let SignalValue::Scalar(v) = sbr.update_bar(&bar("90", "110", "90", "110")).unwrap() {
             assert_eq!(v, dec!(1));
         } else {
@@ -149,7 +168,9 @@ mod tests {
     fn test_sbr_full_bearish_body_minus_one() {
         // open=high, close=low → body=-range → sbr=-1
         let mut sbr = SignedBodyRatio::new("sbr", 3).unwrap();
-        for _ in 0..3 { sbr.update_bar(&bar("110", "110", "90", "90")).unwrap(); }
+        for _ in 0..3 {
+            sbr.update_bar(&bar("110", "110", "90", "90")).unwrap();
+        }
         if let SignalValue::Scalar(v) = sbr.update_bar(&bar("110", "110", "90", "90")).unwrap() {
             assert_eq!(v, dec!(-1));
         } else {

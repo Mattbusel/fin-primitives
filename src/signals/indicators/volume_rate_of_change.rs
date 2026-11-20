@@ -1,9 +1,9 @@
 //! Volume Rate of Change indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Percentage change in volume from N bars ago: `(vol[t] - vol[t-N]) / vol[t-N] * 100`.
 ///
@@ -21,7 +21,10 @@ impl VolumeRateOfChange {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period + 1) })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period + 1),
+        })
     }
 }
 
@@ -34,18 +37,34 @@ impl Signal for VolumeRateOfChange {
         if self.window.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
-        let base = *self.window.front().ok_or_else(crate::error::invariant_broken)?;
+        let base = *self
+            .window
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         if base.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let current = *self.window.back().ok_or_else(crate::error::invariant_broken)?;
-        Ok(SignalValue::Scalar((current - base) / base * Decimal::ONE_HUNDRED))
+        let current = *self
+            .window
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        Ok(SignalValue::Scalar(
+            (current - base) / base * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() > self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); }
-    fn name(&self) -> &str { "VolumeRateOfChange" }
+    fn is_ready(&self) -> bool {
+        self.window.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "VolumeRateOfChange"
+    }
 }
 
 #[cfg(test)]

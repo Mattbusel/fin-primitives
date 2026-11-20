@@ -54,9 +54,15 @@ impl HighVolumeBarRatio {
 }
 
 impl Signal for HighVolumeBarRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
@@ -64,7 +70,10 @@ impl Signal for HighVolumeBarRatio {
         self.sum += vol;
         self.volumes.push_back(vol);
         if self.volumes.len() > self.period {
-            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .volumes
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -72,15 +81,15 @@ impl Signal for HighVolumeBarRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
         let count = self.volumes.iter().filter(|&&v| v > avg).count();
         #[allow(clippy::cast_possible_truncation)]
-        let pct = Decimal::from(count as u32)
-            / Decimal::from(self.period as u32)
-            * Decimal::ONE_HUNDRED;
+        let pct =
+            Decimal::from(count as u32) / Decimal::from(self.period as u32) * Decimal::ONE_HUNDRED;
 
         Ok(SignalValue::Scalar(pct))
     }
@@ -103,7 +112,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(Decimal::from(vol)).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -120,7 +132,10 @@ mod tests {
     fn test_hvbr_unavailable_during_warmup() {
         let mut hvbr = HighVolumeBarRatio::new("hvbr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(hvbr.update_bar(&bar(1000)).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                hvbr.update_bar(&bar(1000)).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!hvbr.is_ready());
     }
@@ -150,7 +165,9 @@ mod tests {
     #[test]
     fn test_hvbr_reset() {
         let mut hvbr = HighVolumeBarRatio::new("hvbr", 3).unwrap();
-        for _ in 0..3 { hvbr.update_bar(&bar(1000)).unwrap(); }
+        for _ in 0..3 {
+            hvbr.update_bar(&bar(1000)).unwrap();
+        }
         assert!(hvbr.is_ready());
         hvbr.reset();
         assert!(!hvbr.is_ready());

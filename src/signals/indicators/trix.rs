@@ -25,7 +25,7 @@ use rust_decimal::Decimal;
 pub struct Trix {
     name: String,
     period: usize,
-    k: Decimal,         // smoothing factor
+    k: Decimal, // smoothing factor
     ema1: Option<Decimal>,
     ema2: Option<Decimal>,
     ema3: Option<Decimal>,

@@ -78,7 +78,11 @@ impl Signal for VolumeZScore {
 
         #[allow(clippy::cast_possible_truncation)]
         let n = Decimal::from(self.period as u32);
-        let mean = self.window.iter().copied().sum::<Decimal>()
+        let mean = self
+            .window
+            .iter()
+            .copied()
+            .sum::<Decimal>()
             .checked_div(n)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -145,8 +149,14 @@ mod tests {
     #[test]
     fn test_volume_zscore_unavailable_during_warmup() {
         let mut vz = VolumeZScore::new("vz", 3).unwrap();
-        assert_eq!(vz.update_bar(&bar_vol("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vz.update_bar(&bar_vol("200")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vz.update_bar(&bar_vol("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vz.update_bar(&bar_vol("200")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vz.is_ready());
     }
 
@@ -209,6 +219,9 @@ mod tests {
         assert!(vz.is_ready());
         vz.reset();
         assert!(!vz.is_ready());
-        assert_eq!(vz.update_bar(&bar_vol("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vz.update_bar(&bar_vol("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

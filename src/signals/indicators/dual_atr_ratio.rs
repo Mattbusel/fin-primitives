@@ -93,16 +93,32 @@ impl DualATRRatio {
 }
 
 impl Signal for DualATRRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow_period }
-    fn is_ready(&self) -> bool { self.bars_seen > self.slow_period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.slow_period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
         self.bars_seen += 1;
 
-        Self::update_atr(&mut self.fast_atr, &mut self.fast_init, tr, self.fast_period)?;
-        Self::update_atr(&mut self.slow_atr, &mut self.slow_init, tr, self.slow_period)?;
+        Self::update_atr(
+            &mut self.fast_atr,
+            &mut self.fast_init,
+            tr,
+            self.fast_period,
+        )?;
+        Self::update_atr(
+            &mut self.slow_atr,
+            &mut self.slow_init,
+            tr,
+            self.slow_period,
+        )?;
 
         self.prev_close = Some(bar.close);
 
@@ -119,9 +135,7 @@ impl Signal for DualATRRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = fast
-            .checked_div(slow)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = fast.checked_div(slow).ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(ratio))
     }
@@ -150,7 +164,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -169,7 +186,10 @@ mod tests {
     fn test_dar_unavailable_before_warm_up() {
         let mut s = DualATRRatio::new("dar", 2, 4).unwrap();
         for _ in 0..4 {
-            assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                s.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!s.is_ready());
     }
@@ -178,10 +198,15 @@ mod tests {
     fn test_dar_constant_tr_gives_one() {
         let mut s = DualATRRatio::new("dar", 2, 4).unwrap();
         // Constant TR: both ATRs converge to same value → ratio = 1
-        for _ in 0..5 { s.update_bar(&bar("110","90","100")).unwrap(); }
-        let v = s.update_bar(&bar("110","90","100")).unwrap();
+        for _ in 0..5 {
+            s.update_bar(&bar("110", "90", "100")).unwrap();
+        }
+        let v = s.update_bar(&bar("110", "90", "100")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(1)).abs() < dec!(0.001), "constant TR should give ratio~1: {r}");
+            assert!(
+                (r - dec!(1)).abs() < dec!(0.001),
+                "constant TR should give ratio~1: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -191,7 +216,7 @@ mod tests {
     fn test_dar_non_negative() {
         let mut s = DualATRRatio::new("dar", 3, 10).unwrap();
         for _ in 0..12 {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","100")).unwrap() {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "100")).unwrap() {
                 assert!(v >= dec!(0), "ratio must be non-negative: {v}");
             }
         }
@@ -200,7 +225,9 @@ mod tests {
     #[test]
     fn test_dar_reset() {
         let mut s = DualATRRatio::new("dar", 2, 4).unwrap();
-        for _ in 0..6 { s.update_bar(&bar("110","90","100")).unwrap(); }
+        for _ in 0..6 {
+            s.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

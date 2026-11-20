@@ -85,7 +85,8 @@ impl Signal for VolumeMomentum {
         }
 
         let body = bar.net_move();
-        let vm = bar.volume
+        let vm = bar
+            .volume
             .checked_mul(body)
             .ok_or(FinError::ArithmeticOverflow)?
             .checked_div(atr)
@@ -116,7 +117,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,17 +136,28 @@ mod tests {
     #[test]
     fn test_vm_unavailable_before_period() {
         let mut vm = VolumeMomentum::new("vm", 3).unwrap();
-        assert_eq!(vm.update_bar(&bar("100", "110", "90", "105", "1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vm.update_bar(&bar("105", "115", "95", "110", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vm.update_bar(&bar("100", "110", "90", "105", "1000"))
+                .unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vm.update_bar(&bar("105", "115", "95", "110", "1000"))
+                .unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vm.is_ready());
     }
 
     #[test]
     fn test_vm_bullish_bar_positive() {
         let mut vm = VolumeMomentum::new("vm", 2).unwrap();
-        vm.update_bar(&bar("100", "110", "90", "100", "1000")).unwrap();
+        vm.update_bar(&bar("100", "110", "90", "100", "1000"))
+            .unwrap();
         // Bullish bar: close > open → positive VM
-        let v = vm.update_bar(&bar("100", "115", "95", "110", "2000")).unwrap();
+        let v = vm
+            .update_bar(&bar("100", "115", "95", "110", "2000"))
+            .unwrap();
         if let SignalValue::Scalar(r) = v {
             assert!(r > dec!(0), "bullish bar should give positive VM: {r}");
         } else {
@@ -153,9 +168,12 @@ mod tests {
     #[test]
     fn test_vm_bearish_bar_negative() {
         let mut vm = VolumeMomentum::new("vm", 2).unwrap();
-        vm.update_bar(&bar("100", "110", "90", "100", "1000")).unwrap();
+        vm.update_bar(&bar("100", "110", "90", "100", "1000"))
+            .unwrap();
         // Bearish bar: close < open → negative VM
-        let v = vm.update_bar(&bar("110", "115", "85", "90", "2000")).unwrap();
+        let v = vm
+            .update_bar(&bar("110", "115", "85", "90", "2000"))
+            .unwrap();
         if let SignalValue::Scalar(r) = v {
             assert!(r < dec!(0), "bearish bar should give negative VM: {r}");
         } else {
@@ -166,9 +184,12 @@ mod tests {
     #[test]
     fn test_vm_doji_zero() {
         let mut vm = VolumeMomentum::new("vm", 2).unwrap();
-        vm.update_bar(&bar("100", "110", "90", "100", "1000")).unwrap();
+        vm.update_bar(&bar("100", "110", "90", "100", "1000"))
+            .unwrap();
         // Doji: open=close → VM=0
-        let v = vm.update_bar(&bar("100", "110", "90", "100", "5000")).unwrap();
+        let v = vm
+            .update_bar(&bar("100", "110", "90", "100", "5000"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
@@ -176,7 +197,8 @@ mod tests {
     fn test_vm_reset() {
         let mut vm = VolumeMomentum::new("vm", 2).unwrap();
         for _ in 0..3 {
-            vm.update_bar(&bar("100", "110", "90", "105", "1000")).unwrap();
+            vm.update_bar(&bar("100", "110", "90", "105", "1000"))
+                .unwrap();
         }
         assert!(vm.is_ready());
         vm.reset();

@@ -1,10 +1,10 @@
 //! Downside Deviation indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling standard deviation of only negative close returns (downside risk).
 ///
@@ -23,7 +23,11 @@ impl DownsideDeviation {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, returns: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            returns: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -44,10 +48,16 @@ impl Signal for DownsideDeviation {
             return Ok(SignalValue::Unavailable);
         }
 
-        let neg_vals: Vec<f64> = self.returns.iter()
+        let neg_vals: Vec<f64> = self
+            .returns
+            .iter()
             .filter_map(|r| {
                 let fv = r.to_f64()?;
-                if fv < 0.0 { Some(fv) } else { None }
+                if fv < 0.0 {
+                    Some(fv)
+                } else {
+                    None
+                }
             })
             .collect();
 
@@ -57,7 +67,14 @@ impl Signal for DownsideDeviation {
 
         let n = neg_vals.len() as f64;
         let mean = neg_vals.iter().sum::<f64>() / n;
-        let var = neg_vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let var = neg_vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
 
         match Decimal::from_f64_retain(var.sqrt()) {
             Some(v) => Ok(SignalValue::Scalar(v)),
@@ -65,10 +82,19 @@ impl Signal for DownsideDeviation {
         }
     }
 
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.returns.clear(); }
-    fn name(&self) -> &str { "DownsideDeviation" }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.returns.clear();
+    }
+    fn name(&self) -> &str {
+        "DownsideDeviation"
+    }
 }
 
 #[cfg(test)]

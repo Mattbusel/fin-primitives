@@ -57,9 +57,15 @@ impl RangeBreakoutCount {
 }
 
 impl Signal for RangeBreakoutCount {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -67,7 +73,10 @@ impl Signal for RangeBreakoutCount {
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -75,7 +84,8 @@ impl Signal for RangeBreakoutCount {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -104,7 +114,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -121,7 +134,10 @@ mod tests {
     fn test_rbc_unavailable_during_warmup() {
         let mut rbc = RangeBreakoutCount::new("rbc", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(rbc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rbc.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!rbc.is_ready());
     }
@@ -145,14 +161,16 @@ mod tests {
         rbc.update_bar(&bar("120", "80")).unwrap(); // range=40
         rbc.update_bar(&bar("105", "95")).unwrap(); // range=10
         let last = rbc.update_bar(&bar("105", "95")).unwrap(); // range=10
-        // avg=(40+40+10+10)/4=25, count(range > 25) = 2
+                                                               // avg=(40+40+10+10)/4=25, count(range > 25) = 2
         assert_eq!(last, SignalValue::Scalar(dec!(2)));
     }
 
     #[test]
     fn test_rbc_reset() {
         let mut rbc = RangeBreakoutCount::new("rbc", 3).unwrap();
-        for _ in 0..3 { rbc.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            rbc.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(rbc.is_ready());
         rbc.reset();
         assert!(!rbc.is_ready());

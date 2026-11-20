@@ -117,7 +117,10 @@ mod tests {
         let (high, low) = if c >= o { (c, o) } else { (o, c) };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +136,10 @@ mod tests {
     #[test]
     fn test_pgm_unavailable_first_bar() {
         let mut pgm = PriceGapMomentum::new("pgm", 5).unwrap();
-        assert_eq!(pgm.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pgm.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pgm.is_ready());
     }
 
@@ -149,7 +155,7 @@ mod tests {
     fn test_pgm_gap_up_seeds_positive() {
         let mut pgm = PriceGapMomentum::new("pgm", 5).unwrap();
         pgm.update_bar(&bar("100", "105")).unwrap(); // close=105
-        // open=110: gap = 110-105 = 5 → EMA seeds at 5
+                                                     // open=110: gap = 110-105 = 5 → EMA seeds at 5
         let v = pgm.update_bar(&bar("110", "115")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(5)));
     }
@@ -158,7 +164,7 @@ mod tests {
     fn test_pgm_gap_down_seeds_negative() {
         let mut pgm = PriceGapMomentum::new("pgm", 5).unwrap();
         pgm.update_bar(&bar("105", "100")).unwrap(); // close=100
-        // open=95: gap = 95-100 = -5
+                                                     // open=95: gap = 95-100 = -5
         let v = pgm.update_bar(&bar("95", "90")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-5)));
     }

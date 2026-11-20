@@ -48,22 +48,32 @@ impl VolumeDeviation {
 }
 
 impl Signal for VolumeDeviation {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.sum += bar.volume;
         self.window.push_back(bar.volume);
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -96,7 +106,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -112,8 +125,14 @@ mod tests {
     #[test]
     fn test_vd_unavailable_before_period() {
         let mut s = VolumeDeviation::new("vd", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -134,7 +153,10 @@ mod tests {
         let v = s.update_bar(&bar("2000")).unwrap();
         if let SignalValue::Scalar(r) = v {
             // dev = 500/1500 = 1/3
-            assert!(r > dec!(0), "above-avg volume should give positive deviation: {r}");
+            assert!(
+                r > dec!(0),
+                "above-avg volume should give positive deviation: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -143,7 +165,9 @@ mod tests {
     #[test]
     fn test_vd_reset() {
         let mut s = VolumeDeviation::new("vd", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("1000")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

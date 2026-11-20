@@ -49,9 +49,15 @@ impl BarFollowThrough {
 }
 
 impl Signal for BarFollowThrough {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -106,7 +112,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,7 +141,7 @@ mod tests {
     fn test_bft_perfect_trend_gives_one() {
         // Monotone uptrend: every bar follows through
         let mut s = BarFollowThrough::new("bft", 3).unwrap();
-        for p in &["100","101","102","103","104"] {
+        for p in &["100", "101", "102", "103", "104"] {
             s.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = s.update_bar(&bar("105")).unwrap() {
@@ -146,7 +155,7 @@ mod tests {
     fn test_bft_perfect_reversal_gives_zero() {
         // Alternating pattern: 100, 102, 100, 102, 100
         let mut s = BarFollowThrough::new("bft", 3).unwrap();
-        for p in &["100","102","100","102"] {
+        for p in &["100", "102", "100", "102"] {
             s.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = s.update_bar(&bar("100")).unwrap() {
@@ -159,7 +168,7 @@ mod tests {
     #[test]
     fn test_bft_in_range_zero_to_one() {
         let mut s = BarFollowThrough::new("bft", 4).unwrap();
-        let prices = ["100","102","101","103","102","104","103","105"];
+        let prices = ["100", "102", "101", "103", "102", "104", "103", "105"];
         for p in &prices {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "value out of [0,1]: {v}");
@@ -170,7 +179,9 @@ mod tests {
     #[test]
     fn test_bft_reset() {
         let mut s = BarFollowThrough::new("bft", 3).unwrap();
-        for p in &["100","101","102","103","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

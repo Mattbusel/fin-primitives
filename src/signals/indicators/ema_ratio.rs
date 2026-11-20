@@ -41,7 +41,11 @@ impl EmaRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `fast_period == 0`, `slow_period == 0`,
     /// or `fast_period >= slow_period`.
-    pub fn new(name: impl Into<String>, fast_period: usize, slow_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        fast_period: usize,
+        slow_period: usize,
+    ) -> Result<Self, FinError> {
         if fast_period == 0 || slow_period == 0 {
             return Err(FinError::InvalidPeriod(fast_period.min(slow_period)));
         }
@@ -134,7 +138,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -147,14 +154,17 @@ mod tests {
         assert!(EmaRatio::new("er", 0, 20).is_err());
         assert!(EmaRatio::new("er", 20, 0).is_err());
         assert!(EmaRatio::new("er", 20, 20).is_err()); // fast >= slow
-        assert!(EmaRatio::new("er", 20, 5).is_err());  // fast > slow
+        assert!(EmaRatio::new("er", 20, 5).is_err()); // fast > slow
     }
 
     #[test]
     fn test_er_unavailable_before_slow_period() {
         let mut er = EmaRatio::new("er", 3, 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(er.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                er.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!er.is_ready());
     }
@@ -182,7 +192,10 @@ mod tests {
             last = er.update_bar(&bar(&format!("{}", 100 + i))).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "rising market should give positive ratio, got {v}");
+            assert!(
+                v > dec!(0),
+                "rising market should give positive ratio, got {v}"
+            );
         } else {
             panic!("expected Scalar");
         }

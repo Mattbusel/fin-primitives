@@ -68,7 +68,11 @@ impl HazardCurve {
     /// # Errors
     /// [`FinError::InvalidInput`] if `tenors` and `spreads` differ in length.
     /// (Before 3.0 this panicked.)
-    pub fn from_par_spreads(tenors: &[f64], spreads: &[f64], recovery: f64) -> Result<Self, FinError> {
+    pub fn from_par_spreads(
+        tenors: &[f64],
+        spreads: &[f64],
+        recovery: f64,
+    ) -> Result<Self, FinError> {
         if tenors.len() != spreads.len() {
             return Err(FinError::InvalidInput(format!(
                 "HazardCurve::from_par_spreads: {} tenors but {} spreads",
@@ -142,11 +146,7 @@ fn df(t: f64, risk_free: &[(f64, f64)]) -> f64 {
 ///
 /// PV = integral_0^T (1 - R) * df(t) * (-dQ(t)) dt
 /// Numerically integrated using 100 steps over the tenor.
-pub fn protection_leg_pv(
-    spec: &CdsSpec,
-    hazard: &HazardCurve,
-    risk_free: &[(f64, f64)],
-) -> f64 {
+pub fn protection_leg_pv(spec: &CdsSpec, hazard: &HazardCurve, risk_free: &[(f64, f64)]) -> f64 {
     let n_steps = 100usize;
     let dt = spec.tenor_years / n_steps as f64;
     let lgd = (1.0 - spec.recovery_rate) * spec.notional;
@@ -169,11 +169,7 @@ pub fn protection_leg_pv(
 /// Present value of the premium leg.
 ///
 /// PV = sum over payment dates of: spread * notional * dcf * df(t_k) * Q(t_k)
-pub fn premium_leg_pv(
-    spec: &CdsSpec,
-    hazard: &HazardCurve,
-    risk_free: &[(f64, f64)],
-) -> f64 {
+pub fn premium_leg_pv(spec: &CdsSpec, hazard: &HazardCurve, risk_free: &[(f64, f64)]) -> f64 {
     let n_payments = (spec.tenor_years * spec.payment_frequency as f64).round() as u32;
     let dt = 1.0 / spec.payment_frequency as f64;
     let dcf = dt; // simplified: actual fraction ≈ 1/frequency
@@ -209,11 +205,7 @@ pub fn cds_npv(
 /// Par spread: the spread that sets CDS NPV to zero.
 ///
 /// `par_spread = protection_pv / risky_annuity`
-pub fn par_spread(
-    spec: &CdsSpec,
-    hazard: &HazardCurve,
-    risk_free: &[(f64, f64)],
-) -> f64 {
+pub fn par_spread(spec: &CdsSpec, hazard: &HazardCurve, risk_free: &[(f64, f64)]) -> f64 {
     let prot = protection_leg_pv(spec, hazard, risk_free);
     // Risky annuity = sum df(t_k) * Q(t_k) * dcf
     let n_payments = (spec.tenor_years * spec.payment_frequency as f64).round() as u32;
@@ -230,11 +222,7 @@ pub fn par_spread(
 }
 
 /// CS01: sensitivity of CDS NPV to a 1bp (0.0001) parallel shift in the hazard curve.
-pub fn cds_cs01(
-    spec: &CdsSpec,
-    hazard: &HazardCurve,
-    risk_free: &[(f64, f64)],
-) -> f64 {
+pub fn cds_cs01(spec: &CdsSpec, hazard: &HazardCurve, risk_free: &[(f64, f64)]) -> f64 {
     let bump = 0.0001;
     let bumped_rates: Vec<f64> = hazard.hazard_rates.iter().map(|h| h + bump).collect();
     let bumped_hazard = HazardCurve {
@@ -293,8 +281,13 @@ mod tests {
 
     fn flat_rf(rate: f64) -> Vec<(f64, f64)> {
         vec![
-            (0.5, rate), (1.0, rate), (2.0, rate),
-            (3.0, rate), (5.0, rate), (7.0, rate), (10.0, rate),
+            (0.5, rate),
+            (1.0, rate),
+            (2.0, rate),
+            (3.0, rate),
+            (5.0, rate),
+            (7.0, rate),
+            (10.0, rate),
         ]
     }
 
@@ -326,12 +319,8 @@ mod tests {
         // For a flat hazard curve h, par_spread ≈ h * (1 - R)
         let recovery = 0.4;
         let spread = 0.02; // 200bp
-        let hazard = HazardCurve::from_par_spreads(
-            &[1.0, 2.0, 3.0, 5.0],
-            &[spread; 4],
-            recovery,
-        )
-        .unwrap();
+        let hazard =
+            HazardCurve::from_par_spreads(&[1.0, 2.0, 3.0, 5.0], &[spread; 4], recovery).unwrap();
         let spec = CdsSpec {
             notional: 1_000_000.0,
             premium_rate: spread,
@@ -367,7 +356,12 @@ mod tests {
         let rf = flat_rf(0.05);
         let prot = protection_leg_pv(&spec, &hazard, &rf);
         let prem = premium_leg_pv(&spec, &hazard, &rf);
-        assert!(prot > prem, "Protection PV {} should exceed premium PV {} for high hazard", prot, prem);
+        assert!(
+            prot > prem,
+            "Protection PV {} should exceed premium PV {} for high hazard",
+            prot,
+            prem
+        );
     }
 
     #[test]

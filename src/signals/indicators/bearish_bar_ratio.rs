@@ -1,9 +1,9 @@
 //! Bearish Bar Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling fraction of bars where `close < open` (bearish/down bars).
 ///
@@ -20,7 +20,11 @@ impl BearishBarRatio {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
@@ -41,10 +45,19 @@ impl Signal for BearishBarRatio {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "BearishBarRatio" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "BearishBarRatio"
+    }
 }
 
 #[cfg(test)]

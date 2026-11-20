@@ -1,9 +1,9 @@
 //! Open Gap Size indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `|open - prev_close| / prev_close * 100`.
 ///
@@ -22,7 +22,12 @@ impl OpenGapSize {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -49,10 +54,20 @@ impl Signal for OpenGapSize {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "OpenGapSize" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "OpenGapSize"
+    }
 }
 
 #[cfg(test)]
@@ -84,9 +99,13 @@ mod tests {
         let mut sig = OpenGapSize::new(2).unwrap();
         sig.update(&bar("100", "100")).unwrap(); // seeds prev_close=100
         sig.update(&bar("102", "100")).unwrap(); // gap=2%, seeds prev_close=100
-        let v = sig.update(&bar("98", "100")).unwrap();  // gap=2%, avg=2%
+        let v = sig.update(&bar("98", "100")).unwrap(); // gap=2%, avg=2%
         if let SignalValue::Scalar(x) = v {
-            assert!((x - dec!(2)).abs() < dec!(0.001), "avg gap should be 2%, got {}", x);
+            assert!(
+                (x - dec!(2)).abs() < dec!(0.001),
+                "avg gap should be 2%, got {}",
+                x
+            );
         }
     }
 }

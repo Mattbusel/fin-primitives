@@ -4,8 +4,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use fin_primitives::normal;
-use fin_primitives::options::greeks::{bsm_price_q, implied_vol, BSMInputs, OptionType};
 use fin_primitives::ohlcv::{OhlcvAggregator, Timeframe};
+use fin_primitives::options::greeks::{bsm_price_q, implied_vol, BSMInputs, OptionType};
 use fin_primitives::orderbook::{BookDelta, DeltaAction, OrderBook};
 use fin_primitives::tick::Tick;
 use fin_primitives::types::{NanoTimestamp, Price, Quantity, Side, Symbol};

@@ -82,10 +82,20 @@ impl AdaptiveSupertrend {
 
     fn efficiency_ratio(closes: &VecDeque<Decimal>) -> Decimal {
         let n = closes.len();
-        if n < 2 { return Decimal::ZERO; }
+        if n < 2 {
+            return Decimal::ZERO;
+        }
         let net = (closes[n - 1] - closes[0]).abs();
-        let path: Decimal = closes.iter().zip(closes.iter().skip(1)).map(|(a, b)| (*b - *a).abs()).sum();
-        if path.is_zero() { Decimal::ZERO } else { net / path }
+        let path: Decimal = closes
+            .iter()
+            .zip(closes.iter().skip(1))
+            .map(|(a, b)| (*b - *a).abs())
+            .sum();
+        if path.is_zero() {
+            Decimal::ZERO
+        } else {
+            net / path
+        }
     }
 
     fn adaptive_atr(
@@ -94,17 +104,25 @@ impl AdaptiveSupertrend {
         closes: &VecDeque<Decimal>,
         eff_period: usize,
     ) -> Decimal {
-        if highs.len() < eff_period { return Decimal::ZERO; }
+        if highs.len() < eff_period {
+            return Decimal::ZERO;
+        }
         let h_slice = highs.iter().rev().take(eff_period);
         let l_slice = lows.iter().rev().take(eff_period);
         let c_slice = closes.iter().rev().skip(1).take(eff_period);
-        let trs: Vec<Decimal> = h_slice.zip(l_slice).zip(c_slice).map(|((h, l), pc)| {
-            let hl = h - l;
-            let hc = (h - pc).abs();
-            let lc = (l - pc).abs();
-            hl.max(hc).max(lc)
-        }).collect();
-        if trs.is_empty() { return Decimal::ZERO; }
+        let trs: Vec<Decimal> = h_slice
+            .zip(l_slice)
+            .zip(c_slice)
+            .map(|((h, l), pc)| {
+                let hl = h - l;
+                let hc = (h - pc).abs();
+                let lc = (l - pc).abs();
+                hl.max(hc).max(lc)
+            })
+            .collect();
+        if trs.is_empty() {
+            return Decimal::ZERO;
+        }
         let len = trs.len() as u32;
         trs.iter().sum::<Decimal>() / Decimal::from(len)
     }
@@ -125,13 +143,21 @@ impl Signal for AdaptiveSupertrend {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
-        if self.highs.len() > self.max_period + 1 { self.highs.pop_front(); }
+        if self.highs.len() > self.max_period + 1 {
+            self.highs.pop_front();
+        }
         self.lows.push_back(bar.low);
-        if self.lows.len() > self.max_period + 1 { self.lows.pop_front(); }
+        if self.lows.len() > self.max_period + 1 {
+            self.lows.pop_front();
+        }
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.max_period + 2 { self.closes.pop_front(); }
+        if self.closes.len() > self.max_period + 2 {
+            self.closes.pop_front();
+        }
 
-        if self.highs.len() < self.max_period { return Ok(SignalValue::Unavailable); }
+        if self.highs.len() < self.max_period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let er = Self::efficiency_ratio(&self.closes);
         // eff_period in [min_period, max_period]
@@ -202,7 +228,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -221,7 +250,10 @@ mod tests {
     fn test_ast_unavailable_before_max_period() {
         let mut ast = AdaptiveSupertrend::new("a", 3, 5, dec!(2)).unwrap();
         for _ in 0..4 {
-            assert_eq!(ast.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ast.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ast.is_ready());
     }
@@ -240,7 +272,8 @@ mod tests {
         let mut ast = AdaptiveSupertrend::new("a", 2, 5, dec!(1)).unwrap();
         for i in 0u32..10 {
             let p = (100 + i * 5).to_string();
-            ast.update_bar(&bar(&p, &(95u32 + i * 5).to_string(), &p)).unwrap();
+            ast.update_bar(&bar(&p, &(95u32 + i * 5).to_string(), &p))
+                .unwrap();
         }
         assert!(ast.is_long());
     }

@@ -5,8 +5,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use std::collections::VecDeque;
 use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Volume CV — rolling `std(volume) / mean(volume)`.
 ///
@@ -47,14 +47,24 @@ impl VolumeCv {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, vols: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            vols: VecDeque::with_capacity(period),
+        })
     }
 }
 
 impl Signal for VolumeCv {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.vols.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.vols.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -100,7 +110,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,8 +130,14 @@ mod tests {
     #[test]
     fn test_vcv_unavailable_during_warmup() {
         let mut vcv = VolumeCv::new("vcv", 3).unwrap();
-        assert_eq!(vcv.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vcv.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vcv.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vcv.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vcv.is_ready());
     }
 
@@ -126,7 +145,9 @@ mod tests {
     fn test_vcv_constant_volume_zero() {
         // Same volume → std = 0 → CV = 0
         let mut vcv = VolumeCv::new("vcv", 3).unwrap();
-        for _ in 0..3 { vcv.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            vcv.update_bar(&bar("1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = vcv.update_bar(&bar("1000")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {
@@ -145,7 +166,9 @@ mod tests {
     fn test_vcv_varied_volume_positive() {
         // Alternating 100 and 1000 → high CV
         let mut vcv = VolumeCv::new("vcv", 4).unwrap();
-        for v in &["100", "1000", "100", "1000"] { vcv.update_bar(&bar(v)).unwrap(); }
+        for v in &["100", "1000", "100", "1000"] {
+            vcv.update_bar(&bar(v)).unwrap();
+        }
         if let SignalValue::Scalar(v) = vcv.update_bar(&bar("100")).unwrap() {
             assert!(v > dec!(0), "varied volume → positive CV: {v}");
         } else {

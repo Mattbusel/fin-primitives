@@ -43,8 +43,8 @@ impl CdoStructure {
             .map(|t| {
                 let loss_below_attachment = portfolio_loss_rate.min(t.attachment);
                 let loss_up_to_detachment = portfolio_loss_rate.min(t.detachment);
-                let tranche_loss_rate = (loss_up_to_detachment - loss_below_attachment)
-                    / t.thickness().max(1e-12);
+                let tranche_loss_rate =
+                    (loss_up_to_detachment - loss_below_attachment) / t.thickness().max(1e-12);
                 tranche_loss_rate * t.notional
             })
             .collect()
@@ -91,12 +91,7 @@ impl MonteCarloCdo {
     /// `seed`          — LCG seed for reproducibility.
     ///
     /// Returns average tranche loss rate for each tranche.
-    pub fn price_tranches(
-        &self,
-        default_probs: &[f64],
-        correlation: f64,
-        seed: u64,
-    ) -> Vec<f64> {
+    pub fn price_tranches(&self, default_probs: &[f64], correlation: f64, seed: u64) -> Vec<f64> {
         let n = default_probs.len();
         if n == 0 {
             return vec![0.0; self.structure.tranches.len()];

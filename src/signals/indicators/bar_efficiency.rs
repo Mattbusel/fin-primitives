@@ -1,9 +1,9 @@
 //! Bar Efficiency indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of bar efficiency: `|close - open| / (high - low)`.
 ///
@@ -23,7 +23,11 @@ impl BarEfficiency {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -46,13 +50,24 @@ impl Signal for BarEfficiency {
         if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            self.sum / Decimal::from(self.period as u32),
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "BarEfficiency" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "BarEfficiency"
+    }
 }
 
 #[cfg(test)]

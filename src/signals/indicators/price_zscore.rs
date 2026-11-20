@@ -37,7 +37,9 @@ impl PriceZScore {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2` (need at least 2 values for stddev).
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,24 +50,36 @@ impl PriceZScore {
 }
 
 impl Signal for PriceZScore {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.close);
         self.sum += bar.close;
         if self.window.len() > self.period {
-            if let Some(old) = self.window.pop_front() { self.sum -= old; }
+            if let Some(old) = self.window.pop_front() {
+                self.sum -= old;
+            }
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         #[allow(clippy::cast_possible_truncation)]
         let n = Decimal::from(self.period as u32);
         let mean = self.sum / n;
 
         // Sample variance
-        let variance = self.window.iter()
+        let variance = self
+            .window
+            .iter()
             .map(|v| {
                 let diff = *v - mean;
                 diff * diff
@@ -79,7 +93,9 @@ impl Signal for PriceZScore {
 
         use rust_decimal::prelude::ToPrimitive;
         let variance_f = variance.to_f64().unwrap_or(f64::NAN);
-        if variance_f.is_nan() { return Ok(SignalValue::Unavailable); }
+        if variance_f.is_nan() {
+            return Ok(SignalValue::Unavailable);
+        }
         let stddev_f = variance_f.sqrt();
         let stddev = match Decimal::try_from(stddev_f) {
             Ok(d) if !d.is_zero() => d,
@@ -107,7 +123,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,9 +135,13 @@ mod tests {
     }
 
     #[test]
-    fn test_pz_period_less_than_2_error() { assert!(PriceZScore::new("p", 1).is_err()); }
+    fn test_pz_period_less_than_2_error() {
+        assert!(PriceZScore::new("p", 1).is_err());
+    }
     #[test]
-    fn test_pz_period_0_error() { assert!(PriceZScore::new("p", 0).is_err()); }
+    fn test_pz_period_0_error() {
+        assert!(PriceZScore::new("p", 0).is_err());
+    }
 
     #[test]
     fn test_pz_unavailable_before_period() {
@@ -130,7 +153,9 @@ mod tests {
     fn test_pz_constant_price_unavailable() {
         // stddev = 0 for constant prices
         let mut p = PriceZScore::new("p", 3).unwrap();
-        for _ in 0..3 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert_eq!(p.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
     }
 
@@ -143,7 +168,10 @@ mod tests {
         // Third bar at 100 (mean of 90,110,100 = 100). z-score(100) should be 0.
         let v = p.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(z) = v {
-            assert!(z.abs() < dec!(0.001), "expected ~0 z-score at mean, got {z}");
+            assert!(
+                z.abs() < dec!(0.001),
+                "expected ~0 z-score at mean, got {z}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -152,7 +180,9 @@ mod tests {
     #[test]
     fn test_pz_reset() {
         let mut p = PriceZScore::new("p", 3).unwrap();
-        for _ in 0..3 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

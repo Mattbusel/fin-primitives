@@ -47,7 +47,12 @@ impl LowToCloseRatio {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 
@@ -69,7 +74,8 @@ impl crate::signals::Signal for LowToCloseRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = bar.low
+        let ratio = bar
+            .low
             .checked_div(bar.close)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -107,7 +113,10 @@ mod tests {
         let high = if c > l { c } else { l };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high, low: l, close: c,
+            open: l,
+            high,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

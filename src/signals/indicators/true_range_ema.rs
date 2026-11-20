@@ -39,7 +39,9 @@ impl TrueRangeEma {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -51,7 +53,9 @@ impl TrueRangeEma {
 }
 
 impl Signal for TrueRangeEma {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -74,8 +78,12 @@ impl Signal for TrueRangeEma {
         Ok(SignalValue::Scalar(new_ema))
     }
 
-    fn is_ready(&self) -> bool { self.ema.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -97,7 +105,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -105,7 +116,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hlc(c, c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hlc(c, c, c)
+    }
 
     #[test]
     fn test_tre_invalid() {
@@ -116,7 +129,10 @@ mod tests {
     fn test_tre_unavailable_before_warmup() {
         let mut t = TrueRangeEma::new("t", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(t.update_bar(&bar_hlc("105", "95", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                t.update_bar(&bar_hlc("105", "95", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -125,11 +141,15 @@ mod tests {
         // Each bar has range=10; EMA converges to 10
         let mut t = TrueRangeEma::new("t", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..20 { last = t.update_bar(&bar_hlc("105", "95", "100")).unwrap(); }
+        for _ in 0..20 {
+            last = t.update_bar(&bar_hlc("105", "95", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             let diff = (v - dec!(10)).abs();
             assert!(diff < dec!(0.001), "expected ~10, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -146,7 +166,9 @@ mod tests {
     #[test]
     fn test_tre_reset() {
         let mut t = TrueRangeEma::new("t", 3).unwrap();
-        for _ in 0..10 { t.update_bar(&bar_hlc("105", "95", "100")).unwrap(); }
+        for _ in 0..10 {
+            t.update_bar(&bar_hlc("105", "95", "100")).unwrap();
+        }
         assert!(t.is_ready());
         t.reset();
         assert!(!t.is_ready());

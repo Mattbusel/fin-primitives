@@ -18,7 +18,8 @@ use crate::signals::batch_f64 as k;
 type Arr<'py> = Bound<'py, PyArray1<f64>>;
 
 fn slice<'a>(a: &'a PyReadonlyArray1<'_, f64>, what: &str) -> PyResult<&'a [f64]> {
-    a.as_slice().map_err(|_| PyValueError::new_err(format!("{what} must be a contiguous float64 array")))
+    a.as_slice()
+        .map_err(|_| PyValueError::new_err(format!("{what} must be a contiguous float64 array")))
 }
 
 fn positive(v: usize, what: &str) -> PyResult<()> {
@@ -30,14 +31,21 @@ fn positive(v: usize, what: &str) -> PyResult<()> {
 
 fn same_len(n: usize, a: &[f64], what: &str) -> PyResult<()> {
     if a.len() != n {
-        return Err(PyValueError::new_err(format!("{what} has {} values, close has {n}", a.len())));
+        return Err(PyValueError::new_err(format!(
+            "{what} has {} values, close has {n}",
+            a.len()
+        )));
     }
     Ok(())
 }
 
 /// Simple moving average (pandas `rolling(period).mean()`).
 #[pyfunction]
-pub fn fast_sma<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize) -> PyResult<Arr<'py>> {
+pub fn fast_sma<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+) -> PyResult<Arr<'py>> {
     positive(period, "period")?;
     let x = slice(&close, "close")?;
     Ok(py.detach(|| k::sma(x, period)).into_pyarray(py))
@@ -45,7 +53,11 @@ pub fn fast_sma<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period:
 
 /// SMA-seeded exponential moving average (pandas-ta `ema`).
 #[pyfunction]
-pub fn fast_ema<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize) -> PyResult<Arr<'py>> {
+pub fn fast_ema<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+) -> PyResult<Arr<'py>> {
     positive(period, "period")?;
     let x = slice(&close, "close")?;
     Ok(py.detach(|| k::ema(x, period)).into_pyarray(py))
@@ -53,7 +65,11 @@ pub fn fast_ema<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period:
 
 /// SMA-seeded Wilder moving average (pandas-ta `rma`).
 #[pyfunction]
-pub fn fast_rma<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize) -> PyResult<Arr<'py>> {
+pub fn fast_rma<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+) -> PyResult<Arr<'py>> {
     positive(period, "period")?;
     let x = slice(&close, "close")?;
     Ok(py.detach(|| k::rma(x, period)).into_pyarray(py))
@@ -61,7 +77,11 @@ pub fn fast_rma<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period:
 
 /// Wilder RSI with TA-Lib seeding (pandas-ta `rsi`).
 #[pyfunction]
-pub fn fast_rsi<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize) -> PyResult<Arr<'py>> {
+pub fn fast_rsi<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+) -> PyResult<Arr<'py>> {
     positive(period, "period")?;
     let x = slice(&close, "close")?;
     Ok(py.detach(|| k::rsi(x, period)).into_pyarray(py))
@@ -71,7 +91,9 @@ fn atr_seed(seed: &str) -> PyResult<k::AtrSeed> {
     match seed {
         "talib" => Ok(k::AtrSeed::TaLib),
         "tradingview" => Ok(k::AtrSeed::TradingView),
-        other => Err(PyValueError::new_err(format!("seed must be \"talib\" or \"tradingview\", not {other:?}"))),
+        other => Err(PyValueError::new_err(format!(
+            "seed must be \"talib\" or \"tradingview\", not {other:?}"
+        ))),
     }
 }
 
@@ -86,10 +108,16 @@ pub fn fast_true_range<'py>(
     seed: &str,
 ) -> PyResult<Arr<'py>> {
     let s = atr_seed(seed)?;
-    let (h, l, c) = (slice(&high, "high")?, slice(&low, "low")?, slice(&close, "close")?);
+    let (h, l, c) = (
+        slice(&high, "high")?,
+        slice(&low, "low")?,
+        slice(&close, "close")?,
+    );
     same_len(c.len(), h, "high")?;
     same_len(c.len(), l, "low")?;
-    Ok(py.detach(|| k::true_range(h, l, c, s == k::AtrSeed::TradingView)).into_pyarray(py))
+    Ok(py
+        .detach(|| k::true_range(h, l, c, s == k::AtrSeed::TradingView))
+        .into_pyarray(py))
 }
 
 /// Wilder ATR, TA-Lib seed (pandas-ta `atr`) or TradingView seed (`ta.atr`).
@@ -105,7 +133,11 @@ pub fn fast_atr<'py>(
 ) -> PyResult<Arr<'py>> {
     positive(period, "period")?;
     let s = atr_seed(seed)?;
-    let (h, l, c) = (slice(&high, "high")?, slice(&low, "low")?, slice(&close, "close")?);
+    let (h, l, c) = (
+        slice(&high, "high")?,
+        slice(&low, "low")?,
+        slice(&close, "close")?,
+    );
     same_len(c.len(), h, "high")?;
     same_len(c.len(), l, "low")?;
     Ok(py.detach(|| k::atr(h, l, c, period, s)).into_pyarray(py))
@@ -133,7 +165,9 @@ fn window_ddof(period: usize, ddof: usize) -> PyResult<()> {
         return Err(PyValueError::new_err("period must be at least 2"));
     }
     if ddof >= period {
-        return Err(PyValueError::new_err(format!("ddof must be less than period ({period}), got {ddof}")));
+        return Err(PyValueError::new_err(format!(
+            "ddof must be less than period ({period}), got {ddof}"
+        )));
     }
     Ok(())
 }
@@ -141,19 +175,33 @@ fn window_ddof(period: usize, ddof: usize) -> PyResult<()> {
 /// Rolling standard deviation (pandas-ta `stdev`; numpy `var` per window, then sqrt).
 #[pyfunction]
 #[pyo3(signature = (close, period, ddof = 0))]
-pub fn fast_stdev<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize, ddof: usize) -> PyResult<Arr<'py>> {
+pub fn fast_stdev<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+    ddof: usize,
+) -> PyResult<Arr<'py>> {
     window_ddof(period, ddof)?;
     let x = slice(&close, "close")?;
-    Ok(py.detach(|| k::rolling_std(x, period, ddof)).into_pyarray(py))
+    Ok(py
+        .detach(|| k::rolling_std(x, period, ddof))
+        .into_pyarray(py))
 }
 
 /// Rolling variance (pandas-ta `variance`).
 #[pyfunction]
 #[pyo3(signature = (close, period, ddof = 0))]
-pub fn fast_variance<'py>(py: Python<'py>, close: PyReadonlyArray1<'py, f64>, period: usize, ddof: usize) -> PyResult<Arr<'py>> {
+pub fn fast_variance<'py>(
+    py: Python<'py>,
+    close: PyReadonlyArray1<'py, f64>,
+    period: usize,
+    ddof: usize,
+) -> PyResult<Arr<'py>> {
     window_ddof(period, ddof)?;
     let x = slice(&close, "close")?;
-    Ok(py.detach(|| k::rolling_var(x, period, ddof)).into_pyarray(py))
+    Ok(py
+        .detach(|| k::rolling_var(x, period, ddof))
+        .into_pyarray(py))
 }
 
 /// Bollinger Bands `(lower, mid, upper)` (pandas-ta `bbands`).
@@ -168,7 +216,9 @@ pub fn fast_bbands<'py>(
 ) -> PyResult<(Arr<'py>, Arr<'py>, Arr<'py>)> {
     window_ddof(period, ddof)?;
     if !(std.is_finite() && std > 0.0) {
-        return Err(PyValueError::new_err(format!("std must be a positive number, got {std}")));
+        return Err(PyValueError::new_err(format!(
+            "std must be a positive number, got {std}"
+        )));
     }
     let x = slice(&close, "close")?;
     let (a, b, c) = py.detach(|| k::bbands(x, period, std, ddof));
@@ -180,7 +230,11 @@ macro_rules! period_fn {
     ($name:ident, $kernel:path, $doc:literal) => {
         #[doc = $doc]
         #[pyfunction]
-        pub fn $name<'py>(py: Python<'py>, x: PyReadonlyArray1<'py, f64>, period: usize) -> PyResult<Arr<'py>> {
+        pub fn $name<'py>(
+            py: Python<'py>,
+            x: PyReadonlyArray1<'py, f64>,
+            period: usize,
+        ) -> PyResult<Arr<'py>> {
             positive(period, "period")?;
             let x = slice(&x, "x")?;
             Ok(py.detach(|| $kernel(x, period)).into_pyarray(py))
@@ -188,24 +242,56 @@ macro_rules! period_fn {
     };
 }
 
-period_fn!(fast_rolling_sum, k::rolling_sum, "Rolling sum (pandas `rolling(period).sum()`).");
-period_fn!(fast_rolling_max, k::rolling_max, "Rolling maximum (pandas `rolling(period).max()`).");
-period_fn!(fast_rolling_min, k::rolling_min, "Rolling minimum (pandas `rolling(period).min()`).");
-period_fn!(fast_wma, k::wma, "Linearly weighted moving average (pandas-ta `wma`).");
-period_fn!(fast_wilder_sum, k::wilder_sum, "Wilder's running sum (pandas-ta-classic `wilder_smooth`).");
+period_fn!(
+    fast_rolling_sum,
+    k::rolling_sum,
+    "Rolling sum (pandas `rolling(period).sum()`)."
+);
+period_fn!(
+    fast_rolling_max,
+    k::rolling_max,
+    "Rolling maximum (pandas `rolling(period).max()`)."
+);
+period_fn!(
+    fast_rolling_min,
+    k::rolling_min,
+    "Rolling minimum (pandas `rolling(period).min()`)."
+);
+period_fn!(
+    fast_wma,
+    k::wma,
+    "Linearly weighted moving average (pandas-ta `wma`)."
+);
+period_fn!(
+    fast_wilder_sum,
+    k::wilder_sum,
+    "Wilder's running sum (pandas-ta-classic `wilder_smooth`)."
+);
 
 /// Bars since the most recent maximum (`want_max`) or minimum in each window of `length`.
 #[pyfunction]
-pub fn fast_bars_since<'py>(py: Python<'py>, x: PyReadonlyArray1<'py, f64>, length: usize, want_max: bool) -> PyResult<Arr<'py>> {
+pub fn fast_bars_since<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArray1<'py, f64>,
+    length: usize,
+    want_max: bool,
+) -> PyResult<Arr<'py>> {
     positive(length, "length")?;
     let x = slice(&x, "x")?;
-    Ok(py.detach(|| k::bars_since_extreme(x, length, want_max)).into_pyarray(py))
+    Ok(py
+        .detach(|| k::bars_since_extreme(x, length, want_max))
+        .into_pyarray(py))
 }
 
 type Arr4<'py> = (Arr<'py>, Arr<'py>, Arr<'py>, Arr<'py>);
 
 fn four<'py>(py: Python<'py>, v: k::Four) -> Arr4<'py> {
-    (v.0.into_pyarray(py), v.1.into_pyarray(py), v.2.into_pyarray(py), v.3.into_pyarray(py))
+    (
+        v.0.into_pyarray(py),
+        v.1.into_pyarray(py),
+        v.2.into_pyarray(py),
+        v.3.into_pyarray(py),
+    )
 }
 
 /// Parabolic SAR recursion: `(long, short, af, reversal)`.
@@ -235,7 +321,11 @@ pub fn fast_supertrend_loop<'py>(
     upper: PyReadonlyArray1<'py, f64>,
     lower: PyReadonlyArray1<'py, f64>,
 ) -> PyResult<Arr4<'py>> {
-    let (c, u, l) = (slice(&close, "close")?, slice(&upper, "upper")?, slice(&lower, "lower")?);
+    let (c, u, l) = (
+        slice(&close, "close")?,
+        slice(&upper, "upper")?,
+        slice(&lower, "lower")?,
+    );
     same_len(c.len(), u, "upper")?;
     same_len(c.len(), l, "lower")?;
     let out = py.detach(|| k::supertrend_loop(c, u, l));
@@ -251,7 +341,11 @@ pub fn fast_qqe_loop<'py>(
     upper: PyReadonlyArray1<'py, f64>,
     lower: PyReadonlyArray1<'py, f64>,
 ) -> PyResult<(Arr<'py>, Arr<'py>, Arr<'py>, Arr<'py>, Arr<'py>, Arr<'py>)> {
-    let (r, u, l) = (slice(&rsi_ma, "rsi_ma")?, slice(&upper, "upper")?, slice(&lower, "lower")?);
+    let (r, u, l) = (
+        slice(&rsi_ma, "rsi_ma")?,
+        slice(&upper, "upper")?,
+        slice(&lower, "lower")?,
+    );
     same_len(r.len(), u, "upper")?;
     same_len(r.len(), l, "lower")?;
     let q = py.detach(|| k::qqe_loop(r, u, l));
@@ -267,7 +361,12 @@ pub fn fast_qqe_loop<'py>(
 
 /// Chaikin A/D oscillator recursion over the A/D line.
 #[pyfunction]
-pub fn fast_adosc_loop<'py>(py: Python<'py>, ad: PyReadonlyArray1<'py, f64>, fast: usize, slow: usize) -> PyResult<Arr<'py>> {
+pub fn fast_adosc_loop<'py>(
+    py: Python<'py>,
+    ad: PyReadonlyArray1<'py, f64>,
+    fast: usize,
+    slow: usize,
+) -> PyResult<Arr<'py>> {
     positive(fast, "fast")?;
     positive(slow, "slow")?;
     let a = slice(&ad, "ad")?;
@@ -276,7 +375,12 @@ pub fn fast_adosc_loop<'py>(py: Python<'py>, ad: PyReadonlyArray1<'py, f64>, fas
 
 /// KAMA recursion over the squared smoothing constant `sc` and `close`.
 #[pyfunction]
-pub fn fast_kama_loop<'py>(py: Python<'py>, sc: PyReadonlyArray1<'py, f64>, close: PyReadonlyArray1<'py, f64>, length: usize) -> PyResult<Arr<'py>> {
+pub fn fast_kama_loop<'py>(
+    py: Python<'py>,
+    sc: PyReadonlyArray1<'py, f64>,
+    close: PyReadonlyArray1<'py, f64>,
+    length: usize,
+) -> PyResult<Arr<'py>> {
     positive(length, "length")?;
     let s = slice(&sc, "sc")?;
     let c = slice(&close, "close")?;
@@ -286,7 +390,11 @@ pub fn fast_kama_loop<'py>(py: Python<'py>, sc: PyReadonlyArray1<'py, f64>, clos
 
 /// Fisher Transform recursion over the normalized position `pos`, from bar `length` on.
 #[pyfunction]
-pub fn fast_fisher_loop<'py>(py: Python<'py>, pos: PyReadonlyArray1<'py, f64>, length: usize) -> PyResult<Arr<'py>> {
+pub fn fast_fisher_loop<'py>(
+    py: Python<'py>,
+    pos: PyReadonlyArray1<'py, f64>,
+    length: usize,
+) -> PyResult<Arr<'py>> {
     positive(length, "length")?;
     let p = slice(&pos, "pos")?;
     Ok(py.detach(|| k::fisher_loop(p, length)).into_pyarray(py))

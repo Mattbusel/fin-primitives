@@ -1,9 +1,9 @@
 //! Price Oscillator Sign indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Sign of the price oscillator: +1 if short SMA > long SMA, -1 if below, 0 if equal.
 ///
@@ -27,7 +27,11 @@ impl PriceOscillatorSign {
     /// `long_period`: slower SMA period.
     pub fn new(short_period: usize, long_period: usize) -> Result<Self, FinError> {
         if short_period == 0 || long_period == 0 {
-            return Err(FinError::InvalidPeriod(if short_period == 0 { short_period } else { long_period }));
+            return Err(FinError::InvalidPeriod(if short_period == 0 {
+                short_period
+            } else {
+                long_period
+            }));
         }
         if short_period >= long_period {
             return Err(FinError::InvalidPeriod(short_period));
@@ -58,14 +62,29 @@ impl Signal for PriceOscillatorSign {
         let short_sum: Decimal = self.window.iter().rev().take(self.short_period).sum();
         let short_sma = short_sum / Decimal::from(self.short_period as u32);
 
-        let sign: i32 = if short_sma > long_sma { 1 } else if short_sma < long_sma { -1 } else { 0 };
+        let sign: i32 = if short_sma > long_sma {
+            1
+        } else if short_sma < long_sma {
+            -1
+        } else {
+            0
+        };
         Ok(SignalValue::Scalar(Decimal::from(sign)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.long_period }
-    fn period(&self) -> usize { self.long_period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "PriceOscillatorSign" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.long_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "PriceOscillatorSign"
+    }
 }
 
 #[cfg(test)]

@@ -61,8 +61,12 @@ impl RsiSlope {
         if avg_loss == Decimal::ZERO {
             return Ok(Decimal::ONE_HUNDRED);
         }
-        let rs = avg_gain.checked_div(avg_loss).ok_or(FinError::ArithmeticOverflow)?;
-        let one_plus_rs = Decimal::ONE.checked_add(rs).ok_or(FinError::ArithmeticOverflow)?;
+        let rs = avg_gain
+            .checked_div(avg_loss)
+            .ok_or(FinError::ArithmeticOverflow)?;
+        let one_plus_rs = Decimal::ONE
+            .checked_add(rs)
+            .ok_or(FinError::ArithmeticOverflow)?;
         let rsi = Decimal::ONE_HUNDRED
             .checked_sub(
                 Decimal::ONE_HUNDRED
@@ -97,8 +101,16 @@ impl Signal for RsiSlope {
         self.prev_close = Some(close);
 
         let change = close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         let current_rsi = if self.avg_gain.is_none() {
             self.seed_gain += gain;
@@ -110,23 +122,39 @@ impl Signal for RsiSlope {
             }
             #[allow(clippy::cast_possible_truncation)]
             let period_d = Decimal::from(self.period as u32);
-            let ag = self.seed_gain.checked_div(period_d).ok_or(FinError::ArithmeticOverflow)?;
-            let al = self.seed_loss.checked_div(period_d).ok_or(FinError::ArithmeticOverflow)?;
+            let ag = self
+                .seed_gain
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
+            let al = self
+                .seed_loss
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
             self.avg_gain = Some(ag);
             self.avg_loss = Some(al);
             Self::compute_rsi(ag, al)?
         } else {
             #[allow(clippy::cast_possible_truncation)]
             let period_d = Decimal::from(self.period as u32);
-            let period_m1 = period_d.checked_sub(Decimal::ONE).ok_or(FinError::ArithmeticOverflow)?;
+            let period_m1 = period_d
+                .checked_sub(Decimal::ONE)
+                .ok_or(FinError::ArithmeticOverflow)?;
             let prev_ag = self.avg_gain.unwrap_or(Decimal::ZERO);
             let prev_al = self.avg_loss.unwrap_or(Decimal::ZERO);
-            let ag = prev_ag.checked_mul(period_m1).ok_or(FinError::ArithmeticOverflow)?
-                .checked_add(gain).ok_or(FinError::ArithmeticOverflow)?
-                .checked_div(period_d).ok_or(FinError::ArithmeticOverflow)?;
-            let al = prev_al.checked_mul(period_m1).ok_or(FinError::ArithmeticOverflow)?
-                .checked_add(loss).ok_or(FinError::ArithmeticOverflow)?
-                .checked_div(period_d).ok_or(FinError::ArithmeticOverflow)?;
+            let ag = prev_ag
+                .checked_mul(period_m1)
+                .ok_or(FinError::ArithmeticOverflow)?
+                .checked_add(gain)
+                .ok_or(FinError::ArithmeticOverflow)?
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
+            let al = prev_al
+                .checked_mul(period_m1)
+                .ok_or(FinError::ArithmeticOverflow)?
+                .checked_add(loss)
+                .ok_or(FinError::ArithmeticOverflow)?
+                .checked_div(period_d)
+                .ok_or(FinError::ArithmeticOverflow)?;
             self.avg_gain = Some(ag);
             self.avg_loss = Some(al);
             Self::compute_rsi(ag, al)?
@@ -165,7 +193,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

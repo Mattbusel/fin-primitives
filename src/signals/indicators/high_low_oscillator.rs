@@ -1,9 +1,9 @@
 //! High-Low Oscillator indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// `(period_high + period_low) / 2 - SMA(close, period)`.
 ///
@@ -43,17 +43,34 @@ impl Signal for HighLowOscillator {
             return Ok(SignalValue::Unavailable);
         }
 
-        let period_high = self.window.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
-        let period_low = self.window.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
+        let period_high = self
+            .window
+            .iter()
+            .map(|b| b.high)
+            .fold(Decimal::MIN, Decimal::max);
+        let period_low = self
+            .window
+            .iter()
+            .map(|b| b.low)
+            .fold(Decimal::MAX, Decimal::min);
         let channel_mid = (period_high + period_low) / Decimal::TWO;
         let sma = self.close_sum / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(sma - channel_mid))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.close_sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "HighLowOscillator" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.close_sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "HighLowOscillator"
+    }
 }
 
 #[cfg(test)]

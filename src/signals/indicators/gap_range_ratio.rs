@@ -37,14 +37,23 @@ pub struct GapRangeRatio {
 impl GapRangeRatio {
     /// Constructs a new `GapRangeRatio`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_close: None }
+        Self {
+            name: name.into(),
+            prev_close: None,
+        }
     }
 }
 
 impl Signal for GapRangeRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
@@ -64,7 +73,9 @@ impl Signal for GapRangeRatio {
                 let ratio = gap_contrib
                     .checked_div(true_range)
                     .ok_or(FinError::ArithmeticOverflow)?;
-                Ok(SignalValue::Scalar(ratio.clamp(Decimal::ZERO, Decimal::ONE)))
+                Ok(SignalValue::Scalar(
+                    ratio.clamp(Decimal::ZERO, Decimal::ONE),
+                ))
             }
         } else {
             Ok(SignalValue::Unavailable)
@@ -94,7 +105,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -105,27 +119,33 @@ mod tests {
     #[test]
     fn test_grr_first_bar_unavailable() {
         let mut s = GapRangeRatio::new("grr");
-        assert_eq!(s.update_bar(&bar("100","110","90","102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "110", "90", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(s.is_ready());
     }
 
     #[test]
     fn test_grr_no_gap_gives_zero() {
         let mut s = GapRangeRatio::new("grr");
-        s.update_bar(&bar("100","110","90","100")).unwrap(); // close=100
-        // Next bar: prev_close=100 inside [90,110] → no gap extension → TR=bar_range
-        let v = s.update_bar(&bar("98","112","88","105")).unwrap(); // range=24, TR=24
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap(); // close=100
+                                                                // Next bar: prev_close=100 inside [90,110] → no gap extension → TR=bar_range
+        let v = s.update_bar(&bar("98", "112", "88", "105")).unwrap(); // range=24, TR=24
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
     #[test]
     fn test_grr_gap_up_contribution() {
         let mut s = GapRangeRatio::new("grr");
-        s.update_bar(&bar("100","110","90","100")).unwrap(); // close=100
-        // Gap up: low=110 > prev_close=100 → bar_range=10, TR=120-100=20 → gap=10/20=0.5
-        let v = s.update_bar(&bar("112","120","110","115")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap(); // close=100
+                                                                // Gap up: low=110 > prev_close=100 → bar_range=10, TR=120-100=20 → gap=10/20=0.5
+        let v = s.update_bar(&bar("112", "120", "110", "115")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(0.5)).abs() < dec!(0.0001), "expected 0.5 gap ratio: {r}");
+            assert!(
+                (r - dec!(0.5)).abs() < dec!(0.0001),
+                "expected 0.5 gap ratio: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -135,9 +155,9 @@ mod tests {
     fn test_grr_output_in_unit_interval() {
         let mut s = GapRangeRatio::new("grr");
         let bars = [
-            bar("100","110","90","100"),
-            bar("102","112","92","105"),
-            bar("115","120","112","117"),
+            bar("100", "110", "90", "100"),
+            bar("102", "112", "92", "105"),
+            bar("115", "120", "112", "117"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {
@@ -149,7 +169,7 @@ mod tests {
     #[test]
     fn test_grr_reset() {
         let mut s = GapRangeRatio::new("grr");
-        s.update_bar(&bar("100","110","90","102")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "102")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

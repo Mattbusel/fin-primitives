@@ -146,7 +146,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_two_bars() {
         let mut es = EveningStar::new("es", 30).unwrap();
-        assert_eq!(es.update_bar(&bar("10", "21", "9", "20")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            es.update_bar(&bar("10", "21", "9", "20")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -135,7 +135,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -151,8 +154,14 @@ mod tests {
     #[test]
     fn test_so_unavailable_for_first_two_bars() {
         let mut so = SlopeOscillator::new("so", 5).unwrap();
-        assert_eq!(so.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(so.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            so.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            so.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!so.is_ready());
     }
 
@@ -185,7 +194,10 @@ mod tests {
         assert!(so.is_ready());
         so.reset();
         assert!(!so.is_ready());
-        assert_eq!(so.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            so.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

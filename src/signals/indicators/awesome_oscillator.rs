@@ -98,10 +98,15 @@ mod tests {
     fn bar(h: &str, l: &str) -> OhlcvBar {
         let hp = Price::new(h.parse().unwrap()).unwrap();
         let lp = Price::new(l.parse().unwrap()).unwrap();
-        let mp = Price::new(((hp.value() + lp.value()) / Decimal::TWO).max(rust_decimal::Decimal::ONE)).unwrap();
+        let mp =
+            Price::new(((hp.value() + lp.value()) / Decimal::TWO).max(rust_decimal::Decimal::ONE))
+                .unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: mp, high: hp, low: lp, close: mp,
+            open: mp,
+            high: hp,
+            low: lp,
+            close: mp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -113,7 +118,10 @@ mod tests {
     fn test_ao_unavailable_before_34_bars() {
         let mut ao = AwesomeOscillator::new("ao").unwrap();
         for _ in 0..33 {
-            assert_eq!(ao.update_bar(&bar("101", "99")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ao.update_bar(&bar("101", "99")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ao.is_ready());
     }

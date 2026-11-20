@@ -200,7 +200,11 @@ mod tests {
         }
         let v = d.update_bar(&bar("300")).unwrap();
         if let SignalValue::Scalar(s) = v {
-            assert!(s > dec!(0), "expected positive needle for rising prices, got {}", s);
+            assert!(
+                s > dec!(0),
+                "expected positive needle for rising prices, got {}",
+                s
+            );
         } else {
             panic!("expected scalar");
         }

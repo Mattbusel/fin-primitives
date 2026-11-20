@@ -44,9 +44,15 @@ impl GapStreak {
 }
 
 impl Signal for GapStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.ready }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
@@ -100,7 +106,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -112,18 +121,21 @@ mod tests {
     fn test_gs_first_bar_unavailable() {
         let mut s = GapStreak::new("gs").unwrap();
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("100","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(s.is_ready()); // ready after first bar (prev_close is set)
     }
 
     #[test]
     fn test_gs_consecutive_gap_ups() {
         let mut s = GapStreak::new("gs").unwrap();
-        s.update_bar(&bar("100","100")).unwrap(); // base bar, close=100
-        // Next bar opens at 102 (> prev_close=100) → gap up streak=1
-        let v1 = s.update_bar(&bar("102","103")).unwrap();
+        s.update_bar(&bar("100", "100")).unwrap(); // base bar, close=100
+                                                   // Next bar opens at 102 (> prev_close=100) → gap up streak=1
+        let v1 = s.update_bar(&bar("102", "103")).unwrap();
         // Next bar opens at 105 (> prev_close=103) → gap up streak=2
-        let v2 = s.update_bar(&bar("105","106")).unwrap();
+        let v2 = s.update_bar(&bar("105", "106")).unwrap();
         assert_eq!(v1, SignalValue::Scalar(dec!(1)));
         assert_eq!(v2, SignalValue::Scalar(dec!(2)));
     }
@@ -131,9 +143,9 @@ mod tests {
     #[test]
     fn test_gs_consecutive_gap_downs() {
         let mut s = GapStreak::new("gs").unwrap();
-        s.update_bar(&bar("100","100")).unwrap(); // base bar, close=100
-        let v1 = s.update_bar(&bar("98","97")).unwrap();  // gap down
-        let v2 = s.update_bar(&bar("95","94")).unwrap();  // gap down again
+        s.update_bar(&bar("100", "100")).unwrap(); // base bar, close=100
+        let v1 = s.update_bar(&bar("98", "97")).unwrap(); // gap down
+        let v2 = s.update_bar(&bar("95", "94")).unwrap(); // gap down again
         assert_eq!(v1, SignalValue::Scalar(dec!(-1)));
         assert_eq!(v2, SignalValue::Scalar(dec!(-2)));
     }
@@ -141,10 +153,10 @@ mod tests {
     #[test]
     fn test_gs_streak_resets_on_direction_change() {
         let mut s = GapStreak::new("gs").unwrap();
-        s.update_bar(&bar("100","100")).unwrap();
-        s.update_bar(&bar("102","103")).unwrap(); // gap up, streak=1
-        // Gap down after up-streak → resets to -1
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("101","100")).unwrap() {
+        s.update_bar(&bar("100", "100")).unwrap();
+        s.update_bar(&bar("102", "103")).unwrap(); // gap up, streak=1
+                                                   // Gap down after up-streak → resets to -1
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("101", "100")).unwrap() {
             assert_eq!(v, dec!(-1), "direction change resets streak to -1");
         } else {
             panic!("expected Scalar");
@@ -154,8 +166,8 @@ mod tests {
     #[test]
     fn test_gs_flat_open_gives_zero() {
         let mut s = GapStreak::new("gs").unwrap();
-        s.update_bar(&bar("100","105")).unwrap(); // close=105
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","106")).unwrap() {
+        s.update_bar(&bar("100", "105")).unwrap(); // close=105
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "106")).unwrap() {
             // open=105 = prev_close=105 → streak=0
             assert_eq!(v, dec!(0), "flat open gives streak=0");
         } else {
@@ -166,7 +178,7 @@ mod tests {
     #[test]
     fn test_gs_reset() {
         let mut s = GapStreak::new("gs").unwrap();
-        for (o, c) in &[("100","100"),("102","103"),("105","106")] {
+        for (o, c) in &[("100", "100"), ("102", "103"), ("105", "106")] {
             s.update_bar(&bar(o, c)).unwrap();
         }
         assert!(s.is_ready());

@@ -172,9 +172,7 @@ impl Signal for Tema {
     }
 
     fn is_ready(&self) -> bool {
-        self.e1_count >= self.period
-            && self.e2_count >= self.period
-            && self.e3_count >= self.period
+        self.e1_count >= self.period && self.e2_count >= self.period && self.e3_count >= self.period
     }
 
     fn period(&self) -> usize {
@@ -241,7 +239,10 @@ mod tests {
         assert!(tema.is_ready());
         tema.reset();
         assert!(!tema.is_ready());
-        assert_eq!(tema.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            tema.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

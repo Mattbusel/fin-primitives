@@ -1,9 +1,9 @@
 //! Close Percentage From N-Bar Low indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Percentage distance of current close above the N-bar rolling low.
 ///
@@ -23,7 +23,10 @@ impl ClosePctFromLow {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -45,10 +48,18 @@ impl Signal for ClosePctFromLow {
         Ok(SignalValue::Scalar(pct))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); }
-    fn name(&self) -> &str { "ClosePctFromLow" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "ClosePctFromLow"
+    }
 }
 
 #[cfg(test)]

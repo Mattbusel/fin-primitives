@@ -110,7 +110,10 @@ impl OrderLatencyTracker {
     ///
     /// If a record for `order_id` already exists it is reset.
     pub fn record_submit(&mut self, order_id: impl Into<String>, ts: NanoTimestamp) {
-        let ots = OrderTimestamps { submit: Some(ts.nanos()), ..OrderTimestamps::default() };
+        let ots = OrderTimestamps {
+            submit: Some(ts.nanos()),
+            ..OrderTimestamps::default()
+        };
         self.pending.insert(order_id.into(), ots);
     }
 
@@ -152,9 +155,9 @@ impl OrderLatencyTracker {
             .pending
             .get_mut(order_id)
             .ok_or_else(|| FinError::InvalidInput(format!("unknown order '{order_id}'")))?;
-        let ack = rec.ack.ok_or_else(|| {
-            FinError::InvalidInput(format!("ack not recorded for '{order_id}'"))
-        })?;
+        let ack = rec
+            .ack
+            .ok_or_else(|| FinError::InvalidInput(format!("ack not recorded for '{order_id}'")))?;
         let fill_ns = ts.nanos();
         if fill_ns < ack {
             return Err(FinError::InvalidInput(format!(
@@ -182,9 +185,9 @@ impl OrderLatencyTracker {
             .pending
             .remove(order_id)
             .ok_or_else(|| FinError::InvalidInput(format!("unknown order '{order_id}'")))?;
-        let fill = rec.fill.ok_or_else(|| {
-            FinError::InvalidInput(format!("fill not recorded for '{order_id}'"))
-        })?;
+        let fill = rec
+            .fill
+            .ok_or_else(|| FinError::InvalidInput(format!("fill not recorded for '{order_id}'")))?;
         let book_ns = ts.nanos();
         if book_ns < fill {
             return Err(FinError::InvalidInput(format!(
@@ -257,7 +260,14 @@ mod tests {
         NanoTimestamp::new(n)
     }
 
-    fn full_lifecycle(tracker: &mut OrderLatencyTracker, id: &str, t0: i64, t1: i64, t2: i64, t3: i64) {
+    fn full_lifecycle(
+        tracker: &mut OrderLatencyTracker,
+        id: &str,
+        t0: i64,
+        t1: i64,
+        t2: i64,
+        t3: i64,
+    ) {
         tracker.record_submit(id, ts(t0));
         tracker.record_ack(id, ts(t1)).unwrap();
         tracker.record_fill(id, ts(t2)).unwrap();
@@ -292,7 +302,9 @@ mod tests {
             tracker.record_submit(&id, ts(base));
             tracker.record_ack(&id, ts(base + i * 100)).unwrap();
             tracker.record_fill(&id, ts(base + i * 100 + 500)).unwrap();
-            tracker.record_book_update(&id, ts(base + i * 100 + 500 + 200)).unwrap();
+            tracker
+                .record_book_update(&id, ts(base + i * 100 + 500 + 200))
+                .unwrap();
         }
         let stats = tracker.stats(LatencyPhase::SubmitToAck).unwrap();
         assert_eq!(stats.count, 10);

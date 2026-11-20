@@ -30,14 +30,24 @@ pub struct BarOverlapRatio {
 impl BarOverlapRatio {
     /// Constructs a new `BarOverlapRatio`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_high: None, prev_low: None }
+        Self {
+            name: name.into(),
+            prev_high: None,
+            prev_low: None,
+        }
     }
 }
 
 impl Signal for BarOverlapRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_high.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_high.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let (Some(ph), Some(pl)) = (self.prev_high, self.prev_low) {
@@ -51,7 +61,9 @@ impl Signal for BarOverlapRatio {
                 let ratio = overlap
                     .checked_div(range)
                     .ok_or(FinError::ArithmeticOverflow)?;
-                Ok(SignalValue::Scalar(ratio.clamp(Decimal::ZERO, Decimal::ONE)))
+                Ok(SignalValue::Scalar(
+                    ratio.clamp(Decimal::ZERO, Decimal::ONE),
+                ))
             }
         } else {
             Ok(SignalValue::Unavailable)
@@ -81,7 +93,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -92,7 +107,10 @@ mod tests {
     #[test]
     fn test_bor_first_bar_unavailable() {
         let mut s = BarOverlapRatio::new("bor");
-        assert_eq!(s.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(s.is_ready());
     }
 
@@ -124,10 +142,13 @@ mod tests {
     fn test_bor_partial_overlap() {
         let mut s = BarOverlapRatio::new("bor");
         s.update_bar(&bar("110", "90")).unwrap(); // prior: [90, 110]
-        // current: [100, 120] → overlap=[100,110]=10, range=20 → 0.5
+                                                  // current: [100, 120] → overlap=[100,110]=10, range=20 → 0.5
         let v = s.update_bar(&bar("120", "100")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(0.5)).abs() < dec!(0.0001), "expected 0.5 overlap: {r}");
+            assert!(
+                (r - dec!(0.5)).abs() < dec!(0.0001),
+                "expected 0.5 overlap: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -136,7 +157,12 @@ mod tests {
     #[test]
     fn test_bor_output_in_unit_interval() {
         let mut s = BarOverlapRatio::new("bor");
-        let bars = [bar("110","90"), bar("115","85"), bar("108","95"), bar("120","100")];
+        let bars = [
+            bar("110", "90"),
+            bar("115", "85"),
+            bar("108", "95"),
+            bar("120", "100"),
+        ];
         for b in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "out of [0,1]: {v}");

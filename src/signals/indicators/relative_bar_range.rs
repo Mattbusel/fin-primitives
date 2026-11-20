@@ -68,14 +68,18 @@ impl Signal for RelativeBarRange {
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ranges.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg_range = self.sum
+        let avg_range = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -83,7 +87,9 @@ impl Signal for RelativeBarRange {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = range.checked_div(avg_range).ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = range
+            .checked_div(avg_range)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
     }
 
@@ -106,7 +112,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,8 +131,14 @@ mod tests {
     #[test]
     fn test_rbr_unavailable_before_period() {
         let mut rbr = RelativeBarRange::new("rbr", 3).unwrap();
-        assert_eq!(rbr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(rbr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rbr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            rbr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rbr.is_ready());
     }
 
@@ -174,8 +189,12 @@ mod tests {
     fn test_rbr_non_negative() {
         let mut rbr = RelativeBarRange::new("rbr", 5).unwrap();
         let bars = [
-            bar("110", "90"), bar("108", "92"), bar("115", "85"),
-            bar("102", "98"), bar("112", "88"), bar("107", "93"),
+            bar("110", "90"),
+            bar("108", "92"),
+            bar("115", "85"),
+            bar("102", "98"),
+            bar("112", "88"),
+            bar("107", "93"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = rbr.update_bar(b).unwrap() {

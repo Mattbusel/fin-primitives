@@ -60,9 +60,15 @@ impl VolumeWeightedVolatility {
 }
 
 impl Signal for VolumeWeightedVolatility {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.data.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.data.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -102,7 +108,9 @@ impl Signal for VolumeWeightedVolatility {
         let rets: Vec<f64> = self.data.iter().map(|(r, _)| *r).collect();
 
         let mean_w: f64 = weights.iter().zip(rets.iter()).map(|(w, r)| w * r).sum();
-        let var_w: f64 = weights.iter().zip(rets.iter())
+        let var_w: f64 = weights
+            .iter()
+            .zip(rets.iter())
             .map(|(w, r)| w * (r - mean_w).powi(2))
             .sum();
         let vol = var_w.sqrt();
@@ -131,7 +139,11 @@ mod tests {
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p, volume: v,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -148,7 +160,10 @@ mod tests {
     fn test_vwv_unavailable_during_warmup() {
         let mut vwv = VolumeWeightedVolatility::new("v", 4).unwrap();
         for p in &["100", "101", "99", "102"] {
-            assert_eq!(vwv.update_bar(&bar(p, "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vwv.update_bar(&bar(p, "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!vwv.is_ready());
     }
@@ -161,7 +176,10 @@ mod tests {
             vwv.update_bar(&bar("100", "1000")).unwrap();
         }
         if let SignalValue::Scalar(v) = vwv.update_bar(&bar("100", "1000")).unwrap() {
-            assert!(v == dec!(0) || v < dec!(0.0001), "flat prices → near-zero volatility: {v}");
+            assert!(
+                v == dec!(0) || v < dec!(0.0001),
+                "flat prices → near-zero volatility: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -171,7 +189,12 @@ mod tests {
     fn test_vwv_positive_output() {
         // Varying prices → positive volatility
         let mut vwv = VolumeWeightedVolatility::new("v", 3).unwrap();
-        for (p, v) in &[("100","1000"),("105","2000"),("102","1500"),("108","3000")] {
+        for (p, v) in &[
+            ("100", "1000"),
+            ("105", "2000"),
+            ("102", "1500"),
+            ("108", "3000"),
+        ] {
             vwv.update_bar(&bar(p, v)).unwrap();
         }
         if let SignalValue::Scalar(v) = vwv.update_bar(&bar("104", "1000")).unwrap() {
@@ -184,7 +207,9 @@ mod tests {
     #[test]
     fn test_vwv_reset() {
         let mut vwv = VolumeWeightedVolatility::new("v", 3).unwrap();
-        for p in &["100","102","99","104"] { vwv.update_bar(&bar(p, "100")).unwrap(); }
+        for p in &["100", "102", "99", "104"] {
+            vwv.update_bar(&bar(p, "100")).unwrap();
+        }
         assert!(vwv.is_ready());
         vwv.reset();
         assert!(!vwv.is_ready());

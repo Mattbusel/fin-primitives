@@ -38,7 +38,16 @@ pub struct CamarillaP {
     name: String,
     prev: Option<BarInput>,
     /// Stored as (R1, R2, R3, R4, S1, S2, S3, S4).
-    levels: Option<(Decimal, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal)>,
+    levels: Option<(
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+    )>,
 }
 
 impl CamarillaP {
@@ -47,12 +56,27 @@ impl CamarillaP {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev: None, levels: None })
+        Ok(Self {
+            name: name.into(),
+            prev: None,
+            levels: None,
+        })
     }
 
     /// Returns all eight Camarilla levels as `(R1, R2, R3, R4, S1, S2, S3, S4)`,
     /// or `None` if not yet ready.
-    pub fn levels(&self) -> Option<(Decimal, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal, Decimal)> {
+    pub fn levels(
+        &self,
+    ) -> Option<(
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+        Decimal,
+    )> {
         self.levels
     }
 
@@ -117,7 +141,7 @@ impl Signal for CamarillaP {
     }
 
     fn reset(&mut self) {
-        self.prev   = None;
+        self.prev = None;
         self.levels = None;
     }
 }
@@ -136,7 +160,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -147,7 +174,10 @@ mod tests {
     #[test]
     fn test_camarilla_unavailable_first_bar() {
         let mut c = CamarillaP::new("cam").unwrap();
-        assert_eq!(c.update_bar(&bar("120", "80", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            c.update_bar(&bar("120", "80", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!c.is_ready());
     }
 

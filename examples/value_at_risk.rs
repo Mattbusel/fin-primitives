@@ -37,9 +37,17 @@ fn main() {
     let n = r.len() as f64;
     let mean = r.iter().sum::<f64>() / n;
     let sd = (r.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (n - 1.0)).sqrt();
-    println!("{} daily returns: mean {:.4}%, volatility {:.3}%\n", r.len(), mean * 100.0, sd * 100.0);
+    println!(
+        "{} daily returns: mean {:.4}%, volatility {:.3}%\n",
+        r.len(),
+        mean * 100.0,
+        sd * 100.0
+    );
 
-    println!("{:>10} {:>8} {:>14} {:>14} {:>14} {:>16}", "confidence", "z", "historical", "parametric", "monte carlo", "param. 10-day");
+    println!(
+        "{:>10} {:>8} {:>14} {:>14} {:>14} {:>16}",
+        "confidence", "z", "historical", "parametric", "monte carlo", "param. 10-day"
+    );
     for conf in [0.95, 0.975, 0.99] {
         let hist = VarEngine::historical_var(&r, conf, value);
         let para = VarEngine::parametric_var(mean, sd, conf, value, 1);
@@ -57,7 +65,10 @@ fn main() {
     }
 
     let es = VarEngine::parametric_var(mean, sd, 0.975, value, 1);
-    println!("\nExpected shortfall at 97.5% (parametric): {:.0}", es.cvar_abs);
+    println!(
+        "\nExpected shortfall at 97.5% (parametric): {:.0}",
+        es.cvar_abs
+    );
     println!("Historical VaR is higher than the normal one at 99% because of the shock days:");
     println!("that gap is the fat tail a normal model cannot see.");
 }

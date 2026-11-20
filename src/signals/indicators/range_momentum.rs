@@ -1,9 +1,9 @@
 //! Range Momentum indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// N-bar change in rolling average bar range.
 ///
@@ -25,7 +25,11 @@ impl RangeMomentum {
     /// `mom_period`: look-back for momentum of that average.
     pub fn new(avg_period: usize, mom_period: usize) -> Result<Self, FinError> {
         if avg_period == 0 || mom_period == 0 {
-            return Err(FinError::InvalidPeriod(if avg_period == 0 { avg_period } else { mom_period }));
+            return Err(FinError::InvalidPeriod(if avg_period == 0 {
+                avg_period
+            } else {
+                mom_period
+            }));
         }
         Ok(Self {
             avg_period,
@@ -60,19 +64,31 @@ impl Signal for RangeMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.avg_history.back().ok_or_else(crate::error::invariant_broken)?;
-        let base = *self.avg_history.front().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .avg_history
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let base = *self
+            .avg_history
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         Ok(SignalValue::Scalar(current - base))
     }
 
-    fn is_ready(&self) -> bool { self.avg_history.len() > self.mom_period }
-    fn period(&self) -> usize { self.avg_period + self.mom_period }
+    fn is_ready(&self) -> bool {
+        self.avg_history.len() > self.mom_period
+    }
+    fn period(&self) -> usize {
+        self.avg_period + self.mom_period
+    }
     fn reset(&mut self) {
         self.bar_window.clear();
         self.range_sum = Decimal::ZERO;
         self.avg_history.clear();
     }
-    fn name(&self) -> &str { "RangeMomentum" }
+    fn name(&self) -> &str {
+        "RangeMomentum"
+    }
 }
 
 #[cfg(test)]

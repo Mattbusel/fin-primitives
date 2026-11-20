@@ -56,9 +56,15 @@ impl PercentRankRange {
 }
 
 impl Signal for PercentRankRange {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let current_range = bar.range();
@@ -68,8 +74,7 @@ impl Signal for PercentRankRange {
             Decimal::ZERO
         } else {
             let count_below = self.ranges.iter().filter(|&&r| r < current_range).count();
-            Decimal::from(count_below as u32)
-                / Decimal::from(self.ranges.len() as u32)
+            Decimal::from(count_below as u32) / Decimal::from(self.ranges.len() as u32)
                 * Decimal::ONE_HUNDRED
         };
 
@@ -103,7 +108,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -119,8 +127,14 @@ mod tests {
     #[test]
     fn test_prr_unavailable_during_warmup() {
         let mut prr = PercentRankRange::new("prr", 3).unwrap();
-        assert_eq!(prr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(prr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            prr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            prr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!prr.is_ready());
     }
 
@@ -142,7 +156,7 @@ mod tests {
         prr.update_bar(&bar("105", "100")).unwrap(); // range=5
         prr.update_bar(&bar("105", "100")).unwrap(); // range=5
         prr.update_bar(&bar("105", "100")).unwrap(); // range=5 — period complete
-        // Now push a wide bar: range=50
+                                                     // Now push a wide bar: range=50
         if let SignalValue::Scalar(v) = prr.update_bar(&bar("150", "100")).unwrap() {
             assert!(v > dec!(50), "wide bar should rank high: {v}");
         } else {
@@ -157,7 +171,7 @@ mod tests {
         prr.update_bar(&bar("150", "100")).unwrap(); // range=50
         prr.update_bar(&bar("150", "100")).unwrap(); // range=50
         prr.update_bar(&bar("150", "100")).unwrap(); // range=50 — period complete
-        // Now push a narrow bar: range=5
+                                                     // Now push a narrow bar: range=5
         if let SignalValue::Scalar(v) = prr.update_bar(&bar("105", "100")).unwrap() {
             assert!(v == dec!(0), "narrow bar should rank 0 (none below): {v}");
         } else {
@@ -168,7 +182,9 @@ mod tests {
     #[test]
     fn test_prr_reset() {
         let mut prr = PercentRankRange::new("prr", 3).unwrap();
-        for _ in 0..3 { prr.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            prr.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(prr.is_ready());
         prr.reset();
         assert!(!prr.is_ready());

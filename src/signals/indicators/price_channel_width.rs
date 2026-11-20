@@ -111,7 +111,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,8 +130,14 @@ mod tests {
     #[test]
     fn test_pcw_unavailable_before_period() {
         let mut pcw = PriceChannelWidth::new("pcw", 3).unwrap();
-        assert_eq!(pcw.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(pcw.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcw.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            pcw.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!pcw.is_ready());
     }
 
@@ -158,8 +167,12 @@ mod tests {
     fn test_pcw_non_negative() {
         let mut pcw = PriceChannelWidth::new("pcw", 5).unwrap();
         let bars = [
-            bar("105", "95"), bar("107", "97"), bar("103", "93"),
-            bar("108", "98"), bar("106", "96"), bar("104", "94"),
+            bar("105", "95"),
+            bar("107", "97"),
+            bar("103", "93"),
+            bar("108", "98"),
+            bar("106", "96"),
+            bar("104", "94"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = pcw.update_bar(b).unwrap() {

@@ -94,7 +94,12 @@ impl Signal for LogReturnVolatility {
 
         let n = self.log_returns.len() as f64;
         let mean = self.log_returns.iter().sum::<f64>() / n;
-        let variance = self.log_returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / (n - 1.0);
+        let variance = self
+            .log_returns
+            .iter()
+            .map(|r| (r - mean).powi(2))
+            .sum::<f64>()
+            / (n - 1.0);
 
         if variance < 0.0 {
             return Ok(SignalValue::Unavailable);
@@ -123,7 +128,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

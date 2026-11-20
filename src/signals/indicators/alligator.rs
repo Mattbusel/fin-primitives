@@ -71,7 +71,9 @@ impl Alligator {
         match *current {
             None => {
                 seed.push_back(close);
-                if seed.len() < period { return None; }
+                if seed.len() < period {
+                    return None;
+                }
                 let avg = seed.iter().sum::<Decimal>() / Decimal::from(period as u32);
                 *current = Some(avg);
                 Some(avg)
@@ -85,22 +87,42 @@ impl Alligator {
     }
 
     /// Returns the current Jaw (SMMA-13) value.
-    pub fn jaw(&self) -> Option<Decimal> { self.jaw }
+    pub fn jaw(&self) -> Option<Decimal> {
+        self.jaw
+    }
     /// Returns the current Teeth (SMMA-8) value.
-    pub fn teeth(&self) -> Option<Decimal> { self.teeth }
+    pub fn teeth(&self) -> Option<Decimal> {
+        self.teeth
+    }
     /// Returns the current Lips (SMMA-5) value.
-    pub fn lips(&self) -> Option<Decimal> { self.lips }
+    pub fn lips(&self) -> Option<Decimal> {
+        self.lips
+    }
 }
 
 impl Signal for Alligator {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Use median price (H+L+C)/3 as input
         let price = bar.typical_price();
 
-        Self::smma_step(&mut self.lips_seed, &mut self.lips, self.lips_alpha, price, 5);
-        Self::smma_step(&mut self.teeth_seed, &mut self.teeth, self.teeth_alpha, price, 8);
+        Self::smma_step(
+            &mut self.lips_seed,
+            &mut self.lips,
+            self.lips_alpha,
+            price,
+            5,
+        );
+        Self::smma_step(
+            &mut self.teeth_seed,
+            &mut self.teeth,
+            self.teeth_alpha,
+            price,
+            8,
+        );
         let jaw = Self::smma_step(&mut self.jaw_seed, &mut self.jaw, self.jaw_alpha, price, 13);
 
         match jaw {
@@ -137,7 +159,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +180,10 @@ mod tests {
     fn test_alligator_unavailable_before_jaw_seeded() {
         let mut al = Alligator::new("a").unwrap();
         for _ in 0..12 {
-            assert_eq!(al.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                al.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!al.is_ready());
     }
@@ -163,7 +191,9 @@ mod tests {
     #[test]
     fn test_alligator_scalar_after_warmup() {
         let mut al = Alligator::new("a").unwrap();
-        for _ in 0..13 { al.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..13 {
+            al.update_bar(&bar("100")).unwrap();
+        }
         let v = al.update_bar(&bar("100")).unwrap();
         assert!(matches!(v, SignalValue::Scalar(_)));
         assert!(al.is_ready());
@@ -172,7 +202,9 @@ mod tests {
     #[test]
     fn test_alligator_all_lines_available_after_warmup() {
         let mut al = Alligator::new("a").unwrap();
-        for _ in 0..15 { al.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..15 {
+            al.update_bar(&bar("100")).unwrap();
+        }
         assert!(al.jaw().is_some());
         assert!(al.teeth().is_some());
         assert!(al.lips().is_some());
@@ -181,7 +213,9 @@ mod tests {
     #[test]
     fn test_alligator_reset() {
         let mut al = Alligator::new("a").unwrap();
-        for _ in 0..15 { al.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..15 {
+            al.update_bar(&bar("100")).unwrap();
+        }
         assert!(al.is_ready());
         al.reset();
         assert!(!al.is_ready());

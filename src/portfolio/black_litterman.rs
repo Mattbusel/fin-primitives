@@ -211,7 +211,12 @@ pub fn omega_matrix(input: &BlackLittermanInput) -> Vec<Vec<f64>> {
 
     let mut omega = vec![vec![0.0_f64; n_views]; n_views];
     for i in 0..n_views {
-        let conf = input.view_confidences.get(i).copied().unwrap_or(1.0).max(1e-9);
+        let conf = input
+            .view_confidences
+            .get(i)
+            .copied()
+            .unwrap_or(1.0)
+            .max(1e-9);
         omega[i][i] = input.tau * p_sigma_pt[i][i] / conf;
     }
     omega
@@ -334,7 +339,6 @@ pub fn bl_posterior_covariance(input: &BlackLittermanInput) -> Vec<Vec<f64>> {
 
     // Invert A: for diagonal approximation, only use diagonal
     let a_diag: Vec<f64> = (0..n).map(|i| a[i][i]).collect();
-    
 
     invert_diagonal(&a_diag)
 }
@@ -356,7 +360,11 @@ pub fn optimal_weights(posterior_returns: &[f64], sigma: &[Vec<f64>], lambda: f6
     // Use diagonal approximation for Sigma^{-1}
     let mut weights = vec![0.0_f64; n];
     for i in 0..n {
-        let sigma_ii = sigma.get(i).and_then(|row| row.get(i)).copied().unwrap_or(1.0);
+        let sigma_ii = sigma
+            .get(i)
+            .and_then(|row| row.get(i))
+            .copied()
+            .unwrap_or(1.0);
         if sigma_ii.abs() > 1e-15 {
             weights[i] = posterior_returns[i] / (lambda * sigma_ii);
         }
@@ -467,7 +475,10 @@ mod tests {
         let input = two_asset_input();
         let result = run(&input);
         let sum: f64 = result.optimal_weights.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-9, "weights should sum to 1, got {sum}");
+        assert!(
+            (sum - 1.0).abs() < 1e-9,
+            "weights should sum to 1, got {sum}"
+        );
     }
 
     #[test]
@@ -507,8 +518,16 @@ mod tests {
     fn two_views_posterior_finite() {
         let mut input = two_asset_input();
         input.views = vec![
-            View { asset_indices: vec![0], weights: vec![1.0], expected_return: 0.10 },
-            View { asset_indices: vec![1], weights: vec![1.0], expected_return: 0.15 },
+            View {
+                asset_indices: vec![0],
+                weights: vec![1.0],
+                expected_return: 0.10,
+            },
+            View {
+                asset_indices: vec![1],
+                weights: vec![1.0],
+                expected_return: 0.15,
+            },
         ];
         input.view_confidences = vec![0.8, 0.7];
         let result = run(&input);

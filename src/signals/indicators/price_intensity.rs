@@ -38,7 +38,9 @@ impl PriceIntensity {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,16 +51,24 @@ impl PriceIntensity {
 }
 
 impl Signal for PriceIntensity {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let location = bar.close_location_value();
 
         self.weighted.push_back(location * bar.volume);
         self.volumes.push_back(bar.volume);
-        if self.weighted.len() > self.period { self.weighted.pop_front(); }
-        if self.volumes.len() > self.period { self.volumes.pop_front(); }
-        if self.weighted.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.weighted.len() > self.period {
+            self.weighted.pop_front();
+        }
+        if self.volumes.len() > self.period {
+            self.volumes.pop_front();
+        }
+        if self.weighted.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let vol_sum = self.volumes.iter().sum::<Decimal>();
         if vol_sum.is_zero() {
@@ -69,8 +79,12 @@ impl Signal for PriceIntensity {
         Ok(SignalValue::Scalar(weighted_sum / vol_sum))
     }
 
-    fn is_ready(&self) -> bool { self.weighted.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.weighted.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.weighted.clear();
@@ -92,7 +106,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -100,7 +117,9 @@ mod tests {
         }
     }
 
-    fn bar_p(c: &str) -> OhlcvBar { bar_hlcv(c, c, c, "1000") }
+    fn bar_p(c: &str) -> OhlcvBar {
+        bar_hlcv(c, c, c, "1000")
+    }
 
     #[test]
     fn test_pi_invalid() {
@@ -111,7 +130,10 @@ mod tests {
     fn test_pi_unavailable_before_warmup() {
         let mut p = PriceIntensity::new("p", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(p.update_bar(&bar_hlcv("110", "90", "100", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                p.update_bar(&bar_hlcv("110", "90", "100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -120,37 +142,51 @@ mod tests {
         // close=high → location=1; uniform volume → PI = 1
         let mut p = PriceIntensity::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = p.update_bar(&bar_hlcv("110", "90", "110", "1000")).unwrap(); }
+        for _ in 0..5 {
+            last = p.update_bar(&bar_hlcv("110", "90", "110", "1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pi_close_at_low_is_minus_one() {
         let mut p = PriceIntensity::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = p.update_bar(&bar_hlcv("110", "90", "90", "1000")).unwrap(); }
+        for _ in 0..5 {
+            last = p.update_bar(&bar_hlcv("110", "90", "90", "1000")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(-1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pi_doji_is_zero() {
         let mut p = PriceIntensity::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = p.update_bar(&bar_p("100")).unwrap(); }
+        for _ in 0..5 {
+            last = p.update_bar(&bar_p("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pi_range_minus_one_to_one() {
         let mut p = PriceIntensity::new("p", 3).unwrap();
         for close in ["90", "110", "90", "110", "90", "110"] {
-            if let SignalValue::Scalar(v) = p.update_bar(&bar_hlcv("110", "90", close, "1000")).unwrap() {
+            if let SignalValue::Scalar(v) =
+                p.update_bar(&bar_hlcv("110", "90", close, "1000")).unwrap()
+            {
                 assert!(v >= dec!(-1) && v <= dec!(1), "out of range: {v}");
             }
         }
@@ -159,7 +195,9 @@ mod tests {
     #[test]
     fn test_pi_reset() {
         let mut p = PriceIntensity::new("p", 3).unwrap();
-        for _ in 0..5 { p.update_bar(&bar_p("100")).unwrap(); }
+        for _ in 0..5 {
+            p.update_bar(&bar_p("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

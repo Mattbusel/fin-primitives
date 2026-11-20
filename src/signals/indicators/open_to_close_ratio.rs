@@ -47,9 +47,15 @@ impl OpenToCloseRatio {
 }
 
 impl Signal for OpenToCloseRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ratios.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ratios.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -62,7 +68,10 @@ impl Signal for OpenToCloseRatio {
         self.ratios.push_back(ratio);
         self.sum += ratio;
         if self.ratios.len() > self.period {
-            self.sum -= self.ratios.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.sum -= self
+                .ratios
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         if self.ratios.len() < self.period {
@@ -93,7 +102,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,7 +122,10 @@ mod tests {
     fn test_ocr_unavailable_before_warm_up() {
         let mut ocr = OpenToCloseRatio::new("ocr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(ocr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ocr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -139,7 +154,9 @@ mod tests {
     #[test]
     fn test_ocr_reset() {
         let mut ocr = OpenToCloseRatio::new("ocr", 3).unwrap();
-        for _ in 0..3 { ocr.update_bar(&bar("100", "110", "90", "105")).unwrap(); }
+        for _ in 0..3 {
+            ocr.update_bar(&bar("100", "110", "90", "105")).unwrap();
+        }
         assert!(ocr.is_ready());
         ocr.reset();
         assert!(!ocr.is_ready());

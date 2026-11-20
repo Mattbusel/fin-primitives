@@ -57,9 +57,15 @@ impl BodyWidthRatio {
 }
 
 impl Signal for BodyWidthRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ratios.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ratios.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -74,14 +80,18 @@ impl Signal for BodyWidthRatio {
         self.sum += ratio;
         self.ratios.push_back(ratio);
         if self.ratios.len() > self.period {
-            let removed = self.ratios.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ratios
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ratios.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -108,7 +118,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -124,8 +137,14 @@ mod tests {
     #[test]
     fn test_bwr_unavailable_during_warmup() {
         let mut bwr = BodyWidthRatio::new("bwr", 3).unwrap();
-        assert_eq!(bwr.update_bar(&bar("100","110","90","105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bwr.update_bar(&bar("100","110","90","105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bwr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!bwr.is_ready());
     }
 
@@ -134,9 +153,9 @@ mod tests {
         // bar open at low, close at high → body = range → ratio = 1
         let mut bwr = BodyWidthRatio::new("bwr", 3).unwrap();
         for _ in 0..4 {
-            bwr.update_bar(&bar("100","110","100","110")).unwrap(); // body=10, range=10 → 1.0
+            bwr.update_bar(&bar("100", "110", "100", "110")).unwrap(); // body=10, range=10 → 1.0
         }
-        if let SignalValue::Scalar(v) = bwr.update_bar(&bar("100","110","100","110")).unwrap() {
+        if let SignalValue::Scalar(v) = bwr.update_bar(&bar("100", "110", "100", "110")).unwrap() {
             assert_eq!(v, dec!(1));
         } else {
             panic!("expected Scalar");
@@ -148,9 +167,9 @@ mod tests {
         // All doji → ratio = 0
         let mut bwr = BodyWidthRatio::new("bwr", 3).unwrap();
         for _ in 0..4 {
-            bwr.update_bar(&bar("100","110","90","100")).unwrap(); // open=close=100, range=20 → ratio=0
+            bwr.update_bar(&bar("100", "110", "90", "100")).unwrap(); // open=close=100, range=20 → ratio=0
         }
-        if let SignalValue::Scalar(v) = bwr.update_bar(&bar("100","110","90","100")).unwrap() {
+        if let SignalValue::Scalar(v) = bwr.update_bar(&bar("100", "110", "90", "100")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {
             panic!("expected Scalar");
@@ -160,7 +179,9 @@ mod tests {
     #[test]
     fn test_bwr_reset() {
         let mut bwr = BodyWidthRatio::new("bwr", 3).unwrap();
-        for _ in 0..3 { bwr.update_bar(&bar("100","110","90","105")).unwrap(); }
+        for _ in 0..3 {
+            bwr.update_bar(&bar("100", "110", "90", "105")).unwrap();
+        }
         assert!(bwr.is_ready());
         bwr.reset();
         assert!(!bwr.is_ready());

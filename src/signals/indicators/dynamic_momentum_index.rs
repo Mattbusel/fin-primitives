@@ -95,8 +95,7 @@ impl DynamicMomentumIndex {
 
         // Seed phase.
         for i in 1..=period {
-            let chg = slice[i].to_f64().unwrap_or(0.0)
-                - slice[i - 1].to_f64().unwrap_or(0.0);
+            let chg = slice[i].to_f64().unwrap_or(0.0) - slice[i - 1].to_f64().unwrap_or(0.0);
             if chg > 0.0 {
                 avg_gain += chg;
             } else {
@@ -161,7 +160,9 @@ impl Signal for DynamicMomentumIndex {
             return Ok(SignalValue::Unavailable);
         }
         let result = Decimal::try_from(rsi).unwrap_or(Decimal::ZERO);
-        Ok(SignalValue::Scalar(result.clamp(Decimal::ZERO, Decimal::ONE_HUNDRED)))
+        Ok(SignalValue::Scalar(
+            result.clamp(Decimal::ZERO, Decimal::ONE_HUNDRED),
+        ))
     }
 
     fn reset(&mut self) {
@@ -180,7 +181,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

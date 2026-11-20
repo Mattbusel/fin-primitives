@@ -1,9 +1,9 @@
 //! Cumulative Return Momentum indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// N-bar cumulative return: `close[t] / close[t-N] - 1`.
 ///
@@ -20,7 +20,10 @@ impl CumReturnMomentum {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(period + 1) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period + 1),
+        })
     }
 }
 
@@ -33,18 +36,32 @@ impl Signal for CumReturnMomentum {
         if self.closes.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
-        let base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let base = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         if base.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
         Ok(SignalValue::Scalar(current / base - Decimal::ONE))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "CumReturnMomentum" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "CumReturnMomentum"
+    }
 }
 
 #[cfg(test)]

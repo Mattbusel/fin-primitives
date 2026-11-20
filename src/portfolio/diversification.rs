@@ -150,7 +150,11 @@ pub fn sortino_ratio(returns: &[f64], target_return: f64, periods_per_year: f64)
         .iter()
         .map(|&r| {
             let diff = r - target_return;
-            if diff < 0.0 { diff * diff } else { 0.0 }
+            if diff < 0.0 {
+                diff * diff
+            } else {
+                0.0
+            }
         })
         .sum::<f64>()
         / returns.len() as f64;
@@ -178,10 +182,7 @@ pub fn treynor_ratio(portfolio_return: f64, risk_free: f64, beta: f64) -> Option
 /// controls annualisation via `periods_per_year` implicitly through the returns slice).
 ///
 /// Returns `None` if tracking error is zero.
-pub fn information_ratio(
-    portfolio_returns: &[f64],
-    benchmark_returns: &[f64],
-) -> Option<f64> {
+pub fn information_ratio(portfolio_returns: &[f64], benchmark_returns: &[f64]) -> Option<f64> {
     let n = portfolio_returns.len().min(benchmark_returns.len());
     if n == 0 {
         return None;
@@ -192,7 +193,11 @@ pub fn information_ratio(
         .map(|(p, b)| p - b)
         .collect();
     let mean_active = active.iter().sum::<f64>() / n as f64;
-    let variance = active.iter().map(|a| (a - mean_active).powi(2)).sum::<f64>() / n as f64;
+    let variance = active
+        .iter()
+        .map(|a| (a - mean_active).powi(2))
+        .sum::<f64>()
+        / n as f64;
     let tracking_error = variance.sqrt();
     if tracking_error.abs() < f64::EPSILON {
         return None;
@@ -285,14 +290,20 @@ mod tests {
         let weights = vec![0.90, 0.05, 0.03, 0.02];
         let hhi = herfindahl_hirschman(&weights);
         // Expected ≈ 0.81 + 0.0025 + 0.0009 + 0.0004 ≈ 0.8138
-        assert!(hhi > 0.80, "HHI should be high for concentrated portfolio, got {hhi}");
+        assert!(
+            hhi > 0.80,
+            "HHI should be high for concentrated portfolio, got {hhi}"
+        );
     }
 
     #[test]
     fn equal_weights_gini_zero() {
         let weights = vec![0.25, 0.25, 0.25, 0.25];
         let g = gini_coefficient(&weights);
-        assert!(g.abs() < 1e-12, "Gini for equal weights should be 0, got {g}");
+        assert!(
+            g.abs() < 1e-12,
+            "Gini for equal weights should be 0, got {g}"
+        );
     }
 
     #[test]
@@ -357,7 +368,10 @@ mod tests {
     fn information_ratio_none_for_identical_returns() {
         let returns = vec![0.01, 0.02, 0.03];
         let ir = information_ratio(&returns, &returns);
-        assert!(ir.is_none(), "IR should be None when tracking error is zero");
+        assert!(
+            ir.is_none(),
+            "IR should be None when tracking error is zero"
+        );
     }
 
     #[test]

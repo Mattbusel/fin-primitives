@@ -1,9 +1,9 @@
 //! True Strength Index indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Simplified True Strength Index: double-smoothed momentum / double-smoothed absolute momentum.
 ///
@@ -16,7 +16,7 @@ pub struct TrueStrengthIndex {
     long_period: usize,
     short_period: usize,
     prev_close: Option<Decimal>,
-    changes: VecDeque<Decimal>,   // raw price changes
+    changes: VecDeque<Decimal>,     // raw price changes
     abs_changes: VecDeque<Decimal>, // absolute price changes
 }
 
@@ -36,7 +36,9 @@ impl TrueStrengthIndex {
     }
 
     fn sma(window: &VecDeque<Decimal>, n: usize) -> Option<Decimal> {
-        if window.len() < n { return None; }
+        if window.len() < n {
+            return None;
+        }
         let sum: Decimal = window.iter().rev().take(n).sum();
         Some(sum / Decimal::from(n as u32))
     }
@@ -87,13 +89,25 @@ impl Signal for TrueStrengthIndex {
         if smoothed_abs.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        Ok(SignalValue::Scalar(smoothed_mom / smoothed_abs * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            smoothed_mom / smoothed_abs * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.changes.len() >= self.long_period }
-    fn period(&self) -> usize { self.long_period }
-    fn reset(&mut self) { self.prev_close = None; self.changes.clear(); self.abs_changes.clear(); }
-    fn name(&self) -> &str { "TrueStrengthIndex" }
+    fn is_ready(&self) -> bool {
+        self.changes.len() >= self.long_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.changes.clear();
+        self.abs_changes.clear();
+    }
+    fn name(&self) -> &str {
+        "TrueStrengthIndex"
+    }
 }
 
 #[cfg(test)]

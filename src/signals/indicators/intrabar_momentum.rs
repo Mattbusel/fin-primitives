@@ -97,7 +97,10 @@ impl Signal for IntrabarMomentum {
 
         #[allow(clippy::cast_possible_truncation)]
         let n = Decimal::from(self.period as u32);
-        let mean = self.sum.checked_div(n).ok_or(FinError::ArithmeticOverflow)?;
+        let mean = self
+            .sum
+            .checked_div(n)
+            .ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(mean))
     }

@@ -47,7 +47,9 @@ impl Ctm {
 }
 
 impl Signal for Ctm {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -59,11 +61,15 @@ impl Signal for Ctm {
         let mut above = 0u32;
         let mut computed = 0u32;
         for &p in &self.periods {
-            if n < p { continue; }
-            let sma: Decimal = self.closes.iter().rev().take(p).sum::<Decimal>()
-                / Decimal::from(p as u32);
+            if n < p {
+                continue;
+            }
+            let sma: Decimal =
+                self.closes.iter().rev().take(p).sum::<Decimal>() / Decimal::from(p as u32);
             computed += 1;
-            if close > sma { above += 1; }
+            if close > sma {
+                above += 1;
+            }
         }
         if computed == 0 {
             return Ok(SignalValue::Unavailable);
@@ -96,7 +102,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,7 +124,10 @@ mod tests {
         // First 13 bars are Unavailable; at bar 14 the 14-period SMA is computable.
         let mut ctm = Ctm::new("ctm").unwrap();
         for _ in 0..13 {
-            assert_eq!(ctm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ctm.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         // bar 14 — first SMA (period 14) now computable → Scalar output
         let v = ctm.update_bar(&bar("100")).unwrap();
@@ -126,7 +138,9 @@ mod tests {
     fn test_ctm_all_above_gives_100() {
         let mut ctm = Ctm::new("ctm").unwrap();
         // Prime with 200 bars at 100, then spike to 200
-        for _ in 0..200 { ctm.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..200 {
+            ctm.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = ctm.update_bar(&bar("200")).unwrap() {
             assert_eq!(v, dec!(100));
         }
@@ -135,7 +149,9 @@ mod tests {
     #[test]
     fn test_ctm_reset() {
         let mut ctm = Ctm::new("ctm").unwrap();
-        for _ in 0..200 { ctm.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..200 {
+            ctm.update_bar(&bar("100")).unwrap();
+        }
         assert!(ctm.is_ready());
         ctm.reset();
         assert!(!ctm.is_ready());

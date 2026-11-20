@@ -19,7 +19,13 @@ fn qty(s: &str) -> Quantity {
 }
 
 fn tick(sym_s: &str, p: &str, q: &str, ts: i64) -> Tick {
-    Tick::new(sym(sym_s), price(p), qty(q), Side::Ask, NanoTimestamp::new(ts))
+    Tick::new(
+        sym(sym_s),
+        price(p),
+        qty(q),
+        Side::Ask,
+        NanoTimestamp::new(ts),
+    )
 }
 
 fn make_bar(o: &str, h: &str, l: &str, c: &str) -> OhlcvBar {

@@ -69,12 +69,19 @@ impl Signal for Cmo {
         }
 
         let up_sum: Decimal = self.changes.iter().filter(|&&d| d > Decimal::ZERO).sum();
-        let down_sum: Decimal = self.changes.iter().filter(|&&d| d < Decimal::ZERO).map(|d| d.abs()).sum();
+        let down_sum: Decimal = self
+            .changes
+            .iter()
+            .filter(|&&d| d < Decimal::ZERO)
+            .map(|d| d.abs())
+            .sum();
         let denom = up_sum + down_sum;
         if denom == Decimal::ZERO {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        Ok(SignalValue::Scalar((up_sum - down_sum) / denom * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (up_sum - down_sum) / denom * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn is_ready(&self) -> bool {
@@ -102,7 +109,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -118,9 +128,18 @@ mod tests {
     #[test]
     fn test_cmo_unavailable_before_period() {
         let mut cmo = Cmo::new("cmo3", 3).unwrap();
-        assert_eq!(cmo.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(cmo.update_bar(&bar("102")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(cmo.update_bar(&bar("104")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cmo.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            cmo.update_bar(&bar("102")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            cmo.update_bar(&bar("104")).unwrap(),
+            SignalValue::Unavailable
+        );
         // 4th bar completes period=3 window
         assert!(cmo.update_bar(&bar("106")).unwrap().is_scalar());
     }
@@ -158,7 +177,9 @@ mod tests {
     #[test]
     fn test_cmo_reset() {
         let mut cmo = Cmo::new("cmo3", 3).unwrap();
-        for i in 0..5 { cmo.update_bar(&bar(&format!("{}", 100 + i))).unwrap(); }
+        for i in 0..5 {
+            cmo.update_bar(&bar(&format!("{}", 100 + i))).unwrap();
+        }
         assert!(cmo.is_ready());
         cmo.reset();
         assert!(!cmo.is_ready());

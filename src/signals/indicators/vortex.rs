@@ -34,9 +34,9 @@ pub struct Vortex {
     prev_high: Option<Decimal>,
     prev_low: Option<Decimal>,
     prev_close: Option<Decimal>,
-    vm_plus:  VecDeque<Decimal>,
+    vm_plus: VecDeque<Decimal>,
     vm_minus: VecDeque<Decimal>,
-    trs:      VecDeque<Decimal>,
+    trs: VecDeque<Decimal>,
     last_vi_minus: Option<Decimal>,
 }
 
@@ -55,9 +55,9 @@ impl Vortex {
             prev_high: None,
             prev_low: None,
             prev_close: None,
-            vm_plus:  VecDeque::with_capacity(period),
+            vm_plus: VecDeque::with_capacity(period),
             vm_minus: VecDeque::with_capacity(period),
-            trs:      VecDeque::with_capacity(period),
+            trs: VecDeque::with_capacity(period),
             last_vi_minus: None,
         })
     }
@@ -74,20 +74,21 @@ impl Signal for Vortex {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let (prev_high, prev_low, prev_close) = match (self.prev_high, self.prev_low, self.prev_close) {
-            (Some(h), Some(l), Some(c)) => (h, l, c),
-            _ => {
-                self.prev_high  = Some(bar.high);
-                self.prev_low   = Some(bar.low);
-                self.prev_close = Some(bar.close);
-                return Ok(SignalValue::Unavailable);
-            }
-        };
+        let (prev_high, prev_low, prev_close) =
+            match (self.prev_high, self.prev_low, self.prev_close) {
+                (Some(h), Some(l), Some(c)) => (h, l, c),
+                _ => {
+                    self.prev_high = Some(bar.high);
+                    self.prev_low = Some(bar.low);
+                    self.prev_close = Some(bar.close);
+                    return Ok(SignalValue::Unavailable);
+                }
+            };
 
         let vm_p = (bar.high - prev_low).abs();
-        let vm_m = (bar.low  - prev_high).abs();
+        let vm_m = (bar.low - prev_high).abs();
         let true_high = bar.high.max(prev_close);
-        let true_low  = bar.low.min(prev_close);
+        let true_low = bar.low.min(prev_close);
         let tr = true_high - true_low;
 
         self.vm_plus.push_back(vm_p);
@@ -99,8 +100,8 @@ impl Signal for Vortex {
             self.trs.pop_front();
         }
 
-        self.prev_high  = Some(bar.high);
-        self.prev_low   = Some(bar.low);
+        self.prev_high = Some(bar.high);
+        self.prev_low = Some(bar.low);
         self.prev_close = Some(bar.close);
 
         if self.vm_plus.len() < self.period {
@@ -109,13 +110,13 @@ impl Signal for Vortex {
 
         let sum_vm_p: Decimal = self.vm_plus.iter().sum();
         let sum_vm_m: Decimal = self.vm_minus.iter().sum();
-        let sum_tr:   Decimal = self.trs.iter().sum();
+        let sum_tr: Decimal = self.trs.iter().sum();
 
         if sum_tr.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vi_plus  = sum_vm_p / sum_tr;
+        let vi_plus = sum_vm_p / sum_tr;
         let vi_minus = sum_vm_m / sum_tr;
         self.last_vi_minus = Some(vi_minus);
         Ok(SignalValue::Scalar(vi_plus))
@@ -130,8 +131,8 @@ impl Signal for Vortex {
     }
 
     fn reset(&mut self) {
-        self.prev_high  = None;
-        self.prev_low   = None;
+        self.prev_high = None;
+        self.prev_low = None;
         self.prev_close = None;
         self.vm_plus.clear();
         self.vm_minus.clear();
@@ -153,7 +154,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cl, high: hi, low: lo, close: cl,
+            open: cl,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -169,8 +173,14 @@ mod tests {
     #[test]
     fn test_vortex_unavailable_before_period() {
         let mut vx = Vortex::new("vx", 3).unwrap();
-        assert_eq!(vx.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vx.update_bar(&bar("115", "95", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vx.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vx.update_bar(&bar("115", "95", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vx.is_ready());
     }
 
@@ -187,7 +197,9 @@ mod tests {
     #[test]
     fn test_vortex_reset() {
         let mut vx = Vortex::new("vx", 3).unwrap();
-        for _ in 0..5 { vx.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..5 {
+            vx.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(vx.is_ready());
         vx.reset();
         assert!(!vx.is_ready());

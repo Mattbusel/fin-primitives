@@ -165,8 +165,14 @@ mod tests {
     #[test]
     fn test_unavailable_before_three_bars() {
         let mut tws = ThreeWhiteSoldiers::new("tws", 60, 70).unwrap();
-        assert_eq!(tws.update_bar(&bar("10", "15", "9", "14")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(tws.update_bar(&bar("12", "17", "11", "16")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            tws.update_bar(&bar("10", "15", "9", "14")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            tws.update_bar(&bar("12", "17", "11", "16")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

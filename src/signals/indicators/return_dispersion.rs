@@ -1,10 +1,10 @@
 //! Return Dispersion indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling std dev of close returns divided by rolling mean absolute return.
 ///
@@ -22,7 +22,11 @@ impl ReturnDispersion {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -44,15 +48,20 @@ impl Signal for ReturnDispersion {
         }
 
         let n = self.window.len() as f64;
-        let vals: Vec<f64> = self.window.iter()
-            .filter_map(|r| r.to_f64())
-            .collect();
+        let vals: Vec<f64> = self.window.iter().filter_map(|r| r.to_f64()).collect();
         if vals.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
         let mean = vals.iter().sum::<f64>() / n;
-        let variance = vals.iter().map(|r| { let d = r - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let variance = vals
+            .iter()
+            .map(|r| {
+                let d = r - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         let std_dev = variance.sqrt();
         let mean_abs = vals.iter().map(|r| r.abs()).sum::<f64>() / n;
 
@@ -67,10 +76,19 @@ impl Signal for ReturnDispersion {
         }
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); }
-    fn name(&self) -> &str { "ReturnDispersion" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "ReturnDispersion"
+    }
 }
 
 #[cfg(test)]
@@ -106,7 +124,11 @@ mod tests {
             last = sig.update(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(x) = last {
-            assert!(x < dec!(0.001), "constant returns should have near-zero dispersion, got {}", x);
+            assert!(
+                x < dec!(0.001),
+                "constant returns should have near-zero dispersion, got {}",
+                x
+            );
         }
     }
 }

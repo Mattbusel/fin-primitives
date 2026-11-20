@@ -1,8 +1,8 @@
 //! Close Acceleration Sign indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Sign of price acceleration: +1 if momentum increasing, -1 if decreasing, 0 if flat.
 ///
@@ -27,7 +27,9 @@ impl CloseAccelerationSign {
 }
 
 impl Default for CloseAccelerationSign {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Signal for CloseAccelerationSign {
@@ -36,7 +38,13 @@ impl Signal for CloseAccelerationSign {
             let d1 = bar.close - c1;
             let d2 = c1 - c0;
             let accel = d1 - d2;
-            let sign: i32 = if accel > Decimal::ZERO { 1 } else if accel < Decimal::ZERO { -1 } else { 0 };
+            let sign: i32 = if accel > Decimal::ZERO {
+                1
+            } else if accel < Decimal::ZERO {
+                -1
+            } else {
+                0
+            };
             SignalValue::Scalar(Decimal::from(sign))
         } else {
             SignalValue::Unavailable
@@ -46,10 +54,19 @@ impl Signal for CloseAccelerationSign {
         Ok(result)
     }
 
-    fn is_ready(&self) -> bool { self.c0.is_some() && self.c1.is_some() }
-    fn period(&self) -> usize { 3 }
-    fn reset(&mut self) { self.c0 = None; self.c1 = None; }
-    fn name(&self) -> &str { "CloseAccelerationSign" }
+    fn is_ready(&self) -> bool {
+        self.c0.is_some() && self.c1.is_some()
+    }
+    fn period(&self) -> usize {
+        3
+    }
+    fn reset(&mut self) {
+        self.c0 = None;
+        self.c1 = None;
+    }
+    fn name(&self) -> &str {
+        "CloseAccelerationSign"
+    }
 }
 
 #[cfg(test)]

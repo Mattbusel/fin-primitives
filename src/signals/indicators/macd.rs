@@ -177,9 +177,7 @@ impl Signal for Macd {
             _ => return Ok(SignalValue::Unavailable),
         };
 
-        let macd_line = fast
-            .checked_sub(slow)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let macd_line = fast.checked_sub(slow).ok_or(FinError::ArithmeticOverflow)?;
 
         let signal_val = Self::ema_step(
             &mut self.signal_count,
@@ -297,7 +295,10 @@ mod tests {
         }
         let v = macd.update_bar(&bar("130")).unwrap();
         if let SignalValue::Scalar(h) = v {
-            assert!(h > dec!(0), "histogram should be positive on sustained rise, got {h}");
+            assert!(
+                h > dec!(0),
+                "histogram should be positive on sustained rise, got {h}"
+            );
         } else {
             panic!("expected Scalar");
         }

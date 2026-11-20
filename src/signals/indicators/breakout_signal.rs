@@ -67,8 +67,16 @@ impl Signal for BreakoutSignal {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // Evaluate breakout against existing window *before* adding current bar.
         let signal = if self.window.len() >= self.period {
-            let channel_high = self.window.iter().map(|(h, _)| *h).fold(Decimal::MIN, Decimal::max);
-            let channel_low = self.window.iter().map(|(_, l)| *l).fold(Decimal::MAX, Decimal::min);
+            let channel_high = self
+                .window
+                .iter()
+                .map(|(h, _)| *h)
+                .fold(Decimal::MIN, Decimal::max);
+            let channel_low = self
+                .window
+                .iter()
+                .map(|(_, l)| *l)
+                .fold(Decimal::MAX, Decimal::min);
             if bar.close > channel_high {
                 Decimal::ONE
             } else if bar.close < channel_low {

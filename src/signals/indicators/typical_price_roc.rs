@@ -129,7 +129,10 @@ mod tests {
     fn test_tpr_unavailable_during_warmup() {
         let mut tpr = TypicalPriceRoc::new("tpr", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(tpr.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                tpr.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

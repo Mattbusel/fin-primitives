@@ -83,12 +83,16 @@ impl Signal for SwingPointDetector {
         let center_high = self.highs[self.lookback];
         let center_low = self.lows[self.lookback];
 
-        let is_swing_high = self.highs.iter().enumerate().all(|(i, &h)| {
-            i == self.lookback || h < center_high
-        });
-        let is_swing_low = self.lows.iter().enumerate().all(|(i, &l)| {
-            i == self.lookback || l > center_low
-        });
+        let is_swing_high = self
+            .highs
+            .iter()
+            .enumerate()
+            .all(|(i, &h)| i == self.lookback || h < center_high);
+        let is_swing_low = self
+            .lows
+            .iter()
+            .enumerate()
+            .all(|(i, &l)| i == self.lookback || l > center_low);
 
         let value = match (is_swing_high, is_swing_low) {
             (true, true) => Decimal::TWO,
@@ -126,7 +130,10 @@ mod tests {
         let lo = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: hi,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: hi,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -136,7 +143,10 @@ mod tests {
 
     #[test]
     fn test_lookback_zero_fails() {
-        assert!(matches!(SwingPointDetector::new("spd", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            SwingPointDetector::new("spd", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
@@ -148,7 +158,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_period() {
         let mut spd = SwingPointDetector::new("spd", 2).unwrap();
-        assert_eq!(spd.update_bar(&bar("15", "10")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            spd.update_bar(&bar("15", "10")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

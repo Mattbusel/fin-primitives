@@ -53,7 +53,9 @@ impl MomentumDivergence {
         if past.is_zero() {
             return None;
         }
-        (current - past).checked_div(past)?.checked_mul(Decimal::ONE_HUNDRED)
+        (current - past)
+            .checked_div(past)?
+            .checked_mul(Decimal::ONE_HUNDRED)
     }
 }
 
@@ -84,9 +86,15 @@ impl Signal for MomentumDivergence {
         }
 
         let past_close = self.closes[0];
-        let curr_close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let curr_close = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let past_vol = self.volumes[0];
-        let curr_vol = *self.volumes.back().ok_or_else(crate::error::invariant_broken)?;
+        let curr_vol = *self
+            .volumes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         let Some(price_roc) = Self::roc(curr_close, past_close) else {
             return Ok(SignalValue::Unavailable);
@@ -119,7 +127,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

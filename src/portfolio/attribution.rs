@@ -203,7 +203,10 @@ mod tests {
         // If portfolio == benchmark in every way, active return = 0.
         let segments = vec![seg(0.5, 0.5, 0.10, 0.10), seg(0.5, 0.5, 0.05, 0.05)];
         let attr = BHBAttributor::new(segments).compute();
-        assert!(attr.total_active_return.abs() < 1e-12, "zero active return expected");
+        assert!(
+            attr.total_active_return.abs() < 1e-12,
+            "zero active return expected"
+        );
         assert!(attr.total_allocation.abs() < 1e-12);
         assert!(attr.total_selection.abs() < 1e-12);
         assert!(attr.total_interaction.abs() < 1e-12);
@@ -237,8 +240,8 @@ mod tests {
     fn multi_segment_attribution_identity() {
         // BHB identity: Σ(alloc + sel + interact) ≈ total_active_return
         let segments = vec![
-            Segment::new("Tech",    0.30, 0.25, 0.20, 0.15),
-            Segment::new("Energy",  0.20, 0.25, 0.08, 0.10),
+            Segment::new("Tech", 0.30, 0.25, 0.20, 0.15),
+            Segment::new("Energy", 0.20, 0.25, 0.08, 0.10),
             Segment::new("Finance", 0.50, 0.50, 0.12, 0.11),
         ];
         let attr = BHBAttributor::new(segments).compute();
@@ -280,7 +283,10 @@ mod tests {
             let diff = s.allocation_effect() - s.bf_allocation_effect(benchmark_total);
             let expected = (s.portfolio_weight - s.benchmark_weight) * benchmark_total;
             assert!((diff - expected).abs() < 1e-12);
-            assert!(diff.abs() > 1e-6, "BF and BHB segment effects should differ when Rb != 0");
+            assert!(
+                diff.abs() > 1e-6,
+                "BF and BHB segment effects should differ when Rb != 0"
+            );
         }
 
         // The totals, however, are identical when both weight vectors sum to 1:
@@ -291,7 +297,10 @@ mod tests {
             .iter()
             .map(|s| s.bf_allocation_effect(benchmark_total))
             .sum();
-        assert!((bhb_alloc - bf_alloc).abs() < 1e-12, "totals must agree when weights sum to 1");
+        assert!(
+            (bhb_alloc - bf_alloc).abs() < 1e-12,
+            "totals must agree when weights sum to 1"
+        );
     }
 
     #[test]

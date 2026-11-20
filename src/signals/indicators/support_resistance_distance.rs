@@ -40,7 +40,9 @@ impl SupportResistanceDistance {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -51,29 +53,53 @@ impl SupportResistanceDistance {
 
     /// Returns the current resistance level (N-period high).
     pub fn resistance(&self) -> Option<Decimal> {
-        if self.highs.len() < self.period { None }
-        else { self.highs.iter().cloned().max() }
+        if self.highs.len() < self.period {
+            None
+        } else {
+            self.highs.iter().cloned().max()
+        }
     }
 
     /// Returns the current support level (N-period low).
     pub fn support(&self) -> Option<Decimal> {
-        if self.lows.len() < self.period { None }
-        else { self.lows.iter().cloned().min() }
+        if self.lows.len() < self.period {
+            None
+        } else {
+            self.lows.iter().cloned().min()
+        }
     }
 }
 
 impl Signal for SupportResistanceDistance {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
-        if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
+        if self.highs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let resistance = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
-        let support = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
+        let resistance = self
+            .highs
+            .iter()
+            .cloned()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let support = self
+            .lows
+            .iter()
+            .cloned()
+            .min()
+            .ok_or_else(crate::error::invariant_broken)?;
         let range = resistance - support;
 
         if range.is_zero() {
@@ -85,8 +111,12 @@ impl Signal for SupportResistanceDistance {
         Ok(SignalValue::Scalar(dist))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.highs.clear();
@@ -107,7 +137,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,7 +148,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hlc(c, c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hlc(c, c, c)
+    }
 
     #[test]
     fn test_sr_invalid() {
@@ -134,10 +169,14 @@ mod tests {
     fn test_sr_flat_is_zero() {
         let mut s = SupportResistanceDistance::new("s", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = s.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -148,7 +187,9 @@ mod tests {
         s.update_bar(&bar_hlc("110", "90", "100")).unwrap();
         if let SignalValue::Scalar(v) = s.update_bar(&bar_hlc("110", "110", "110")).unwrap() {
             assert_eq!(v, dec!(50));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -158,7 +199,9 @@ mod tests {
         s.update_bar(&bar_hlc("110", "90", "100")).unwrap();
         if let SignalValue::Scalar(v) = s.update_bar(&bar_hlc("90", "90", "90")).unwrap() {
             assert_eq!(v, dec!(-50));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -173,7 +216,9 @@ mod tests {
     #[test]
     fn test_sr_reset() {
         let mut s = SupportResistanceDistance::new("s", 3).unwrap();
-        for _ in 0..5 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

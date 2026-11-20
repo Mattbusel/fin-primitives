@@ -95,7 +95,10 @@ impl Signal for ReturnPercentRank {
         }
 
         // current return is the last element; compare against the previous (period - 1) returns
-        let current = *self.returns.back().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .returns
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let history = self.returns.iter().take(self.period - 1);
         let count_below = history.filter(|&&r| r < current).count();
         let rank = count_below as f64 / (self.period - 1) as f64;
@@ -122,7 +125,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

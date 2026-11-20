@@ -40,7 +40,10 @@ impl BodyVolumeRatio {
     /// # Errors
     /// Never fails; returns `Ok` always. Signature kept consistent with other indicators.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), ready: false })
+        Ok(Self {
+            name: name.into(),
+            ready: false,
+        })
     }
 }
 
@@ -67,9 +70,7 @@ impl Signal for BodyVolumeRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = body
-            .checked_div(vol)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = body.checked_div(vol).ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(ratio))
     }

@@ -118,13 +118,21 @@ pub fn rsi(prices: &[f64], period: usize) -> Vec<f64> {
     let mut avg_gain = avg_gain_seed;
     let mut avg_loss = avg_loss_seed;
 
-    let rs = if avg_loss == 0.0 { f64::INFINITY } else { avg_gain / avg_loss };
+    let rs = if avg_loss == 0.0 {
+        f64::INFINITY
+    } else {
+        avg_gain / avg_loss
+    };
     out[period] = 100.0 - 100.0 / (1.0 + rs);
 
     for i in (period + 1)..n {
         avg_gain = (avg_gain * (period as f64 - 1.0) + gains[i]) / period as f64;
         avg_loss = (avg_loss * (period as f64 - 1.0) + losses[i]) / period as f64;
-        let rs = if avg_loss == 0.0 { f64::INFINITY } else { avg_gain / avg_loss };
+        let rs = if avg_loss == 0.0 {
+            f64::INFINITY
+        } else {
+            avg_gain / avg_loss
+        };
         out[i] = 100.0 - 100.0 / (1.0 + rs);
     }
     out
@@ -286,7 +294,10 @@ pub fn stochastic(ohlcv: &[Ohlcv], k_period: usize, d_period: usize) -> (Vec<f64
     for i in (k_period - 1)..n {
         let window = &ohlcv[(i + 1 - k_period)..=i];
         let lowest_low = window.iter().map(|b| b.low).fold(f64::INFINITY, f64::min);
-        let highest_high = window.iter().map(|b| b.high).fold(f64::NEG_INFINITY, f64::max);
+        let highest_high = window
+            .iter()
+            .map(|b| b.high)
+            .fold(f64::NEG_INFINITY, f64::max);
         let range = highest_high - lowest_low;
         k_vals[i] = if range == 0.0 {
             50.0
@@ -365,20 +376,12 @@ pub fn detect_patterns(ohlcv: &[Ohlcv]) -> Vec<(usize, CandlePattern)> {
             let curr_bearish = bar.close < bar.open;
 
             // BullishEngulfing
-            if prev_bearish
-                && curr_bullish
-                && bar.open <= prev.close
-                && bar.close >= prev.open
-            {
+            if prev_bearish && curr_bullish && bar.open <= prev.close && bar.close >= prev.open {
                 results.push((i, CandlePattern::BullishEngulfing));
             }
 
             // BearishEngulfing
-            if prev_bullish
-                && curr_bearish
-                && bar.open >= prev.close
-                && bar.close <= prev.open
-            {
+            if prev_bullish && curr_bearish && bar.open >= prev.close && bar.close <= prev.open {
                 results.push((i, CandlePattern::BearishEngulfing));
             }
         }
@@ -440,7 +443,14 @@ mod tests {
     use super::*;
 
     fn bar(o: f64, h: f64, l: f64, c: f64) -> Ohlcv {
-        Ohlcv { open: o, high: h, low: l, close: c, volume: 1000.0, timestamp_ms: 0 }
+        Ohlcv {
+            open: o,
+            high: h,
+            low: l,
+            close: c,
+            volume: 1000.0,
+            timestamp_ms: 0,
+        }
     }
 
     #[test]
@@ -484,7 +494,10 @@ mod tests {
             .zip(macd_line.iter().skip(1).zip(signal_line.iter().skip(1)))
             .filter(|((m0, s0), (m1, s1))| (m0 > s0) != (m1 > s1))
             .count();
-        assert!(crossovers > 0, "expected at least one MACD/signal crossover");
+        assert!(
+            crossovers > 0,
+            "expected at least one MACD/signal crossover"
+        );
     }
 
     #[test]
@@ -513,7 +526,9 @@ mod tests {
             bar(9.5, 13.5, 9.0, 13.0),   // bullish engulfing
         ];
         let patterns = detect_patterns(&bars);
-        let found = patterns.iter().any(|(_, p)| *p == CandlePattern::BullishEngulfing);
+        let found = patterns
+            .iter()
+            .any(|(_, p)| *p == CandlePattern::BullishEngulfing);
         assert!(found, "should detect BullishEngulfing");
     }
 
@@ -560,10 +575,18 @@ mod tests {
             .collect();
         let (k, d) = stochastic(&bars, 5, 3);
         for i in 4..20 {
-            assert!(k[i] >= 0.0 && k[i] <= 100.0, "%K out of range at {i}: {}", k[i]);
+            assert!(
+                k[i] >= 0.0 && k[i] <= 100.0,
+                "%K out of range at {i}: {}",
+                k[i]
+            );
         }
         for i in 6..20 {
-            assert!(d[i] >= 0.0 && d[i] <= 100.0, "%D out of range at {i}: {}", d[i]);
+            assert!(
+                d[i] >= 0.0 && d[i] <= 100.0,
+                "%D out of range at {i}: {}",
+                d[i]
+            );
         }
     }
 }

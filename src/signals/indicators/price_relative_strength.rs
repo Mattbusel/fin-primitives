@@ -1,9 +1,9 @@
 //! Price Relative Strength indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Ratio of average gains to average losses over rolling period (RSI numerator component).
 ///
@@ -40,8 +40,16 @@ impl PriceRelativeStrength {
 impl Signal for PriceRelativeStrength {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let gain = if bar.close > pc { bar.close - pc } else { Decimal::ZERO };
-            let loss = if bar.close < pc { pc - bar.close } else { Decimal::ZERO };
+            let gain = if bar.close > pc {
+                bar.close - pc
+            } else {
+                Decimal::ZERO
+            };
+            let loss = if bar.close < pc {
+                pc - bar.close
+            } else {
+                Decimal::ZERO
+            };
 
             self.gain_window.push_back(gain);
             self.loss_window.push_back(loss);
@@ -49,8 +57,12 @@ impl Signal for PriceRelativeStrength {
             self.loss_sum += loss;
 
             if self.gain_window.len() > self.period {
-                if let Some(og) = self.gain_window.pop_front() { self.gain_sum -= og; }
-                if let Some(ol) = self.loss_window.pop_front() { self.loss_sum -= ol; }
+                if let Some(og) = self.gain_window.pop_front() {
+                    self.gain_sum -= og;
+                }
+                if let Some(ol) = self.loss_window.pop_front() {
+                    self.loss_sum -= ol;
+                }
             }
         }
         self.prev_close = Some(bar.close);
@@ -68,8 +80,12 @@ impl Signal for PriceRelativeStrength {
         Ok(SignalValue::Scalar(avg_gain / avg_loss))
     }
 
-    fn is_ready(&self) -> bool { self.gain_window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.gain_window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_close = None;
         self.gain_window.clear();
@@ -77,7 +93,9 @@ impl Signal for PriceRelativeStrength {
         self.gain_sum = Decimal::ZERO;
         self.loss_sum = Decimal::ZERO;
     }
-    fn name(&self) -> &str { "PriceRelativeStrength" }
+    fn name(&self) -> &str {
+        "PriceRelativeStrength"
+    }
 }
 
 #[cfg(test)]

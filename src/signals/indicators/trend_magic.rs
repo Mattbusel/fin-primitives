@@ -56,8 +56,12 @@ impl TrendMagic {
         atr_period: usize,
         multiplier: Decimal,
     ) -> Result<Self, FinError> {
-        if cci_period == 0 { return Err(FinError::InvalidPeriod(cci_period)); }
-        if atr_period  == 0 { return Err(FinError::InvalidPeriod(atr_period)); }
+        if cci_period == 0 {
+            return Err(FinError::InvalidPeriod(cci_period));
+        }
+        if atr_period == 0 {
+            return Err(FinError::InvalidPeriod(atr_period));
+        }
         let warm_up = cci_period.max(atr_period);
         Ok(Self {
             name: name.into(),
@@ -86,30 +90,47 @@ impl TrendMagic {
 
     fn cci(typicals: &VecDeque<Decimal>) -> Option<Decimal> {
         let n = typicals.len();
-        if n == 0 { return None; }
+        if n == 0 {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let nd = Decimal::from(n as u32);
         let mean: Decimal = typicals.iter().sum::<Decimal>() / nd;
         let mad: Decimal = typicals.iter().map(|v| (*v - mean).abs()).sum::<Decimal>() / nd;
-        if mad.is_zero() { return Some(Decimal::ZERO); }
+        if mad.is_zero() {
+            return Some(Decimal::ZERO);
+        }
         let latest = *typicals.back()?;
         let cci_015 = Decimal::new(15, 3);
         (latest - mean).checked_div(cci_015 * mad)
     }
 
-    fn atr(highs: &VecDeque<Decimal>, lows: &VecDeque<Decimal>, closes: &VecDeque<Decimal>, period: usize) -> Decimal {
-        if highs.len() < period || closes.len() < 2 { return Decimal::ZERO; }
+    fn atr(
+        highs: &VecDeque<Decimal>,
+        lows: &VecDeque<Decimal>,
+        closes: &VecDeque<Decimal>,
+        period: usize,
+    ) -> Decimal {
+        if highs.len() < period || closes.len() < 2 {
+            return Decimal::ZERO;
+        }
         let n = highs.len().min(period);
         let h_slice = highs.iter().rev().take(n);
         let l_slice = lows.iter().rev().take(n);
         let c_slice = closes.iter().rev().skip(1).take(n);
-        let trs: Vec<Decimal> = h_slice.zip(l_slice).zip(c_slice).map(|((h, l), pc)| {
-            let hl = h - l;
-            let hc = (h - pc).abs();
-            let lc = (l - pc).abs();
-            hl.max(hc).max(lc)
-        }).collect();
-        if trs.is_empty() { return Decimal::ZERO; }
+        let trs: Vec<Decimal> = h_slice
+            .zip(l_slice)
+            .zip(c_slice)
+            .map(|((h, l), pc)| {
+                let hl = h - l;
+                let hc = (h - pc).abs();
+                let lc = (l - pc).abs();
+                hl.max(hc).max(lc)
+            })
+            .collect();
+        if trs.is_empty() {
+            return Decimal::ZERO;
+        }
         #[allow(clippy::cast_possible_truncation)]
         let n = trs.len() as u32;
         trs.iter().sum::<Decimal>() / Decimal::from(n)
@@ -117,20 +138,34 @@ impl TrendMagic {
 }
 
 impl Signal for TrendMagic {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.cci_period.max(self.atr_period) }
-    fn is_ready(&self) -> bool { self.bullish.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.cci_period.max(self.atr_period)
+    }
+    fn is_ready(&self) -> bool {
+        self.bullish.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tp = bar.typical_price();
         self.typical_prices.push_back(tp);
-        if self.typical_prices.len() > self.cci_period { self.typical_prices.pop_front(); }
+        if self.typical_prices.len() > self.cci_period {
+            self.typical_prices.pop_front();
+        }
         self.highs.push_back(bar.high);
-        if self.highs.len() > self.atr_period + 1 { self.highs.pop_front(); }
+        if self.highs.len() > self.atr_period + 1 {
+            self.highs.pop_front();
+        }
         self.lows.push_back(bar.low);
-        if self.lows.len() > self.atr_period + 1 { self.lows.pop_front(); }
+        if self.lows.len() > self.atr_period + 1 {
+            self.lows.pop_front();
+        }
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.atr_period + 2 { self.closes.pop_front(); }
+        if self.closes.len() > self.atr_period + 2 {
+            self.closes.pop_front();
+        }
 
         let warm = self.cci_period.max(self.atr_period);
         if self.typical_prices.len() < self.cci_period || self.highs.len() < self.atr_period {
@@ -150,7 +185,7 @@ impl Signal for TrendMagic {
             }
             Some(was_bullish) => {
                 if !was_bullish && cci > cci_100 && prev_cci <= cci_100 {
-                    true  // crossover above +100
+                    true // crossover above +100
                 } else if was_bullish && cci < -cci_100 && prev_cci >= -cci_100 {
                     false // crossunder below -100
                 } else {
@@ -171,7 +206,11 @@ impl Signal for TrendMagic {
         };
         self.stop = Some(new_stop);
 
-        let signal = if now_bullish { Decimal::ONE } else { Decimal::NEGATIVE_ONE };
+        let signal = if now_bullish {
+            Decimal::ONE
+        } else {
+            Decimal::NEGATIVE_ONE
+        };
         let _ = warm; // suppress unused warning
         Ok(SignalValue::Scalar(signal))
     }
@@ -182,8 +221,8 @@ impl Signal for TrendMagic {
         self.lows.clear();
         self.closes.clear();
         self.prev_cci = None;
-        self.stop     = None;
-        self.bullish  = None;
+        self.stop = None;
+        self.bullish = None;
     }
 }
 
@@ -201,7 +240,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -219,7 +261,10 @@ mod tests {
     fn test_tm_unavailable_before_warm_up() {
         let mut tm = TrendMagic::new("t", 3, 3, dec!(1.5)).unwrap();
         for _ in 0..2 {
-            assert_eq!(tm.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                tm.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!tm.is_ready());
     }
@@ -238,7 +283,9 @@ mod tests {
     #[test]
     fn test_tm_reset() {
         let mut tm = TrendMagic::new("t", 3, 3, dec!(1.5)).unwrap();
-        for _ in 0..5 { tm.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..5 {
+            tm.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(tm.is_ready());
         tm.reset();
         assert!(!tm.is_ready());
@@ -249,7 +296,8 @@ mod tests {
         let mut tm = TrendMagic::new("t", 5, 3, dec!(1.5)).unwrap();
         for i in 0u32..20 {
             let p = (100 + i * 5).to_string();
-            tm.update_bar(&bar(&p, &(95u32 + i * 5).to_string(), &p)).unwrap();
+            tm.update_bar(&bar(&p, &(95u32 + i * 5).to_string(), &p))
+                .unwrap();
         }
         assert!(tm.is_bullish());
     }

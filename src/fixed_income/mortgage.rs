@@ -342,14 +342,27 @@ impl MbsPool {
         let wac = if pool_balance == 0.0 {
             0.0
         } else {
-            loans.iter().map(|l| l.annual_rate * l.principal).sum::<f64>() / pool_balance
+            loans
+                .iter()
+                .map(|l| l.annual_rate * l.principal)
+                .sum::<f64>()
+                / pool_balance
         };
         let wam = if pool_balance == 0.0 {
             0.0
         } else {
-            loans.iter().map(|l| l.term_months as f64 * l.principal).sum::<f64>() / pool_balance
+            loans
+                .iter()
+                .map(|l| l.term_months as f64 * l.principal)
+                .sum::<f64>()
+                / pool_balance
         };
-        Self { loans, pool_balance, wac, wam }
+        Self {
+            loans,
+            pool_balance,
+            wac,
+            wam,
+        }
     }
 
     /// Monthly cash flows: (scheduled_principal, interest, prepayment).
@@ -391,11 +404,14 @@ impl MbsPool {
     pub fn price(&self, discount_rate: f64, prepayment: &PrepaymentModel) -> f64 {
         let cfs = self.cash_flows(prepayment);
         let r = discount_rate / 12.0;
-        cfs.iter().enumerate().map(|(i, (p, interest, pp))| {
-            let cf = p + interest + pp;
-            let t = (i + 1) as f64;
-            cf / (1.0 + r).powf(t)
-        }).sum()
+        cfs.iter()
+            .enumerate()
+            .map(|(i, (p, interest, pp))| {
+                let cf = p + interest + pp;
+                let t = (i + 1) as f64;
+                cf / (1.0 + r).powf(t)
+            })
+            .sum()
     }
 
     /// Effective duration via parallel shift of ±1bp.
@@ -468,7 +484,11 @@ mod tests {
         let terms = standard_terms();
         let schedule = MortgageCalculator::amortization_schedule(&terms);
         let last = schedule.last().unwrap();
-        assert!(last.balance < 1.0, "final balance should be ~0, got {}", last.balance);
+        assert!(
+            last.balance < 1.0,
+            "final balance should be ~0, got {}",
+            last.balance
+        );
     }
 
     #[test]
@@ -491,14 +511,16 @@ mod tests {
         let interest = MortgageCalculator::total_interest(&terms);
         assert!(interest > 0.0, "total interest should be positive");
         // For $300k / 6% / 30yr total interest ≈ $347k
-        assert!(interest > 300_000.0, "total interest should exceed principal for long term");
+        assert!(
+            interest > 300_000.0,
+            "total interest should exceed principal for long term"
+        );
     }
 
     #[test]
     fn test_prepayment_savings_reduces_term() {
         let terms = standard_terms();
-        let (months_saved, interest_saved) =
-            MortgageCalculator::prepayment_savings(&terms, 200.0);
+        let (months_saved, interest_saved) = MortgageCalculator::prepayment_savings(&terms, 200.0);
         assert!(months_saved > 0, "extra payment should save months");
         assert!(interest_saved > 0.0, "extra payment should save interest");
     }
@@ -511,8 +533,7 @@ mod tests {
             term_months: 120,
             down_payment: 0.0,
         };
-        let (months_saved, interest_saved) =
-            MortgageCalculator::prepayment_savings(&terms, 5000.0);
+        let (months_saved, interest_saved) = MortgageCalculator::prepayment_savings(&terms, 5000.0);
         assert!(months_saved > 0);
         assert!(interest_saved > 0.0);
     }

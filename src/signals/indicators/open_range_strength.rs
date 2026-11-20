@@ -62,9 +62,15 @@ impl OpenRangeStrength {
 }
 
 impl Signal for OpenRangeStrength {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -93,14 +99,21 @@ impl Signal for OpenRangeStrength {
             .checked_div(Decimal::TWO)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let close = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let strength = (close - mid)
-            .checked_div(range
-                .checked_div(Decimal::TWO)
-                .ok_or(FinError::ArithmeticOverflow)?)
+            .checked_div(
+                range
+                    .checked_div(Decimal::TWO)
+                    .ok_or(FinError::ArithmeticOverflow)?,
+            )
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        Ok(SignalValue::Scalar(strength.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            strength.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {
@@ -124,7 +137,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -141,8 +157,14 @@ mod tests {
     #[test]
     fn test_ors_unavailable_before_period() {
         let mut s = OpenRangeStrength::new("ors", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -151,9 +173,12 @@ mod tests {
         // period=2, H=110, L=90 → mid=100, range=20, half=10
         // Close at 110 → (110-100)/10 = 1.0
         let mut s = OpenRangeStrength::new("ors", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","110")).unwrap() {
-            assert!((v - dec!(1)).abs() < dec!(0.001), "close at high gives 1.0: {v}");
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "110")).unwrap() {
+            assert!(
+                (v - dec!(1)).abs() < dec!(0.001),
+                "close at high gives 1.0: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -162,8 +187,8 @@ mod tests {
     #[test]
     fn test_ors_close_at_midpoint_gives_zero() {
         let mut s = OpenRangeStrength::new("ors", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","100")).unwrap() {
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "100")).unwrap() {
             assert!(v.abs() < dec!(0.001), "close at midpoint gives 0: {v}");
         } else {
             panic!("expected Scalar");
@@ -173,8 +198,13 @@ mod tests {
     #[test]
     fn test_ors_in_range_neg_one_to_one() {
         let mut s = OpenRangeStrength::new("ors", 3).unwrap();
-        for (h,l,c) in &[("110","90","100"),("115","85","95"),("112","88","110"),("108","92","89")] {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(h,l,c)).unwrap() {
+        for (h, l, c) in &[
+            ("110", "90", "100"),
+            ("115", "85", "95"),
+            ("112", "88", "110"),
+            ("108", "92", "89"),
+        ] {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l, c)).unwrap() {
                 assert!(v >= dec!(-1) && v <= dec!(1), "value out of [-1,1]: {v}");
             }
         }
@@ -183,8 +213,8 @@ mod tests {
     #[test]
     fn test_ors_reset() {
         let mut s = OpenRangeStrength::new("ors", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

@@ -53,9 +53,15 @@ impl RangeMidpointPosition {
 }
 
 impl Signal for RangeMidpointPosition {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -74,7 +80,10 @@ impl Signal for RangeMidpointPosition {
 
         let period_high = self.highs.iter().copied().fold(Decimal::MIN, Decimal::max);
         let period_low = self.lows.iter().copied().fold(Decimal::MAX, Decimal::min);
-        let close = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let close = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         let range = period_high - period_low;
         if range.is_zero() {
@@ -93,7 +102,9 @@ impl Signal for RangeMidpointPosition {
             .ok_or(FinError::ArithmeticOverflow)?;
 
         // Clamp to [-1, 1]
-        Ok(SignalValue::Scalar(pos.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            pos.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {
@@ -117,7 +128,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,8 +147,14 @@ mod tests {
     #[test]
     fn test_rmp_unavailable_before_period() {
         let mut s = RangeMidpointPosition::new("rmp", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("112","88","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("112", "88", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -142,9 +162,12 @@ mod tests {
     fn test_rmp_close_at_midpoint_gives_zero() {
         // Period high=110, low=90 → midpoint=100. Close=100 → position=0
         let mut s = RangeMidpointPosition::new("rmp", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","100")).unwrap() {
-            assert!(v.abs() < dec!(0.001), "close at midpoint should give 0: {v}");
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "100")).unwrap() {
+            assert!(
+                v.abs() < dec!(0.001),
+                "close at midpoint should give 0: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -153,8 +176,8 @@ mod tests {
     #[test]
     fn test_rmp_close_at_high_gives_positive() {
         let mut s = RangeMidpointPosition::new("rmp", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90","110")).unwrap() {
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90", "110")).unwrap() {
             assert!(v > dec!(0), "close at high should give positive: {v}");
         } else {
             panic!("expected Scalar");
@@ -164,8 +187,13 @@ mod tests {
     #[test]
     fn test_rmp_in_range_negative_one_to_one() {
         let mut s = RangeMidpointPosition::new("rmp", 3).unwrap();
-        for (h,l,c) in &[("110","90","100"),("115","85","95"),("112","88","110"),("108","92","89")] {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(h,l,c)).unwrap() {
+        for (h, l, c) in &[
+            ("110", "90", "100"),
+            ("115", "85", "95"),
+            ("112", "88", "110"),
+            ("108", "92", "89"),
+        ] {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l, c)).unwrap() {
                 assert!(v >= dec!(-1) && v <= dec!(1), "position out of [-1,1]: {v}");
             }
         }
@@ -174,8 +202,8 @@ mod tests {
     #[test]
     fn test_rmp_reset() {
         let mut s = RangeMidpointPosition::new("rmp", 2).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
+        s.update_bar(&bar("110", "90", "100")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

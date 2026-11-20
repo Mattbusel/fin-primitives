@@ -1,9 +1,9 @@
 //! Volume Weighted Close indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling volume-weighted average close price (VWAP-like over N bars).
 ///
@@ -53,10 +53,20 @@ impl Signal for VolumeWeightedClose {
         Ok(SignalValue::Scalar(self.sum_cv / self.sum_v))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum_cv = Decimal::ZERO; self.sum_v = Decimal::ZERO; }
-    fn name(&self) -> &str { "VolumeWeightedClose" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum_cv = Decimal::ZERO;
+        self.sum_v = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "VolumeWeightedClose"
+    }
 }
 
 #[cfg(test)]

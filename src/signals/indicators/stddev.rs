@@ -63,7 +63,10 @@ impl Signal for StdDev {
         let variance: Decimal = self
             .history
             .iter()
-            .map(|v| { let d = *v - mean; d * d })
+            .map(|v| {
+                let d = *v - mean;
+                d * d
+            })
             .sum::<Decimal>()
             / n_dec;
         Ok(SignalValue::Scalar(decimal_sqrt(variance)))
@@ -93,7 +96,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,8 +115,14 @@ mod tests {
     #[test]
     fn test_stddev_unavailable_before_period() {
         let mut sd = StdDev::new("sd3", 3).unwrap();
-        assert_eq!(sd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sd.update_bar(&bar("110")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sd.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sd.update_bar(&bar("110")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(sd.update_bar(&bar("120")).unwrap().is_scalar());
     }
 
@@ -131,7 +143,10 @@ mod tests {
         assert!(sd.is_ready());
         sd.reset();
         assert!(!sd.is_ready());
-        assert_eq!(sd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sd.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -152,8 +152,14 @@ mod tests {
     #[test]
     fn test_bop_unavailable_before_warmup() {
         let mut bop = Bop::new("bop3", 3).unwrap();
-        assert_eq!(bop.update_bar(&ohlc("10", "15", "9", "12")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bop.update_bar(&ohlc("12", "16", "11", "14")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bop.update_bar(&ohlc("10", "15", "9", "12")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bop.update_bar(&ohlc("12", "16", "11", "14")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!bop.is_ready());
     }
 
@@ -209,6 +215,9 @@ mod tests {
         assert!(bop.is_ready());
         bop.reset();
         assert!(!bop.is_ready());
-        assert_eq!(bop.update_bar(&ohlc("10", "20", "8", "18")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bop.update_bar(&ohlc("10", "20", "8", "18")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

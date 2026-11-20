@@ -77,8 +77,14 @@ impl Signal for ReturnConcentration {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let total_base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;  // period bars ago
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let total_base = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?; // period bars ago
         let recent_base_idx = self.period - self.recent_bars; // index of recent_base
         let recent_base = self.closes[recent_base_idx];
 
@@ -127,7 +133,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

@@ -45,9 +45,15 @@ impl ShannonEntropy {
             return Err(FinError::InvalidPeriod(window));
         }
         if num_bins == 0 {
-            return Err(FinError::InvalidInput("num_bins must be at least 1".to_owned()));
+            return Err(FinError::InvalidInput(
+                "num_bins must be at least 1".to_owned(),
+            ));
         }
-        Ok(Self { window, num_bins, buffer: Vec::with_capacity(window + 1) })
+        Ok(Self {
+            window,
+            num_bins,
+            buffer: Vec::with_capacity(window + 1),
+        })
     }
 
     /// Push a new price observation. Returns the rolling entropy once the
@@ -64,9 +70,7 @@ impl ShannonEntropy {
         let returns: Vec<f64> = self
             .buffer
             .windows(2)
-            .map(|w| {
-                if w[0] != 0.0 { (w[1] / w[0]).ln() } else { 0.0 }
-            })
+            .map(|w| if w[0] != 0.0 { (w[1] / w[0]).ln() } else { 0.0 })
             .collect();
 
         if returns.len() < self.window {
@@ -144,7 +148,11 @@ impl PermutationEntropy {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { order, window, buffer: Vec::with_capacity(window + order) })
+        Ok(Self {
+            order,
+            window,
+            buffer: Vec::with_capacity(window + order),
+        })
     }
 
     /// Push a new price observation. Returns normalised permutation entropy \[0,1\]
@@ -164,8 +172,7 @@ impl PermutationEntropy {
 
         for i in 0..total_patterns {
             let slice = &self.buffer[i..i + self.order];
-            let mut indexed: Vec<(usize, f64)> =
-                slice.iter().copied().enumerate().collect();
+            let mut indexed: Vec<(usize, f64)> = slice.iter().copied().enumerate().collect();
             indexed.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             let pattern: Vec<usize> = indexed.iter().map(|(idx, _)| *idx).collect();
             *pattern_counts.entry(pattern).or_insert(0) += 1;
@@ -243,7 +250,12 @@ impl ApproximateEntropy {
                 m + 2
             )));
         }
-        Ok(Self { m, r, capacity, buffer: Vec::with_capacity(capacity) })
+        Ok(Self {
+            m,
+            r,
+            capacity,
+            buffer: Vec::with_capacity(capacity),
+        })
     }
 
     /// Push a new observation. Returns `Some(ApEn)` once the buffer is full.

@@ -59,9 +59,15 @@ impl VolumeConsistency {
 }
 
 impl Signal for VolumeConsistency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ups.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ups.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pv) = self.prev_volume {
@@ -104,7 +110,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -161,7 +170,8 @@ mod tests {
         vc.update_bar(&bar("200")).unwrap(); // up
         vc.update_bar(&bar("100")).unwrap(); // down
         vc.update_bar(&bar("200")).unwrap(); // up
-        if let SignalValue::Scalar(v) = vc.update_bar(&bar("100")).unwrap() { // down
+        if let SignalValue::Scalar(v) = vc.update_bar(&bar("100")).unwrap() {
+            // down
             assert_eq!(v, dec!(50), "alternating → 50%: {v}");
         } else {
             panic!("expected Scalar");
@@ -171,7 +181,9 @@ mod tests {
     #[test]
     fn test_vc_reset() {
         let mut vc = VolumeConsistency::new("vc", 3).unwrap();
-        for v in &["100","200","300","400"] { vc.update_bar(&bar(v)).unwrap(); }
+        for v in &["100", "200", "300", "400"] {
+            vc.update_bar(&bar(v)).unwrap();
+        }
         assert!(vc.is_ready());
         vc.reset();
         assert!(!vc.is_ready());

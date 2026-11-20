@@ -1,9 +1,9 @@
 //! Rolling VWAP indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling Volume-Weighted Average Price over N bars.
 ///
@@ -59,14 +59,20 @@ impl Signal for RollingVwap {
         Ok(SignalValue::Scalar(self.pv_sum / self.vol_sum))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.window.clear();
         self.pv_sum = Decimal::ZERO;
         self.vol_sum = Decimal::ZERO;
     }
-    fn name(&self) -> &str { "RollingVwap" }
+    fn name(&self) -> &str {
+        "RollingVwap"
+    }
 }
 
 #[cfg(test)]
@@ -98,10 +104,14 @@ mod tests {
     fn test_rvwap_higher_volume_weights_more() {
         // Bar1: tp=90, vol=1; Bar2: tp=110, vol=9 → VWAP close to 110
         let mut sig = RollingVwap::new(2).unwrap();
-        sig.update(&bar("90", "90", "90", "1")).unwrap();   // tp=90
-        if let SignalValue::Scalar(v) = sig.update(&bar("110", "110", "110", "9")).unwrap() { // tp=110
+        sig.update(&bar("90", "90", "90", "1")).unwrap(); // tp=90
+        if let SignalValue::Scalar(v) = sig.update(&bar("110", "110", "110", "9")).unwrap() {
+            // tp=110
             // VWAP = (90*1 + 110*9) / 10 = (90+990)/10 = 108
-            assert!(v > dec!(100), "high-vol bar should pull VWAP above 100, got {v}");
+            assert!(
+                v > dec!(100),
+                "high-vol bar should pull VWAP above 100, got {v}"
+            );
         } else {
             panic!("expected Scalar");
         }

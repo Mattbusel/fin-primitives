@@ -32,14 +32,23 @@ impl AmplitudeRatio {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+        })
     }
 }
 
 impl Signal for AmplitudeRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -73,7 +82,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -84,14 +96,17 @@ mod tests {
     #[test]
     fn test_ar_unavailable_first_bar() {
         let mut ar = AmplitudeRatio::new("ar").unwrap();
-        assert_eq!(ar.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ar.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_ar_10_pct_range() {
         let mut ar = AmplitudeRatio::new("ar").unwrap();
         ar.update_bar(&bar("110", "90", "100")).unwrap(); // prev_close = 100
-        // range = 110-90 = 20, prev_close = 100 → 20/100*100 = 20%
+                                                          // range = 110-90 = 20, prev_close = 100 → 20/100*100 = 20%
         let result = ar.update_bar(&bar("110", "90", "105")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(20)));
     }
@@ -111,6 +126,9 @@ mod tests {
         assert!(ar.is_ready());
         ar.reset();
         assert!(!ar.is_ready());
-        assert_eq!(ar.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ar.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

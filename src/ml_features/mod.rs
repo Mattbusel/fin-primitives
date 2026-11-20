@@ -56,13 +56,13 @@ impl PriceFeatures {
             return Err(FinError::InvalidPeriod(0));
         }
         if closes.len() < window + 2 {
-            return Err(FinError::InvalidInput("insufficient close prices for window".into()));
+            return Err(FinError::InvalidInput(
+                "insufficient close prices for window".into(),
+            ));
         }
         let n = closes.len();
         // Log returns
-        let log_returns: Vec<f64> = (1..n)
-            .map(|i| (closes[i] / closes[i - 1]).ln())
-            .collect();
+        let log_returns: Vec<f64> = (1..n).map(|i| (closes[i] / closes[i - 1]).ln()).collect();
 
         // Realized volatility (std of log returns over last `window` returns)
         let rv_slice = &log_returns[log_returns.len().saturating_sub(window)..];
@@ -332,7 +332,9 @@ impl FeatureNormalizer {
     /// [`FinError::InvalidInput`] if std dev is zero (constant series).
     pub fn fit(&mut self, data: &[f64]) -> Result<(), FinError> {
         if data.len() < 2 {
-            return Err(FinError::InvalidInput("need at least 2 data points to normalize".into()));
+            return Err(FinError::InvalidInput(
+                "need at least 2 data points to normalize".into(),
+            ));
         }
         let m = mean(data);
         let s = std_dev(data);
@@ -419,11 +421,8 @@ impl CrossSectionalRanker {
             return vec![];
         }
         // Create (value, original_index) sorted by value ascending
-        let mut indexed: Vec<(f64, usize)> = values
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| (v, i))
-            .collect();
+        let mut indexed: Vec<(f64, usize)> =
+            values.iter().enumerate().map(|(i, &v)| (v, i)).collect();
         indexed.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let mut ranks = vec![0.0_f64; n];
         for (rank_idx, (_, orig_idx)) in indexed.iter().enumerate() {
@@ -554,11 +553,7 @@ mod tests {
     // FeatureVector
     #[test]
     fn feature_vector_get() {
-        let fv = FeatureVector::new(
-            vec!["rsi".into(), "macd".into()],
-            vec![65.0, 0.5],
-        )
-        .unwrap();
+        let fv = FeatureVector::new(vec!["rsi".into(), "macd".into()], vec![65.0, 0.5]).unwrap();
         assert_eq!(fv.get("rsi"), Some(65.0));
         assert_eq!(fv.get("missing"), None);
     }

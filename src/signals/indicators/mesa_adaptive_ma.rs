@@ -103,7 +103,11 @@ impl MesaAdaptiveMa {
 
     fn get(buf: &VecDeque<Decimal>, back: usize) -> Decimal {
         let len = buf.len();
-        if back >= len { Decimal::ZERO } else { buf[len - 1 - back] }
+        if back >= len {
+            Decimal::ZERO
+        } else {
+            buf[len - 1 - back]
+        }
     }
 
     fn compute_smooth(prices: &VecDeque<Decimal>) -> Decimal {
@@ -112,8 +116,7 @@ impl MesaAdaptiveMa {
         let p1 = Self::get(prices, 1);
         let p2 = Self::get(prices, 2);
         let p3 = Self::get(prices, 3);
-        (Decimal::from(4u32) * p0 + Decimal::from(3u32) * p1
-            + Decimal::TWO * p2 + p3)
+        (Decimal::from(4u32) * p0 + Decimal::from(3u32) * p1 + Decimal::TWO * p2 + p3)
             / Decimal::from(10u32)
     }
 
@@ -231,7 +234,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -250,7 +256,10 @@ mod tests {
     fn test_mama_unavailable_before_seven_bars() {
         let mut m = MesaAdaptiveMa::new("m", dec!(0.5), dec!(0.05)).unwrap();
         for _ in 0..6 {
-            assert_eq!(m.update_bar(&bar("100", "98")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                m.update_bar(&bar("100", "98")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!m.is_ready());
     }

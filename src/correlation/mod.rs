@@ -68,7 +68,11 @@ impl CorrelationMatrix {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `window < 2`.
     /// Returns [`FinError::InvalidInput`] if `n_indicators < 2` or threshold is not in `(0, 1]`.
-    pub fn new(n_indicators: usize, window: usize, redundancy_threshold: f64) -> Result<Self, FinError> {
+    pub fn new(
+        n_indicators: usize,
+        window: usize,
+        redundancy_threshold: f64,
+    ) -> Result<Self, FinError> {
         if window < 2 {
             return Err(FinError::InvalidPeriod(window));
         }
@@ -187,12 +191,13 @@ impl CorrelationMatrix {
         }
         let mut result: Vec<(usize, f64)> = (0..self.n)
             .filter(|&j| j != indicator_id)
-            .filter_map(|j| {
-                self.get(indicator_id, j)
-                    .map(|r| (j, r))
-            })
+            .filter_map(|j| self.get(indicator_id, j).map(|r| (j, r)))
             .collect();
-        result.sort_by(|a, b| b.1.abs().partial_cmp(&a.1.abs()).unwrap_or(std::cmp::Ordering::Equal));
+        result.sort_by(|a, b| {
+            b.1.abs()
+                .partial_cmp(&a.1.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         result
     }
 
@@ -248,7 +253,13 @@ mod tests {
         let mut cm = CorrelationMatrix::new(3, 5, 0.95).unwrap();
         // indicators 0 and 1 are y=2x (perfect positive correlation)
         // indicator 2 is negatively correlated with 0
-        let data = [[1.0, 2.0, 10.0], [2.0, 4.0, 9.0], [3.0, 6.0, 8.0], [4.0, 8.0, 7.0], [5.0, 10.0, 6.0]];
+        let data = [
+            [1.0, 2.0, 10.0],
+            [2.0, 4.0, 9.0],
+            [3.0, 6.0, 8.0],
+            [4.0, 8.0, 7.0],
+            [5.0, 10.0, 6.0],
+        ];
         feed(&mut cm, &data);
         assert!(cm.is_ready());
         let r01 = cm.get(0, 1).unwrap();
@@ -270,7 +281,13 @@ mod tests {
     #[test]
     fn test_most_correlated_with_sorted() {
         let mut cm = CorrelationMatrix::new(3, 5, 0.50).unwrap();
-        let data = [[1.0, 2.0, 10.0], [2.0, 4.0, 9.0], [3.0, 6.0, 8.0], [4.0, 8.0, 7.0], [5.0, 10.0, 6.0]];
+        let data = [
+            [1.0, 2.0, 10.0],
+            [2.0, 4.0, 9.0],
+            [3.0, 6.0, 8.0],
+            [4.0, 8.0, 7.0],
+            [5.0, 10.0, 6.0],
+        ];
         feed(&mut cm, &data);
         let corrs = cm.most_correlated_with(0);
         assert_eq!(corrs.len(), 2);
@@ -281,7 +298,13 @@ mod tests {
     #[test]
     fn test_redundant_pairs() {
         let mut cm = CorrelationMatrix::new(3, 5, 0.95).unwrap();
-        let data = [[1.0, 2.0, 10.0], [2.0, 4.0, 9.0], [3.0, 6.0, 8.0], [4.0, 8.0, 7.0], [5.0, 10.0, 6.0]];
+        let data = [
+            [1.0, 2.0, 10.0],
+            [2.0, 4.0, 9.0],
+            [3.0, 6.0, 8.0],
+            [4.0, 8.0, 7.0],
+            [5.0, 10.0, 6.0],
+        ];
         feed(&mut cm, &data);
         let pairs = cm.redundant_pairs();
         // pairs (0,1) r≈1.0, (0,2) r≈-1.0, (1,2) r≈-1.0 all exceed 0.95
@@ -312,7 +335,8 @@ mod tests {
     fn test_matrix_shape() {
         let mut cm = CorrelationMatrix::new(3, 3, 0.95).unwrap();
         for i in 0..3 {
-            cm.update(&[i as f64, (i + 1) as f64, (i * 2) as f64]).unwrap();
+            cm.update(&[i as f64, (i + 1) as f64, (i * 2) as f64])
+                .unwrap();
         }
         let mat = cm.matrix().unwrap();
         assert_eq!(mat.len(), 9);

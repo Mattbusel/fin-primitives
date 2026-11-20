@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Volume Price Correlation -- rolling Pearson correlation between bar volume and
@@ -42,7 +42,9 @@ impl VolumePriceCorr {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -54,7 +56,9 @@ impl VolumePriceCorr {
 
     fn pearson(xs: &VecDeque<Decimal>, ys: &VecDeque<Decimal>) -> Option<Decimal> {
         let n = xs.len();
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         let nf = Decimal::from(n as u32);
         let mean_x: Decimal = xs.iter().sum::<Decimal>() / nf;
         let mean_y: Decimal = ys.iter().sum::<Decimal>() / nf;
@@ -68,20 +72,30 @@ impl VolumePriceCorr {
             var_x += dx * dx;
             var_y += dy * dy;
         }
-        if var_x.is_zero() || var_y.is_zero() { return None; }
+        if var_x.is_zero() || var_y.is_zero() {
+            return None;
+        }
         let var_x_f = var_x.to_f64()?;
         let var_y_f = var_y.to_f64()?;
         let denom = (var_x_f * var_y_f).sqrt();
-        if denom == 0.0 { return None; }
+        if denom == 0.0 {
+            return None;
+        }
         let cov_f = cov.to_f64()?;
         Decimal::try_from(cov_f / denom).ok()
     }
 }
 
 impl Signal for VolumePriceCorr {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.vols.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.vols.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -94,7 +108,9 @@ impl Signal for VolumePriceCorr {
             }
         }
         self.prev_close = Some(bar.close);
-        if self.vols.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.vols.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         match Self::pearson(&self.vols, &self.rets) {
             Some(rho) => Ok(SignalValue::Scalar(rho)),
             None => Ok(SignalValue::Unavailable),
@@ -121,7 +137,11 @@ mod tests {
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p, volume: v,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -129,12 +149,17 @@ mod tests {
     }
 
     #[test]
-    fn test_vpc_period_too_small() { assert!(VolumePriceCorr::new("v", 1).is_err()); }
+    fn test_vpc_period_too_small() {
+        assert!(VolumePriceCorr::new("v", 1).is_err());
+    }
 
     #[test]
     fn test_vpc_unavailable_before_period() {
         let mut v = VolumePriceCorr::new("v", 5).unwrap();
-        assert_eq!(v.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -156,7 +181,13 @@ mod tests {
     #[test]
     fn test_vpc_reset() {
         let mut v = VolumePriceCorr::new("v", 4).unwrap();
-        for (c, vol) in [("100","100"), ("101","200"), ("102","300"), ("103","400"), ("104","500")] {
+        for (c, vol) in [
+            ("100", "100"),
+            ("101", "200"),
+            ("102", "300"),
+            ("103", "400"),
+            ("104", "500"),
+        ] {
             v.update_bar(&bar(c, vol)).unwrap();
         }
         assert!(v.is_ready());

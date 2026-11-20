@@ -95,7 +95,10 @@ pub struct ScenarioBacktester {
 impl ScenarioBacktester {
     /// Creates a new `ScenarioBacktester` with the given historical bars.
     pub fn new(bars: Vec<OhlcvBar>) -> Self {
-        Self { bars, rules: Vec::new() }
+        Self {
+            bars,
+            rules: Vec::new(),
+        }
     }
 
     /// Adds a risk rule to the set evaluated at each bar.
@@ -209,9 +212,15 @@ mod tests {
 
     #[test]
     fn test_no_triggers_when_equity_rises() {
-        let bars: Vec<_> = (1..=10).map(|i| make_bar(dec!(100) + rust_decimal::Decimal::from(i))).collect();
-        let rule = MaxDrawdownRule { threshold_pct: dec!(5) };
-        let report = ScenarioBacktester::new(bars).add_rule(Box::new(rule)).run(|bar| bar.close.value());
+        let bars: Vec<_> = (1..=10)
+            .map(|i| make_bar(dec!(100) + rust_decimal::Decimal::from(i)))
+            .collect();
+        let rule = MaxDrawdownRule {
+            threshold_pct: dec!(5),
+        };
+        let report = ScenarioBacktester::new(bars)
+            .add_rule(Box::new(rule))
+            .run(|bar| bar.close.value());
         assert_eq!(report.bars_processed, 10);
         assert_eq!(report.trigger_count, 0);
         assert_eq!(report.max_drawdown_pct, Decimal::ZERO);
@@ -220,12 +229,14 @@ mod tests {
     #[test]
     fn test_triggers_when_drawdown_exceeds_threshold() {
         // Start at 100, drop to 80 (20% drawdown), threshold is 10%
-        let closes = [
-            dec!(100), dec!(99), dec!(95), dec!(90), dec!(85), dec!(80),
-        ];
+        let closes = [dec!(100), dec!(99), dec!(95), dec!(90), dec!(85), dec!(80)];
         let bars: Vec<_> = closes.iter().map(|&c| make_bar(c)).collect();
-        let rule = MaxDrawdownRule { threshold_pct: dec!(10) };
-        let report = ScenarioBacktester::new(bars).add_rule(Box::new(rule)).run(|bar| bar.close.value());
+        let rule = MaxDrawdownRule {
+            threshold_pct: dec!(10),
+        };
+        let report = ScenarioBacktester::new(bars)
+            .add_rule(Box::new(rule))
+            .run(|bar| bar.close.value());
         assert!(report.trigger_count > 0, "expected at least one trigger");
         assert!(report.max_drawdown_pct > dec!(10));
     }
@@ -250,8 +261,12 @@ mod tests {
     fn test_multiple_rules_both_can_fire() {
         let closes = [dec!(100), dec!(50)]; // 50% drawdown
         let bars: Vec<_> = closes.iter().map(|&c| make_bar(c)).collect();
-        let rule1 = MaxDrawdownRule { threshold_pct: dec!(10) };
-        let rule2 = MaxDrawdownRule { threshold_pct: dec!(20) };
+        let rule1 = MaxDrawdownRule {
+            threshold_pct: dec!(10),
+        };
+        let rule2 = MaxDrawdownRule {
+            threshold_pct: dec!(20),
+        };
         let report = ScenarioBacktester::new(bars)
             .add_rule(Box::new(rule1))
             .add_rule(Box::new(rule2))
@@ -338,10 +353,7 @@ mod tests {
         portfolio.insert("equity".to_owned(), 100.0);
         let mut positions: HashMap<String, f64> = HashMap::new();
         positions.insert("equity".to_owned(), 1.0);
-        let scenarios = vec![
-            Scenario::equity_crash(),
-            Scenario::rate_shock(),
-        ];
+        let scenarios = vec![Scenario::equity_crash(), Scenario::rate_shock()];
         let engine = ScenarioEngine;
         let (worst, pnl) = engine.worst_case(&portfolio, &scenarios, &positions);
         assert!(pnl <= 0.0 || pnl.is_finite());

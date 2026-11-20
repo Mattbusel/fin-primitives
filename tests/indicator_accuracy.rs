@@ -591,7 +591,10 @@ fn bollinger_b_below_0_on_drop() {
 fn bollinger_b_unavailable_before_period() {
     let mut bb = BollingerB::new("bb5", 5, dec!(2)).unwrap();
     for _ in 0..4 {
-        assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }
 
@@ -640,10 +643,15 @@ fn stochastic_k_flat_range_returns_50() {
 #[test]
 fn stochastic_k_range_0_to_100() {
     let mut sk = StochasticK::new("sk5", 5).unwrap();
-    let prices = [("90","95","85","92"), ("92","98","88","90"), ("90","100","80","95"),
-                  ("95","102","82","88"), ("88","96","78","93")];
-    for (o,h,l,c) in &prices {
-        if let SignalValue::Scalar(v) = sk.update_bar(&ohlc_bar(o,h,l,c)).unwrap() {
+    let prices = [
+        ("90", "95", "85", "92"),
+        ("92", "98", "88", "90"),
+        ("90", "100", "80", "95"),
+        ("95", "102", "82", "88"),
+        ("88", "96", "78", "93"),
+    ];
+    for (o, h, l, c) in &prices {
+        if let SignalValue::Scalar(v) = sk.update_bar(&ohlc_bar(o, h, l, c)).unwrap() {
             assert!(v >= Decimal::ZERO && v <= dec!(100), "%K out of range: {v}");
         }
     }
@@ -686,7 +694,10 @@ fn wma_most_recent_weighted_highest() {
     }
     let wma_v = scalar(wma.update_bar(&bar("100")).unwrap());
     let sma_v = scalar(sma.update_bar(&bar("100")).unwrap());
-    assert!(wma_v > sma_v, "WMA ({wma_v}) should exceed SMA ({sma_v}) when recent price dominates");
+    assert!(
+        wma_v > sma_v,
+        "WMA ({wma_v}) should exceed SMA ({sma_v}) when recent price dominates"
+    );
 }
 
 // ── DEMA correctness ──────────────────────────────────────────────────────
@@ -714,7 +725,10 @@ fn dema_faster_than_ema_on_jump() {
     }
     let dema_v = scalar(dema.update_bar(&bar("300")).unwrap());
     let ema_v = scalar(ema.update_bar(&bar("300")).unwrap());
-    assert!(dema_v > ema_v, "DEMA ({dema_v}) should react faster than EMA ({ema_v})");
+    assert!(
+        dema_v > ema_v,
+        "DEMA ({dema_v}) should react faster than EMA ({ema_v})"
+    );
 }
 
 #[test]

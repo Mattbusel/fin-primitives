@@ -34,17 +34,29 @@ impl VolumeExhaustion {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_volume: None, streak: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_volume: None,
+            streak: 0,
+        })
     }
 
     /// Returns the current exhaustion streak.
-    pub fn streak(&self) -> i64 { self.streak }
+    pub fn streak(&self) -> i64 {
+        self.streak
+    }
 }
 
 impl Signal for VolumeExhaustion {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_volume.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_volume.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_volume {
@@ -55,9 +67,17 @@ impl Signal for VolumeExhaustion {
                 let bearish = bar.close < bar.open;
 
                 self.streak = if vol_declining && bullish {
-                    if self.streak >= 0 { self.streak + 1 } else { 1 }
+                    if self.streak >= 0 {
+                        self.streak + 1
+                    } else {
+                        1
+                    }
                 } else if vol_declining && bearish {
-                    if self.streak <= 0 { self.streak - 1 } else { -1 }
+                    if self.streak <= 0 {
+                        self.streak - 1
+                    } else {
+                        -1
+                    }
                 } else {
                     0
                 };
@@ -89,7 +109,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -100,14 +123,17 @@ mod tests {
     #[test]
     fn test_ve_unavailable_first_bar() {
         let mut ve = VolumeExhaustion::new("ve").unwrap();
-        assert_eq!(ve.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ve.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_ve_bullish_with_declining_volume() {
         let mut ve = VolumeExhaustion::new("ve").unwrap();
         ve.update_bar(&bar("100", "105", "1000")).unwrap(); // seed
-        // bullish, volume declining: 900 < 1000
+                                                            // bullish, volume declining: 900 < 1000
         let r1 = ve.update_bar(&bar("105", "110", "900")).unwrap();
         let r2 = ve.update_bar(&bar("110", "115", "800")).unwrap();
         assert_eq!(r1, SignalValue::Scalar(dec!(1)));
@@ -119,7 +145,7 @@ mod tests {
         let mut ve = VolumeExhaustion::new("ve").unwrap();
         ve.update_bar(&bar("100", "105", "1000")).unwrap();
         ve.update_bar(&bar("105", "110", "900")).unwrap(); // streak=1
-        // volume increases: reset
+                                                           // volume increases: reset
         let result = ve.update_bar(&bar("110", "115", "1200")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(0)));
     }
@@ -132,6 +158,9 @@ mod tests {
         assert_eq!(ve.streak(), 1);
         ve.reset();
         assert_eq!(ve.streak(), 0);
-        assert_eq!(ve.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ve.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

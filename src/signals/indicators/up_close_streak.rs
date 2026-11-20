@@ -43,7 +43,12 @@ impl UpCloseStreak {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None, streak: 0, seen_bars: 0 })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+            streak: 0,
+            seen_bars: 0,
+        })
     }
 }
 
@@ -98,7 +103,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +117,10 @@ mod tests {
     #[test]
     fn test_ucs_first_bar_unavailable() {
         let mut ucs = UpCloseStreak::new("ucs").unwrap();
-        assert_eq!(ucs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ucs.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ucs.is_ready());
     }
 
@@ -125,9 +136,18 @@ mod tests {
     fn test_ucs_counts_rising_closes() {
         let mut ucs = UpCloseStreak::new("ucs").unwrap();
         ucs.update_bar(&bar("100")).unwrap();
-        assert_eq!(ucs.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(ucs.update_bar(&bar("102")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(ucs.update_bar(&bar("103")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            ucs.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            ucs.update_bar(&bar("102")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            ucs.update_bar(&bar("103")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
@@ -175,6 +195,9 @@ mod tests {
         assert!(ucs.is_ready());
         ucs.reset();
         assert!(!ucs.is_ready());
-        assert_eq!(ucs.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ucs.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -28,14 +28,23 @@ pub struct PriceChangePct {
 impl PriceChangePct {
     /// Constructs a new `PriceChangePct`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_close: None }
+        Self {
+            name: name.into(),
+            prev_close: None,
+        }
     }
 }
 
 impl Signal for PriceChangePct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -67,7 +76,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -78,7 +90,10 @@ mod tests {
     #[test]
     fn test_pcp_first_bar_unavailable() {
         let mut pcp = PriceChangePct::new("pcp");
-        assert_eq!(pcp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(pcp.is_ready());
     }
 
@@ -113,6 +128,9 @@ mod tests {
         assert!(pcp.is_ready());
         pcp.reset();
         assert!(!pcp.is_ready());
-        assert_eq!(pcp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pcp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

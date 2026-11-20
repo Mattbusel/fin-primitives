@@ -52,18 +52,31 @@ impl UpMomentumPct {
 }
 
 impl Signal for UpMomentumPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.directions.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.directions.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             let up = bar.close > pc;
-            if up { self.up_count += 1; }
+            if up {
+                self.up_count += 1;
+            }
             self.directions.push_back(up);
             if self.directions.len() > self.period {
-                let removed = self.directions.pop_front().ok_or_else(crate::error::invariant_broken)?;
-                if removed { self.up_count -= 1; }
+                let removed = self
+                    .directions
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
+                if removed {
+                    self.up_count -= 1;
+                }
             }
         }
         self.prev_close = Some(bar.close);
@@ -98,7 +111,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -149,7 +165,7 @@ mod tests {
     #[test]
     fn test_ump_in_range() {
         let mut s = UpMomentumPct::new("ump", 4).unwrap();
-        for p in &["100","102","101","103","102","104","101","103"] {
+        for p in &["100", "102", "101", "103", "102", "104", "101", "103"] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "fraction out of [0,1]: {v}");
             }
@@ -159,7 +175,9 @@ mod tests {
     #[test]
     fn test_ump_reset() {
         let mut s = UpMomentumPct::new("ump", 3).unwrap();
-        for p in &["100","101","102","103","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

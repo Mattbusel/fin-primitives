@@ -46,7 +46,9 @@ impl DisparityIndex {
 }
 
 impl Signal for DisparityIndex {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.history.push_back(bar.close);
@@ -93,7 +95,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,7 +121,9 @@ mod tests {
     #[test]
     fn test_disparity_flat_is_zero() {
         let mut d = DisparityIndex::new("d", 3).unwrap();
-        for _ in 0..3 { d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            d.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = d.update_bar(&bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {
@@ -155,7 +162,9 @@ mod tests {
     #[test]
     fn test_disparity_reset() {
         let mut d = DisparityIndex::new("d", 3).unwrap();
-        for _ in 0..3 { d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            d.update_bar(&bar("100")).unwrap();
+        }
         assert!(d.is_ready());
         d.reset();
         assert!(!d.is_ready());

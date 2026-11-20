@@ -1,8 +1,8 @@
 //! Volume Oscillator indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Volume Oscillator: `(fast_ema_vol - slow_ema_vol) / slow_ema_vol * 100`.
 ///
@@ -56,17 +56,25 @@ impl Signal for VolumeOscillator {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
         let fast = self.fast_ema.ok_or_else(crate::error::invariant_broken)?;
-        Ok(SignalValue::Scalar((fast - slow) / slow * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (fast - slow) / slow * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.bars_seen >= self.slow_period }
-    fn period(&self) -> usize { self.slow_period }
+    fn is_ready(&self) -> bool {
+        self.bars_seen >= self.slow_period
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
     fn reset(&mut self) {
         self.fast_ema = None;
         self.slow_ema = None;
         self.bars_seen = 0;
     }
-    fn name(&self) -> &str { "VolumeOscillator" }
+    fn name(&self) -> &str {
+        "VolumeOscillator"
+    }
 }
 
 #[cfg(test)]
@@ -101,7 +109,11 @@ mod tests {
             last = sig.update(&bar("1000")).unwrap();
         }
         if let SignalValue::Scalar(x) = last {
-            assert!(x.abs() < dec!(0.0001), "constant vol should give ~0 oscillator, got {}", x);
+            assert!(
+                x.abs() < dec!(0.0001),
+                "constant vol should give ~0 oscillator, got {}",
+                x
+            );
         }
     }
 }

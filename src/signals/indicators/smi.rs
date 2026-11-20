@@ -61,9 +61,15 @@ impl Smi {
         smooth1: usize,
         smooth2: usize,
     ) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        if smooth1 == 0 { return Err(FinError::InvalidPeriod(smooth1)); }
-        if smooth2 == 0 { return Err(FinError::InvalidPeriod(smooth2)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        if smooth1 == 0 {
+            return Err(FinError::InvalidPeriod(smooth1));
+        }
+        if smooth2 == 0 {
+            return Err(FinError::InvalidPeriod(smooth2));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let smooth1_k = Decimal::TWO / Decimal::from((smooth1 + 1) as u32);
         #[allow(clippy::cast_possible_truncation)]
@@ -83,7 +89,9 @@ impl Smi {
 }
 
 impl Signal for Smi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.bars.push_back(*bar);
@@ -162,7 +170,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -180,8 +191,14 @@ mod tests {
     #[test]
     fn test_smi_unavailable_before_period() {
         let mut smi = Smi::new("s", 3, 2, 2).unwrap();
-        assert_eq!(smi.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(smi.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            smi.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            smi.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -209,10 +226,15 @@ mod tests {
     #[test]
     fn test_smi_reset() {
         let mut smi = Smi::new("s", 3, 2, 2).unwrap();
-        for _ in 0..10 { smi.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            smi.update_bar(&bar("100")).unwrap();
+        }
         assert!(smi.is_ready());
         smi.reset();
         assert!(!smi.is_ready());
-        assert_eq!(smi.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            smi.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -72,8 +72,14 @@ impl Signal for TrendConsistency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let net = last - first;
 
         if net.is_zero() {
@@ -82,9 +88,12 @@ impl Signal for TrendConsistency {
 
         let is_up_trend = net > Decimal::ZERO;
         let steps = self.closes.len() - 1;
-        let aligned = self.closes.iter().zip(self.closes.iter().skip(1)).filter(|(a, b)| {
-            if is_up_trend { *b > *a } else { *b < *a }
-        }).count();
+        let aligned = self
+            .closes
+            .iter()
+            .zip(self.closes.iter().skip(1))
+            .filter(|(a, b)| if is_up_trend { *b > *a } else { *b < *a })
+            .count();
 
         let ratio = Decimal::from(aligned as u32)
             .checked_div(Decimal::from(steps as u32))
@@ -110,7 +119,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +167,10 @@ mod tests {
         let v = tc.update_bar(&bar("103")).unwrap();
         if let SignalValue::Scalar(r) = v {
             // steps: 100→102 (up), 102→101 (down), 101→103 (up). net=up. aligned=2/3
-            assert!((r - dec!(2) / dec!(3)).abs() < dec!(0.0001), "expected 2/3, got {r}");
+            assert!(
+                (r - dec!(2) / dec!(3)).abs() < dec!(0.0001),
+                "expected 2/3, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }

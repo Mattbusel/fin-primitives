@@ -70,23 +70,13 @@ impl Signal for StochasticK {
             return Ok(SignalValue::Unavailable);
         }
 
-        let highest_high = self
-            .highs
-            .iter()
-            .copied()
-            .fold(Decimal::MIN, Decimal::max);
-        let lowest_low = self
-            .lows
-            .iter()
-            .copied()
-            .fold(Decimal::MAX, Decimal::min);
+        let highest_high = self.highs.iter().copied().fold(Decimal::MIN, Decimal::max);
+        let lowest_low = self.lows.iter().copied().fold(Decimal::MAX, Decimal::min);
 
         let range = highest_high - lowest_low;
         if range == Decimal::ZERO {
             // Flat price — return 50 (midpoint).
-            return Ok(SignalValue::Scalar(
-                Decimal::from(50u32),
-            ));
+            return Ok(SignalValue::Scalar(Decimal::from(50u32)));
         }
 
         let pct_k = (bar.close - lowest_low)
@@ -146,8 +136,14 @@ mod tests {
     #[test]
     fn test_stoch_unavailable_before_period() {
         let mut k = StochasticK::new("k3", 3).unwrap();
-        assert_eq!(k.update_bar(&bar("100", "110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(k.update_bar(&bar("100", "110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            k.update_bar(&bar("100", "110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            k.update_bar(&bar("100", "110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!k.is_ready());
     }
 

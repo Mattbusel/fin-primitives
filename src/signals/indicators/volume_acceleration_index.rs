@@ -33,7 +33,7 @@ use std::collections::VecDeque;
 pub struct VolumeAccelerationIndex {
     name: String,
     period: usize,
-    window: VecDeque<Decimal>,   // rolling 2*period volumes
+    window: VecDeque<Decimal>,      // rolling 2*period volumes
     sma_history: VecDeque<Decimal>, // history of SMAs
     window_sum: Decimal,
 }
@@ -87,7 +87,8 @@ impl crate::signals::Signal for VolumeAccelerationIndex {
         }
 
         #[allow(clippy::cast_possible_truncation)]
-        let current_sma = self.window_sum
+        let current_sma = self
+            .window_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -123,7 +124,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -140,7 +144,10 @@ mod tests {
     fn test_vai_unavailable_during_warmup() {
         let mut vai = VolumeAccelerationIndex::new("vai", 3).unwrap();
         for _ in 0..5 {
-            assert_eq!(vai.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vai.update_bar(&bar("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

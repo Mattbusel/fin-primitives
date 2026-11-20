@@ -52,17 +52,23 @@ impl ChandeForecastOsc {
     /// Computes the least-squares linear regression forecast for the last value.
     fn linreg_forecast(closes: &VecDeque<Decimal>) -> Option<f64> {
         let n = closes.len();
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         let nf = n as f64;
         // x = 0, 1, ..., n-1
         let sum_x = nf * (nf - 1.0) / 2.0;
         let sum_x2 = nf * (nf - 1.0) * (2.0 * nf - 1.0) / 6.0;
         let ys: Vec<f64> = closes.iter().filter_map(|c| c.to_f64()).collect();
-        if ys.len() != n { return None; }
+        if ys.len() != n {
+            return None;
+        }
         let sum_y: f64 = ys.iter().sum();
         let sum_xy: f64 = ys.iter().enumerate().map(|(i, y)| i as f64 * y).sum();
         let denom = nf * sum_x2 - sum_x * sum_x;
-        if denom == 0.0 { return Some(ys[n - 1]); }
+        if denom == 0.0 {
+            return Some(ys[n - 1]);
+        }
         let slope = (nf * sum_xy - sum_x * sum_y) / denom;
         let intercept = (sum_y - slope * sum_x) / nf;
         // Forecast for x = n-1 (the last bar's position)
@@ -71,14 +77,24 @@ impl ChandeForecastOsc {
 }
 
 impl Signal for ChandeForecastOsc {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let close_f = match bar.close.to_f64() {
             Some(f) if f != 0.0 => f,
@@ -112,7 +128,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -130,7 +149,10 @@ mod tests {
     fn test_cfo_unavailable_before_warm_up() {
         let mut cfo = ChandeForecastOsc::new("c", 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(cfo.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                cfo.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -143,7 +165,11 @@ mod tests {
             last = cfo.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v.abs() < dec!(0.01), "linear trend should give CFO ≈ 0, got {}", v);
+            assert!(
+                v.abs() < dec!(0.01),
+                "linear trend should give CFO ≈ 0, got {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -152,14 +178,18 @@ mod tests {
     #[test]
     fn test_cfo_upside_acceleration_positive() {
         // Prices accelerating upward → close exceeds linear forecast → positive CFO
-        let prices = ["100","101","103","106","110"];
+        let prices = ["100", "101", "103", "106", "110"];
         let mut cfo = ChandeForecastOsc::new("c", 5).unwrap();
         let mut last = SignalValue::Unavailable;
         for p in &prices {
             last = cfo.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "accelerating uptrend should give positive CFO, got {}", v);
+            assert!(
+                v > dec!(0),
+                "accelerating uptrend should give positive CFO, got {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -168,7 +198,9 @@ mod tests {
     #[test]
     fn test_cfo_reset() {
         let mut cfo = ChandeForecastOsc::new("c", 5).unwrap();
-        for i in 0u32..5 { cfo.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..5 {
+            cfo.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(cfo.is_ready());
         cfo.reset();
         assert!(!cfo.is_ready());

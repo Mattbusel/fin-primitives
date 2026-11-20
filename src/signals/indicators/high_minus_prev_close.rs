@@ -80,7 +80,10 @@ impl crate::signals::Signal for HighMinusPrevClose {
         let result = if let Some(pc) = self.prev_close {
             let delta = bar.high - pc;
             let ema = match self.ema {
-                None => { self.ema = Some(delta); delta }
+                None => {
+                    self.ema = Some(delta);
+                    delta
+                }
                 Some(prev) => {
                     let next = delta * self.k + prev * (Decimal::ONE - self.k);
                     self.ema = Some(next);
@@ -117,7 +120,10 @@ mod tests {
         let low = if c < h { c } else { h };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: low, high: h, low, close: c,
+            open: low,
+            high: h,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +139,10 @@ mod tests {
     #[test]
     fn test_hmpc_first_bar_unavailable() {
         let mut hmpc = HighMinusPrevClose::new("hmpc", 5).unwrap();
-        assert_eq!(hmpc.update_bar(&bar("110", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hmpc.update_bar(&bar("110", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!hmpc.is_ready());
     }
 
@@ -149,7 +158,7 @@ mod tests {
     fn test_hmpc_positive_extension() {
         let mut hmpc = HighMinusPrevClose::new("hmpc", 5).unwrap();
         hmpc.update_bar(&bar("110", "105")).unwrap(); // close=105
-        // high=120 > 105 → delta = 15
+                                                      // high=120 > 105 → delta = 15
         let v = hmpc.update_bar(&bar("120", "115")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(15)));
     }
@@ -158,7 +167,7 @@ mod tests {
     fn test_hmpc_no_extension_negative() {
         let mut hmpc = HighMinusPrevClose::new("hmpc", 5).unwrap();
         hmpc.update_bar(&bar("110", "108")).unwrap(); // close=108
-        // high=105 < 108 → delta = -3
+                                                      // high=105 < 108 → delta = -3
         let v = hmpc.update_bar(&bar("105", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-3)));
     }

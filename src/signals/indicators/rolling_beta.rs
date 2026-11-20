@@ -56,9 +56,15 @@ impl RollingBeta {
 }
 
 impl Signal for RollingBeta {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period + 1 }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period + 1
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -77,7 +83,11 @@ impl Signal for RollingBeta {
         let rets: Vec<f64> = closes
             .windows(2)
             .filter_map(|w| {
-                if w[0] != 0.0 { Some((w[1] - w[0]) / w[0]) } else { None }
+                if w[0] != 0.0 {
+                    Some((w[1] - w[0]) / w[0])
+                } else {
+                    None
+                }
             })
             .collect();
 
@@ -93,15 +103,14 @@ impl Signal for RollingBeta {
         let mean_x = x.iter().sum::<f64>() / n;
         let mean_y = y.iter().sum::<f64>() / n;
 
-        let cov = x.iter().zip(y.iter())
+        let cov = x
+            .iter()
+            .zip(y.iter())
             .map(|(&xi, &yi)| (xi - mean_x) * (yi - mean_y))
             .sum::<f64>()
             / n;
 
-        let var_x = x.iter()
-            .map(|&xi| (xi - mean_x).powi(2))
-            .sum::<f64>()
-            / n;
+        let var_x = x.iter().map(|&xi| (xi - mean_x).powi(2)).sum::<f64>() / n;
 
         if var_x == 0.0 {
             return Ok(SignalValue::Unavailable);
@@ -130,7 +139,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -188,7 +200,9 @@ mod tests {
     #[test]
     fn test_rb_reset() {
         let mut rb = RollingBeta::new("rb", 3).unwrap();
-        for p in &["100", "101", "102", "103", "104"] { rb.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            rb.update_bar(&bar(p)).unwrap();
+        }
         assert!(rb.is_ready());
         rb.reset();
         assert!(!rb.is_ready());

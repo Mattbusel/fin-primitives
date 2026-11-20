@@ -49,23 +49,33 @@ impl BarRangeConsistency {
 }
 
 impl Signal for BarRangeConsistency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ranges.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean_d = self.sum
+        let mean_d = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -114,7 +124,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,8 +144,14 @@ mod tests {
     #[test]
     fn test_brc_unavailable_before_period() {
         let mut s = BarRangeConsistency::new("brc", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -142,7 +161,10 @@ mod tests {
         s.update_bar(&bar("110", "90")).unwrap();
         let v = s.update_bar(&bar("110", "90")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(1)).abs() < dec!(0.0001), "constant ranges → consistency=1: {r}");
+            assert!(
+                (r - dec!(1)).abs() < dec!(0.0001),
+                "constant ranges → consistency=1: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -151,7 +173,13 @@ mod tests {
     #[test]
     fn test_brc_output_in_unit_interval() {
         let mut s = BarRangeConsistency::new("brc", 4).unwrap();
-        for (h, l) in &[("110","90"),("150","80"),("102","99"),("120","85"),("108","95")] {
+        for (h, l) in &[
+            ("110", "90"),
+            ("150", "80"),
+            ("102", "99"),
+            ("120", "85"),
+            ("108", "95"),
+        ] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "out of [0,1]: {v}");
             }
@@ -161,7 +189,9 @@ mod tests {
     #[test]
     fn test_brc_reset() {
         let mut s = BarRangeConsistency::new("brc", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

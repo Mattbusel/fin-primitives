@@ -56,9 +56,15 @@ impl BodyAtrRatio {
 }
 
 impl Signal for BodyAtrRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.tr_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.tr_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -67,7 +73,10 @@ impl Signal for BodyAtrRatio {
         self.tr_sum += tr;
         self.tr_window.push_back(tr);
         if self.tr_window.len() > self.period {
-            let removed = self.tr_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .tr_window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 
@@ -75,7 +84,8 @@ impl Signal for BodyAtrRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let atr = self.tr_sum
+        let atr = self
+            .tr_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -84,9 +94,7 @@ impl Signal for BodyAtrRatio {
         }
 
         let body = bar.body_size();
-        let ratio = body
-            .checked_div(atr)
-            .ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = body.checked_div(atr).ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(ratio))
     }
@@ -113,7 +121,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -129,16 +140,26 @@ mod tests {
     #[test]
     fn test_bar_atr_unavailable_during_warmup() {
         let mut s = BodyAtrRatio::new("bar_atr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100","110","90","105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("105","115","95","108")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("105", "115", "95", "108")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
     #[test]
     fn test_bar_atr_non_negative() {
         let mut s = BodyAtrRatio::new("bar_atr", 3).unwrap();
-        let bars = [("100","110","90","105"),("105","115","95","108"),("108","118","98","102"),
-                    ("102","112","92","110")];
+        let bars = [
+            ("100", "110", "90", "105"),
+            ("105", "115", "95", "108"),
+            ("108", "118", "98", "102"),
+            ("102", "112", "92", "110"),
+        ];
         for (o, h, l, c) in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(o, h, l, c)).unwrap() {
                 assert!(v >= dec!(0), "body/ATR ratio must be non-negative: {v}");
@@ -150,10 +171,10 @@ mod tests {
     fn test_bar_atr_large_body_gives_high_ratio() {
         // Bars with range ~10, then a bar with body=20 → ratio > 1
         let mut s = BodyAtrRatio::new("bar_atr", 2).unwrap();
-        s.update_bar(&bar("100","105","95","102")).unwrap();   // TR=10, body=2
-        s.update_bar(&bar("102","107","97","104")).unwrap();   // TR=10, body=2
-        // Now large body bar
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","120","98","120")).unwrap() {
+        s.update_bar(&bar("100", "105", "95", "102")).unwrap(); // TR=10, body=2
+        s.update_bar(&bar("102", "107", "97", "104")).unwrap(); // TR=10, body=2
+                                                                // Now large body bar
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "120", "98", "120")).unwrap() {
             // body=20, ATR≈10 → ratio≈2
             assert!(v > dec!(1), "large body relative to ATR: {v}");
         } else {
@@ -165,9 +186,9 @@ mod tests {
     fn test_bar_atr_doji_gives_low_ratio() {
         // Normal bars, then a doji (body≈0) → ratio near 0
         let mut s = BodyAtrRatio::new("bar_atr", 2).unwrap();
-        s.update_bar(&bar("100","110","90","105")).unwrap();   // TR=20, body=5
-        s.update_bar(&bar("105","115","95","110")).unwrap();   // TR=20, body=5
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","115","95","105")).unwrap() {
+        s.update_bar(&bar("100", "110", "90", "105")).unwrap(); // TR=20, body=5
+        s.update_bar(&bar("105", "115", "95", "110")).unwrap(); // TR=20, body=5
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "115", "95", "105")).unwrap() {
             // doji: body=0 → ratio=0
             assert!(v < dec!(0.1), "doji gives near-zero body/ATR: {v}");
         } else {
@@ -178,8 +199,11 @@ mod tests {
     #[test]
     fn test_bar_atr_reset() {
         let mut s = BodyAtrRatio::new("bar_atr", 2).unwrap();
-        for (o, h, l, c) in &[("100","110","90","105"),("105","115","95","110"),
-                                ("110","120","100","115")] {
+        for (o, h, l, c) in &[
+            ("100", "110", "90", "105"),
+            ("105", "115", "95", "110"),
+            ("110", "120", "100", "115"),
+        ] {
             s.update_bar(&bar(o, h, l, c)).unwrap();
         }
         assert!(s.is_ready());

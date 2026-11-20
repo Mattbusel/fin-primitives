@@ -43,7 +43,11 @@ impl BodyHighRatio {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, ratios: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ratios: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -115,13 +119,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(BodyHighRatio::new("bhr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            BodyHighRatio::new("bhr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut bhr = BodyHighRatio::new("bhr", 3).unwrap();
-        assert_eq!(bhr.update_bar(&bar("10", "15", "8", "12")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bhr.update_bar(&bar("10", "15", "8", "12")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

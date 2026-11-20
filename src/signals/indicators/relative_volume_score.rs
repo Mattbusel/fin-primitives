@@ -49,15 +49,24 @@ impl RelativeVolumeScore {
 }
 
 impl Signal for RelativeVolumeScore {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.volumes.push_back(bar.volume);
         self.sum += bar.volume;
         if self.volumes.len() > self.period {
-            self.sum -= self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.sum -= self
+                .volumes
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
         if self.volumes.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -89,7 +98,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -106,7 +118,10 @@ mod tests {
     fn test_rvs_unavailable_before_warm_up() {
         let mut rvs = RelativeVolumeScore::new("rvs", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(rvs.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rvs.update_bar(&bar("1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -128,7 +143,11 @@ mod tests {
         rvs.update_bar(&bar("1000")).unwrap();
         let result = rvs.update_bar(&bar("2000")).unwrap();
         if let SignalValue::Scalar(v) = result {
-            assert!(v > dec!(1), "above-average volume should give score > 1: {}", v);
+            assert!(
+                v > dec!(1),
+                "above-average volume should give score > 1: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -137,7 +156,9 @@ mod tests {
     #[test]
     fn test_rvs_reset() {
         let mut rvs = RelativeVolumeScore::new("rvs", 3).unwrap();
-        for _ in 0..3 { rvs.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            rvs.update_bar(&bar("1000")).unwrap();
+        }
         assert!(rvs.is_ready());
         rvs.reset();
         assert!(!rvs.is_ready());

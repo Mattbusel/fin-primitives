@@ -48,14 +48,24 @@ impl RangeContractionIndex {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
 impl Signal for RangeContractionIndex {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -97,7 +107,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -113,8 +126,14 @@ mod tests {
     #[test]
     fn test_rci_unavailable_during_warmup() {
         let mut rci = RangeContractionIndex::new("rci", 3).unwrap();
-        assert_eq!(rci.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(rci.update_bar(&bar("108", "92")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rci.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            rci.update_bar(&bar("108", "92")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rci.is_ready());
     }
 

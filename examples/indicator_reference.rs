@@ -39,7 +39,13 @@ fn synthetic_bars(n: usize) -> Vec<BarInput> {
         let high = open.max(close) + up;
         let low = (open.min(close) - down).max(1);
         let volume = 1_000 + (next() % 9_000) as i64;
-        out.push(BarInput::new(cents(close), cents(high), cents(low), cents(open), Decimal::from(volume)));
+        out.push(BarInput::new(
+            cents(close),
+            cents(high),
+            cents(low),
+            cents(open),
+            Decimal::from(volume),
+        ));
     }
     out
 }
@@ -66,19 +72,39 @@ fn main() -> Result<(), FinError> {
         ("rsi_14", "[\"rsi\", 14]", Box::new(Rsi::new("rsi", 14)?)),
         ("ema_10", "[\"ema\", 10]", Box::new(Ema::new("ema", 10)?)),
         ("sma_20", "[\"sma\", 20]", Box::new(Sma::new("sma", 20)?)),
-        ("macd_12_26_9", "[\"macd\", 12, 26, 9]", Box::new(Macd::new("macd", 12, 26, 9)?)),
-        ("bollinger_b_20_2", "[\"bollinger_b\", 20, 2]", Box::new(BollingerB::new("bb", 20, 2)?)),
+        (
+            "macd_12_26_9",
+            "[\"macd\", 12, 26, 9]",
+            Box::new(Macd::new("macd", 12, 26, 9)?),
+        ),
+        (
+            "bollinger_b_20_2",
+            "[\"bollinger_b\", 20, 2]",
+            Box::new(BollingerB::new("bb", 20, 2)?),
+        ),
         ("atr_14", "[\"atr\", 14]", Box::new(Atr::new("atr", 14)?)),
     ];
 
     println!("{{");
     println!("  \"generator\": \"cargo run --example indicator_reference\",");
     println!("  \"bars\": {{");
-    println!("    \"open\": {},", json_column(bars.iter().map(|b| b.open)));
-    println!("    \"high\": {},", json_column(bars.iter().map(|b| b.high)));
+    println!(
+        "    \"open\": {},",
+        json_column(bars.iter().map(|b| b.open))
+    );
+    println!(
+        "    \"high\": {},",
+        json_column(bars.iter().map(|b| b.high))
+    );
     println!("    \"low\": {},", json_column(bars.iter().map(|b| b.low)));
-    println!("    \"close\": {},", json_column(bars.iter().map(|b| b.close)));
-    println!("    \"volume\": {}", json_column(bars.iter().map(|b| b.volume)));
+    println!(
+        "    \"close\": {},",
+        json_column(bars.iter().map(|b| b.close))
+    );
+    println!(
+        "    \"volume\": {}",
+        json_column(bars.iter().map(|b| b.volume))
+    );
     println!("  }},");
     println!("  \"cases\": {{");
     let last = cases.len() - 1;

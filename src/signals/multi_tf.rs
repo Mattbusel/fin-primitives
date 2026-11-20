@@ -170,7 +170,10 @@ pub struct MultiTimeframeSignal {
 impl MultiTimeframeSignal {
     /// Create a new aggregator with the given agreement policy.
     pub fn new(policy: AgreementPolicy) -> Self {
-        Self { policy, slots: Vec::new() }
+        Self {
+            policy,
+            slots: Vec::new(),
+        }
     }
 
     /// Register an indicator for a given timeframe.
@@ -180,7 +183,11 @@ impl MultiTimeframeSignal {
             slot.indicator = indicator;
             slot.last_direction = None;
         } else {
-            self.slots.push(TfSlot { timeframe: tf, indicator, last_direction: None });
+            self.slots.push(TfSlot {
+                timeframe: tf,
+                indicator,
+                last_direction: None,
+            });
         }
     }
 
@@ -211,8 +218,14 @@ impl MultiTimeframeSignal {
         }
 
         // Count bullish vs bearish (neutral votes count against either)
-        let bullish = active.iter().filter(|(_, d)| *d == SignalDirection::Bullish).count();
-        let bearish = active.iter().filter(|(_, d)| *d == SignalDirection::Bearish).count();
+        let bullish = active
+            .iter()
+            .filter(|(_, d)| *d == SignalDirection::Bullish)
+            .count();
+        let bearish = active
+            .iter()
+            .filter(|(_, d)| *d == SignalDirection::Bearish)
+            .count();
 
         let (winner_dir, winner_count) = if bullish >= bearish {
             (SignalDirection::Bullish, bullish)
@@ -233,7 +246,9 @@ impl MultiTimeframeSignal {
                 active_count,
             }
         } else {
-            MultiTfResult::Insufficient { votes: self.current_vote_map() }
+            MultiTfResult::Insufficient {
+                votes: self.current_vote_map(),
+            }
         }
     }
 
@@ -252,7 +267,10 @@ impl MultiTimeframeSignal {
 
     /// Returns how many timeframes have emitted at least one value (warmed up).
     pub fn active_count(&self) -> usize {
-        self.slots.iter().filter(|s| s.last_direction.is_some()).count()
+        self.slots
+            .iter()
+            .filter(|s| s.last_direction.is_some())
+            .count()
     }
 
     fn current_vote_map(&self) -> HashMap<String, Option<SignalDirection>> {
@@ -328,15 +346,23 @@ mod tests {
     fn test_unanimous_bullish_confirmed() {
         let mut mts = make_mts(AgreementPolicy::Unanimous);
         seed(&mut mts, 100.0); // first observation, no direction yet
-        // All rise → all bullish. The update that completes the set returns the
-        // combined result. (Pushing D1 = 101 a second time, as this test used to,
-        // is a flat bar: D1's momentum turns Neutral and unanimity is lost.)
-        let mut result = MultiTfResult::Insufficient { votes: Default::default() };
+                               // All rise → all bullish. The update that completes the set returns the
+                               // combined result. (Pushing D1 = 101 a second time, as this test used to,
+                               // is a flat bar: D1's momentum turns Neutral and unanimity is lost.)
+        let mut result = MultiTfResult::Insufficient {
+            votes: Default::default(),
+        };
         for tf in Timeframe::ALL {
             result = mts.update_timeframe(tf, 101.0);
         }
         assert!(
-            matches!(result, MultiTfResult::Confirmed { direction: SignalDirection::Bullish, .. }),
+            matches!(
+                result,
+                MultiTfResult::Confirmed {
+                    direction: SignalDirection::Bullish,
+                    ..
+                }
+            ),
             "expected Confirmed Bullish, got {result:?}"
         );
     }
@@ -351,7 +377,13 @@ mod tests {
         }
         let result = mts.update_timeframe(Timeframe::D1, 95.0); // bearish on D1
         assert!(
-            matches!(result, MultiTfResult::Confirmed { direction: SignalDirection::Bullish, .. }),
+            matches!(
+                result,
+                MultiTfResult::Confirmed {
+                    direction: SignalDirection::Bullish,
+                    ..
+                }
+            ),
             "expected Confirmed Bullish majority, got {result:?}"
         );
     }

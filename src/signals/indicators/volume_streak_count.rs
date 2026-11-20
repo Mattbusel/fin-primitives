@@ -1,8 +1,8 @@
 //! Volume Streak Count indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Streak count of consecutive bars with increasing (+) or decreasing (-) volume.
 ///
@@ -18,12 +18,17 @@ pub struct VolumeStreakCount {
 impl VolumeStreakCount {
     /// Creates a new `VolumeStreakCount`.
     pub fn new() -> Self {
-        Self { prev_vol: None, streak: 0 }
+        Self {
+            prev_vol: None,
+            streak: 0,
+        }
     }
 }
 
 impl Default for VolumeStreakCount {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Signal for VolumeStreakCount {
@@ -41,10 +46,19 @@ impl Signal for VolumeStreakCount {
         Ok(SignalValue::Scalar(Decimal::from(self.streak)))
     }
 
-    fn is_ready(&self) -> bool { true }
-    fn period(&self) -> usize { 1 }
-    fn reset(&mut self) { self.prev_vol = None; self.streak = 0; }
-    fn name(&self) -> &str { "VolumeStreakCount" }
+    fn is_ready(&self) -> bool {
+        true
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn reset(&mut self) {
+        self.prev_vol = None;
+        self.streak = 0;
+    }
+    fn name(&self) -> &str {
+        "VolumeStreakCount"
+    }
 }
 
 #[cfg(test)]

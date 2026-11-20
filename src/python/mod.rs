@@ -38,7 +38,6 @@
 //! - numpy / pandas / polars types (handled in Python; no hard dependency); the `fast_*`
 //!   functions take numpy arrays, so numpy must be installed to call them
 
-
 mod args;
 mod fast;
 mod indicator;
@@ -151,7 +150,8 @@ impl PyQuantity {
     /// raises `ValueError` on a negative quantity.
     #[new]
     fn py_new(value: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let q = Quantity::new(to_decimal(value)?).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let q =
+            Quantity::new(to_decimal(value)?).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner: q })
     }
 
@@ -213,24 +213,40 @@ impl PyOHLCV {
         if volume < 0.0 {
             return Err(PyValueError::new_err("volume must be non-negative"));
         }
-        Ok(Self { open, high, low, close, volume })
+        Ok(Self {
+            open,
+            high,
+            low,
+            close,
+            volume,
+        })
     }
 
     /// The `open` value.
     #[getter]
-    pub fn open(&self) -> f64 { self.open }
+    pub fn open(&self) -> f64 {
+        self.open
+    }
     /// The `high` value.
     #[getter]
-    pub fn high(&self) -> f64 { self.high }
+    pub fn high(&self) -> f64 {
+        self.high
+    }
     /// The `low` value.
     #[getter]
-    pub fn low(&self) -> f64 { self.low }
+    pub fn low(&self) -> f64 {
+        self.low
+    }
     /// The `close` value.
     #[getter]
-    pub fn close(&self) -> f64 { self.close }
+    pub fn close(&self) -> f64 {
+        self.close
+    }
     /// The `volume` value.
     #[getter]
-    pub fn volume(&self) -> f64 { self.volume }
+    pub fn volume(&self) -> f64 {
+        self.volume
+    }
 
     /// Typical price: (high + low + close) / 3.
     pub fn typical_price(&self) -> f64 {
@@ -264,19 +280,25 @@ impl PyOrderBook {
     #[new]
     pub fn new(symbol: &str) -> PyResult<Self> {
         let sym = Symbol::new(symbol).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(Self { inner: OrderBook::new(sym) })
+        Ok(Self {
+            inner: OrderBook::new(sym),
+        })
     }
 
     /// Best bid price, or `None` if empty.
     pub fn best_bid(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        self.inner.best_bid().and_then(|level| level.price.value().to_f64())
+        self.inner
+            .best_bid()
+            .and_then(|level| level.price.value().to_f64())
     }
 
     /// Best ask price, or `None` if empty.
     pub fn best_ask(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        self.inner.best_ask().and_then(|level| level.price.value().to_f64())
+        self.inner
+            .best_ask()
+            .and_then(|level| level.price.value().to_f64())
     }
 
     /// Bid-ask spread (ask - bid), or `None` if either side is empty.
@@ -300,8 +322,18 @@ impl PyOrderBook {
     /// Returns `None` if either side is empty or total quantity is zero.
     pub fn imbalance(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        let bid_qty: Decimal = self.inner.top_bids(usize::MAX).iter().map(|l| l.quantity.value()).sum();
-        let ask_qty: Decimal = self.inner.top_asks(usize::MAX).iter().map(|l| l.quantity.value()).sum();
+        let bid_qty: Decimal = self
+            .inner
+            .top_bids(usize::MAX)
+            .iter()
+            .map(|l| l.quantity.value())
+            .sum();
+        let ask_qty: Decimal = self
+            .inner
+            .top_asks(usize::MAX)
+            .iter()
+            .map(|l| l.quantity.value())
+            .sum();
         let total = bid_qty + ask_qty;
         if total.is_zero() {
             return None;
@@ -322,7 +354,13 @@ impl PyOrderBook {
         action_set: bool,
         sequence: u64,
     ) -> PyResult<()> {
-        self.apply_decimal_delta(side, to_decimal(price)?, to_decimal(qty)?, action_set, sequence)
+        self.apply_decimal_delta(
+            side,
+            to_decimal(price)?,
+            to_decimal(qty)?,
+            action_set,
+            sequence,
+        )
     }
 
     /// Current sequence number.
@@ -369,19 +407,29 @@ impl PyOrderBook {
             "bid" => Side::Bid,
             "ask" => Side::Ask,
             other => {
-                return Err(PyValueError::new_err(format!("side must be 'bid' or 'ask', got '{other}'")));
+                return Err(PyValueError::new_err(format!(
+                    "side must be 'bid' or 'ask', got '{other}'"
+                )));
             }
         };
-        let price_t = crate::types::Price::new(pd).map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let qty_t = crate::types::Quantity::new(qd).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let price_t =
+            crate::types::Price::new(pd).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let qty_t =
+            crate::types::Quantity::new(qd).map_err(|e| PyValueError::new_err(e.to_string()))?;
         let delta = BookDelta {
             side: s,
             price: price_t,
             quantity: qty_t,
-            action: if action_set { DeltaAction::Set } else { DeltaAction::Remove },
+            action: if action_set {
+                DeltaAction::Set
+            } else {
+                DeltaAction::Remove
+            },
             sequence,
         };
-        self.inner.apply_delta(delta).map_err(|e| PyValueError::new_err(e.to_string()))
+        self.inner
+            .apply_delta(delta)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 }
 

@@ -124,7 +124,11 @@ impl GarchModel {
         let betas = [0.70, 0.75, 0.80, 0.85];
 
         let mut best_ll = f64::NEG_INFINITY;
-        let mut best_params = GarchParams { omega: var0 * 0.05, alpha: 0.1, beta: 0.8 };
+        let mut best_params = GarchParams {
+            omega: var0 * 0.05,
+            alpha: 0.1,
+            beta: 0.8,
+        };
 
         for &omega in &omegas {
             for &alpha in &alphas {
@@ -149,8 +153,8 @@ impl GarchModel {
 
         // ── Phase 2: gradient descent refinement ─────────────────────────────
         let refined = gradient_descent(returns, best_params, var0, 500, 1e-7);
-        let final_ll = log_likelihood(returns, &refined, var0)
-            .ok_or(GarchError::OptimizationFailed)?;
+        let final_ll =
+            log_likelihood(returns, &refined, var0).ok_or(GarchError::OptimizationFailed)?;
 
         let k = 3.0_f64;
         let nf = n as f64;
@@ -249,7 +253,11 @@ impl GarchModel {
 fn sample_variance(returns: &[f64]) -> f64 {
     let n = returns.len();
     if n < 2 {
-        return if n == 1 { returns[0] * returns[0] } else { 1e-6 };
+        return if n == 1 {
+            returns[0] * returns[0]
+        } else {
+            1e-6
+        };
     }
     let mean = returns.iter().sum::<f64>() / n as f64;
     let var = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
@@ -290,7 +298,11 @@ fn log_likelihood(returns: &[f64], params: &GarchParams, h0: f64) -> Option<f64>
         let eps = returns[t];
         ll += -0.5 * (ln2pi + h_t.ln() + eps * eps / h_t);
     }
-    if ll.is_finite() { Some(ll) } else { None }
+    if ll.is_finite() {
+        Some(ll)
+    } else {
+        None
+    }
 }
 
 /// Simple gradient-descent optimiser for GARCH MLE.
@@ -310,11 +322,21 @@ fn gradient_descent(
 
     for _ in 0..max_iter {
         // Numerical gradient
-        let grad_omega = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams { omega: q.omega + d, ..*q });
-        let grad_alpha = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams { alpha: q.alpha + d, ..*q });
-        let grad_beta  = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams { beta:  q.beta  + d, ..*q });
+        let grad_omega = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams {
+            omega: q.omega + d,
+            ..*q
+        });
+        let grad_alpha = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams {
+            alpha: q.alpha + d,
+            ..*q
+        });
+        let grad_beta = numerical_grad(returns, &p, h0, eps, |q, d| GarchParams {
+            beta: q.beta + d,
+            ..*q
+        });
 
-        let grad_norm = (grad_omega * grad_omega + grad_alpha * grad_alpha + grad_beta * grad_beta).sqrt();
+        let grad_norm =
+            (grad_omega * grad_omega + grad_alpha * grad_alpha + grad_beta * grad_beta).sqrt();
         if grad_norm < tol {
             break;
         }
@@ -322,7 +344,7 @@ fn gradient_descent(
         let candidate = GarchParams {
             omega: (p.omega + step * grad_omega / grad_norm).max(1e-9),
             alpha: (p.alpha + step * grad_alpha / grad_norm).max(0.0),
-            beta:  (p.beta  + step * grad_beta  / grad_norm).max(0.0),
+            beta: (p.beta + step * grad_beta / grad_norm).max(0.0),
         };
 
         // Enforce stationarity constraint with margin
@@ -355,9 +377,9 @@ fn numerical_grad<F>(returns: &[f64], p: &GarchParams, h0: f64, eps: f64, pertur
 where
     F: Fn(&GarchParams, f64) -> GarchParams,
 {
-    let p_plus  = perturb(p,  eps);
+    let p_plus = perturb(p, eps);
     let p_minus = perturb(p, -eps);
-    let ll_plus  = log_likelihood(returns, &p_plus,  h0).unwrap_or(f64::NEG_INFINITY);
+    let ll_plus = log_likelihood(returns, &p_plus, h0).unwrap_or(f64::NEG_INFINITY);
     let ll_minus = log_likelihood(returns, &p_minus, h0).unwrap_or(f64::NEG_INFINITY);
     (ll_plus - ll_minus) / (2.0 * eps)
 }
@@ -374,7 +396,9 @@ mod tests {
         let mut h = 0.0001_f64;
         let mut seed = 12345_u64;
         for _ in 0..n {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let u = (seed >> 33) as f64 / u32::MAX as f64 - 0.5;
             let innov = u * (h * 12.0).sqrt();
             r.push(innov);
@@ -385,33 +409,53 @@ mod tests {
 
     #[test]
     fn test_unconditional_variance() {
-        let p = GarchParams { omega: 0.000002, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 0.000002,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let expected = 0.000002 / (1.0 - 0.1 - 0.85);
         assert!((p.unconditional_variance() - expected).abs() < 1e-12);
     }
 
     #[test]
     fn test_is_stationary_true() {
-        let p = GarchParams { omega: 1e-6, alpha: 0.1, beta: 0.8 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.1,
+            beta: 0.8,
+        };
         assert!(p.is_stationary());
     }
 
     #[test]
     fn test_is_stationary_false_when_sum_ge_1() {
-        let p = GarchParams { omega: 1e-6, alpha: 0.15, beta: 0.86 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.15,
+            beta: 0.86,
+        };
         assert!(!p.is_stationary());
     }
 
     #[test]
     fn test_unconditional_variance_infinity_when_nonstationary() {
-        let p = GarchParams { omega: 1e-6, alpha: 0.5, beta: 0.6 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.5,
+            beta: 0.6,
+        };
         assert_eq!(p.unconditional_variance(), f64::INFINITY);
     }
 
     #[test]
     fn test_conditional_variance_first_element_is_sample_variance() {
         let returns = make_returns(50);
-        let p = GarchParams { omega: 1e-6, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let h = GarchModel::conditional_variance(&p, &returns);
         assert_eq!(h.len(), returns.len());
 
@@ -423,7 +467,11 @@ mod tests {
     #[test]
     fn test_conditional_variance_all_positive() {
         let returns = make_returns(100);
-        let p = GarchParams { omega: 1e-6, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let h = GarchModel::conditional_variance(&p, &returns);
         assert!(h.iter().all(|&v| v > 0.0));
     }
@@ -431,7 +479,11 @@ mod tests {
     #[test]
     fn test_forecast_length() {
         let returns = make_returns(100);
-        let p = GarchParams { omega: 1e-6, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 1e-6,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let f = GarchModel::forecast(&p, &returns, 10);
         assert_eq!(f.len(), 10);
     }
@@ -439,7 +491,11 @@ mod tests {
     #[test]
     fn test_forecast_converges_to_unconditional_variance() {
         let returns = make_returns(500);
-        let p = GarchParams { omega: 0.00002, alpha: 0.08, beta: 0.85 };
+        let p = GarchParams {
+            omega: 0.00002,
+            alpha: 0.08,
+            beta: 0.85,
+        };
         let long_horizon = 500;
         let f = GarchModel::forecast(&p, &returns, long_horizon);
         let last = *f.last().expect("non-empty");
@@ -476,7 +532,11 @@ mod tests {
     #[test]
     fn test_volatility_term_structure_length() {
         let returns = make_returns(100);
-        let p = GarchParams { omega: 1e-5, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 1e-5,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let ts = GarchModel::volatility_term_structure(&p, &returns, 22);
         assert_eq!(ts.len(), 22);
         assert_eq!(ts[0].0, 1);
@@ -486,7 +546,11 @@ mod tests {
     #[test]
     fn test_volatility_term_structure_positive() {
         let returns = make_returns(100);
-        let p = GarchParams { omega: 1e-5, alpha: 0.1, beta: 0.85 };
+        let p = GarchParams {
+            omega: 1e-5,
+            alpha: 0.1,
+            beta: 0.85,
+        };
         let ts = GarchModel::volatility_term_structure(&p, &returns, 10);
         assert!(ts.iter().all(|(_, v)| *v >= 0.0));
     }

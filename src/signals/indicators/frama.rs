@@ -62,9 +62,15 @@ impl Frama {
 }
 
 impl Signal for Frama {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.frama_prev.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.frama_prev.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -84,11 +90,31 @@ impl Signal for Frama {
         }
 
         // First half
-        let h1 = self.highs.iter().take(self.half).cloned().fold(f64::MIN, f64::max);
-        let l1 = self.lows.iter().take(self.half).cloned().fold(f64::MAX, f64::min);
+        let h1 = self
+            .highs
+            .iter()
+            .take(self.half)
+            .cloned()
+            .fold(f64::MIN, f64::max);
+        let l1 = self
+            .lows
+            .iter()
+            .take(self.half)
+            .cloned()
+            .fold(f64::MAX, f64::min);
         // Second half
-        let h2 = self.highs.iter().skip(self.half).cloned().fold(f64::MIN, f64::max);
-        let l2 = self.lows.iter().skip(self.half).cloned().fold(f64::MAX, f64::min);
+        let h2 = self
+            .highs
+            .iter()
+            .skip(self.half)
+            .cloned()
+            .fold(f64::MIN, f64::max);
+        let l2 = self
+            .lows
+            .iter()
+            .skip(self.half)
+            .cloned()
+            .fold(f64::MAX, f64::min);
         // Full window
         let h3 = self.highs.iter().cloned().fold(f64::MIN, f64::max);
         let l3 = self.lows.iter().cloned().fold(f64::MAX, f64::min);
@@ -133,7 +159,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +184,10 @@ mod tests {
     fn test_frama_unavailable_before_period() {
         let mut f = Frama::new("f", 4).unwrap();
         for _ in 0..3 {
-            assert_eq!(f.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                f.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!f.is_ready());
     }
@@ -167,7 +199,10 @@ mod tests {
             f.update_bar(&bar("110", "90", "100")).unwrap();
         }
         assert!(f.is_ready());
-        assert!(matches!(f.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Scalar(_)));
+        assert!(matches!(
+            f.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Scalar(_)
+        ));
     }
 
     #[test]
@@ -177,7 +212,10 @@ mod tests {
         for _ in 0..10 {
             if let SignalValue::Scalar(v) = f.update_bar(&bar("100", "100", "100")).unwrap() {
                 let diff = (v - rust_decimal_macros::dec!(100)).abs();
-                assert!(diff < rust_decimal_macros::dec!(0.0001), "expected close to 100, got {v}");
+                assert!(
+                    diff < rust_decimal_macros::dec!(0.0001),
+                    "expected close to 100, got {v}"
+                );
             }
         }
     }
@@ -185,11 +223,16 @@ mod tests {
     #[test]
     fn test_frama_reset() {
         let mut f = Frama::new("f", 4).unwrap();
-        for _ in 0..5 { f.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..5 {
+            f.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(f.is_ready());
         f.reset();
         assert!(!f.is_ready());
-        assert_eq!(f.update_bar(&bar("100", "100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            f.update_bar(&bar("100", "100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

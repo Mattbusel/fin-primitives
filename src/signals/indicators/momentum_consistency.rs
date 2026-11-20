@@ -1,9 +1,9 @@
 //! Momentum Consistency indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling fraction of bars where `close[t] > close[t-1]` (up-bar ratio).
 ///
@@ -54,14 +54,20 @@ impl Signal for MomentumConsistency {
         Ok(SignalValue::Scalar(ratio))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_close = None;
         self.window.clear();
         self.up_count = 0;
     }
-    fn name(&self) -> &str { "MomentumConsistency" }
+    fn name(&self) -> &str {
+        "MomentumConsistency"
+    }
 }
 
 #[cfg(test)]

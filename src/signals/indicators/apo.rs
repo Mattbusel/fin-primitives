@@ -62,9 +62,7 @@ impl Signal for Apo {
         let fast_val = self.fast.update(bar)?;
         let slow_val = self.slow.update(bar)?;
         match (fast_val, slow_val) {
-            (SignalValue::Scalar(f), SignalValue::Scalar(s)) => {
-                Ok(SignalValue::Scalar(f - s))
-            }
+            (SignalValue::Scalar(f), SignalValue::Scalar(s)) => Ok(SignalValue::Scalar(f - s)),
             _ => Ok(SignalValue::Unavailable),
         }
     }

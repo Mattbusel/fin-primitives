@@ -49,9 +49,9 @@ impl Alma {
             return Err(FinError::InvalidPeriod(period));
         }
         if sigma <= 0.0 {
-            return Err(FinError::InvalidInput(
-                format!("sigma must be > 0, got {sigma}"),
-            ));
+            return Err(FinError::InvalidInput(format!(
+                "sigma must be > 0, got {sigma}"
+            )));
         }
         let m = (offset * (period as f64 - 1.0)).floor();
         let s = period as f64 / sigma;
@@ -126,7 +126,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -151,7 +154,10 @@ mod tests {
         for _ in 0..4 {
             assert_eq!(a.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
         }
-        assert!(matches!(a.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(_)));
+        assert!(matches!(
+            a.update_bar(&bar("100")).unwrap(),
+            SignalValue::Scalar(_)
+        ));
     }
 
     #[test]
@@ -172,7 +178,9 @@ mod tests {
     #[test]
     fn test_alma_reset() {
         let mut a = Alma::new("a", 5, 0.85, 6.0).unwrap();
-        for _ in 0..5 { a.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            a.update_bar(&bar("100")).unwrap();
+        }
         assert!(a.is_ready());
         a.reset();
         assert!(!a.is_ready());

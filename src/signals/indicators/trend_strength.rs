@@ -49,7 +49,9 @@ impl TrendStrength {
 }
 
 impl Signal for TrendStrength {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.history.push_back(bar.close);
@@ -68,10 +70,8 @@ impl Signal for TrendStrength {
             return Ok(SignalValue::Unavailable);
         }
 
-        let strength = net
-            .checked_div(path)
-            .ok_or(FinError::ArithmeticOverflow)?
-            * Decimal::from(100u32);
+        let strength =
+            net.checked_div(path).ok_or(FinError::ArithmeticOverflow)? * Decimal::from(100u32);
 
         Ok(SignalValue::Scalar(strength))
     }
@@ -80,7 +80,9 @@ impl Signal for TrendStrength {
         self.history.len() > self.period
     }
 
-    fn period(&self) -> usize { self.period }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.history.clear();
@@ -98,7 +100,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -114,9 +119,18 @@ mod tests {
     #[test]
     fn test_ts_unavailable_early() {
         let mut ts = TrendStrength::new("t", 3).unwrap();
-        assert_eq!(ts.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ts.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ts.update_bar(&bar("102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ts.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ts.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ts.update_bar(&bar("102")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -128,7 +142,9 @@ mod tests {
         ts.update_bar(&bar("102")).unwrap();
         if let SignalValue::Scalar(v) = ts.update_bar(&bar("103")).unwrap() {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -141,7 +157,9 @@ mod tests {
         if let SignalValue::Scalar(v) = ts.update_bar(&bar("105")).unwrap() {
             assert!(v < dec!(100), "choppy should be < 100: {v}");
             assert!(v > dec!(0), "some net movement: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -149,13 +167,18 @@ mod tests {
         let mut ts = TrendStrength::new("t", 2).unwrap();
         ts.update_bar(&bar("100")).unwrap();
         ts.update_bar(&bar("100")).unwrap();
-        assert_eq!(ts.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ts.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_ts_reset() {
         let mut ts = TrendStrength::new("t", 2).unwrap();
-        for p in &["100", "101", "102"] { ts.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102"] {
+            ts.update_bar(&bar(p)).unwrap();
+        }
         assert!(ts.is_ready());
         ts.reset();
         assert!(!ts.is_ready());

@@ -54,14 +54,25 @@ impl BodyCenterPosition {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 
 impl Signal for BodyCenterPosition {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ema.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();

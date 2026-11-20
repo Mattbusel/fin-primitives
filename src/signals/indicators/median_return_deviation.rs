@@ -54,7 +54,9 @@ impl MedianReturnDeviation {
 
 fn median(sorted: &[Decimal]) -> Decimal {
     let n = sorted.len();
-    if n == 0 { return Decimal::ZERO; }
+    if n == 0 {
+        return Decimal::ZERO;
+    }
     if n % 2 == 1 {
         sorted[n / 2]
     } else {
@@ -65,9 +67,15 @@ fn median(sorted: &[Decimal]) -> Decimal {
 }
 
 impl Signal for MedianReturnDeviation {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -103,7 +111,10 @@ impl Signal for MedianReturnDeviation {
         }
 
         // Current return is the most recent
-        let current = *self.returns.back().ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .returns
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let score = (current - med)
             .checked_div(mad)
             .ok_or(FinError::ArithmeticOverflow)?;
@@ -129,7 +140,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +160,7 @@ mod tests {
     #[test]
     fn test_mrd_unavailable_during_warmup() {
         let mut s = MedianReturnDeviation::new("mrd", 4).unwrap();
-        for p in &["100","101","102","103"] {
+        for p in &["100", "101", "102", "103"] {
             assert_eq!(s.update_bar(&bar(p)).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
@@ -165,11 +179,11 @@ mod tests {
         // Use varying returns so MAD > 0
         let mut s2 = MedianReturnDeviation::new("mrd", 4).unwrap();
         s2.update_bar(&bar("100")).unwrap();
-        s2.update_bar(&bar("101")).unwrap();   // +1%
-        s2.update_bar(&bar("99")).unwrap();    // -1.98%
-        s2.update_bar(&bar("100")).unwrap();   // +1.01%
-        s2.update_bar(&bar("101")).unwrap();   // +1%
-        // A return very close to the median should give score near 0
+        s2.update_bar(&bar("101")).unwrap(); // +1%
+        s2.update_bar(&bar("99")).unwrap(); // -1.98%
+        s2.update_bar(&bar("100")).unwrap(); // +1.01%
+        s2.update_bar(&bar("101")).unwrap(); // +1%
+                                             // A return very close to the median should give score near 0
         if let SignalValue::Scalar(v) = s2.update_bar(&bar("102")).unwrap() {
             assert!(v.abs() < dec!(2), "typical return gives low deviation: {v}");
         }
@@ -181,10 +195,10 @@ mod tests {
         // Consistent small returns, then a large spike → high |score|
         let mut s = MedianReturnDeviation::new("mrd", 4).unwrap();
         s.update_bar(&bar("100")).unwrap();
-        s.update_bar(&bar("100.5")).unwrap();  // +0.5%
-        s.update_bar(&bar("101")).unwrap();    // +0.498%
-        s.update_bar(&bar("101.5")).unwrap();  // +0.495%
-        // Now spike: huge up-move
+        s.update_bar(&bar("100.5")).unwrap(); // +0.5%
+        s.update_bar(&bar("101")).unwrap(); // +0.498%
+        s.update_bar(&bar("101.5")).unwrap(); // +0.495%
+                                              // Now spike: huge up-move
         if let SignalValue::Scalar(v) = s.update_bar(&bar("110")).unwrap() {
             assert!(v > dec!(1), "outlier return gives score > 1: {v}");
         } else {
@@ -195,7 +209,9 @@ mod tests {
     #[test]
     fn test_mrd_reset() {
         let mut s = MedianReturnDeviation::new("mrd", 3).unwrap();
-        for p in &["100","101","102","103","104"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

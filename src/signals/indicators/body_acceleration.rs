@@ -52,9 +52,15 @@ impl BodyAcceleration {
 }
 
 impl Signal for BodyAcceleration {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bodies.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bodies.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = bar.body_size();
@@ -66,8 +72,14 @@ impl Signal for BodyAcceleration {
             return Ok(SignalValue::Unavailable);
         }
 
-        let oldest = *self.bodies.front().ok_or_else(crate::error::invariant_broken)?;
-        let newest = *self.bodies.back().ok_or_else(crate::error::invariant_broken)?;
+        let oldest = *self
+            .bodies
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let newest = *self
+            .bodies
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let accel = (newest - oldest)
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
@@ -115,7 +127,10 @@ mod tests {
     fn test_ba_unavailable_during_warmup() {
         let mut ba = BodyAcceleration::new("ba", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(ba.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ba.update_bar(&bar("100", "102")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ba.is_ready());
     }
@@ -156,7 +171,10 @@ mod tests {
         ba.update_bar(&bar("100", "104")).unwrap(); // body=4
         ba.update_bar(&bar("100", "103")).unwrap(); // body=3
         if let SignalValue::Scalar(v) = ba.update_bar(&bar("100", "102")).unwrap() {
-            assert!(v < dec!(0), "contracting bodies → negative acceleration: {v}");
+            assert!(
+                v < dec!(0),
+                "contracting bodies → negative acceleration: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -165,7 +183,9 @@ mod tests {
     #[test]
     fn test_ba_reset() {
         let mut ba = BodyAcceleration::new("ba", 2).unwrap();
-        for _ in 0..3 { ba.update_bar(&bar("100", "102")).unwrap(); }
+        for _ in 0..3 {
+            ba.update_bar(&bar("100", "102")).unwrap();
+        }
         assert!(ba.is_ready());
         ba.reset();
         assert!(!ba.is_ready());

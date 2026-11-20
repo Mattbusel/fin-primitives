@@ -29,14 +29,24 @@ pub struct HigherLowStreak {
 impl HigherLowStreak {
     /// Constructs a new `HigherLowStreak`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_low: None, streak: 0 }
+        Self {
+            name: name.into(),
+            prev_low: None,
+            streak: 0,
+        }
     }
 }
 
 impl Signal for HigherLowStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_low.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_low.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pl) = self.prev_low {
@@ -73,7 +83,10 @@ mod tests {
         let hp = Price::new((lp.value() + Decimal::TEN).to_string().parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -92,9 +105,18 @@ mod tests {
     fn test_hls_ascending_lows() {
         let mut s = HigherLowStreak::new("hls");
         s.update_bar(&bar("90")).unwrap();
-        assert_eq!(s.update_bar(&bar("92")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(s.update_bar(&bar("94")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(s.update_bar(&bar("96")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            s.update_bar(&bar("92")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            s.update_bar(&bar("94")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            s.update_bar(&bar("96")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]

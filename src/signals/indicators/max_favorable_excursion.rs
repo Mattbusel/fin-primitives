@@ -42,7 +42,9 @@ impl MaxFavorableExcursion {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -52,27 +54,43 @@ impl MaxFavorableExcursion {
 }
 
 impl Signal for MaxFavorableExcursion {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.close);
-        if self.window.len() > self.period { self.window.pop_front(); }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() > self.period {
+            self.window.pop_front();
+        }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let prices: Vec<Decimal> = self.window.iter().copied().collect();
         let mut max_mfe = Decimal::ZERO;
         let mut trough = prices[0];
 
         for &p in &prices[1..] {
-            if p < trough { trough = p; }
-            if trough.is_zero() { continue; }
+            if p < trough {
+                trough = p;
+            }
+            if trough.is_zero() {
+                continue;
+            }
             let excursion = (p - trough)
                 .checked_div(trough)
                 .ok_or(FinError::ArithmeticOverflow)?
                 * Decimal::ONE_HUNDRED;
-            if excursion > max_mfe { max_mfe = excursion; }
+            if excursion > max_mfe {
+                max_mfe = excursion;
+            }
         }
 
         Ok(SignalValue::Scalar(max_mfe))
@@ -95,7 +113,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -104,7 +125,9 @@ mod tests {
     }
 
     #[test]
-    fn test_mfe_period_too_small() { assert!(MaxFavorableExcursion::new("m", 1).is_err()); }
+    fn test_mfe_period_too_small() {
+        assert!(MaxFavorableExcursion::new("m", 1).is_err());
+    }
 
     #[test]
     fn test_mfe_unavailable_before_period() {

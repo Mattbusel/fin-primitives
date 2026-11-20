@@ -51,9 +51,15 @@ impl LinearRegressionSlope {
 }
 
 impl Signal for LinearRegressionSlope {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -109,7 +115,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -138,7 +147,10 @@ mod tests {
         s.update_bar(&bar("100")).unwrap();
         s.update_bar(&bar("101")).unwrap();
         if let SignalValue::Scalar(v) = s.update_bar(&bar("102")).unwrap() {
-            assert!((v - dec!(1)).abs() < dec!(0.001), "perfect uptrend slope should be 1: {v}");
+            assert!(
+                (v - dec!(1)).abs() < dec!(0.001),
+                "perfect uptrend slope should be 1: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -159,9 +171,14 @@ mod tests {
     #[test]
     fn test_lrs_flat_gives_near_zero() {
         let mut s = LinearRegressionSlope::new("lrs", 4).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = s.update_bar(&bar("100")).unwrap() {
-            assert!(v.abs() < dec!(0.001), "flat prices should give ~zero slope: {v}");
+            assert!(
+                v.abs() < dec!(0.001),
+                "flat prices should give ~zero slope: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -170,7 +187,9 @@ mod tests {
     #[test]
     fn test_lrs_reset() {
         let mut s = LinearRegressionSlope::new("lrs", 3).unwrap();
-        for p in &["100","101","102"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

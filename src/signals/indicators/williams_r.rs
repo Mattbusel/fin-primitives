@@ -56,8 +56,16 @@ impl Signal for WilliamsR {
             return Ok(SignalValue::Unavailable);
         }
 
-        let highest = self.history.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
-        let lowest = self.history.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
+        let highest = self
+            .history
+            .iter()
+            .map(|b| b.high)
+            .fold(Decimal::MIN, Decimal::max);
+        let lowest = self
+            .history
+            .iter()
+            .map(|b| b.low)
+            .fold(Decimal::MAX, Decimal::min);
         let range = highest - lowest;
         if range.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::from(-100i32)));
@@ -108,9 +116,18 @@ mod tests {
     #[test]
     fn test_williams_r_unavailable_until_period() {
         let mut wr = WilliamsR::new("wr3", 3).unwrap();
-        assert_eq!(wr.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(wr.update_bar(&bar("105", "115", "95", "110")).unwrap(), SignalValue::Unavailable);
-        assert!(wr.update_bar(&bar("110", "120", "100", "115")).unwrap().is_scalar());
+        assert_eq!(
+            wr.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            wr.update_bar(&bar("105", "115", "95", "110")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert!(wr
+            .update_bar(&bar("110", "120", "100", "115"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]

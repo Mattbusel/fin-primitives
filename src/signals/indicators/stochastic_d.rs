@@ -1,8 +1,8 @@
 //! Stochastic %D oscillator — the smoothed signal line for %K.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use crate::signals::indicators::StochasticK;
+use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
@@ -137,7 +137,10 @@ mod tests {
         // k_period=3, d_period=3: need 3+3-1=5 bars total
         let mut d = StochasticD::new("d", 3, 3).unwrap();
         for _ in 0..4 {
-            assert_eq!(d.update_bar(&close_bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                d.update_bar(&close_bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!d.is_ready());
     }
@@ -162,7 +165,10 @@ mod tests {
         assert!(d.is_ready());
         d.reset();
         assert!(!d.is_ready());
-        assert_eq!(d.update_bar(&close_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            d.update_bar(&close_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

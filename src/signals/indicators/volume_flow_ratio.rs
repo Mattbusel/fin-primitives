@@ -58,9 +58,15 @@ impl VolumeFlowRatio {
 }
 
 impl Signal for VolumeFlowRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let dir: i8 = if bar.is_bullish() {
@@ -73,20 +79,23 @@ impl Signal for VolumeFlowRatio {
 
         // Add new bar
         match dir {
-            1  => self.up_vol += bar.volume,
+            1 => self.up_vol += bar.volume,
             -1 => self.down_vol += bar.volume,
-            _  => {}
+            _ => {}
         }
         self.total_vol += bar.volume;
         self.window.push_back((dir, bar.volume));
 
         // Remove oldest bar
         if self.window.len() > self.period {
-            let (old_dir, old_vol) = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let (old_dir, old_vol) = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             match old_dir {
-                1  => self.up_vol -= old_vol,
+                1 => self.up_vol -= old_vol,
                 -1 => self.down_vol -= old_vol,
-                _  => {}
+                _ => {}
             }
             self.total_vol -= old_vol;
         }
@@ -104,7 +113,9 @@ impl Signal for VolumeFlowRatio {
             .checked_div(self.total_vol)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        Ok(SignalValue::Scalar(ratio.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            ratio.max(Decimal::NEGATIVE_ONE).min(Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {
@@ -130,7 +141,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,16 +160,22 @@ mod tests {
     #[test]
     fn test_vfr_unavailable_before_period() {
         let mut s = VolumeFlowRatio::new("vfr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100","105","1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("100","105","1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("100", "105", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
     #[test]
     fn test_vfr_all_bull_gives_one() {
         let mut s = VolumeFlowRatio::new("vfr", 2).unwrap();
-        s.update_bar(&bar("100","105","1000")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","105","1000")).unwrap() {
+        s.update_bar(&bar("100", "105", "1000")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "105", "1000")).unwrap() {
             assert_eq!(v, dec!(1), "all bull volume should give +1: {v}");
         } else {
             panic!("expected Scalar");
@@ -165,8 +185,8 @@ mod tests {
     #[test]
     fn test_vfr_all_bear_gives_negative_one() {
         let mut s = VolumeFlowRatio::new("vfr", 2).unwrap();
-        s.update_bar(&bar("105","100","1000")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","100","1000")).unwrap() {
+        s.update_bar(&bar("105", "100", "1000")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "100", "1000")).unwrap() {
             assert_eq!(v, dec!(-1), "all bear volume should give -1: {v}");
         } else {
             panic!("expected Scalar");
@@ -176,8 +196,8 @@ mod tests {
     #[test]
     fn test_vfr_equal_bull_bear_gives_zero() {
         let mut s = VolumeFlowRatio::new("vfr", 2).unwrap();
-        s.update_bar(&bar("100","105","1000")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","100","1000")).unwrap() {
+        s.update_bar(&bar("100", "105", "1000")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "100", "1000")).unwrap() {
             assert_eq!(v, dec!(0), "equal bull/bear volume should give 0: {v}");
         } else {
             panic!("expected Scalar");
@@ -187,10 +207,18 @@ mod tests {
     #[test]
     fn test_vfr_in_range() {
         let mut s = VolumeFlowRatio::new("vfr", 3).unwrap();
-        let bars = [("100","105","1000"),("105","100","800"),("100","103","1200"),("103","99","500")];
-        for (o,c,v) in &bars {
-            if let SignalValue::Scalar(val) = s.update_bar(&bar(o,c,v)).unwrap() {
-                assert!(val >= dec!(-1) && val <= dec!(1), "ratio out of [-1,1]: {val}");
+        let bars = [
+            ("100", "105", "1000"),
+            ("105", "100", "800"),
+            ("100", "103", "1200"),
+            ("103", "99", "500"),
+        ];
+        for (o, c, v) in &bars {
+            if let SignalValue::Scalar(val) = s.update_bar(&bar(o, c, v)).unwrap() {
+                assert!(
+                    val >= dec!(-1) && val <= dec!(1),
+                    "ratio out of [-1,1]: {val}"
+                );
             }
         }
     }
@@ -198,8 +226,8 @@ mod tests {
     #[test]
     fn test_vfr_reset() {
         let mut s = VolumeFlowRatio::new("vfr", 2).unwrap();
-        s.update_bar(&bar("100","105","1000")).unwrap();
-        s.update_bar(&bar("100","105","1000")).unwrap();
+        s.update_bar(&bar("100", "105", "1000")).unwrap();
+        s.update_bar(&bar("100", "105", "1000")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

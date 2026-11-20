@@ -66,8 +66,14 @@ impl Signal for PriceTrendQuality {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
         let mut total_path = Decimal::ZERO;
@@ -79,7 +85,9 @@ impl Signal for PriceTrendQuality {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        let quality = net_move.checked_div(total_path).ok_or(FinError::ArithmeticOverflow)?;
+        let quality = net_move
+            .checked_div(total_path)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(quality))
     }
 
@@ -108,7 +116,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -118,13 +129,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(PriceTrendQuality::new("ptq", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            PriceTrendQuality::new("ptq", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut ptq = PriceTrendQuality::new("ptq", 3).unwrap();
-        assert_eq!(ptq.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ptq.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

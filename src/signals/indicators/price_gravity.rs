@@ -50,13 +50,21 @@ impl PriceGravity {
 }
 
 impl Signal for PriceGravity {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
 
         if self.closes.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -69,7 +77,14 @@ impl Signal for PriceGravity {
 
         let nf = vals.len() as f64;
         let mean = vals.iter().sum::<f64>() / nf;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / nf;
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / nf;
         let std_dev = var.sqrt();
 
         if std_dev == 0.0 {
@@ -105,7 +120,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -123,7 +141,10 @@ mod tests {
     fn test_pg_unavailable_before_warm_up() {
         let mut pg = PriceGravity::new("pg", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(pg.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pg.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -132,7 +153,10 @@ mod tests {
         // std dev = 0 → Unavailable
         let mut pg = PriceGravity::new("pg", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(pg.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pg.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -144,7 +168,11 @@ mod tests {
         pg.update_bar(&bar("100")).unwrap();
         let result = pg.update_bar(&bar("90")).unwrap();
         if let SignalValue::Scalar(v) = result {
-            assert!(v > dec!(0), "close below mean should give positive gravity: {}", v);
+            assert!(
+                v > dec!(0),
+                "close below mean should give positive gravity: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -157,7 +185,11 @@ mod tests {
         pg.update_bar(&bar("100")).unwrap();
         let result = pg.update_bar(&bar("110")).unwrap();
         if let SignalValue::Scalar(v) = result {
-            assert!(v < dec!(0), "close above mean should give negative gravity: {}", v);
+            assert!(
+                v < dec!(0),
+                "close above mean should give negative gravity: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -166,7 +198,9 @@ mod tests {
     #[test]
     fn test_pg_reset() {
         let mut pg = PriceGravity::new("pg", 3).unwrap();
-        for p in ["90", "100", "110"] { pg.update_bar(&bar(p)).unwrap(); }
+        for p in ["90", "100", "110"] {
+            pg.update_bar(&bar(p)).unwrap();
+        }
         assert!(pg.is_ready());
         pg.reset();
         assert!(!pg.is_ready());

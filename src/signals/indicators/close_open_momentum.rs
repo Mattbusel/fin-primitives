@@ -111,7 +111,10 @@ mod tests {
         let low = if c <= o { c } else { o };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -128,7 +131,10 @@ mod tests {
     fn test_com_unavailable_during_warmup() {
         let mut com = CloseOpenMomentum::new("com", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(com.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                com.update_bar(&bar("100", "105")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -167,7 +173,7 @@ mod tests {
         let mut com = CloseOpenMomentum::new("com", 2).unwrap();
         com.update_bar(&bar("100", "110")).unwrap(); // net = 10, window=[10]
         com.update_bar(&bar("100", "110")).unwrap(); // net = 10, window=[10,10], sum=20
-        // Now add bearish bar: net=-5. Window slides: [10,-5], sum=5
+                                                     // Now add bearish bar: net=-5. Window slides: [10,-5], sum=5
         let v = com.update_bar(&bar("110", "105")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(5)));
     }

@@ -28,14 +28,23 @@ pub struct OpenGapPct {
 impl OpenGapPct {
     /// Constructs a new `OpenGapPct`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_close: None }
+        Self {
+            name: name.into(),
+            prev_close: None,
+        }
     }
 }
 
 impl Signal for OpenGapPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -70,10 +79,13 @@ mod tests {
         let op = Price::new(o.parse().unwrap()).unwrap();
         let cp = Price::new(c.parse().unwrap()).unwrap();
         let high = if cp.value() > op.value() { cp } else { op };
-        let low  = if cp.value() < op.value() { cp } else { op };
+        let low = if cp.value() < op.value() { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp,
+            open: op,
+            high,
+            low,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -84,7 +96,10 @@ mod tests {
     #[test]
     fn test_ogp_first_bar_unavailable() {
         let mut ogp = OpenGapPct::new("ogp");
-        assert_eq!(ogp.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ogp.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(ogp.is_ready());
     }
 
@@ -119,6 +134,9 @@ mod tests {
         assert!(ogp.is_ready());
         ogp.reset();
         assert!(!ogp.is_ready());
-        assert_eq!(ogp.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ogp.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

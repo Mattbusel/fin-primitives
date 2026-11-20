@@ -90,7 +90,9 @@ impl Signal for RangeToAtrRatio {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        let ratio = current_range.checked_div(atr).ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = current_range
+            .checked_div(atr)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
     }
 
@@ -122,7 +124,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,13 +137,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(RangeToAtrRatio::new("rtar", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            RangeToAtrRatio::new("rtar", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut r = RangeToAtrRatio::new("rtar", 3).unwrap();
-        assert_eq!(r.update_bar(&bar("12", "10", "11")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            r.update_bar(&bar("12", "10", "11")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

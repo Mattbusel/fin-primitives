@@ -82,8 +82,18 @@ impl Signal for PriceCompressionBreakout {
 
         // Prior window = all bars except the current one (last element)
         let n = self.highs.len();
-        let prior_high = self.highs.iter().take(n - 1).copied().fold(Decimal::MIN, Decimal::max);
-        let prior_low = self.lows.iter().take(n - 1).copied().fold(Decimal::MAX, Decimal::min);
+        let prior_high = self
+            .highs
+            .iter()
+            .take(n - 1)
+            .copied()
+            .fold(Decimal::MIN, Decimal::max);
+        let prior_low = self
+            .lows
+            .iter()
+            .take(n - 1)
+            .copied()
+            .fold(Decimal::MAX, Decimal::min);
 
         let signal = if bar.close > prior_high {
             Decimal::ONE
@@ -117,7 +127,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -134,7 +147,10 @@ mod tests {
     fn test_pcb_unavailable_before_period_plus_1() {
         let mut pcb = PriceCompressionBreakout::new("pcb", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(pcb.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pcb.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!pcb.is_ready());
     }

@@ -46,7 +46,9 @@ impl Dsp {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::TWO / Decimal::from((period + 1) as u32);
         Ok(Self {
@@ -62,7 +64,9 @@ impl Dsp {
 }
 
 impl Signal for Dsp {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -74,8 +78,8 @@ impl Signal for Dsp {
                 if self.ema1_seed.len() < self.period {
                     return Ok(SignalValue::Unavailable);
                 }
-                let seed: Decimal = self.ema1_seed.iter().sum::<Decimal>()
-                    / Decimal::from(self.period as u32);
+                let seed: Decimal =
+                    self.ema1_seed.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
                 self.ema1 = Some(seed);
                 seed
             }
@@ -93,8 +97,8 @@ impl Signal for Dsp {
                 if self.ema2_seed.len() < self.period {
                     return Ok(SignalValue::Unavailable);
                 }
-                let seed: Decimal = self.ema2_seed.iter().sum::<Decimal>()
-                    / Decimal::from(self.period as u32);
+                let seed: Decimal =
+                    self.ema2_seed.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
                 self.ema2 = Some(seed);
                 seed
             }
@@ -135,7 +139,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -153,7 +160,10 @@ mod tests {
         // period=3 needs 3 bars to seed ema1 + 2 more for ema2 → first 4 are Unavailable
         let mut dsp = Dsp::new("d", 3).unwrap();
         for _ in 0..4 {
-            assert_eq!(dsp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                dsp.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!dsp.is_ready());
     }
@@ -183,10 +193,15 @@ mod tests {
     #[test]
     fn test_dsp_reset() {
         let mut dsp = Dsp::new("d", 3).unwrap();
-        for _ in 0..15 { dsp.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..15 {
+            dsp.update_bar(&bar("100")).unwrap();
+        }
         assert!(dsp.is_ready());
         dsp.reset();
         assert!(!dsp.is_ready());
-        assert_eq!(dsp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dsp.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

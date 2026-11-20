@@ -66,14 +66,18 @@ impl Signal for AverageBarRange {
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.ranges.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -99,7 +103,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,8 +122,14 @@ mod tests {
     #[test]
     fn test_abr_unavailable_before_period() {
         let mut abr = AverageBarRange::new("abr", 3).unwrap();
-        assert_eq!(abr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(abr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            abr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            abr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!abr.is_ready());
     }
 
@@ -135,8 +148,12 @@ mod tests {
     fn test_abr_non_negative() {
         let mut abr = AverageBarRange::new("abr", 5).unwrap();
         let bars = [
-            bar("110", "90"), bar("108", "92"), bar("115", "85"),
-            bar("102", "98"), bar("112", "88"), bar("107", "93"),
+            bar("110", "90"),
+            bar("108", "92"),
+            bar("115", "85"),
+            bar("102", "98"),
+            bar("112", "88"),
+            bar("107", "93"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = abr.update_bar(b).unwrap() {
@@ -155,7 +172,10 @@ mod tests {
         let v1 = abr.update_bar(&bar("105", "95")).unwrap(); // range=10 → avg=(20+10+10)/3
         if let SignalValue::Scalar(r) = v1 {
             let expected = (dec!(20) + dec!(10) + dec!(10)) / dec!(3);
-            assert!((r - expected).abs() < dec!(0.001), "expected {expected}, got {r}");
+            assert!(
+                (r - expected).abs() < dec!(0.001),
+                "expected {expected}, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }

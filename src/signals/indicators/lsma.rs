@@ -113,7 +113,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -137,7 +140,9 @@ mod tests {
     #[test]
     fn test_lsma_constant_price_equals_price() {
         let mut l = Lsma::new("l3", 3).unwrap();
-        for _ in 0..5 { l.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            l.update_bar(&bar("100")).unwrap();
+        }
         match l.update_bar(&bar("100")).unwrap() {
             SignalValue::Scalar(v) => assert_eq!(v, dec!(100)),
             _ => panic!("expected scalar"),
@@ -159,7 +164,9 @@ mod tests {
     #[test]
     fn test_lsma_reset() {
         let mut l = Lsma::new("l3", 3).unwrap();
-        for _ in 0..5 { l.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            l.update_bar(&bar("100")).unwrap();
+        }
         assert!(l.is_ready());
         l.reset();
         assert!(!l.is_ready());

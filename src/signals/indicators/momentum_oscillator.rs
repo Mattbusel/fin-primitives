@@ -93,9 +93,14 @@ impl Signal for MomentumOscillator {
         }
 
         // closes[0] is the close from `period` bars ago
-        let lookback_close = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let lookback_close = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         let momentum = bar.close - lookback_close;
-        let normalized = momentum.checked_div(atr).ok_or(FinError::ArithmeticOverflow)?;
+        let normalized = momentum
+            .checked_div(atr)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(normalized))
     }
 
@@ -121,7 +126,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -138,7 +146,10 @@ mod tests {
     fn test_mo_unavailable_before_2x_period() {
         let mut mo = MomentumOscillator::new("mo", 3).unwrap();
         for _ in 0..5 {
-            assert_eq!(mo.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                mo.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!mo.is_ready());
     }
@@ -174,7 +185,10 @@ mod tests {
             last = mo.update_bar(&bar(&h, "95", &c)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "rising market should give positive momentum, got {v}");
+            assert!(
+                v > dec!(0),
+                "rising market should give positive momentum, got {v}"
+            );
         } else {
             panic!("expected Scalar");
         }

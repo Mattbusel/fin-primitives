@@ -53,7 +53,9 @@ impl VolatilityBands {
         period: usize,
         multiplier: Decimal,
     ) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         if multiplier <= Decimal::ZERO {
             return Err(FinError::InvalidInput("multiplier must be positive".into()));
         }
@@ -73,13 +75,19 @@ impl VolatilityBands {
     }
 
     /// Returns the current upper band.
-    pub fn upper(&self) -> Option<Decimal> { self.upper }
+    pub fn upper(&self) -> Option<Decimal> {
+        self.upper
+    }
     /// Returns the current lower band.
-    pub fn lower(&self) -> Option<Decimal> { self.lower }
+    pub fn lower(&self) -> Option<Decimal> {
+        self.lower
+    }
 }
 
 impl Signal for VolatilityBands {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // True range
@@ -87,7 +95,9 @@ impl Signal for VolatilityBands {
         self.prev_close = Some(bar.close);
 
         self.trs.push_back(tr);
-        if self.trs.len() > self.period { self.trs.pop_front(); }
+        if self.trs.len() > self.period {
+            self.trs.pop_front();
+        }
 
         // EMA
         if self.ema.is_none() {
@@ -97,7 +107,8 @@ impl Signal for VolatilityBands {
                 self.ema = Some(sma);
             }
         } else {
-            let e = self.ema.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k) + bar.close * self.k;
+            let e = self.ema.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - self.k)
+                + bar.close * self.k;
             self.ema = Some(e);
         }
 
@@ -117,8 +128,12 @@ impl Signal for VolatilityBands {
         Ok(SignalValue::Scalar((bar.close - ema) / atr))
     }
 
-    fn is_ready(&self) -> bool { self.upper.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.upper.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.ema = None;
@@ -141,7 +156,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -167,17 +185,23 @@ mod tests {
         // Flat: ATR=0 → returns Scalar(0)
         let mut v = VolatilityBands::new("v", 3, dec!(2)).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = v.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vb_bands_set() {
         let mut v = VolatilityBands::new("v", 3, dec!(2)).unwrap();
         let bars = ["95", "100", "105", "100"];
-        for b in &bars { v.update_bar(&bar(b)).unwrap(); }
+        for b in &bars {
+            v.update_bar(&bar(b)).unwrap();
+        }
         assert!(v.upper().is_some());
         assert!(v.lower().is_some());
         assert!(v.upper().unwrap() > v.lower().unwrap());
@@ -186,7 +210,9 @@ mod tests {
     #[test]
     fn test_vb_reset() {
         let mut v = VolatilityBands::new("v", 3, dec!(2)).unwrap();
-        for _ in 0..5 { v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            v.update_bar(&bar("100")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

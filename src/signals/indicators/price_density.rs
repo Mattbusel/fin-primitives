@@ -41,7 +41,9 @@ impl PriceDensity {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -53,25 +55,45 @@ impl PriceDensity {
 }
 
 impl Signal for PriceDensity {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
         // Keep period+1 entries for closes, highs, and lows
-        if self.closes.len() > self.period + 1 { self.closes.pop_front(); }
-        if self.highs.len() > self.period + 1 { self.highs.pop_front(); }
-        if self.lows.len() > self.period + 1 { self.lows.pop_front(); }
+        if self.closes.len() > self.period + 1 {
+            self.closes.pop_front();
+        }
+        if self.highs.len() > self.period + 1 {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period + 1 {
+            self.lows.pop_front();
+        }
 
         if self.closes.len() < self.period + 1 {
             return Ok(SignalValue::Unavailable);
         }
 
-        let range = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?
-            - self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
+        let range = self
+            .highs
+            .iter()
+            .cloned()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?
+            - self
+                .lows
+                .iter()
+                .cloned()
+                .min()
+                .ok_or_else(crate::error::invariant_broken)?;
 
-        let path: Decimal = self.closes.iter()
+        let path: Decimal = self
+            .closes
+            .iter()
             .collect::<Vec<_>>()
             .windows(2)
             .map(|w| (*w[1] - *w[0]).abs())
@@ -86,8 +108,12 @@ impl Signal for PriceDensity {
         Ok(SignalValue::Scalar(density))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -107,7 +133,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -121,7 +150,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -147,10 +179,14 @@ mod tests {
     fn test_pd_flat_is_zero() {
         let mut p = PriceDensity::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -159,10 +195,14 @@ mod tests {
         let mut p = PriceDensity::new("p", 3).unwrap();
         let prices = ["100", "101", "102", "103"];
         let mut last = SignalValue::Unavailable;
-        for price in &prices { last = p.update_bar(&bar(price)).unwrap(); }
+        for price in &prices {
+            last = p.update_bar(&bar(price)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -171,10 +211,14 @@ mod tests {
         let mut p = PriceDensity::new("p", 3).unwrap();
         let prices = ["100", "110", "100", "110"];
         let mut last = SignalValue::Unavailable;
-        for price in &prices { last = p.update_bar(&bar(price)).unwrap(); }
+        for price in &prices {
+            last = p.update_bar(&bar(price)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v < dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -187,13 +231,17 @@ mod tests {
         // path=0 (flat closes) → Scalar(0)
         if let SignalValue::Scalar(val) = v {
             assert_eq!(val, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pd_reset() {
         let mut p = PriceDensity::new("p", 3).unwrap();
-        for _ in 0..5 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

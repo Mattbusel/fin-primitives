@@ -40,7 +40,11 @@ impl KeltnerChannel {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize, multiplier: Decimal) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        multiplier: Decimal,
+    ) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
@@ -102,16 +106,24 @@ impl Signal for KeltnerChannel {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         // EMA of close
         let ema_val = Self::ema_update(
-            &mut self.ema_count, &mut self.ema_seed_sum, &mut self.ema,
-            self.period, self.ema_k, bar.close,
+            &mut self.ema_count,
+            &mut self.ema_seed_sum,
+            &mut self.ema,
+            self.period,
+            self.ema_k,
+            bar.close,
         );
 
         let tr = bar.true_range(self.prev_close);
         self.prev_close = Some(bar.close);
 
         let atr_val = Self::ema_update(
-            &mut self.atr_count, &mut self.atr_seed_sum, &mut self.atr,
-            self.period, self.atr_k, tr,
+            &mut self.atr_count,
+            &mut self.atr_seed_sum,
+            &mut self.atr,
+            self.period,
+            self.atr_k,
+            tr,
         );
 
         match (ema_val, atr_val) {
@@ -152,7 +164,10 @@ mod tests {
         let c_p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l_p, high: h_p, low: l_p, close: c_p,
+            open: l_p,
+            high: h_p,
+            low: l_p,
+            close: c_p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -168,9 +183,18 @@ mod tests {
     #[test]
     fn test_keltner_unavailable_before_period() {
         let mut kc = KeltnerChannel::new("kc3", 3, dec!(2)).unwrap();
-        assert_eq!(kc.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(kc.update_bar(&bar("115", "95", "105")).unwrap(), SignalValue::Unavailable);
-        assert!(kc.update_bar(&bar("120", "100", "110")).unwrap().is_scalar());
+        assert_eq!(
+            kc.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            kc.update_bar(&bar("115", "95", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert!(kc
+            .update_bar(&bar("120", "100", "110"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]
@@ -188,7 +212,9 @@ mod tests {
     #[test]
     fn test_keltner_reset() {
         let mut kc = KeltnerChannel::new("kc3", 3, dec!(2)).unwrap();
-        for _ in 0..5 { kc.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..5 {
+            kc.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(kc.is_ready());
         kc.reset();
         assert!(!kc.is_ready());

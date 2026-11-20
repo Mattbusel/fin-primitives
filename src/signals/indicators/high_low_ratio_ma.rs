@@ -93,7 +93,10 @@ impl Signal for HighLowRatioMa {
 
         #[allow(clippy::cast_possible_truncation)]
         let n = Decimal::from(self.period as u32);
-        let mean = self.sum.checked_div(n).ok_or(FinError::ArithmeticOverflow)?;
+        let mean = self
+            .sum
+            .checked_div(n)
+            .ok_or(FinError::ArithmeticOverflow)?;
 
         Ok(SignalValue::Scalar(mean))
     }
@@ -137,7 +140,10 @@ mod tests {
     fn test_hlrma_unavailable_during_warmup() {
         let mut hlr = HighLowRatioMa::new("hlr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(hlr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                hlr.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

@@ -46,9 +46,15 @@ impl UltimateOscillator {
         mid: usize,
         slow: usize,
     ) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if mid == 0  { return Err(FinError::InvalidPeriod(mid)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if mid == 0 {
+            return Err(FinError::InvalidPeriod(mid));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
         if fast >= mid || mid >= slow {
             return Err(FinError::InvalidInput(format!(
                 "periods must satisfy fast < mid < slow, got {fast}, {mid}, {slow}"
@@ -109,7 +115,7 @@ impl Signal for UltimateOscillator {
         }
 
         let avg_fast = Self::window_ratio(&self.bps, &self.trs, self.fast);
-        let avg_mid  = Self::window_ratio(&self.bps, &self.trs, self.mid);
+        let avg_mid = Self::window_ratio(&self.bps, &self.trs, self.mid);
         let avg_slow = Self::window_ratio(&self.bps, &self.trs, self.slow);
 
         let uo = Decimal::ONE_HUNDRED
@@ -173,7 +179,10 @@ mod tests {
     fn test_uo_unavailable_before_slow_bars() {
         let mut uo = UltimateOscillator::new("uo", 2, 3, 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(uo.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                uo.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!uo.is_ready());
     }

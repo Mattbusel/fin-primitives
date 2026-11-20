@@ -48,16 +48,30 @@ impl VolumeRatioSignal {
 }
 
 impl Signal for VolumeRatioSignal {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.all_vols.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.all_vols.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.close >= bar.open { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.close >= bar.open {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
         self.up_vols.push_back(up_vol);
         self.all_vols.push_back(bar.volume);
-        if self.up_vols.len() > self.period { self.up_vols.pop_front(); }
-        if self.all_vols.len() > self.period { self.all_vols.pop_front(); }
+        if self.up_vols.len() > self.period {
+            self.up_vols.pop_front();
+        }
+        if self.all_vols.len() > self.period {
+            self.all_vols.pop_front();
+        }
 
         if self.all_vols.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -91,7 +105,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -108,7 +125,10 @@ mod tests {
     fn test_vrs_unavailable_before_warm_up() {
         let mut vrs = VolumeRatioSignal::new("vrs", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vrs.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vrs.update_bar(&bar("100", "105", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -135,7 +155,9 @@ mod tests {
     #[test]
     fn test_vrs_reset() {
         let mut vrs = VolumeRatioSignal::new("vrs", 3).unwrap();
-        for _ in 0..3 { vrs.update_bar(&bar("100", "105", "1000")).unwrap(); }
+        for _ in 0..3 {
+            vrs.update_bar(&bar("100", "105", "1000")).unwrap();
+        }
         assert!(vrs.is_ready());
         vrs.reset();
         assert!(!vrs.is_ready());

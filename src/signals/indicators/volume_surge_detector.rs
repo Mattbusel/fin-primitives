@@ -41,7 +41,11 @@ impl VolumeSurgeDetector {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, volumes: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            volumes: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -69,7 +73,10 @@ impl Signal for VolumeSurgeDetector {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
-        let surge = bar.volume.checked_div(mean).ok_or(FinError::ArithmeticOverflow)?;
+        let surge = bar
+            .volume
+            .checked_div(mean)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(surge))
     }
 
@@ -98,7 +105,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -108,13 +118,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(VolumeSurgeDetector::new("vsd", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            VolumeSurgeDetector::new("vsd", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut vsd = VolumeSurgeDetector::new("vsd", 3).unwrap();
-        assert_eq!(vsd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vsd.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

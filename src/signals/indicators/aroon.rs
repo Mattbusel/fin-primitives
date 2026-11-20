@@ -53,15 +53,10 @@ impl Aroon {
         if !self.is_ready() {
             return None;
         }
-        let (idx, _) = self
-            .highs
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.cmp(b.1))?;
+        let (idx, _) = self.highs.iter().enumerate().max_by(|a, b| a.1.cmp(b.1))?;
         let bars_since = (self.highs.len() - 1) - idx;
         Some(
-            (Decimal::from(self.period as u64)
-                - Decimal::from(bars_since as u64))
+            (Decimal::from(self.period as u64) - Decimal::from(bars_since as u64))
                 / Decimal::from(self.period as u64)
                 * Decimal::ONE_HUNDRED,
         )
@@ -83,8 +78,7 @@ impl Aroon {
             .min_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(&a.0)))?;
         let bars_since = (self.lows.len() - 1) - idx;
         Some(
-            (Decimal::from(self.period as u64)
-                - Decimal::from(bars_since as u64))
+            (Decimal::from(self.period as u64) - Decimal::from(bars_since as u64))
                 / Decimal::from(self.period as u64)
                 * Decimal::ONE_HUNDRED,
         )

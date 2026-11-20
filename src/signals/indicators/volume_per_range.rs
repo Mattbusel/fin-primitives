@@ -31,16 +31,23 @@ impl VolumePerRange {
 }
 
 impl Signal for VolumePerRange {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         if range.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
-        let vpr = bar.volume
+        let vpr = bar
+            .volume
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(vpr))
@@ -62,7 +69,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -81,7 +91,10 @@ mod tests {
     #[test]
     fn test_vpr_flat_bar_unavailable() {
         let mut s = VolumePerRange::new("vpr");
-        assert_eq!(s.update_bar(&bar("100", "100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

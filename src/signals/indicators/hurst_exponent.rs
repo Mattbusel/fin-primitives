@@ -71,8 +71,12 @@ impl HurstExponent {
         let mut min_cum = f64::INFINITY;
         for r in &returns {
             cum += r - mean;
-            if cum > max_cum { max_cum = cum; }
-            if cum < min_cum { min_cum = cum; }
+            if cum > max_cum {
+                max_cum = cum;
+            }
+            if cum < min_cum {
+                min_cum = cum;
+            }
         }
         let range_r = max_cum - min_cum;
 
@@ -89,9 +93,15 @@ impl HurstExponent {
 }
 
 impl Signal for HurstExponent {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -124,7 +134,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -161,12 +174,18 @@ mod tests {
         let mut h = HurstExponent::new("h", 10).unwrap();
         let mut last = SignalValue::Unavailable;
         // Use a noisy uptrend (varying step sizes) so return variance > 0
-        let prices = ["100", "102", "105", "107", "110", "112", "115", "118", "121", "126", "132"];
+        let prices = [
+            "100", "102", "105", "107", "110", "112", "115", "118", "121", "126", "132",
+        ];
         for p in &prices {
             last = h.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v >= dec!(0.5), "trending series should have H >= 0.5, got {}", v);
+            assert!(
+                v >= dec!(0.5),
+                "trending series should have H >= 0.5, got {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -176,7 +195,7 @@ mod tests {
     fn test_hurst_output_in_range() {
         let mut h = HurstExponent::new("h", 8).unwrap();
         // alternating prices → mean-reverting
-        let prices = ["100","99","100","99","100","99","100","99","100"];
+        let prices = ["100", "99", "100", "99", "100", "99", "100", "99", "100"];
         let mut last = SignalValue::Unavailable;
         for p in &prices {
             last = h.update_bar(&bar(p)).unwrap();
@@ -189,7 +208,9 @@ mod tests {
     #[test]
     fn test_hurst_reset() {
         let mut h = HurstExponent::new("h", 5).unwrap();
-        for i in 0u32..6 { h.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..6 {
+            h.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(h.is_ready());
         h.reset();
         assert!(!h.is_ready());

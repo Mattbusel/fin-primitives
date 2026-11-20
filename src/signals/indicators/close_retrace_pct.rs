@@ -34,19 +34,30 @@ pub struct CloseRetracePct {
 impl CloseRetracePct {
     /// Constructs a new `CloseRetracePct`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+        Self {
+            name: name.into(),
+            ready: false,
+        }
     }
 }
 
 impl Signal for CloseRetracePct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.ready }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
         let range = bar.range();
-        if range.is_zero() { return Ok(SignalValue::Unavailable); }
+        if range.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         let retrace = (bar.high - bar.close) / range * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(retrace))
     }
@@ -70,7 +81,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

@@ -48,14 +48,26 @@ impl GapDirectionStreak {
     /// # Errors
     /// Never fails.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), streak: 0, last_direction: 0, prev_close: None, seen_bars: 0 })
+        Ok(Self {
+            name: name.into(),
+            streak: 0,
+            last_direction: 0,
+            prev_close: None,
+            seen_bars: 0,
+        })
     }
 }
 
 impl Signal for GapDirectionStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.seen_bars >= 2 }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.seen_bars >= 2
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.seen_bars += 1;
@@ -107,7 +119,10 @@ mod tests {
         let low = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp,
+            open: op,
+            high,
+            low,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -118,7 +133,10 @@ mod tests {
     #[test]
     fn test_gds_first_bar_unavailable() {
         let mut gds = GapDirectionStreak::new("gds").unwrap();
-        assert_eq!(gds.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            gds.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!gds.is_ready());
     }
 
@@ -196,6 +214,9 @@ mod tests {
         assert!(gds.is_ready());
         gds.reset();
         assert!(!gds.is_ready());
-        assert_eq!(gds.update_bar(&bar("100", "102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            gds.update_bar(&bar("100", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -190,8 +190,8 @@ pub fn price_impact(amount_in: f64, a_to_b: bool, pool: &LiquidityPool) -> f64 {
             return 0.0;
         }
         pool.reserve_b / pool.reserve_a // approximate: use old ratio shifted
-        // More precise: new spot = new_reserve_b_after_swap / reserve_a
-        // but reserve_a changes for B→A swaps. Recalculate:
+                                        // More precise: new spot = new_reserve_b_after_swap / reserve_a
+                                        // but reserve_a changes for B→A swaps. Recalculate:
     };
 
     // Recompute more precisely for B→A direction.
@@ -266,7 +266,8 @@ pub fn current_value(pos: &LpPosition, current_price_ratio: f64, token_a_price_u
     // Value of LP position under constant-product: proportional to 2*sqrt(r)/(1+r) of initial value
     // relative to hodl. Here we approximate current value as a function of USD price shift.
     let il = impermanent_loss(r); // negative number
-    let hodl_value = pos.entry_value_usd * (current_price_ratio / pos.entry_price_ratio + 1.0) / 2.0
+    let hodl_value = pos.entry_value_usd * (current_price_ratio / pos.entry_price_ratio + 1.0)
+        / 2.0
         * (token_a_price_usd / (pos.entry_value_usd / 2.0).max(1e-12));
     // Simpler: current_value = entry_value * (1 + IL) scaled by price change
     // Use: entry amount A = entry_value_usd / 2 / token_a_price_at_entry
@@ -405,7 +406,10 @@ mod tests {
     fn impermanent_loss_at_2x_price_change() {
         // At r=2 (price doubles): IL = 2*sqrt(2)/(1+2) - 1 ≈ -0.05719...
         let il = impermanent_loss(2.0);
-        assert!((il - (-0.05719_f64)).abs() < 1e-4, "IL at 2x ≈ -5.72%, got {il}");
+        assert!(
+            (il - (-0.05719_f64)).abs() < 1e-4,
+            "IL at 2x ≈ -5.72%, got {il}"
+        );
         assert!(il < 0.0, "IL must be negative");
     }
 

@@ -103,7 +103,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +136,10 @@ mod tests {
         if let SignalValue::Scalar(val) = v {
             // Allow tiny floating-point rounding; should be ~100
             let diff = (val - rust_decimal_macros::dec!(100)).abs();
-            assert!(diff < rust_decimal_macros::dec!(0.0001), "Expected ~100, got {val}");
+            assert!(
+                diff < rust_decimal_macros::dec!(0.0001),
+                "Expected ~100, got {val}"
+            );
         } else {
             panic!("Expected Scalar");
         }

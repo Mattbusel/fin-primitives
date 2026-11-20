@@ -59,9 +59,15 @@ impl VarianceRatio {
 }
 
 impl Signal for VarianceRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period + self.k }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period + self.k
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -73,11 +79,7 @@ impl Signal for VarianceRatio {
             return Ok(SignalValue::Unavailable);
         }
 
-        let closes: Vec<f64> = self
-            .closes
-            .iter()
-            .filter_map(|c| c.to_f64())
-            .collect();
+        let closes: Vec<f64> = self.closes.iter().filter_map(|c| c.to_f64()).collect();
 
         if closes.len() < needed {
             return Ok(SignalValue::Unavailable);
@@ -88,7 +90,11 @@ impl Signal for VarianceRatio {
             .windows(2)
             .skip(self.k)
             .filter_map(|w| {
-                if w[0] <= 0.0 { None } else { Some((w[1] / w[0]).ln()) }
+                if w[0] <= 0.0 {
+                    None
+                } else {
+                    Some((w[1] / w[0]).ln())
+                }
             })
             .collect();
 
@@ -111,7 +117,11 @@ impl Signal for VarianceRatio {
             .filter_map(|w| {
                 let first = *w.first()?;
                 let last = *w.last()?;
-                if first <= 0.0 { None } else { Some((last / first).ln()) }
+                if first <= 0.0 {
+                    None
+                } else {
+                    Some((last / first).ln())
+                }
             })
             .collect();
 
@@ -148,7 +158,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -175,13 +188,16 @@ mod tests {
     fn test_vr_returns_scalar_after_warmup() {
         let mut s = VarianceRatio::new("vr", 4, 2).unwrap();
         // Feed prices with alternating up/down to avoid zero variance
-        let prices = ["100","101","100","101","100","101","100","101"];
+        let prices = ["100", "101", "100", "101", "100", "101", "100", "101"];
         for p in &prices {
             s.update_bar(&bar(p)).unwrap();
         }
         let v = s.update_bar(&bar("101")).unwrap();
         // Should be Scalar (mean-reverting series should give VR < 1)
-        assert!(matches!(v, SignalValue::Scalar(_) | SignalValue::Unavailable));
+        assert!(matches!(
+            v,
+            SignalValue::Scalar(_) | SignalValue::Unavailable
+        ));
     }
 
     #[test]
@@ -191,18 +207,29 @@ mod tests {
         let mut s_rev = VarianceRatio::new("vr", 4, 2).unwrap();
 
         // Trending: 100, 101, 102, 103, 104, 105, 106, 107, 108
-        let trend_prices = ["100","101","102","103","104","105","106","107","108"];
-        for p in &trend_prices { s_trend.update_bar(&bar(p)).unwrap(); }
+        let trend_prices = [
+            "100", "101", "102", "103", "104", "105", "106", "107", "108",
+        ];
+        for p in &trend_prices {
+            s_trend.update_bar(&bar(p)).unwrap();
+        }
 
         // Mean-reverting: alternating 100, 102, 100, 102...
-        let rev_prices = ["100","102","100","102","100","102","100","102","100"];
-        for p in &rev_prices { s_rev.update_bar(&bar(p)).unwrap(); }
+        let rev_prices = [
+            "100", "102", "100", "102", "100", "102", "100", "102", "100",
+        ];
+        for p in &rev_prices {
+            s_rev.update_bar(&bar(p)).unwrap();
+        }
 
         if let (SignalValue::Scalar(vt), SignalValue::Scalar(vr)) = (
             s_trend.update_bar(&bar("109")).unwrap(),
             s_rev.update_bar(&bar("102")).unwrap(),
         ) {
-            assert!(vt >= vr, "trending VR ({vt}) should be >= mean-reverting VR ({vr})");
+            assert!(
+                vt >= vr,
+                "trending VR ({vt}) should be >= mean-reverting VR ({vr})"
+            );
         }
         // If either is Unavailable, the test passes silently (edge case)
     }
@@ -210,7 +237,7 @@ mod tests {
     #[test]
     fn test_vr_reset() {
         let mut s = VarianceRatio::new("vr", 4, 2).unwrap();
-        for p in &["100","101","102","103","104","105","106","107"] {
+        for p in &["100", "101", "102", "103", "104", "105", "106", "107"] {
             s.update_bar(&bar(p)).unwrap();
         }
         assert!(s.is_ready());

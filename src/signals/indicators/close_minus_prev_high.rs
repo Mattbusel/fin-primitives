@@ -81,7 +81,10 @@ impl crate::signals::Signal for CloseMinusPrevHigh {
         let result = if let Some(ph) = self.prev_high {
             let delta = bar.close - ph;
             let ema = match self.ema {
-                None => { self.ema = Some(delta); delta }
+                None => {
+                    self.ema = Some(delta);
+                    delta
+                }
                 Some(prev) => {
                     let next = delta * self.k + prev * (Decimal::ONE - self.k);
                     self.ema = Some(next);
@@ -118,7 +121,10 @@ mod tests {
         let low = if c < h { c } else { h };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: low, high: h, low, close: c,
+            open: low,
+            high: h,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -134,7 +140,10 @@ mod tests {
     #[test]
     fn test_cmph_first_bar_unavailable() {
         let mut cmph = CloseMinusPrevHigh::new("cmph", 5).unwrap();
-        assert_eq!(cmph.update_bar(&bar("110", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cmph.update_bar(&bar("110", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!cmph.is_ready());
     }
 
@@ -150,7 +159,7 @@ mod tests {
     fn test_cmph_close_above_prev_high_positive() {
         let mut cmph = CloseMinusPrevHigh::new("cmph", 5).unwrap();
         cmph.update_bar(&bar("110", "105")).unwrap(); // high=110
-        // close=115 > 110 → delta = 5
+                                                      // close=115 > 110 → delta = 5
         let v = cmph.update_bar(&bar("120", "115")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(5)));
     }
@@ -159,7 +168,7 @@ mod tests {
     fn test_cmph_close_below_prev_high_negative() {
         let mut cmph = CloseMinusPrevHigh::new("cmph", 5).unwrap();
         cmph.update_bar(&bar("110", "105")).unwrap(); // high=110
-        // close=100 < 110 → delta = -10
+                                                      // close=100 < 110 → delta = -10
         let v = cmph.update_bar(&bar("108", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(-10)));
     }

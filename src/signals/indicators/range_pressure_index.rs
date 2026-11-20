@@ -155,7 +155,10 @@ mod tests {
     fn test_rpi_unavailable_during_warmup() {
         let mut rpi = RangePressureIndex::new("rpi", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(rpi.update_bar(&bar("110", "90", "100", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rpi.update_bar(&bar("110", "90", "100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

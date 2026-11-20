@@ -165,8 +165,7 @@ impl BacktestEngine {
 
             // Check if we have a pending signal that should fire at this bar's open
             // A signal fires at the next bar, so signal.timestamp < bar_open_ms
-            while sig_idx < sorted_signals.len()
-                && sorted_signals[sig_idx].timestamp < bar_open_ms
+            while sig_idx < sorted_signals.len() && sorted_signals[sig_idx].timestamp < bar_open_ms
             {
                 let sig = &sorted_signals[sig_idx];
                 let fill_price_raw = bar.open.value().to_f64_or(bar.open.value());
@@ -235,19 +234,12 @@ impl BacktestEngine {
                     Direction::Flat => {
                         // Close existing position
                         if let Some(existing_dir) = open_direction {
-                            let exit_price = apply_slippage(
-                                fill_price_raw,
-                                slippage_mult,
-                                existing_dir,
-                                true,
-                            );
+                            let exit_price =
+                                apply_slippage(fill_price_raw, slippage_mult, existing_dir, true);
                             let commission = exit_price * open_size * config.commission;
-                            let pnl = compute_pnl(
-                                existing_dir,
-                                open_entry_price,
-                                exit_price,
-                                open_size,
-                            ) - commission;
+                            let pnl =
+                                compute_pnl(existing_dir, open_entry_price, exit_price, open_size)
+                                    - commission;
                             equity += pnl;
                             let pnl_pct = if open_notional != 0.0 {
                                 pnl / open_notional
@@ -288,7 +280,11 @@ impl BacktestEngine {
             let commission = exit_price * open_size * config.commission;
             let pnl = compute_pnl(dir, open_entry_price, exit_price, open_size) - commission;
             equity += pnl;
-            let pnl_pct = if open_notional != 0.0 { pnl / open_notional } else { 0.0 };
+            let pnl_pct = if open_notional != 0.0 {
+                pnl / open_notional
+            } else {
+                0.0
+            };
             let bar_ts = last_bar.ts_close.nanos() as u64 / 1_000_000;
             completed_trades.push(CompletedTrade {
                 entry_ts: open_entry_ts,
@@ -305,10 +301,13 @@ impl BacktestEngine {
             }
         }
 
-        let metrics =
-            compute_metrics(&equity_curve, &completed_trades, config.initial_capital);
+        let metrics = compute_metrics(&equity_curve, &completed_trades, config.initial_capital);
 
-        BacktestResult { equity_curve, trades: completed_trades, metrics }
+        BacktestResult {
+            equity_curve,
+            trades: completed_trades,
+            metrics,
+        }
     }
 
     fn empty_result(_initial_capital: f64) -> BacktestResult {
@@ -336,10 +335,10 @@ impl BacktestEngine {
 /// Apply slippage: longs pay more to open, receive less to close; shorts inverse.
 fn apply_slippage(price: f64, slippage_mult: f64, dir: Direction, closing: bool) -> f64 {
     let adverse = match (dir, closing) {
-        (Direction::Long, false) => 1.0 + slippage_mult,  // buy higher
-        (Direction::Long, true) => 1.0 - slippage_mult,   // sell lower
+        (Direction::Long, false) => 1.0 + slippage_mult, // buy higher
+        (Direction::Long, true) => 1.0 - slippage_mult,  // sell lower
         (Direction::Short, false) => 1.0 - slippage_mult, // sell lower
-        (Direction::Short, true) => 1.0 + slippage_mult,  // buy higher
+        (Direction::Short, true) => 1.0 + slippage_mult, // buy higher
         _ => 1.0,
     };
     price * adverse
@@ -420,9 +419,16 @@ fn compute_metrics(
     } else {
         let wins = trades.iter().filter(|t| t.pnl > 0.0).count();
         let gross_profit: f64 = trades.iter().filter(|t| t.pnl > 0.0).map(|t| t.pnl).sum();
-        let gross_loss: f64 =
-            trades.iter().filter(|t| t.pnl < 0.0).map(|t| t.pnl.abs()).sum();
-        let pf = if gross_loss > 0.0 { gross_profit / gross_loss } else { f64::INFINITY };
+        let gross_loss: f64 = trades
+            .iter()
+            .filter(|t| t.pnl < 0.0)
+            .map(|t| t.pnl.abs())
+            .sum();
+        let pf = if gross_loss > 0.0 {
+            gross_profit / gross_loss
+        } else {
+            f64::INFINITY
+        };
         let avg_ret: f64 = trades.iter().map(|t| t.pnl_pct).sum::<f64>() / num_trades as f64;
         (wins as f64 / num_trades as f64, pf, avg_ret)
     };
@@ -631,7 +637,7 @@ mod tests {
             bar(110.0, 115.0, 108.0, 112.0, 4000),
         ];
         let signals = vec![
-            long_signal(900),  // long on bar 1 open
+            long_signal(900),   // long on bar 1 open
             short_signal(1500), // close long + short on bar 2 open
         ];
         let config = make_config(bars);
@@ -654,7 +660,11 @@ mod tests {
         let result = BacktestEngine::run(signals, config);
         // Commission should reduce final equity
         let final_eq = result.equity_curve.last().copied().unwrap_or(10_000.0);
-        assert!(final_eq < 10_000.0, "Commission should reduce equity: {}", final_eq);
+        assert!(
+            final_eq < 10_000.0,
+            "Commission should reduce equity: {}",
+            final_eq
+        );
     }
 
     #[test]
@@ -671,7 +681,11 @@ mod tests {
         let result = BacktestEngine::run(signals, config);
         // With slippage, position is entered at 101 but closes at 100, loss expected
         let final_eq = result.equity_curve.last().copied().unwrap_or(10_000.0);
-        assert!(final_eq <= 10_000.0, "Slippage should reduce equity: {}", final_eq);
+        assert!(
+            final_eq <= 10_000.0,
+            "Slippage should reduce equity: {}",
+            final_eq
+        );
     }
 
     #[test]
@@ -698,7 +712,11 @@ mod tests {
         config.slippage_bps = 0.0;
         config.capital_fraction = 1.0;
         let result = BacktestEngine::run(signals, config);
-        assert!(result.metrics.total_return > 0.0, "tr={}", result.metrics.total_return);
+        assert!(
+            result.metrics.total_return > 0.0,
+            "tr={}",
+            result.metrics.total_return
+        );
     }
 
     #[test]

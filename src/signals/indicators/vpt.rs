@@ -56,8 +56,7 @@ impl Signal for Vpt {
 
     fn is_ready(&self) -> bool {
         self.prev_close.is_some() && self.vpt != Decimal::ZERO
-            || self.prev_close.is_some() && self.vpt == Decimal::ZERO
-                && self.prev_close.is_some()
+            || self.prev_close.is_some() && self.vpt == Decimal::ZERO && self.prev_close.is_some()
     }
 
     fn period(&self) -> usize {
@@ -89,7 +88,10 @@ mod tests {
     #[test]
     fn test_vpt_unavailable_on_first_bar() {
         let mut v = Vpt::new("vpt").unwrap();
-        assert_eq!(v.update(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -136,7 +138,10 @@ mod tests {
         v.update(&bar("100", "1000")).unwrap();
         v.update(&bar("110", "1000")).unwrap();
         v.reset();
-        assert_eq!(v.update(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

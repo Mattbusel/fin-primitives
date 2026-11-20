@@ -65,9 +65,15 @@ impl HighLowPersistence {
 }
 
 impl Signal for HighLowPersistence {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let ph = self.prev_high;
@@ -88,7 +94,10 @@ impl Signal for HighLowPersistence {
         self.sum += flag;
         self.flags.push_back(flag);
         if self.flags.len() > self.period {
-            let removed = self.flags.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .flags
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -96,7 +105,8 @@ impl Signal for HighLowPersistence {
             return Ok(SignalValue::Unavailable);
         }
 
-        let ratio = self.sum
+        let ratio = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
@@ -123,7 +133,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -139,7 +152,10 @@ mod tests {
     #[test]
     fn test_hlp_first_bar_unavailable() {
         let mut hlp = HighLowPersistence::new("hlp", 3).unwrap();
-        assert_eq!(hlp.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hlp.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!hlp.is_ready());
     }
 
@@ -162,10 +178,10 @@ mod tests {
         // Every bar expands beyond prior — each has a strictly higher high
         // and strictly lower low than the previous bar.
         let mut hlp = HighLowPersistence::new("hlp", 3).unwrap();
-        hlp.update_bar(&bar("100", "90")).unwrap();  // seed
-        hlp.update_bar(&bar("105", "85")).unwrap();  // 105>100, 85<90 → not inside
-        hlp.update_bar(&bar("110", "80")).unwrap();  // not inside
-        hlp.update_bar(&bar("115", "75")).unwrap();  // not inside: window=[0,0,0]
+        hlp.update_bar(&bar("100", "90")).unwrap(); // seed
+        hlp.update_bar(&bar("105", "85")).unwrap(); // 105>100, 85<90 → not inside
+        hlp.update_bar(&bar("110", "80")).unwrap(); // not inside
+        hlp.update_bar(&bar("115", "75")).unwrap(); // not inside: window=[0,0,0]
         if let SignalValue::Scalar(v) = hlp.update_bar(&bar("120", "70")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {

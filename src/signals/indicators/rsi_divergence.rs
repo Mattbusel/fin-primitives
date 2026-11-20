@@ -43,7 +43,11 @@ impl RsiDivergence {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero.
-    pub fn new(name: impl Into<String>, rsi_period: usize, sma_period: usize) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        rsi_period: usize,
+        sma_period: usize,
+    ) -> Result<Self, FinError> {
         if rsi_period == 0 {
             return Err(FinError::InvalidPeriod(rsi_period));
         }
@@ -77,7 +81,9 @@ impl RsiDivergence {
 }
 
 impl Signal for RsiDivergence {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -92,8 +98,16 @@ impl Signal for RsiDivergence {
         self.prev_close = Some(close);
 
         let change = close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
 
         self.gains.push_back(gain);
         self.losses.push_back(loss);
@@ -145,7 +159,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -164,7 +181,10 @@ mod tests {
         let mut rd = RsiDivergence::new("r", 3, 3).unwrap();
         // Need rsi_period + sma_period bars (at minimum) to produce first value
         for _ in 0..5 {
-            assert_eq!(rd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rd.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -173,8 +193,13 @@ mod tests {
         let mut rd = RsiDivergence::new("r", 3, 3).unwrap();
         let prices: Vec<String> = (100..115).map(|i| i.to_string()).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = rd.update_bar(&bar(p)).unwrap(); }
-        assert!(matches!(last, SignalValue::Scalar(_)), "expected Scalar, got {last:?}");
+        for p in &prices {
+            last = rd.update_bar(&bar(p)).unwrap();
+        }
+        assert!(
+            matches!(last, SignalValue::Scalar(_)),
+            "expected Scalar, got {last:?}"
+        );
     }
 
     #[test]
@@ -186,6 +211,9 @@ mod tests {
         assert!(rd.is_ready());
         rd.reset();
         assert!(!rd.is_ready());
-        assert_eq!(rd.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rd.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

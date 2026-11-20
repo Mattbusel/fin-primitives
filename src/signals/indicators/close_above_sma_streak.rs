@@ -52,16 +52,25 @@ impl CloseAboveSmaStreak {
 }
 
 impl Signal for CloseAboveSmaStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.sum += bar.close;
         self.window.push_back(bar.close);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -69,7 +78,8 @@ impl Signal for CloseAboveSmaStreak {
             return Ok(SignalValue::Unavailable);
         }
 
-        let sma = self.sum
+        let sma = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -101,7 +111,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -156,7 +169,9 @@ mod tests {
     #[test]
     fn test_css_reset() {
         let mut s = CloseAboveSmaStreak::new("css", 2).unwrap();
-        for c in &["100","105","110","115"] { s.update_bar(&bar(c)).unwrap(); }
+        for c in &["100", "105", "110", "115"] {
+            s.update_bar(&bar(c)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

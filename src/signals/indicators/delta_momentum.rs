@@ -54,9 +54,15 @@ impl DeltaMomentum {
 }
 
 impl Signal for DeltaMomentum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.prev_momentum.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_momentum.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -68,7 +74,14 @@ impl Signal for DeltaMomentum {
         }
 
         // closes has exactly period+1 elements: [oldest, ..., current]
-        let momentum = *self.closes.back().ok_or_else(crate::error::invariant_broken)? - *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let momentum = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?
+            - *self
+                .closes
+                .front()
+                .ok_or_else(crate::error::invariant_broken)?;
 
         let result = match self.prev_momentum {
             None => {
@@ -102,7 +115,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -120,7 +136,10 @@ mod tests {
         let mut dm = DeltaMomentum::new("dm", 3).unwrap();
         // Need period+2=5 bars for first Scalar
         for _ in 0..4 {
-            assert_eq!(dm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                dm.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -156,7 +175,11 @@ mod tests {
             last = dm.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "accelerating trend should have positive delta: {}", v);
+            assert!(
+                v > dec!(0),
+                "accelerating trend should have positive delta: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -165,7 +188,9 @@ mod tests {
     #[test]
     fn test_dm_reset() {
         let mut dm = DeltaMomentum::new("dm", 3).unwrap();
-        for i in 0u32..6 { dm.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..6 {
+            dm.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(dm.is_ready());
         dm.reset();
         assert!(!dm.is_ready());

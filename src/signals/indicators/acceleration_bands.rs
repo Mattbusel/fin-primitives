@@ -180,7 +180,10 @@ mod tests {
         let c_p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: c_p, high: h_p, low: l_p, close: c_p,
+            open: c_p,
+            high: h_p,
+            low: l_p,
+            close: c_p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -196,8 +199,14 @@ mod tests {
     #[test]
     fn test_ab_unavailable_before_period() {
         let mut ab = AccelerationBands::new("ab3", 3).unwrap();
-        assert_eq!(ab.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ab.update_bar(&bar("115", "95", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ab.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ab.update_bar(&bar("115", "95", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!ab.is_ready());
     }
 
@@ -245,6 +254,9 @@ mod tests {
         assert!(!ab.is_ready());
         assert!(ab.upper().is_none());
         assert!(ab.lower().is_none());
-        assert_eq!(ab.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ab.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

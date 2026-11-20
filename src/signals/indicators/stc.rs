@@ -59,9 +59,15 @@ impl Stc {
         stoch_period: usize,
         factor: Decimal,
     ) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
-        if stoch_period == 0 { return Err(FinError::InvalidPeriod(stoch_period)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
+        if stoch_period == 0 {
+            return Err(FinError::InvalidPeriod(stoch_period));
+        }
         if fast >= slow {
             return Err(FinError::InvalidInput(format!(
                 "fast ({fast}) must be < slow ({slow})"
@@ -86,11 +92,13 @@ impl Stc {
     }
 
     /// Returns the fast EMA period.
-    pub fn fast_period(&self) -> usize { self.fast }
+    pub fn fast_period(&self) -> usize {
+        self.fast
+    }
 
     fn stochastic_k(window: &VecDeque<Decimal>, current: Decimal) -> Decimal {
         let high = window.iter().copied().fold(current, Decimal::max);
-        let low  = window.iter().copied().fold(current, Decimal::min);
+        let low = window.iter().copied().fold(current, Decimal::min);
         let range = high - low;
         if range.is_zero() {
             return Decimal::ZERO;
@@ -157,7 +165,9 @@ impl Signal for Stc {
             Some(prev) => prev + self.factor * (k2 - prev),
         });
 
-        Ok(SignalValue::Scalar(self.stc.ok_or_else(crate::error::invariant_broken)?))
+        Ok(SignalValue::Scalar(
+            self.stc.ok_or_else(crate::error::invariant_broken)?,
+        ))
     }
 
     fn is_ready(&self) -> bool {
@@ -191,7 +201,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cl, high: cl, low: cl, close: cl,
+            open: cl,
+            high: cl,
+            low: cl,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -209,7 +222,10 @@ mod tests {
     fn test_stc_unavailable_initially() {
         let mut stc = Stc::new("s", 5, 10, 3, dec!(0.5)).unwrap();
         for _ in 0..10 {
-            assert_eq!(stc.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                stc.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -227,7 +243,9 @@ mod tests {
     #[test]
     fn test_stc_reset() {
         let mut stc = Stc::new("s", 5, 10, 3, dec!(0.5)).unwrap();
-        for _ in 0..30 { stc.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..30 {
+            stc.update_bar(&bar("100")).unwrap();
+        }
         assert!(stc.is_ready());
         stc.reset();
         assert!(!stc.is_ready());

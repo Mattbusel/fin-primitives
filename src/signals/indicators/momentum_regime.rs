@@ -82,8 +82,14 @@ impl Signal for MomentumRegime {
             return Ok(SignalValue::Unavailable);
         }
 
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let long_base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?; // long_period bars ago
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let long_base = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?; // long_period bars ago
         let short_base_idx = self.long_period - self.short_period;
         let short_base = self.closes[short_base_idx];
 
@@ -103,7 +109,9 @@ impl Signal for MomentumRegime {
             .checked_div(short_base)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        let regime = short_roc.checked_div(long_roc).ok_or(FinError::ArithmeticOverflow)?;
+        let regime = short_roc
+            .checked_div(long_roc)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(regime))
     }
 
@@ -132,7 +140,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -150,7 +161,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_period() {
         let mut mr = MomentumRegime::new("mr", 2, 5).unwrap();
-        assert_eq!(mr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            mr.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

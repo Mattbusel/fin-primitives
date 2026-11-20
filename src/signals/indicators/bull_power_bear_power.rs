@@ -1,9 +1,9 @@
 //! Bull Power and Bear Power indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `high - SMA(close)` (bull power) minus `low - SMA(close)` (bear power).
 ///
@@ -51,10 +51,19 @@ impl Signal for BullPowerBearPower {
         Ok(SignalValue::Scalar(net))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.close_sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "BullPowerBearPower" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.close_sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "BullPowerBearPower"
+    }
 }
 
 #[cfg(test)]
@@ -92,6 +101,9 @@ mod tests {
     #[test]
     fn test_bpbp_not_ready() {
         let mut sig = BullPowerBearPower::new(3).unwrap();
-        assert_eq!(sig.update(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sig.update(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

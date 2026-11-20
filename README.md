@@ -15,6 +15,16 @@ Most trading code computes the same indicator more than one way and never notice
 - Prices options with Greeks.
 - Checks drawdown and equity limits.
 
+**Why it exists.** An indicator computed three ways is three indicators. The fix is one implementation that every part of a codebase (and every language it is written in) calls.
+
+**Why this instead of TA-Lib or pandas-ta.** TA-Lib's numbers are the reference, but it needs a C library installed before `pip install` works. pandas-ta on PyPI today is only the 0.4.x betas, which require Python 3.12 or later and pin `numba==0.61.2` (checked Nov 20 2026); 0.3.14b0, the version most `requirements.txt` files still name, is gone. fin-primitives matches TA-Lib to 2e-11 or better on 22 shared indicators, ships abi3 wheels for Python 3.9 and up with no dependencies of its own (Linux, macOS, Windows, musl, WebAssembly), and `from fin_primitives import ta` keeps pandas-ta's function names.
+
+**Why today.** `pip install fin-primitives` or `cargo add fin-primitives`, and `indicator-diff` tells you in one command whether the RSI you already have is Wilder's.
+
+**Who it is for:** trading bots, screeners and backtests in Python or Rust whose indicators feed a decision, and anyone porting one between the two.
+
+**Trade-offs, on purpose:** prices are exact decimals that reject bad values instead of propagating NaN; one documented formula per indicator (Wilder's where Wilder defined it) rather than a switch for every variant.
+
 ## Install
 
 ```bash

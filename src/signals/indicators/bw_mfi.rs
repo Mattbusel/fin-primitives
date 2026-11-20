@@ -32,12 +32,17 @@ pub struct BwMfi {
 impl BwMfi {
     /// Creates a new `BwMfi`.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), ready: false })
+        Ok(Self {
+            name: name.into(),
+            ready: false,
+        })
     }
 }
 
 impl Signal for BwMfi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if bar.volume.is_zero() {
@@ -48,8 +53,12 @@ impl Signal for BwMfi {
         Ok(SignalValue::Scalar(range / bar.volume))
     }
 
-    fn is_ready(&self) -> bool { self.ready }
-    fn period(&self) -> usize { 1 }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
+    fn period(&self) -> usize {
+        1
+    }
 
     fn reset(&mut self) {
         self.ready = false;
@@ -70,7 +79,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -83,7 +95,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: lp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: lp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,13 +112,18 @@ mod tests {
         // range=10, vol=1000 → mfi = 0.01
         if let SignalValue::Scalar(v) = m.update_bar(&bar_hlv("110", "100", "1000")).unwrap() {
             assert_eq!(v, dec!(0.01));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_bwmfi_zero_volume_unavailable() {
         let mut m = BwMfi::new("m").unwrap();
-        assert_eq!(m.update_bar(&bar_zero_vol("110", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            m.update_bar(&bar_zero_vol("110", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -112,7 +132,9 @@ mod tests {
         // h=l=100, vol=1000 → range=0 → mfi=0
         if let SignalValue::Scalar(v) = m.update_bar(&bar_hlv("100", "100", "1000")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

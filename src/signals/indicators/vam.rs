@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Volatility-Adjusted Momentum — momentum normalized by ATR.
@@ -56,7 +56,9 @@ impl Vam {
 }
 
 impl Signal for Vam {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -76,10 +78,17 @@ impl Signal for Vam {
             return Ok(SignalValue::Unavailable);
         }
 
-        let momentum = self.closes.back().copied().ok_or_else(crate::error::invariant_broken)?
-            - self.closes.front().copied().ok_or_else(crate::error::invariant_broken)?;
-        let atr = self.true_ranges.iter().sum::<Decimal>()
-            / Decimal::from(self.period as u32);
+        let momentum = self
+            .closes
+            .back()
+            .copied()
+            .ok_or_else(crate::error::invariant_broken)?
+            - self
+                .closes
+                .front()
+                .copied()
+                .ok_or_else(crate::error::invariant_broken)?;
+        let atr = self.true_ranges.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
 
         if atr.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -89,7 +98,9 @@ impl Signal for Vam {
         let mom_f = momentum.to_f64().unwrap_or(0.0);
         let atr_f = atr.to_f64().unwrap_or(1.0);
         let vam = mom_f / atr_f;
-        Ok(SignalValue::Scalar(Decimal::try_from(vam).unwrap_or(Decimal::ZERO)))
+        Ok(SignalValue::Scalar(
+            Decimal::try_from(vam).unwrap_or(Decimal::ZERO),
+        ))
     }
 
     fn is_ready(&self) -> bool {
@@ -118,7 +129,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -149,7 +163,9 @@ mod tests {
         }
         if let SignalValue::Scalar(val) = last {
             assert!(val.abs() < dec!(0.001), "flat VAM should be ~0: {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -161,13 +177,17 @@ mod tests {
         }
         if let SignalValue::Scalar(val) = last {
             assert!(val > dec!(0), "uptrend VAM should be positive: {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vam_reset() {
         let mut v = Vam::new("v", 3).unwrap();
-        for i in 0..10usize { v.update_bar(&bar(&(100+i).to_string())).unwrap(); }
+        for i in 0..10usize {
+            v.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

@@ -121,9 +121,7 @@ impl Rebalancer {
             RebalanceTrigger::ThresholdBreach(max_drift) => {
                 drift.iter().any(|d| d.abs_drift > *max_drift)
             }
-            RebalanceTrigger::CalendarBased(interval_days) => {
-                days_since_last >= *interval_days
-            }
+            RebalanceTrigger::CalendarBased(interval_days) => days_since_last >= *interval_days,
             RebalanceTrigger::BothConditions => {
                 // "Both" in common parlance means "either condition" (union trigger).
                 let threshold_hit = drift.iter().any(|d| d.abs_drift > 0.05);
@@ -211,10 +209,8 @@ impl Rebalancer {
         let mut trades = Self::generate_trades(positions, targets, total_value);
 
         // Separate sells by loss vs gain status.
-        let gain_map: std::collections::HashMap<&str, f64> = gains
-            .iter()
-            .map(|(s, g)| (s.as_str(), *g))
-            .collect();
+        let gain_map: std::collections::HashMap<&str, f64> =
+            gains.iter().map(|(s, g)| (s.as_str(), *g)).collect();
 
         // Sort: sells — loss positions first (smallest/most negative gain first),
         //       then gains; buys keep their natural order.
@@ -263,10 +259,7 @@ mod tests {
 
     #[test]
     fn test_compute_drift_basic() {
-        let positions = vec![
-            pos("AAPL", 6000.0, 0.60),
-            pos("MSFT", 4000.0, 0.40),
-        ];
+        let positions = vec![pos("AAPL", 6000.0, 0.60), pos("MSFT", 4000.0, 0.40)];
         let targets = vec![tgt("AAPL", 0.50), tgt("MSFT", 0.50)];
         let drift = Rebalancer::compute_drift(&positions, &targets);
         assert_eq!(drift.len(), 2);
@@ -316,10 +309,7 @@ mod tests {
     #[test]
     fn test_generate_trades_balanced() {
         // Already balanced — no trades.
-        let positions = vec![
-            pos("AAPL", 5000.0, 0.50),
-            pos("MSFT", 5000.0, 0.50),
-        ];
+        let positions = vec![pos("AAPL", 5000.0, 0.50), pos("MSFT", 5000.0, 0.50)];
         let targets = vec![tgt("AAPL", 0.50), tgt("MSFT", 0.50)];
         let trades = Rebalancer::generate_trades(&positions, &targets, 10000.0);
         assert!(trades.is_empty());
@@ -327,10 +317,7 @@ mod tests {
 
     #[test]
     fn test_generate_trades_unbalanced() {
-        let positions = vec![
-            pos("AAPL", 7000.0, 0.70),
-            pos("MSFT", 3000.0, 0.30),
-        ];
+        let positions = vec![pos("AAPL", 7000.0, 0.70), pos("MSFT", 3000.0, 0.30)];
         let targets = vec![tgt("AAPL", 0.50), tgt("MSFT", 0.50)];
         let trades = Rebalancer::generate_trades(&positions, &targets, 10000.0);
         let aapl_trade = trades.iter().find(|t| t.symbol == "AAPL").unwrap();
@@ -343,10 +330,7 @@ mod tests {
 
     #[test]
     fn test_sell_untargeted_position() {
-        let positions = vec![
-            pos("AAPL", 5000.0, 0.50),
-            pos("JUNK", 5000.0, 0.50),
-        ];
+        let positions = vec![pos("AAPL", 5000.0, 0.50), pos("JUNK", 5000.0, 0.50)];
         let targets = vec![tgt("AAPL", 1.0)];
         let trades = Rebalancer::generate_trades(&positions, &targets, 10000.0);
         let junk_trade = trades.iter().find(|t| t.symbol == "JUNK").unwrap();
@@ -382,18 +366,18 @@ mod tests {
 
     #[test]
     fn test_tax_aware_rebalance_sells_losses_first() {
-        let positions = vec![
-            pos("AAPL", 4000.0, 0.40),
-            pos("MSFT", 6000.0, 0.60),
-        ];
+        let positions = vec![pos("AAPL", 4000.0, 0.40), pos("MSFT", 6000.0, 0.60)];
         let targets = vec![tgt("AAPL", 0.50), tgt("MSFT", 0.50)];
         let gains = vec![
-            ("AAPL".to_string(), -500.0),  // loss — should sell first
-            ("MSFT".to_string(), 1000.0),  // gain — sell last
+            ("AAPL".to_string(), -500.0), // loss — should sell first
+            ("MSFT".to_string(), 1000.0), // gain — sell last
         ];
         let trades = Rebalancer::tax_aware_rebalance(&positions, &targets, &gains);
         // MSFT should be sold; AAPL should be bought.
-        let sell = trades.iter().find(|t| t.direction == TradeDirection::Sell).unwrap();
+        let sell = trades
+            .iter()
+            .find(|t| t.direction == TradeDirection::Sell)
+            .unwrap();
         assert_eq!(sell.symbol, "MSFT");
     }
 

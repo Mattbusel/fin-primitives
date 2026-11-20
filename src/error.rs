@@ -93,7 +93,9 @@ pub enum FinError {
 #[cold]
 #[cfg_attr(not(feature = "indicators"), allow(dead_code))]
 pub(crate) fn invariant_broken() -> FinError {
-    FinError::InvalidInput("internal invariant broken (please report this as a fin-primitives bug)".to_owned())
+    FinError::InvalidInput(
+        "internal invariant broken (please report this as a fin-primitives bug)".to_owned(),
+    )
 }
 
 impl FinError {

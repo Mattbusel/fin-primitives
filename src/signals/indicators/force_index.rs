@@ -86,7 +86,9 @@ impl Signal for ForceIndex {
         self.prev_close = Some(close);
 
         if self.bar_count >= self.period {
-            Ok(SignalValue::Scalar(self.ema.ok_or_else(crate::error::invariant_broken)?))
+            Ok(SignalValue::Scalar(
+                self.ema.ok_or_else(crate::error::invariant_broken)?,
+            ))
         } else {
             Ok(SignalValue::Unavailable)
         }
@@ -140,9 +142,15 @@ mod tests {
     fn test_force_index_unavailable_before_warmup() {
         let mut fi = ForceIndex::new("fi2", 2).unwrap();
         // First bar — no prev_close yet
-        assert_eq!(fi.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            fi.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         // Second bar — bar_count=1, period=2, still not ready
-        assert_eq!(fi.update_bar(&bar("101", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            fi.update_bar(&bar("101", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!fi.is_ready());
     }
 
@@ -162,7 +170,10 @@ mod tests {
         fi.update_bar(&bar("100", "500")).unwrap();
         let v = fi.update_bar(&bar("98", "500")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val < Decimal::ZERO, "price drop should produce negative force index");
+            assert!(
+                val < Decimal::ZERO,
+                "price drop should produce negative force index"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -176,7 +187,10 @@ mod tests {
         assert!(fi.is_ready());
         fi.reset();
         assert!(!fi.is_ready());
-        assert_eq!(fi.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            fi.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

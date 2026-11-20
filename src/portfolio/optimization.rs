@@ -231,7 +231,11 @@ impl MeanVarianceOptimizer {
 
         let ret = Self::portfolio_return(&weights, returns);
         let vol = Self::portfolio_volatility(&weights, cov);
-        let sharpe = if vol > 1e-12 { (ret - rf_rate) / vol } else { 0.0 };
+        let sharpe = if vol > 1e-12 {
+            (ret - rf_rate) / vol
+        } else {
+            0.0
+        };
 
         OptimizationResult {
             weights,
@@ -315,7 +319,10 @@ impl MeanVarianceOptimizer {
             return vec![];
         }
 
-        let constraints = &[OptimizationConstraint::SumToOne, OptimizationConstraint::LongOnly];
+        let constraints = &[
+            OptimizationConstraint::SumToOne,
+            OptimizationConstraint::LongOnly,
+        ];
         let mut frontier = Vec::with_capacity(n_points);
 
         for k in 0..n_points {
@@ -344,10 +351,7 @@ mod tests {
     use super::*;
 
     fn simple_cov() -> Vec<Vec<f64>> {
-        vec![
-            vec![0.04, 0.006],
-            vec![0.006, 0.09],
-        ]
+        vec![vec![0.04, 0.006], vec![0.006, 0.09]]
     }
 
     #[test]
@@ -382,7 +386,10 @@ mod tests {
             vec![0.006, 0.09, 0.003],
             vec![0.002, 0.003, 0.16],
         ];
-        let constraints = [OptimizationConstraint::SumToOne, OptimizationConstraint::LongOnly];
+        let constraints = [
+            OptimizationConstraint::SumToOne,
+            OptimizationConstraint::LongOnly,
+        ];
         let result = MeanVarianceOptimizer::maximize_sharpe(&returns, &cov, 0.02, &constraints);
         let sum: f64 = result.weights.iter().sum();
         assert!((sum - 1.0).abs() < 1e-6);

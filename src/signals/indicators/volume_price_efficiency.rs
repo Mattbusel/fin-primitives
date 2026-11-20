@@ -55,9 +55,15 @@ impl VolumePriceEfficiency {
 }
 
 impl Signal for VolumePriceEfficiency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.period && self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.period && self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let vol = bar.volume;
@@ -70,7 +76,10 @@ impl Signal for VolumePriceEfficiency {
         self.vol_sum += vol;
         self.volumes.push_back(vol);
         if self.volumes.len() > self.period {
-            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .volumes
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.vol_sum -= removed;
         }
 
@@ -82,8 +91,14 @@ impl Signal for VolumePriceEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let close_now = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
-        let close_n_ago = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let close_now = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let close_n_ago = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         let price_change = (close_now - close_n_ago).abs();
 
         let efficiency = price_change
@@ -112,7 +127,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(Decimal::from(vol)).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -128,7 +146,7 @@ mod tests {
     #[test]
     fn test_vpe_unavailable_during_warmup() {
         let mut s = VolumePriceEfficiency::new("vpe", 3).unwrap();
-        for (c, v) in &[("100",1000u64),("101",1000),("102",1000)] {
+        for (c, v) in &[("100", 1000u64), ("101", 1000), ("102", 1000)] {
             assert_eq!(s.update_bar(&bar(c, *v)).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
@@ -137,7 +155,13 @@ mod tests {
     #[test]
     fn test_vpe_non_negative() {
         let mut s = VolumePriceEfficiency::new("vpe", 3).unwrap();
-        let bars = [("100",1000u64),("102",1000),("104",1000),("103",1000),("105",1000)];
+        let bars = [
+            ("100", 1000u64),
+            ("102", 1000),
+            ("104", 1000),
+            ("103", 1000),
+            ("105", 1000),
+        ];
         for &(c, v) in &bars {
             if let SignalValue::Scalar(val) = s.update_bar(&bar(c, v)).unwrap() {
                 assert!(val >= dec!(0), "VPE must be non-negative: {val}");
@@ -160,8 +184,13 @@ mod tests {
         s_high_vol.update_bar(&bar("105", 10000)).unwrap();
         let high_result = s_high_vol.update_bar(&bar("110", 10000)).unwrap();
 
-        if let (SignalValue::Scalar(low_eff), SignalValue::Scalar(high_eff)) = (low_result, high_result) {
-            assert!(low_eff > high_eff, "low volume with same move → higher efficiency: {low_eff} vs {high_eff}");
+        if let (SignalValue::Scalar(low_eff), SignalValue::Scalar(high_eff)) =
+            (low_result, high_result)
+        {
+            assert!(
+                low_eff > high_eff,
+                "low volume with same move → higher efficiency: {low_eff} vs {high_eff}"
+            );
         } else {
             panic!("expected Scalar values");
         }
@@ -170,7 +199,12 @@ mod tests {
     #[test]
     fn test_vpe_reset() {
         let mut s = VolumePriceEfficiency::new("vpe", 3).unwrap();
-        for &(c, v) in &[("100",1000u64),("102",1000),("104",1000),("106",1000)] {
+        for &(c, v) in &[
+            ("100", 1000u64),
+            ("102", 1000),
+            ("104", 1000),
+            ("106", 1000),
+        ] {
             s.update_bar(&bar(c, v)).unwrap();
         }
         assert!(s.is_ready());

@@ -66,10 +66,10 @@ impl Signal for McGinley {
         }
 
         let close_f = close.to_f64().unwrap_or(0.0);
-        let prev_f  = prev.to_f64().unwrap_or(1.0);
-        let n       = self.period as f64;
-        let ratio   = close_f / prev_f;
-        let denom   = n * ratio.powi(4);
+        let prev_f = prev.to_f64().unwrap_or(1.0);
+        let n = self.period as f64;
+        let ratio = close_f / prev_f;
+        let denom = n * ratio.powi(4);
 
         let new_val = if denom == 0.0 {
             prev_f
@@ -109,7 +109,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,7 +128,10 @@ mod tests {
     #[test]
     fn test_mcginley_first_bar_unavailable() {
         let mut mg = McGinley::new("mg", 14).unwrap();
-        assert_eq!(mg.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            mg.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!mg.is_ready());
     }
 

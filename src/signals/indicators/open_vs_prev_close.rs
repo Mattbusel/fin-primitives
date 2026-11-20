@@ -30,7 +30,10 @@ pub struct OpenVsPrevClose {
 impl OpenVsPrevClose {
     /// Constructs a new `OpenVsPrevClose`.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+        })
     }
 }
 
@@ -44,7 +47,8 @@ impl Signal for OpenVsPrevClose {
             if pc.is_zero() {
                 SignalValue::Scalar(Decimal::ZERO)
             } else {
-                let gap = bar.open
+                let gap = bar
+                    .open
                     .checked_sub(pc)
                     .ok_or(FinError::ArithmeticOverflow)?;
                 let gap_pct = gap
@@ -102,7 +106,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut ovc = OpenVsPrevClose::new("ovc").unwrap();
-        assert_eq!(ovc.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ovc.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -57,9 +57,15 @@ impl BarRangePercentile {
 }
 
 impl Signal for BarRangePercentile {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -73,10 +79,7 @@ impl Signal for BarRangePercentile {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mut sorted: Vec<f64> = self.ranges
-            .iter()
-            .filter_map(|v| v.to_f64())
-            .collect();
+        let mut sorted: Vec<f64> = self.ranges.iter().filter_map(|v| v.to_f64()).collect();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let current = r.to_f64().unwrap_or(0.0);
@@ -111,7 +114,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -128,8 +134,14 @@ mod tests {
     #[test]
     fn test_brp_unavailable_during_warmup() {
         let mut brp = BarRangePercentile::new("brp", 3).unwrap();
-        assert_eq!(brp.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(brp.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            brp.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            brp.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!brp.is_ready());
     }
 
@@ -177,7 +189,9 @@ mod tests {
     #[test]
     fn test_brp_reset() {
         let mut brp = BarRangePercentile::new("brp", 3).unwrap();
-        for _ in 0..3 { brp.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            brp.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(brp.is_ready());
         brp.reset();
         assert!(!brp.is_ready());

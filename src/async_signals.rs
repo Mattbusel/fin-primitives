@@ -37,7 +37,11 @@ pub struct SignalUpdate {
 
 impl SignalUpdate {
     /// Creates a new `SignalUpdate`.
-    pub fn new(signal_name: impl Into<String>, value: SignalValue, timestamp: DateTime<Utc>) -> Self {
+    pub fn new(
+        signal_name: impl Into<String>,
+        value: SignalValue,
+        timestamp: DateTime<Utc>,
+    ) -> Self {
         Self {
             signal_name: signal_name.into(),
             value,
@@ -102,9 +106,7 @@ impl StreamingSignalPipeline {
     /// - `update_rx`: receive `SignalUpdate` values from this end.
     ///
     /// The task runs until `tick_tx` (and all its clones) are dropped.
-    pub fn spawn(
-        self,
-    ) -> (mpsc::Sender<OhlcvBar>, mpsc::Receiver<SignalUpdate>) {
+    pub fn spawn(self) -> (mpsc::Sender<OhlcvBar>, mpsc::Receiver<SignalUpdate>) {
         let (tick_tx, tick_rx) = mpsc::channel::<OhlcvBar>(self.config.tick_channel_capacity);
         let (update_tx, update_rx) =
             mpsc::channel::<SignalUpdate>(self.config.output_channel_capacity);
@@ -163,10 +165,7 @@ async fn run_pipeline(
 
         // Emit one SignalUpdate per signal; reuse the known_names vec
         for name in &known_names {
-            let value = map
-                .get(name)
-                .cloned()
-                .unwrap_or(SignalValue::Unavailable);
+            let value = map.get(name).cloned().unwrap_or(SignalValue::Unavailable);
 
             let update = SignalUpdate::new(name.clone(), value, ts);
 

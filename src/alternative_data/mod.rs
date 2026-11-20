@@ -122,10 +122,7 @@ impl AltDataAggregator {
     /// Ingest a new data point, updating the latest observation and history.
     pub fn ingest(&mut self, point: AltDataPoint) {
         let k = Self::key(&point.symbol, &point.source);
-        self.history
-            .entry(k.clone())
-            .or_default()
-            .push(point.value);
+        self.history.entry(k.clone()).or_default().push(point.value);
         self.latest.insert(k, point);
     }
 
@@ -222,8 +219,7 @@ impl AltDataAggregator {
             return None;
         }
         let mean = history.iter().sum::<f64>() / n as f64;
-        let variance =
-            history.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
+        let variance = history.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
         let std = variance.sqrt();
         if std == 0.0 {
             return Some(0.0);
@@ -233,11 +229,7 @@ impl AltDataAggregator {
 
     /// Return all `(symbol, source)` pairs whose latest observation is older than
     /// `max_age_hours` relative to `now` (Unix seconds).
-    pub fn freshness_check(
-        &self,
-        max_age_hours: u8,
-        now: u64,
-    ) -> Vec<(String, AltDataSource)> {
+    pub fn freshness_check(&self, max_age_hours: u8, now: u64) -> Vec<(String, AltDataSource)> {
         let max_age_secs = max_age_hours as u64 * 3600;
         let mut stale = Vec::new();
 
@@ -294,13 +286,20 @@ mod tests {
     #[test]
     fn latest_none_before_ingest() {
         let agg = AltDataAggregator::new();
-        assert!(agg.latest("AAPL", &AltDataSource::SocialSentiment).is_none());
+        assert!(agg
+            .latest("AAPL", &AltDataSource::SocialSentiment)
+            .is_none());
     }
 
     #[test]
     fn latest_after_ingest() {
         let mut agg = AltDataAggregator::new();
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.7, 1_000));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.7,
+            1_000,
+        ));
         let p = agg.latest("AAPL", &AltDataSource::SocialSentiment).unwrap();
         assert!((p.value - 0.7).abs() < 1e-12);
     }
@@ -308,8 +307,18 @@ mod tests {
     #[test]
     fn latest_updated_on_reingest() {
         let mut agg = AltDataAggregator::new();
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.5, 1_000));
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.9, 2_000));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.5,
+            1_000,
+        ));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.9,
+            2_000,
+        ));
         let p = agg.latest("AAPL", &AltDataSource::SocialSentiment).unwrap();
         assert!((p.value - 0.9).abs() < 1e-12);
     }
@@ -326,7 +335,12 @@ mod tests {
     #[test]
     fn composite_signal_single_source() {
         let mut agg = AltDataAggregator::new();
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.6, 1_000));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.6,
+            1_000,
+        ));
         let weights = HashMap::new();
         let cs = agg.composite_signal("AAPL", &weights);
         assert!((cs - 0.6).abs() < 1e-12);
@@ -335,7 +349,12 @@ mod tests {
     #[test]
     fn composite_signal_weighted() {
         let mut agg = AltDataAggregator::new();
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.8, 1_000));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.8,
+            1_000,
+        ));
         agg.ingest(make_point("AAPL", AltDataSource::WebTraffic, 0.4, 1_000));
         let mut weights = HashMap::new();
         weights.insert("SocialSentiment".to_string(), 2.0);
@@ -350,7 +369,12 @@ mod tests {
     #[test]
     fn signal_correlation_insufficient() {
         let mut agg = AltDataAggregator::new();
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.5, 1_000));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.5,
+            1_000,
+        ));
         assert!(agg.signal_correlation("AAPL", "GOOG").is_none());
     }
 
@@ -358,8 +382,18 @@ mod tests {
     fn signal_correlation_perfect_positive() {
         let mut agg = AltDataAggregator::new();
         for i in 0..5u64 {
-            agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, i as f64, i));
-            agg.ingest(make_point("GOOG", AltDataSource::SocialSentiment, i as f64 * 2.0, i));
+            agg.ingest(make_point(
+                "AAPL",
+                AltDataSource::SocialSentiment,
+                i as f64,
+                i,
+            ));
+            agg.ingest(make_point(
+                "GOOG",
+                AltDataSource::SocialSentiment,
+                i as f64 * 2.0,
+                i,
+            ));
         }
         let corr = agg.signal_correlation("AAPL", "GOOG").unwrap();
         assert!((corr - 1.0).abs() < 1e-10);
@@ -370,7 +404,9 @@ mod tests {
     #[test]
     fn anomaly_score_none_before_ingest() {
         let agg = AltDataAggregator::new();
-        assert!(agg.anomaly_score("AAPL", &AltDataSource::SocialSentiment).is_none());
+        assert!(agg
+            .anomaly_score("AAPL", &AltDataSource::SocialSentiment)
+            .is_none());
     }
 
     #[test]
@@ -380,7 +416,9 @@ mod tests {
         agg.ingest(make_point("AAPL", AltDataSource::WebTraffic, 0.0, 1));
         agg.ingest(make_point("AAPL", AltDataSource::WebTraffic, 1.0, 2));
         agg.ingest(make_point("AAPL", AltDataSource::WebTraffic, 3.0, 3));
-        let z = agg.anomaly_score("AAPL", &AltDataSource::WebTraffic).unwrap();
+        let z = agg
+            .anomaly_score("AAPL", &AltDataSource::WebTraffic)
+            .unwrap();
         // mean([0,1,3])=4/3, sample std of [0,1,3]
         let vals = [0.0_f64, 1.0, 3.0];
         let mean = vals.iter().sum::<f64>() / 3.0;
@@ -401,7 +439,12 @@ mod tests {
     fn freshness_check_fresh() {
         let mut agg = AltDataAggregator::new();
         let now = 10_000_u64;
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.5, now - 60));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.5,
+            now - 60,
+        ));
         assert!(agg.freshness_check(1, now).is_empty());
     }
 
@@ -410,7 +453,12 @@ mod tests {
         let mut agg = AltDataAggregator::new();
         let now = 100_000_u64;
         // Timestamp 3600 seconds ago but max_age is 0 hours → immediately stale
-        agg.ingest(make_point("AAPL", AltDataSource::SocialSentiment, 0.5, now - 3_601));
+        agg.ingest(make_point(
+            "AAPL",
+            AltDataSource::SocialSentiment,
+            0.5,
+            now - 3_601,
+        ));
         let stale = agg.freshness_check(1, now);
         assert_eq!(stale.len(), 1);
         assert_eq!(stale[0].0, "AAPL");

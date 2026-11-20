@@ -55,9 +55,15 @@ impl OpenCloseMomentum {
 }
 
 impl Signal for OpenCloseMomentum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bars_seen > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
@@ -108,7 +114,10 @@ mod tests {
         let lp = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,7 +134,10 @@ mod tests {
     fn test_ocm_unavailable_during_warmup() {
         let mut s = OpenCloseMomentum::new("ocm", 2).unwrap();
         for _ in 0..3 {
-            assert_eq!(s.update_bar(&bar("100","102")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                s.update_bar(&bar("100", "102")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!s.is_ready());
     }
@@ -133,8 +145,10 @@ mod tests {
     #[test]
     fn test_ocm_positive_for_consistent_bull_bars() {
         let mut s = OpenCloseMomentum::new("ocm", 2).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100","105")).unwrap(); }
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","105")).unwrap() {
+        for _ in 0..4 {
+            s.update_bar(&bar("100", "105")).unwrap();
+        }
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "105")).unwrap() {
             assert!(v > dec!(0), "consistent bull bars → positive OCM: {v}");
         } else {
             panic!("expected Scalar");
@@ -144,8 +158,10 @@ mod tests {
     #[test]
     fn test_ocm_negative_for_consistent_bear_bars() {
         let mut s = OpenCloseMomentum::new("ocm", 2).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("105","100")).unwrap(); }
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","100")).unwrap() {
+        for _ in 0..4 {
+            s.update_bar(&bar("105", "100")).unwrap();
+        }
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "100")).unwrap() {
             assert!(v < dec!(0), "consistent bear bars → negative OCM: {v}");
         } else {
             panic!("expected Scalar");
@@ -155,7 +171,9 @@ mod tests {
     #[test]
     fn test_ocm_reset() {
         let mut s = OpenCloseMomentum::new("ocm", 2).unwrap();
-        for _ in 0..5 { s.update_bar(&bar("100","105")).unwrap(); }
+        for _ in 0..5 {
+            s.update_bar(&bar("100", "105")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

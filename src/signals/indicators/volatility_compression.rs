@@ -61,9 +61,15 @@ impl VolatilityCompression {
 }
 
 impl Signal for VolatilityCompression {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -71,7 +77,10 @@ impl Signal for VolatilityCompression {
         self.sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -79,7 +88,8 @@ impl Signal for VolatilityCompression {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.sum
+        let avg = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -113,7 +123,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -130,7 +143,10 @@ mod tests {
     fn test_vc_unavailable_during_warmup() {
         let mut vc = VolatilityCompression::new("vc", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vc.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!vc.is_ready());
     }
@@ -153,7 +169,7 @@ mod tests {
         vc.update_bar(&bar("120", "80")).unwrap(); // range=40
         vc.update_bar(&bar("120", "80")).unwrap(); // range=40
         vc.update_bar(&bar("120", "80")).unwrap(); // range=40, now avg=40
-        // narrow bars: range=5 < avg=40 → compression
+                                                   // narrow bars: range=5 < avg=40 → compression
         let r1 = vc.update_bar(&bar("105", "100")).unwrap(); // streak=1
         let r2 = vc.update_bar(&bar("105", "100")).unwrap(); // streak=2
         assert_eq!(r1, SignalValue::Scalar(dec!(1)));
@@ -163,7 +179,9 @@ mod tests {
     #[test]
     fn test_vc_reset() {
         let mut vc = VolatilityCompression::new("vc", 3).unwrap();
-        for _ in 0..3 { vc.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            vc.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(vc.is_ready());
         vc.reset();
         assert!(!vc.is_ready());

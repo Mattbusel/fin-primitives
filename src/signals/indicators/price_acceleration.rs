@@ -50,7 +50,9 @@ impl PriceAcceleration {
 }
 
 impl Signal for PriceAcceleration {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.history.push_back(bar.close);
@@ -61,7 +63,10 @@ impl Signal for PriceAcceleration {
         }
 
         // ROC = close[now] - close[now - period]
-        let oldest = *self.history.front().ok_or_else(crate::error::invariant_broken)?;
+        let oldest = *self
+            .history
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         let roc = bar.close - oldest;
 
         // Trim to keep exactly period+1 entries (oldest needed for next ROC)
@@ -109,7 +114,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,7 +135,10 @@ mod tests {
         let mut pa = PriceAcceleration::new("a", 2).unwrap();
         // Need period+2 = 4 bars before first scalar
         for _ in 0..3 {
-            assert_eq!(pa.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pa.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -137,7 +148,9 @@ mod tests {
         let mut pa = PriceAcceleration::new("a", 2).unwrap();
         let prices = ["100", "101", "102", "103", "104", "105"];
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = pa.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            last = pa.update_bar(&bar(p)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0), "constant trend => zero acceleration");
         } else {
@@ -164,10 +177,15 @@ mod tests {
     #[test]
     fn test_price_acceleration_reset() {
         let mut pa = PriceAcceleration::new("a", 2).unwrap();
-        for p in &["100", "101", "102", "103", "104"] { pa.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102", "103", "104"] {
+            pa.update_bar(&bar(p)).unwrap();
+        }
         assert!(pa.is_ready());
         pa.reset();
         assert!(!pa.is_ready());
-        assert_eq!(pa.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pa.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

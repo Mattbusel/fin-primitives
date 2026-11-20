@@ -51,13 +51,18 @@ impl PriceVelocityRatio {
             initial_trs: VecDeque::with_capacity(period),
         })
     }
-
 }
 
 impl Signal for PriceVelocityRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bars_seen > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -126,7 +131,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,7 +151,10 @@ mod tests {
     fn test_pvr_unavailable_before_warm_up() {
         let mut s = PriceVelocityRatio::new("pvr", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(s.update_bar(&bar("100","110","90","105")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                s.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!s.is_ready());
     }
@@ -151,10 +162,10 @@ mod tests {
     #[test]
     fn test_pvr_doji_gives_zero() {
         let mut s = PriceVelocityRatio::new("pvr", 2).unwrap();
-        s.update_bar(&bar("100","110","90","105")).unwrap();
-        s.update_bar(&bar("105","115","95","110")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "105")).unwrap();
+        s.update_bar(&bar("105", "115", "95", "110")).unwrap();
         // After warm-up, a doji bar
-        let v = s.update_bar(&bar("108","118","98","108")).unwrap();
+        let v = s.update_bar(&bar("108", "118", "98", "108")).unwrap();
         if let SignalValue::Scalar(r) = v {
             assert_eq!(r, dec!(0), "doji should give zero velocity ratio");
         } else {
@@ -165,9 +176,9 @@ mod tests {
     #[test]
     fn test_pvr_bullish_positive() {
         let mut s = PriceVelocityRatio::new("pvr", 2).unwrap();
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        let v = s.update_bar(&bar("100","110","90","108")).unwrap(); // body=8, ATR~10
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        let v = s.update_bar(&bar("100", "110", "90", "108")).unwrap(); // body=8, ATR~10
         if let SignalValue::Scalar(r) = v {
             assert!(r > dec!(0), "bullish bar should give positive PVR: {r}");
         } else {
@@ -178,7 +189,9 @@ mod tests {
     #[test]
     fn test_pvr_reset() {
         let mut s = PriceVelocityRatio::new("pvr", 2).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100","110","90","105")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "110", "90", "105")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

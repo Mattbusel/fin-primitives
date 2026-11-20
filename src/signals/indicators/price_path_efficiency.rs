@@ -70,11 +70,20 @@ impl Signal for PricePathEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
-        let total_path: Decimal = self.closes.iter().zip(self.closes.iter().skip(1))
+        let total_path: Decimal = self
+            .closes
+            .iter()
+            .zip(self.closes.iter().skip(1))
             .map(|(a, b)| (*b - *a).abs())
             .sum();
 
@@ -82,7 +91,9 @@ impl Signal for PricePathEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let efficiency = net_move.checked_div(total_path).ok_or(FinError::ArithmeticOverflow)?;
+        let efficiency = net_move
+            .checked_div(total_path)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(efficiency.min(Decimal::ONE)))
     }
 
@@ -103,7 +114,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

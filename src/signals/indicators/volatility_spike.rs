@@ -1,9 +1,9 @@
 //! Volatility Spike indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Returns 1 if current bar range exceeds N-bar rolling average by a multiplier, else 0.
 ///
@@ -54,10 +54,19 @@ impl Signal for VolatilitySpike {
         Ok(SignalValue::Scalar(Decimal::from(spike)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "VolatilitySpike" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "VolatilitySpike"
+    }
 }
 
 #[cfg(test)]
@@ -93,8 +102,8 @@ mod tests {
         sig.update(&bar("110", "90")).unwrap(); // range=20
         sig.update(&bar("110", "90")).unwrap(); // range=20, avg=20
         let v = sig.update(&bar("130", "70")).unwrap(); // range=60 > 20*1.5=30 → spike
-        // but window now includes this 60 too: avg=(20+20+60)/3=33.3, threshold=50
-        // Actually window slides: [20,20,60], avg=33.3, threshold=50 → 60>50 → spike
+                                                        // but window now includes this 60 too: avg=(20+20+60)/3=33.3, threshold=50
+                                                        // Actually window slides: [20,20,60], avg=33.3, threshold=50 → 60>50 → spike
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 }

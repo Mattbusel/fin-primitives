@@ -1,9 +1,9 @@
 //! Momentum Reversal indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling count of bars where the return sign flips from the prior bar.
 ///
@@ -23,16 +23,32 @@ impl MomentumReversal {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, prev_sign: 0, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            prev_close: None,
+            prev_sign: 0,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
 impl Signal for MomentumReversal {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let sign: i8 = if bar.close > pc { 1 } else if bar.close < pc { -1 } else { 0 };
+            let sign: i8 = if bar.close > pc {
+                1
+            } else if bar.close < pc {
+                -1
+            } else {
+                0
+            };
             // Reversal = sign changed AND both are non-zero
-            let reversed: u8 = if sign != 0 && self.prev_sign != 0 && sign != self.prev_sign { 1 } else { 0 };
+            let reversed: u8 = if sign != 0 && self.prev_sign != 0 && sign != self.prev_sign {
+                1
+            } else {
+                0
+            };
             self.window.push_back(reversed);
             self.count += reversed as usize;
             if self.window.len() > self.period {
@@ -50,10 +66,21 @@ impl Signal for MomentumReversal {
         Ok(SignalValue::Scalar(Decimal::from(self.count as u32)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.prev_sign = 0; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "MomentumReversal" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.prev_sign = 0;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "MomentumReversal"
+    }
 }
 
 #[cfg(test)]

@@ -37,8 +37,14 @@ impl HistoricalVolatility {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize, annualization: u32) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        annualization: u32,
+    ) -> Result<Self, FinError> {
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,7 +55,9 @@ impl HistoricalVolatility {
 }
 
 impl Signal for HistoricalVolatility {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -67,7 +75,9 @@ impl Signal for HistoricalVolatility {
         for i in 1..self.closes.len() {
             let prev = self.closes[i - 1];
             let curr = self.closes[i];
-            if prev <= 0.0 { return Ok(SignalValue::Unavailable); }
+            if prev <= 0.0 {
+                return Ok(SignalValue::Unavailable);
+            }
             log_rets.push((curr / prev).ln());
         }
 
@@ -81,9 +91,15 @@ impl Signal for HistoricalVolatility {
         ))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
 }
 
 #[cfg(test)]
@@ -98,7 +114,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -114,9 +133,18 @@ mod tests {
     #[test]
     fn test_hv_unavailable_before_warmup() {
         let mut hv = HistoricalVolatility::new("hv3", 3, 252).unwrap();
-        assert_eq!(hv.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hv.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hv.update_bar(&bar("102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hv.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hv.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hv.update_bar(&bar("102")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!hv.is_ready());
     }
 

@@ -60,9 +60,15 @@ impl WickToAtrRatio {
 }
 
 impl Signal for WickToAtrRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.bars_seen > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -140,7 +146,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -158,7 +167,7 @@ mod tests {
         let mut s = WickToAtrRatio::new("wta", 3).unwrap();
         for _ in 0..3 {
             assert_eq!(
-                s.update_bar(&bar("100","110","90","100")).unwrap(),
+                s.update_bar(&bar("100", "110", "90", "100")).unwrap(),
                 SignalValue::Unavailable
             );
         }
@@ -170,10 +179,13 @@ mod tests {
         // Open=Close=100, High=110, Low=90 → pure wicks, no body
         let mut s = WickToAtrRatio::new("wta", 2).unwrap();
         for _ in 0..3 {
-            s.update_bar(&bar("100","110","90","100")).unwrap();
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap();
         }
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("100","110","90","100")).unwrap() {
-            assert!(v > dec!(0), "doji bar should have positive wick-to-ATR ratio: {v}");
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("100", "110", "90", "100")).unwrap() {
+            assert!(
+                v > dec!(0),
+                "doji bar should have positive wick-to-ATR ratio: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -184,9 +196,9 @@ mod tests {
         // Open=90, Close=110, High=110, Low=90 → no wicks
         let mut s = WickToAtrRatio::new("wta", 2).unwrap();
         for _ in 0..3 {
-            s.update_bar(&bar("90","110","90","110")).unwrap();
+            s.update_bar(&bar("90", "110", "90", "110")).unwrap();
         }
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("90","110","90","110")).unwrap() {
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("90", "110", "90", "110")).unwrap() {
             assert_eq!(v, dec!(0), "no-wick bar should give ratio 0: {v}");
         } else {
             panic!("expected Scalar");
@@ -197,13 +209,13 @@ mod tests {
     fn test_wta_non_negative() {
         let mut s = WickToAtrRatio::new("wta", 3).unwrap();
         let bars_data = [
-            ("100","115","85","110"),
-            ("110","120","100","105"),
-            ("105","112","98","108"),
-            ("108","118","95","100"),
+            ("100", "115", "85", "110"),
+            ("110", "120", "100", "105"),
+            ("105", "112", "98", "108"),
+            ("108", "118", "95", "100"),
         ];
-        for (o,h,l,c) in &bars_data {
-            if let SignalValue::Scalar(v) = s.update_bar(&bar(o,h,l,c)).unwrap() {
+        for (o, h, l, c) in &bars_data {
+            if let SignalValue::Scalar(v) = s.update_bar(&bar(o, h, l, c)).unwrap() {
                 assert!(v >= dec!(0), "wick-to-ATR should be non-negative: {v}");
             }
         }
@@ -212,7 +224,9 @@ mod tests {
     #[test]
     fn test_wta_reset() {
         let mut s = WickToAtrRatio::new("wta", 2).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100","110","90","100")).unwrap(); }
+        for _ in 0..4 {
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

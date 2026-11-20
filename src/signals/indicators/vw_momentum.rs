@@ -53,7 +53,9 @@ impl VwMomentum {
 }
 
 impl Signal for VwMomentum {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -115,7 +117,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,8 +136,14 @@ mod tests {
     #[test]
     fn test_vwm_unavailable_early() {
         let mut v = VwMomentum::new("v", 3).unwrap();
-        assert_eq!(v.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(v.update_bar(&bar("101", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            v.update_bar(&bar("101", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -143,7 +154,9 @@ mod tests {
         v.update_bar(&bar("102", "1000")).unwrap();
         if let SignalValue::Scalar(val) = v.update_bar(&bar("103", "1000")).unwrap() {
             assert!(val > dec!(0), "uptrend should give positive VWM: {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -154,16 +167,23 @@ mod tests {
         v.update_bar(&bar("101", "1000")).unwrap();
         if let SignalValue::Scalar(val) = v.update_bar(&bar("100", "1000")).unwrap() {
             assert!(val < dec!(0), "downtrend should give negative VWM: {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vwm_reset() {
         let mut v = VwMomentum::new("v", 3).unwrap();
-        for p in &["100", "101", "102", "103"] { v.update_bar(&bar(p, "100")).unwrap(); }
+        for p in &["100", "101", "102", "103"] {
+            v.update_bar(&bar(p, "100")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());
-        assert_eq!(v.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            v.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -79,7 +79,11 @@ impl CloseToClose {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, bars_per_year, closes: Vec::with_capacity(window + 1) })
+        Ok(Self {
+            window,
+            bars_per_year,
+            closes: Vec::with_capacity(window + 1),
+        })
     }
 
     /// Push the latest close price. Returns annualised volatility once the window is full.
@@ -91,11 +95,7 @@ impl CloseToClose {
         if self.closes.len() <= self.window {
             return None;
         }
-        let returns: Vec<f64> = self
-            .closes
-            .windows(2)
-            .map(|w| (w[1] / w[0]).ln())
-            .collect();
+        let returns: Vec<f64> = self.closes.windows(2).map(|w| (w[1] / w[0]).ln()).collect();
         let var = sample_variance(&returns);
         Some(annualise(var, self.bars_per_year))
     }
@@ -130,7 +130,11 @@ impl Parkinson {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, bars_per_year, hl_sq: Vec::with_capacity(window) })
+        Ok(Self {
+            window,
+            bars_per_year,
+            hl_sq: Vec::with_capacity(window),
+        })
     }
 
     /// Push an OHLC bar. Returns annualised volatility once the window is full.
@@ -180,7 +184,11 @@ impl GarmanKlass {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, bars_per_year, terms: Vec::with_capacity(window) })
+        Ok(Self {
+            window,
+            bars_per_year,
+            terms: Vec::with_capacity(window),
+        })
     }
 
     /// Push an OHLC bar. Returns annualised volatility once the window is full.
@@ -232,7 +240,11 @@ impl RogersSatchell {
         if window == 0 {
             return Err(FinError::InvalidPeriod(window));
         }
-        Ok(Self { window, bars_per_year, terms: Vec::with_capacity(window) })
+        Ok(Self {
+            window,
+            bars_per_year,
+            terms: Vec::with_capacity(window),
+        })
     }
 
     /// Push an OHLC bar. Returns annualised volatility once the window is full.
@@ -291,7 +303,12 @@ impl YangZhang {
                 "YangZhang window must be at least 2".to_owned(),
             ));
         }
-        Ok(Self { window, bars_per_year, bars: Vec::with_capacity(window), prev_close: None })
+        Ok(Self {
+            window,
+            bars_per_year,
+            bars: Vec::with_capacity(window),
+            prev_close: None,
+        })
     }
 
     /// Push an OHLC bar. Returns annualised volatility once the window is full.
@@ -343,11 +360,8 @@ impl YangZhang {
             / (overnight_sq.len() as f64 - 1.0).max(1.0);
 
         let mean_open = open_sq.iter().sum::<f64>() / n;
-        let var_open = open_sq
-            .iter()
-            .map(|x| (x - mean_open).powi(2))
-            .sum::<f64>()
-            / (n - 1.0).max(1.0);
+        let var_open =
+            open_sq.iter().map(|x| (x - mean_open).powi(2)).sum::<f64>() / (n - 1.0).max(1.0);
 
         let var_rs = (rs_terms.iter().sum::<f64>() / n).max(0.0);
 
@@ -370,7 +384,12 @@ mod tests {
     use super::*;
 
     fn rising_bar(base: f64) -> OhlcBar {
-        OhlcBar { open: base, high: base * 1.01, low: base * 0.99, close: base * 1.005 }
+        OhlcBar {
+            open: base,
+            high: base * 1.01,
+            low: base * 0.99,
+            close: base * 1.005,
+        }
     }
 
     #[test]

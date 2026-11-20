@@ -49,7 +49,9 @@ impl HighLowSpread {
 }
 
 impl Signal for HighLowSpread {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -62,8 +64,18 @@ impl Signal for HighLowSpread {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_high = self.highs.iter().copied().max().ok_or_else(crate::error::invariant_broken)?;
-        let min_low = self.lows.iter().copied().min().ok_or_else(crate::error::invariant_broken)?;
+        let max_high = self
+            .highs
+            .iter()
+            .copied()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let min_low = self
+            .lows
+            .iter()
+            .copied()
+            .min()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if min_low.is_zero() {
             return Ok(SignalValue::Unavailable);
@@ -103,7 +115,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -119,8 +134,14 @@ mod tests {
     #[test]
     fn test_hls_unavailable_before_period() {
         let mut hl = HighLowSpread::new("h", 3).unwrap();
-        assert_eq!(hl.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hl.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hl.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hl.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -156,6 +177,9 @@ mod tests {
         assert!(hl.is_ready());
         hl.reset();
         assert!(!hl.is_ready());
-        assert_eq!(hl.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hl.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -1,10 +1,10 @@
 //! Rolling Skewness indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Skewness of close returns over the rolling period.
 ///
@@ -24,7 +24,11 @@ impl RollingSkewness {
         if period < 3 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, returns: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            returns: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -62,10 +66,19 @@ impl Signal for RollingSkewness {
         }
     }
 
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.returns.clear(); }
-    fn name(&self) -> &str { "RollingSkewness" }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.returns.clear();
+    }
+    fn name(&self) -> &str {
+        "RollingSkewness"
+    }
 }
 
 #[cfg(test)]
@@ -87,7 +100,9 @@ mod tests {
     fn test_rs_flat_zero() {
         // Constant prices → std_dev=0 → skewness=0
         let mut sig = RollingSkewness::new(3).unwrap();
-        for _ in 0..5 { sig.update(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            sig.update(&bar("100")).unwrap();
+        }
         let v = sig.update(&bar("100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }

@@ -88,7 +88,12 @@ impl CrossAssetCorrelation {
             }
         }
         let n = names.len();
-        Ok(Self { names, n, window, buf: VecDeque::with_capacity(window) })
+        Ok(Self {
+            names,
+            n,
+            window,
+            buf: VecDeque::with_capacity(window),
+        })
     }
 
     /// Returns the instrument names.
@@ -348,7 +353,12 @@ impl PrincipalComponents {
             components.push(eigvec);
         }
 
-        Ok(Self { k: components.len(), components, eigenvalues, total_variance })
+        Ok(Self {
+            k: components.len(),
+            components,
+            eigenvalues,
+            total_variance,
+        })
     }
 
     /// Returns the number of PCs extracted.
@@ -371,7 +381,10 @@ impl PrincipalComponents {
         if self.total_variance <= 0.0 {
             return vec![0.0; self.k];
         }
-        self.eigenvalues.iter().map(|e| e / self.total_variance).collect()
+        self.eigenvalues
+            .iter()
+            .map(|e| e / self.total_variance)
+            .collect()
     }
 
     /// Projects a returns vector (length N) onto the first `m` PCs.
@@ -409,7 +422,12 @@ fn power_iterate(matrix: &[f64], n: usize, max_iter: usize, tol: f64) -> (f64, V
         }
         let new_v: Vec<f64> = w.iter().map(|x| x / norm).collect();
         // Check convergence
-        let diff: f64 = v.iter().zip(&new_v).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        let diff: f64 = v
+            .iter()
+            .zip(&new_v)
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt();
         v = new_v;
         if diff < tol {
             break;
@@ -447,11 +465,7 @@ mod tests {
 
     #[test]
     fn test_duplicate_name_fails() {
-        assert!(CrossAssetCorrelation::new(
-            vec!["A".into(), "A".into()],
-            10
-        )
-        .is_err());
+        assert!(CrossAssetCorrelation::new(vec!["A".into(), "A".into()], 10).is_err());
     }
 
     #[test]
@@ -492,7 +506,8 @@ mod tests {
     fn test_correlation_matrix_shape() {
         let mut cac = make_cac(3, 4);
         for i in 1..=4 {
-            cac.update(&[i as f64, i as f64 * 2.0, i as f64 * 0.5]).unwrap();
+            cac.update(&[i as f64, i as f64 * 2.0, i as f64 * 0.5])
+                .unwrap();
         }
         let mat = cac.correlation_matrix().unwrap();
         assert_eq!(mat.data().len(), 9);
@@ -517,11 +532,7 @@ mod tests {
 
     #[test]
     fn test_index_of() {
-        let cac = CrossAssetCorrelation::new(
-            vec!["SPY".into(), "QQQ".into()],
-            5,
-        )
-        .unwrap();
+        let cac = CrossAssetCorrelation::new(vec!["SPY".into(), "QQQ".into()], 5).unwrap();
         assert_eq!(cac.index_of("SPY"), Some(0));
         assert_eq!(cac.index_of("QQQ"), Some(1));
         assert_eq!(cac.index_of("MISSING"), None);
@@ -564,7 +575,10 @@ mod tests {
         let mat = cac.correlation_matrix().unwrap();
         let pca = PrincipalComponents::from_matrix(&mat, 3).unwrap();
         let total: f64 = pca.explained_variance_ratio().iter().sum();
-        assert!(total <= 1.0 + 1e-9, "total explained variance ratio={total}");
+        assert!(
+            total <= 1.0 + 1e-9,
+            "total explained variance ratio={total}"
+        );
         assert!(total >= 0.0);
     }
 

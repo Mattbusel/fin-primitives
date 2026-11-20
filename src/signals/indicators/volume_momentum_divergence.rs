@@ -1,9 +1,9 @@
 //! Volume Momentum Divergence indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Difference between rolling volume change and rolling price change direction.
 ///
@@ -37,8 +37,20 @@ impl VolumeMomentumDivergence {
 impl Signal for VolumeMomentumDivergence {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let (Some(pc), Some(pv)) = (self.prev_close, self.prev_volume) {
-            let price_sign: i32 = if bar.close > pc { 1 } else if bar.close < pc { -1 } else { 0 };
-            let vol_sign: i32 = if bar.volume > pv { 1 } else if bar.volume < pv { -1 } else { 0 };
+            let price_sign: i32 = if bar.close > pc {
+                1
+            } else if bar.close < pc {
+                -1
+            } else {
+                0
+            };
+            let vol_sign: i32 = if bar.volume > pv {
+                1
+            } else if bar.volume < pv {
+                -1
+            } else {
+                0
+            };
             let divergence = Decimal::from(vol_sign - price_sign);
             self.window.push_back(divergence);
             self.sum += divergence;
@@ -58,10 +70,21 @@ impl Signal for VolumeMomentumDivergence {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.prev_volume = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "VolumeMomentumDivergence" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.prev_volume = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "VolumeMomentumDivergence"
+    }
 }
 
 #[cfg(test)]

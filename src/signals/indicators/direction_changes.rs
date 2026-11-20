@@ -48,9 +48,15 @@ impl DirectionChanges {
 }
 
 impl Signal for DirectionChanges {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -94,7 +100,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -141,7 +150,10 @@ mod tests {
         // window has period+1=5 closes: [100,102,100,102,100]
         // moves: +2, -2, +2, -2 → reversals at positions 1,2,3 → count=3
         if let SignalValue::Scalar(r) = v {
-            assert!(r >= dec!(1), "alternating series should have many reversals: {r}");
+            assert!(
+                r >= dec!(1),
+                "alternating series should have many reversals: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }

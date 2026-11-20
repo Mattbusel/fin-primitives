@@ -1,10 +1,10 @@
 //! Volatility Adjusted Momentum indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// N-bar return divided by the rolling standard deviation of returns.
 ///
@@ -23,7 +23,10 @@ impl VolatilityAdjustedMomentum {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(period + 1) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period + 1),
+        })
     }
 }
 
@@ -37,8 +40,14 @@ impl Signal for VolatilityAdjustedMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let base = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let current = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let base = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let current = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         if base.is_zero() {
             return Ok(SignalValue::Unavailable);
         }
@@ -47,10 +56,14 @@ impl Signal for VolatilityAdjustedMomentum {
         let n_bar_ret = (current / base - Decimal::ONE).to_f64().unwrap_or(0.0);
 
         // Compute returns in window
-        let vals: Vec<f64> = self.closes.iter()
+        let vals: Vec<f64> = self
+            .closes
+            .iter()
             .zip(self.closes.iter().skip(1))
             .filter_map(|(a, b)| {
-                if a.is_zero() { return None; }
+                if a.is_zero() {
+                    return None;
+                }
                 (*b / *a - Decimal::ONE).to_f64()
             })
             .collect();
@@ -75,10 +88,18 @@ impl Signal for VolatilityAdjustedMomentum {
         }
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "VolatilityAdjustedMomentum" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "VolatilityAdjustedMomentum"
+    }
 }
 
 #[cfg(test)]

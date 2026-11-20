@@ -1,9 +1,9 @@
 //! Close Above Previous High indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling count of bars where `close > previous bar's high`.
 ///
@@ -22,7 +22,12 @@ impl CloseAbovePrevHigh {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_high: None, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            prev_high: None,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
@@ -46,10 +51,20 @@ impl Signal for CloseAbovePrevHigh {
         Ok(SignalValue::Scalar(Decimal::from(self.count as u32)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_high = None; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "CloseAbovePrevHigh" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_high = None;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "CloseAbovePrevHigh"
+    }
 }
 
 #[cfg(test)]

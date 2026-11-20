@@ -176,13 +176,9 @@ impl VarEngine {
         let mut i = 0;
         while i < simulations {
             // LCG: constants from Numerical Recipes
-            state = state
-                .wrapping_mul(1_664_525)
-                .wrapping_add(1_013_904_223);
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
             let u1 = (state as f64 + 0.5) / u64::MAX as f64;
-            state = state
-                .wrapping_mul(1_664_525)
-                .wrapping_add(1_013_904_223);
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
             let u2 = (state as f64 + 0.5) / u64::MAX as f64;
 
             // Box-Muller transform
@@ -283,7 +279,11 @@ mod tests {
     fn parametric_var_99() {
         let result = VarEngine::parametric_var(0.0, 0.01, 0.99, 1_000_000.0, 1);
         // VaR at 99% with 1% daily vol on $1M should be ~$23,260
-        assert!((result.var_abs - 23_260.0).abs() < 1000.0, "var_abs={}", result.var_abs);
+        assert!(
+            (result.var_abs - 23_260.0).abs() < 1000.0,
+            "var_abs={}",
+            result.var_abs
+        );
     }
 
     #[test]
@@ -291,12 +291,24 @@ mod tests {
         // 97.5% is z = 1.959964. The old three-row table used 1.645 here (16% too low),
         // and 99.9% used 2.326 instead of 3.090.
         let r = VarEngine::parametric_var(0.0, 0.01, 0.975, 1_000_000.0, 1);
-        assert!((r.var_abs - 19_599.64).abs() < 0.01, "var_abs={}", r.var_abs);
+        assert!(
+            (r.var_abs - 19_599.64).abs() < 0.01,
+            "var_abs={}",
+            r.var_abs
+        );
         let r = VarEngine::parametric_var(0.0, 0.01, 0.999, 1_000_000.0, 1);
-        assert!((r.var_abs - 30_902.32).abs() < 0.01, "var_abs={}", r.var_abs);
+        assert!(
+            (r.var_abs - 30_902.32).abs() < 0.01,
+            "var_abs={}",
+            r.var_abs
+        );
         // Below 90% the old fallback formula gave z = 1.40 at 85%; the truth is 1.036.
         let r = VarEngine::parametric_var(0.0, 0.01, 0.85, 1_000_000.0, 1);
-        assert!((r.var_abs - 10_364.33).abs() < 0.01, "var_abs={}", r.var_abs);
+        assert!(
+            (r.var_abs - 10_364.33).abs() < 0.01,
+            "var_abs={}",
+            r.var_abs
+        );
     }
 
     #[test]
@@ -304,10 +316,18 @@ mod tests {
         // 10 days, mean 0.1%/day, sigma 1%/day, 99%: z*sigma*sqrt(10) - mean*10.
         let r = VarEngine::parametric_var(0.001, 0.01, 0.99, 1.0, 10);
         let want = 2.326_347_874_040_841 * 0.01 * 10f64.sqrt() - 0.001 * 10.0;
-        assert!((r.var_pct - want).abs() < 1e-12, "var_pct={} want={want}", r.var_pct);
+        assert!(
+            (r.var_pct - want).abs() < 1e-12,
+            "var_pct={} want={want}",
+            r.var_pct
+        );
         // Normal expected shortfall: phi(z) / (1 - c) * sigma * sqrt(h) - mean * h.
         let es = crate::normal::pdf(2.326_347_874_040_841) / 0.01 * 0.01 * 10f64.sqrt() - 0.01;
-        assert!((r.cvar_pct - es).abs() < 1e-9, "cvar_pct={} want={es}", r.cvar_pct);
+        assert!(
+            (r.cvar_pct - es).abs() < 1e-9,
+            "cvar_pct={} want={es}",
+            r.cvar_pct
+        );
     }
 
     #[test]

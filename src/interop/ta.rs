@@ -161,16 +161,31 @@ mod tests {
             let t = ta_sma.next(b);
             let f = fin_sma.update_bar(b).unwrap();
             if i >= 3 {
-                let SignalValue::Scalar(f) = f else { panic!("not ready at {i}") };
-                assert!((decimal_to_f64(f) - t).abs() < 1e-9, "bar {i}: fin {f} ta {t}");
+                let SignalValue::Scalar(f) = f else {
+                    panic!("not ready at {i}")
+                };
+                assert!(
+                    (decimal_to_f64(f) - t).abs() < 1e-9,
+                    "bar {i}: fin {f} ta {t}"
+                );
             }
         }
     }
 
     #[test]
     fn data_item_converts_to_bar_input_exactly() {
-        let item = DataItem::builder().open(1.1).high(2.2).low(0.9).close(2.0).volume(30.5).build().unwrap();
+        let item = DataItem::builder()
+            .open(1.1)
+            .high(2.2)
+            .low(0.9)
+            .close(2.0)
+            .volume(30.5)
+            .build()
+            .unwrap();
         let b = BarInput::try_from(&item).unwrap();
-        assert_eq!((b.open, b.high, b.low, b.close, b.volume), (dec!(1.1), dec!(2.2), dec!(0.9), dec!(2), dec!(30.5)));
+        assert_eq!(
+            (b.open, b.high, b.low, b.close, b.volume),
+            (dec!(1.1), dec!(2.2), dec!(0.9), dec!(2), dec!(30.5))
+        );
     }
 }

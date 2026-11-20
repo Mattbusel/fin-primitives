@@ -1,9 +1,9 @@
 //! Price Mean Deviation indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling mean absolute deviation (MAD) of close prices from their rolling mean.
 ///
@@ -23,7 +23,11 @@ impl PriceMeanDeviation {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -41,16 +45,28 @@ impl Signal for PriceMeanDeviation {
         }
 
         let mean = self.sum / Decimal::from(self.period as u32);
-        let mad: Decimal = self.window.iter()
+        let mad: Decimal = self
+            .window
+            .iter()
             .map(|&c| (c - mean).abs())
-            .sum::<Decimal>() / Decimal::from(self.period as u32);
+            .sum::<Decimal>()
+            / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(mad))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "PriceMeanDeviation" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "PriceMeanDeviation"
+    }
 }
 
 #[cfg(test)]

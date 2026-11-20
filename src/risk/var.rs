@@ -104,14 +104,16 @@ impl VaRCalculator {
             return 0.0;
         }
         let sum4 = data.iter().map(|x| ((x - m) / s).powi(4)).sum::<f64>();
-        
+
         (n * (n + 1.0) / ((n - 1.0) * (n - 2.0) * (n - 3.0))) * sum4
             - 3.0 * (n - 1.0).powi(2) / ((n - 2.0) * (n - 3.0))
     }
 
     /// Simple LCG pseudo-random number generator yielding values in (0, 1).
     fn lcg_random(seed: &mut u64) -> f64 {
-        *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *seed = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let bits = 0x3FF0000000000000_u64 | (*seed >> 12);
         f64::from_bits(bits) - 1.0
     }
@@ -174,7 +176,7 @@ impl VaRCalculator {
         horizon_days: u32,
     ) -> VaRResult {
         let z = -Self::probit(1.0 - confidence); // e.g. ~1.645 for 95%
-        // Daily VaR as a fraction: -(mu - z * sigma) per day
+                                                 // Daily VaR as a fraction: -(mu - z * sigma) per day
         let daily_var_pct = -(mu - z * sigma);
         let var_pct = (daily_var_pct * (horizon_days as f64).sqrt()).max(0.0);
         let var_usd = var_pct * position_value;
@@ -240,8 +242,7 @@ impl VaRCalculator {
         confidence: f64,
         horizon_days: u32,
     ) -> CVaRResult {
-        let var_result =
-            Self::historical_var(returns, position_value, confidence, horizon_days);
+        let var_result = Self::historical_var(returns, position_value, confidence, horizon_days);
 
         if returns.is_empty() {
             return CVaRResult {
@@ -290,7 +291,11 @@ impl VaRCalculator {
             for j in 0..n {
                 let corr = if i < correlation_matrix.len() && j < correlation_matrix[i].len() {
                     correlation_matrix[i][j]
-                } else if i == j { 1.0 } else { 0.0 };
+                } else if i == j {
+                    1.0
+                } else {
+                    0.0
+                };
                 variance += individual_vars[i] * individual_vars[j] * corr;
             }
         }
@@ -329,9 +334,7 @@ impl VaRCalculator {
         // lower-tail quantile q = -z; flipping the sign to work with the positive
         // z negates the odd-order (skewness) term only, so negative skew raises
         // VaR as it should.
-        let z_cf = z
-            - (z.powi(2) - 1.0) * skew / 6.0
-            + (z.powi(3) - 3.0 * z) * kurt / 24.0
+        let z_cf = z - (z.powi(2) - 1.0) * skew / 6.0 + (z.powi(3) - 3.0 * z) * kurt / 24.0
             - (2.0 * z.powi(3) - 5.0 * z) * skew.powi(2) / 36.0;
 
         let daily_var_pct = -(mu - z_cf * sigma);
@@ -354,8 +357,8 @@ mod tests {
 
     fn sample_returns() -> Vec<f64> {
         vec![
-            0.01, -0.02, 0.015, -0.03, 0.005, -0.01, 0.02, -0.025, 0.008, -0.015,
-            0.012, -0.018, 0.003, -0.04, 0.022, -0.011, 0.007, -0.009, 0.014, -0.035,
+            0.01, -0.02, 0.015, -0.03, 0.005, -0.01, 0.02, -0.025, 0.008, -0.015, 0.012, -0.018,
+            0.003, -0.04, 0.022, -0.011, 0.007, -0.009, 0.014, -0.035,
         ]
     }
 
@@ -381,7 +384,10 @@ mod tests {
         let var_1 = VaRCalculator::historical_var(&returns, 1_000_000.0, 0.95, 1);
         let var_10 = VaRCalculator::historical_var(&returns, 1_000_000.0, 0.95, 10);
         let ratio = var_10.var_usd / var_1.var_usd;
-        assert!((ratio - 10.0_f64.sqrt()).abs() < 1e-6, "sqrt-of-time scaling, ratio={ratio}");
+        assert!(
+            (ratio - 10.0_f64.sqrt()).abs() < 1e-6,
+            "sqrt-of-time scaling, ratio={ratio}"
+        );
     }
 
     #[test]
@@ -389,33 +395,48 @@ mod tests {
         // For 95% confidence, z ≈ 1.645; VaR ≈ z * sigma for mu=0.
         let result = VaRCalculator::parametric_var(0.0, 0.01, 1_000_000.0, 0.95, 1);
         // Expected: ~1.645% of 1M = ~$16,450
-        assert!(result.var_usd > 10_000.0 && result.var_usd < 25_000.0,
-            "var_usd={}", result.var_usd);
+        assert!(
+            result.var_usd > 10_000.0 && result.var_usd < 25_000.0,
+            "var_usd={}",
+            result.var_usd
+        );
     }
 
     #[test]
     fn test_parametric_var_99() {
         let result99 = VaRCalculator::parametric_var(0.0, 0.01, 1_000_000.0, 0.99, 1);
         let result95 = VaRCalculator::parametric_var(0.0, 0.01, 1_000_000.0, 0.95, 1);
-        assert!(result99.var_usd > result95.var_usd, "99% VaR should exceed 95% VaR");
+        assert!(
+            result99.var_usd > result95.var_usd,
+            "99% VaR should exceed 95% VaR"
+        );
     }
 
     #[test]
     fn test_monte_carlo_var_reasonable() {
-        let result = VaRCalculator::monte_carlo_var(
-            0.0005, 0.015, 1_000_000.0, 0.95, 10, 10_000, 42,
-        );
+        let result =
+            VaRCalculator::monte_carlo_var(0.0005, 0.015, 1_000_000.0, 0.95, 10, 10_000, 42);
         assert!(result.var_usd > 0.0);
         assert!(result.var_pct < 0.5, "VaR fraction should be < 50%");
-        assert!(matches!(result.method, VarMethod::MonteCarlo { n_simulations: 10_000, seed: 42 }));
+        assert!(matches!(
+            result.method,
+            VarMethod::MonteCarlo {
+                n_simulations: 10_000,
+                seed: 42
+            }
+        ));
     }
 
     #[test]
     fn test_conditional_var_exceeds_var() {
         let returns = sample_returns();
         let cvar = VaRCalculator::conditional_var(&returns, 1_000_000.0, 0.95, 1);
-        assert!(cvar.cvar_usd >= cvar.var_result.var_usd,
-            "CVaR should be >= VaR: cvar={}, var={}", cvar.cvar_usd, cvar.var_result.var_usd);
+        assert!(
+            cvar.cvar_usd >= cvar.var_result.var_usd,
+            "CVaR should be >= VaR: cvar={}, var={}",
+            cvar.cvar_usd,
+            cvar.var_result.var_usd
+        );
     }
 
     #[test]
@@ -428,10 +449,7 @@ mod tests {
     fn test_portfolio_var_uncorrelated() {
         // Two uncorrelated assets each with VaR = $1000, portfolio VaR = sqrt(2) * 1000
         let vars = vec![1000.0, 1000.0];
-        let corr = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-        ];
+        let corr = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
         let pvar = VaRCalculator::portfolio_var(&vars, &corr);
         assert!((pvar - 2.0_f64.sqrt() * 1000.0).abs() < 1e-6, "pvar={pvar}");
     }
@@ -440,10 +458,7 @@ mod tests {
     fn test_portfolio_var_perfectly_correlated() {
         // Two perfectly correlated assets: portfolio VaR = sum of individual VaRs
         let vars = vec![1000.0, 1000.0];
-        let corr = vec![
-            vec![1.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let corr = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
         let pvar = VaRCalculator::portfolio_var(&vars, &corr);
         assert!((pvar - 2000.0).abs() < 1e-6, "pvar={pvar}");
     }

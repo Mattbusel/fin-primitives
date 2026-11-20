@@ -270,7 +270,8 @@ impl Position {
             return None;
         }
         let upnl = self.unrealized_pnl(current_price);
-        upnl.checked_div(cost_basis).map(|r| r * Decimal::from(100u32))
+        upnl.checked_div(cost_basis)
+            .map(|r| r * Decimal::from(100u32))
     }
 
     /// Returns the total cost basis: `|quantity| * avg_cost`.
@@ -330,7 +331,6 @@ impl Position {
         self.avg_cost * self.quantity.abs()
     }
 
-
     /// Returns `true` if unrealized PnL at `current_price` is strictly positive.
     pub fn is_profitable(&self, current_price: Price) -> bool {
         self.unrealized_pnl(current_price) > Decimal::ZERO
@@ -350,7 +350,11 @@ impl Position {
     ///
     /// Returns `None` when `total_portfolio_value` is zero, the position is flat, or
     /// `current_price` is zero.
-    pub fn exposure_pct(&self, current_price: Price, total_portfolio_value: Decimal) -> Option<Decimal> {
+    pub fn exposure_pct(
+        &self,
+        current_price: Price,
+        total_portfolio_value: Decimal,
+    ) -> Option<Decimal> {
         if total_portfolio_value.is_zero() || self.is_flat() {
             return None;
         }
@@ -595,12 +599,18 @@ impl PositionLedger {
 
     /// Returns the number of long (positive quantity) open positions.
     pub fn long_count(&self) -> usize {
-        self.positions.values().filter(|p| p.quantity > Decimal::ZERO).count()
+        self.positions
+            .values()
+            .filter(|p| p.quantity > Decimal::ZERO)
+            .count()
     }
 
     /// Returns the number of short (negative quantity) open positions.
     pub fn short_count(&self) -> usize {
-        self.positions.values().filter(|p| p.quantity < Decimal::ZERO).count()
+        self.positions
+            .values()
+            .filter(|p| p.quantity < Decimal::ZERO)
+            .count()
     }
 
     /// Returns the net signed quantity exposure across all positions.
@@ -616,17 +626,26 @@ impl PositionLedger {
     /// Long positions contribute positive values; short positions contribute negative values.
     /// Prices missing from `prices` are skipped.
     /// Returns `None` if no open positions have prices available.
-    pub fn net_market_exposure(&self, prices: &std::collections::HashMap<String, Price>) -> Option<Decimal> {
+    pub fn net_market_exposure(
+        &self,
+        prices: &std::collections::HashMap<String, Price>,
+    ) -> Option<Decimal> {
         let mut found = false;
         let mut net = Decimal::ZERO;
         for pos in self.positions.values() {
-            if pos.quantity.is_zero() { continue; }
+            if pos.quantity.is_zero() {
+                continue;
+            }
             if let Some(&price) = prices.get(pos.symbol.as_str()) {
                 found = true;
                 net += pos.quantity * price.value();
             }
         }
-        if found { Some(net) } else { None }
+        if found {
+            Some(net)
+        } else {
+            None
+        }
     }
 
     /// Returns the gross (absolute) quantity exposure across all positions.
@@ -651,17 +670,19 @@ impl PositionLedger {
         self.positions
             .values()
             .filter(|p| !p.is_flat())
-            .max_by(|a, b| a.quantity.abs().partial_cmp(&b.quantity.abs()).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| {
+                a.quantity
+                    .abs()
+                    .partial_cmp(&b.quantity.abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// Returns the total market value of all open positions given a price map.
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
-    pub fn total_market_value(
-        &self,
-        prices: &HashMap<String, Price>,
-    ) -> Result<Decimal, FinError> {
+    pub fn total_market_value(&self, prices: &HashMap<String, Price>) -> Result<Decimal, FinError> {
         let mut total = Decimal::ZERO;
         for (sym, pos) in &self.positions {
             if pos.quantity == Decimal::ZERO {
@@ -762,7 +783,10 @@ impl PositionLedger {
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a position has no price in `prices`.
-    pub fn net_liquidation_value(&self, prices: &HashMap<String, Price>) -> Result<Decimal, FinError> {
+    pub fn net_liquidation_value(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Result<Decimal, FinError> {
         let mut total = self.cash;
         for (symbol, pos) in &self.positions {
             if pos.quantity == Decimal::ZERO {
@@ -782,7 +806,10 @@ impl PositionLedger {
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
-    pub fn pnl_by_symbol(&self, prices: &HashMap<String, Price>) -> Result<HashMap<Symbol, Decimal>, FinError> {
+    pub fn pnl_by_symbol(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Result<HashMap<Symbol, Decimal>, FinError> {
         let mut map = HashMap::new();
         for (symbol, pos) in &self.positions {
             if pos.quantity == Decimal::ZERO {
@@ -879,12 +906,18 @@ impl PositionLedger {
     /// Returns the top `n` open positions sorted by absolute market value descending.
     ///
     /// Positions missing from `prices` are assigned market value of zero and sink to the bottom.
-    pub fn top_n_positions<'a>(&'a self, n: usize, prices: &HashMap<String, Price>) -> Vec<&'a Position> {
+    pub fn top_n_positions<'a>(
+        &'a self,
+        n: usize,
+        prices: &HashMap<String, Price>,
+    ) -> Vec<&'a Position> {
         let mut open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
         open.sort_by(|a, b| {
-            let mv_a = prices.get(a.symbol.as_str())
+            let mv_a = prices
+                .get(a.symbol.as_str())
                 .map_or(Decimal::ZERO, |p| (a.quantity * p.value()).abs());
-            let mv_b = prices.get(b.symbol.as_str())
+            let mv_b = prices
+                .get(b.symbol.as_str())
                 .map_or(Decimal::ZERO, |p| (b.quantity * p.value()).abs());
             mv_b.cmp(&mv_a)
         });
@@ -900,7 +933,10 @@ impl PositionLedger {
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
-    pub fn concentration(&self, prices: &HashMap<String, Price>) -> Result<Option<Decimal>, FinError> {
+    pub fn concentration(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> Result<Option<Decimal>, FinError> {
         let gross = self.gross_exposure();
         if gross == Decimal::ZERO {
             return Ok(None);
@@ -924,7 +960,11 @@ impl PositionLedger {
     ///
     /// # Errors
     /// Returns [`FinError::PositionNotFound`] if a non-flat position has no price in `prices`.
-    pub fn margin_used(&self, prices: &HashMap<String, Price>, margin_rate: Decimal) -> Result<Decimal, FinError> {
+    pub fn margin_used(
+        &self,
+        prices: &HashMap<String, Price>,
+        margin_rate: Decimal,
+    ) -> Result<Decimal, FinError> {
         let mut gross = Decimal::ZERO;
         for (symbol, pos) in &self.positions {
             if pos.quantity == Decimal::ZERO {
@@ -950,16 +990,18 @@ impl PositionLedger {
         self.positions
             .values()
             .filter(|p| !p.is_flat())
-            .min_by(|a, b| a.quantity.abs().partial_cmp(&b.quantity.abs()).unwrap_or(std::cmp::Ordering::Equal))
+            .min_by(|a, b| {
+                a.quantity
+                    .abs()
+                    .partial_cmp(&b.quantity.abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
 
     /// Returns the symbol with the highest unrealized PnL given current `prices`.
     ///
     /// Returns `None` if there are no open positions or the price map is empty.
-    pub fn most_profitable_symbol(
-        &self,
-        prices: &HashMap<String, Price>,
-    ) -> Option<&Symbol> {
+    pub fn most_profitable_symbol(&self, prices: &HashMap<String, Price>) -> Option<&Symbol> {
         self.positions
             .iter()
             .filter(|(_, p)| !p.is_flat())
@@ -975,10 +1017,7 @@ impl PositionLedger {
     /// Returns the symbol with the lowest (most negative) unrealized PnL given current `prices`.
     ///
     /// Returns `None` if there are no open positions or the price map is empty.
-    pub fn least_profitable_symbol(
-        &self,
-        prices: &HashMap<String, Price>,
-    ) -> Option<&Symbol> {
+    pub fn least_profitable_symbol(&self, prices: &HashMap<String, Price>) -> Option<&Symbol> {
         self.positions
             .iter()
             .filter(|(_, p)| !p.is_flat())
@@ -999,10 +1038,7 @@ impl PositionLedger {
     /// Returns all open positions as `(Symbol, unrealized_pnl)` sorted by PnL descending.
     ///
     /// Symbols without a price entry in `prices` are skipped.
-    pub fn symbols_with_pnl(
-        &self,
-        prices: &HashMap<String, Price>,
-    ) -> Vec<(&Symbol, Decimal)> {
+    pub fn symbols_with_pnl(&self, prices: &HashMap<String, Price>) -> Vec<(&Symbol, Decimal)> {
         let mut result: Vec<(&Symbol, Decimal)> = self
             .positions
             .iter()
@@ -1085,7 +1121,9 @@ impl PositionLedger {
     /// Returns the average cost basis for `symbol`, or `None` if the position is flat or unknown.
     pub fn avg_cost_basis(&self, symbol: &Symbol) -> Option<Decimal> {
         let pos = self.positions.get(symbol)?;
-        if pos.is_flat() { return None; }
+        if pos.is_flat() {
+            return None;
+        }
         Some(pos.avg_cost)
     }
 
@@ -1113,7 +1151,11 @@ impl PositionLedger {
             .iter()
             .filter_map(|(sym, pos)| {
                 let r = pos.realized_pnl;
-                if r != Decimal::ZERO { Some((sym.clone(), r)) } else { None }
+                if r != Decimal::ZERO {
+                    Some((sym.clone(), r))
+                } else {
+                    None
+                }
             })
             .collect();
         pairs.sort_by_key(|x| std::cmp::Reverse(x.1));
@@ -1132,8 +1174,7 @@ impl PositionLedger {
         if n == 0 {
             return vec![];
         }
-        let mut open: Vec<&Position> =
-            self.positions.values().filter(|p| !p.is_flat()).collect();
+        let mut open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
         open.sort_by(|a, b| {
             let pnl_a = prices
                 .get(a.symbol.as_str())
@@ -1149,7 +1190,8 @@ impl PositionLedger {
     /// Returns the symbols that currently have flat (zero-quantity) positions,
     /// sorted lexicographically.
     pub fn flat_symbols(&self) -> Vec<&Symbol> {
-        let mut syms: Vec<&Symbol> = self.positions
+        let mut syms: Vec<&Symbol> = self
+            .positions
             .iter()
             .filter_map(|(sym, pos)| if pos.is_flat() { Some(sym) } else { None })
             .collect();
@@ -1167,7 +1209,11 @@ impl PositionLedger {
             .filter_map(|p| {
                 let price = prices.get(p.symbol.as_str()).copied()?;
                 let upnl = p.unrealized_pnl(price);
-                if upnl < Decimal::ZERO { Some(upnl) } else { None }
+                if upnl < Decimal::ZERO {
+                    Some(upnl)
+                } else {
+                    None
+                }
             })
             .min_by(|a, b| a.cmp(b))
     }
@@ -1182,7 +1228,11 @@ impl PositionLedger {
             .filter_map(|p| {
                 let price = prices.get(p.symbol.as_str()).copied()?;
                 let upnl = p.unrealized_pnl(price);
-                if upnl > Decimal::ZERO { Some((p, upnl)) } else { None }
+                if upnl > Decimal::ZERO {
+                    Some((p, upnl))
+                } else {
+                    None
+                }
             })
             .max_by(|a, b| a.1.cmp(&b.1))
             .map(|(p, _)| p)
@@ -1198,7 +1248,11 @@ impl PositionLedger {
             .filter_map(|p| {
                 let price = prices.get(p.symbol.as_str()).copied()?;
                 let upnl = p.unrealized_pnl(price);
-                if upnl < Decimal::ZERO { Some((p, upnl)) } else { None }
+                if upnl < Decimal::ZERO {
+                    Some((p, upnl))
+                } else {
+                    None
+                }
             })
             .min_by(|a, b| a.1.cmp(&b.1))
             .map(|(p, _)| p)
@@ -1221,8 +1275,11 @@ impl PositionLedger {
     /// Returns `None` if there are no open positions or total exposure is zero.
     pub fn largest_position_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
         let total = self.gross_market_exposure(prices);
-        if total.is_zero() { return None; }
-        let max_mv = self.positions
+        if total.is_zero() {
+            return None;
+        }
+        let max_mv = self
+            .positions
             .values()
             .filter(|p| !p.is_flat())
             .filter_map(|p| {
@@ -1240,12 +1297,15 @@ impl PositionLedger {
     /// Returns `None` if total cost basis is zero.
     pub fn unrealized_pnl_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
         let total_upnl = self.unrealized_pnl_total(prices).ok()?;
-        let total_cost: Decimal = self.positions
+        let total_cost: Decimal = self
+            .positions
             .values()
             .filter(|p| !p.is_flat())
             .map(|p| p.cost_basis().abs())
             .sum();
-        if total_cost.is_zero() { return None; }
+        if total_cost.is_zero() {
+            return None;
+        }
         Some(total_upnl / total_cost * Decimal::from(100u32))
     }
 
@@ -1257,7 +1317,8 @@ impl PositionLedger {
             .values()
             .filter(|p| !p.is_flat())
             .filter(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .is_some_and(|&price| p.unrealized_pnl(price) > Decimal::ZERO)
             })
             .map(|p| &p.symbol)
@@ -1272,7 +1333,8 @@ impl PositionLedger {
             .values()
             .filter(|p| !p.is_flat())
             .filter(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .is_some_and(|&price| p.unrealized_pnl(price) < Decimal::ZERO)
             })
             .map(|p| &p.symbol)
@@ -1283,7 +1345,10 @@ impl PositionLedger {
     ///
     /// Alias for [`PositionLedger::largest_winner`] with a more descriptive name.
     /// Returns `None` if no positions have positive unrealized PnL.
-    pub fn largest_unrealized_gain<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Position> {
+    pub fn largest_unrealized_gain<'a>(
+        &'a self,
+        prices: &HashMap<String, Price>,
+    ) -> Option<&'a Position> {
         self.largest_winner(prices)
     }
 
@@ -1291,7 +1356,9 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no positions.
     pub fn avg_realized_pnl_per_symbol(&self) -> Option<Decimal> {
-        if self.positions.is_empty() { return None; }
+        if self.positions.is_empty() {
+            return None;
+        }
         let total: Decimal = self.positions.values().map(|p| p.realized_pnl).sum();
         #[allow(clippy::cast_possible_truncation)]
         Some(total / Decimal::from(self.positions.len() as u32))
@@ -1304,9 +1371,13 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no positions.
     pub fn win_rate(&self) -> Option<Decimal> {
-        if self.positions.is_empty() { return None; }
+        if self.positions.is_empty() {
+            return None;
+        }
         let total = self.positions.len();
-        let winners = self.positions.values()
+        let winners = self
+            .positions
+            .values()
             .filter(|p| p.realized_pnl > Decimal::ZERO)
             .count();
         #[allow(clippy::cast_possible_truncation)]
@@ -1326,7 +1397,8 @@ impl PositionLedger {
         let excluded_rpnl = self.realized_pnl(exclude).unwrap_or(Decimal::ZERO);
         let excluded_upnl = if let Some(pos) = self.positions.get(exclude) {
             if !pos.is_flat() {
-                let price = prices.get(exclude.as_str())
+                let price = prices
+                    .get(exclude.as_str())
                     .copied()
                     .ok_or_else(|| FinError::InvalidSymbol(exclude.as_str().to_string()))?;
                 pos.unrealized_pnl(price)
@@ -1347,16 +1419,22 @@ impl PositionLedger {
     pub fn long_short_ratio(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
         let long_exp = self.long_exposure(prices);
         let short_exp = self.short_exposure(prices).abs();
-        if short_exp.is_zero() { return None; }
+        if short_exp.is_zero() {
+            return None;
+        }
         long_exp.checked_div(short_exp)
     }
 
     /// Returns `(long_count, short_count)` — the number of open long and short positions.
     pub fn position_count_by_direction(&self) -> (usize, usize) {
-        let longs = self.positions.values()
+        let longs = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat() && p.quantity > Decimal::ZERO)
             .count();
-        let shorts = self.positions.values()
+        let shorts = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat() && p.quantity < Decimal::ZERO)
             .count();
         (longs, shorts)
@@ -1366,7 +1444,8 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions or no position has an open bar set.
     pub fn max_position_age_bars(&self, current_bar: usize) -> Option<usize> {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| !p.is_flat())
             .map(|p| p.position_age_bars(current_bar))
             .max()
@@ -1376,11 +1455,15 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions.
     pub fn avg_position_age_bars(&self, current_bar: usize) -> Option<Decimal> {
-        let ages: Vec<usize> = self.positions.values()
+        let ages: Vec<usize> = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
             .map(|p| p.position_age_bars(current_bar))
             .collect();
-        if ages.is_empty() { return None; }
+        if ages.is_empty() {
+            return None;
+        }
         let sum: usize = ages.iter().sum();
         Some(Decimal::from(sum as u64) / Decimal::from(ages.len() as u64))
     }
@@ -1392,22 +1475,30 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions or total gross exposure is zero.
     pub fn hhi_concentration(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        let open_positions: Vec<_> = self.positions.values()
-            .filter(|p| !p.is_flat())
-            .collect();
-        if open_positions.is_empty() { return None; }
-        let mvs: Vec<Decimal> = open_positions.iter()
+        let open_positions: Vec<_> = self.positions.values().filter(|p| !p.is_flat()).collect();
+        if open_positions.is_empty() {
+            return None;
+        }
+        let mvs: Vec<Decimal> = open_positions
+            .iter()
             .filter_map(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&price| p.market_value(price).abs())
             })
             .collect();
         let total: Decimal = mvs.iter().sum();
-        if total.is_zero() { return None; }
-        Some(mvs.iter().map(|mv| {
-            let w = mv / total;
-            w * w
-        }).sum())
+        if total.is_zero() {
+            return None;
+        }
+        Some(
+            mvs.iter()
+                .map(|mv| {
+                    let w = mv / total;
+                    w * w
+                })
+                .sum(),
+        )
     }
 
     /// Ratio of total long unrealized P&L to absolute total short unrealized P&L.
@@ -1415,28 +1506,46 @@ impl PositionLedger {
     /// Values > 1 mean longs are outperforming; values < 1 mean shorts are leading.
     /// Returns `None` if short PnL is zero or no short prices are available.
     pub fn long_short_pnl_ratio(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        let long_pnl: Decimal = self.positions.values()
+        let long_pnl: Decimal = self
+            .positions
+            .values()
             .filter(|p| p.is_long())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.unrealized_pnl(pr))
+            })
             .sum();
-        let short_pnl: Decimal = self.positions.values()
+        let short_pnl: Decimal = self
+            .positions
+            .values()
             .filter(|p| p.is_short())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.unrealized_pnl(pr))
+            })
             .sum();
         let short_abs = short_pnl.abs();
-        if short_abs.is_zero() { return None; }
+        if short_abs.is_zero() {
+            return None;
+        }
         Some(long_pnl / short_abs)
     }
 
     /// Unrealized P&L for each open position, keyed by symbol string.
     ///
     /// Positions absent from `prices` are omitted from the result.
-    pub fn unrealized_pnl_by_symbol(&self, prices: &HashMap<String, Price>) -> HashMap<String, Decimal> {
+    pub fn unrealized_pnl_by_symbol(
+        &self,
+        prices: &HashMap<String, Price>,
+    ) -> HashMap<String, Decimal> {
         self.positions
             .iter()
             .filter(|(_, p)| !p.is_flat())
             .filter_map(|(sym, p)| {
-                prices.get(sym.as_str())
+                prices
+                    .get(sym.as_str())
                     .map(|&price| (sym.as_str().to_owned(), p.unrealized_pnl(price)))
             })
             .collect()
@@ -1454,18 +1563,32 @@ impl PositionLedger {
     ) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
         let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
-        if open.is_empty() { return None; }
-        let total_mv: Decimal = open.iter()
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs()))
+        if open.is_empty() {
+            return None;
+        }
+        let total_mv: Decimal = open
+            .iter()
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.market_value(pr).abs())
+            })
             .sum();
-        if total_mv.is_zero() { return None; }
+        if total_mv.is_zero() {
+            return None;
+        }
         let total_mv_f64 = total_mv.to_f64()?;
-        let beta_sum: f64 = open.iter().filter_map(|p| {
-            let mv = prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs())?;
-            let b = betas.get(p.symbol.as_str())?;
-            let w = mv.to_f64()? / total_mv_f64;
-            Some(w * b)
-        }).sum();
+        let beta_sum: f64 = open
+            .iter()
+            .filter_map(|p| {
+                let mv = prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.market_value(pr).abs())?;
+                let b = betas.get(p.symbol.as_str())?;
+                let w = mv.to_f64()? / total_mv_f64;
+                Some(w * b)
+            })
+            .sum();
         Some(beta_sum)
     }
 
@@ -1474,14 +1597,21 @@ impl PositionLedger {
     /// Positions absent from `prices` are skipped. Returns `None` if no open positions
     /// have a matching price.
     pub fn total_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        let total: Decimal = self.positions.values()
+        let total: Decimal = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
             .filter_map(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&price| p.quantity_abs() * price.value())
             })
             .sum();
-        if total.is_zero() { None } else { Some(total) }
+        if total.is_zero() {
+            None
+        } else {
+            Some(total)
+        }
     }
 
     /// Returns the largest unrealized gain (most positive unrealized P&L) among open positions.
@@ -1489,10 +1619,12 @@ impl PositionLedger {
     /// Returns `None` if no open positions have a matching price, or all unrealized P&Ls are
     /// non-positive.
     pub fn max_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| !p.is_flat())
             .filter_map(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&price| p.unrealized_pnl(price))
             })
             .filter(|&pnl| pnl > Decimal::ZERO)
@@ -1505,8 +1637,12 @@ impl PositionLedger {
     /// Returns `None` if `symbol` has no realized P&L or if it is not found.
     pub fn realized_pnl_rank(&self, symbol: &Symbol) -> Option<usize> {
         let target = self.positions.get(symbol).map(|p| p.realized_pnl)?;
-        if target == Decimal::ZERO { return None; }
-        let mut sorted: Vec<Decimal> = self.positions.values()
+        if target == Decimal::ZERO {
+            return None;
+        }
+        let mut sorted: Vec<Decimal> = self
+            .positions
+            .values()
             .map(|p| p.realized_pnl)
             .filter(|&r| r != Decimal::ZERO)
             .collect();
@@ -1516,9 +1652,7 @@ impl PositionLedger {
 
     /// Returns a `Vec` of references to all open (non-flat) positions, sorted by symbol.
     pub fn open_positions_vec(&self) -> Vec<&Position> {
-        let mut open: Vec<&Position> = self.positions.values()
-            .filter(|p| !p.is_flat())
-            .collect();
+        let mut open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
         open.sort_by(|a, b| a.symbol.as_str().cmp(b.symbol.as_str()));
         open
     }
@@ -1527,9 +1661,15 @@ impl PositionLedger {
     ///
     /// Results are sorted by realized P&L descending.
     pub fn symbols_with_pnl_above(&self, threshold: Decimal) -> Vec<Symbol> {
-        let mut pairs: Vec<(Symbol, Decimal)> = self.positions.iter()
+        let mut pairs: Vec<(Symbol, Decimal)> = self
+            .positions
+            .iter()
             .filter_map(|(sym, pos)| {
-                if pos.realized_pnl > threshold { Some((sym.clone(), pos.realized_pnl)) } else { None }
+                if pos.realized_pnl > threshold {
+                    Some((sym.clone(), pos.realized_pnl))
+                } else {
+                    None
+                }
             })
             .collect();
         pairs.sort_by_key(|x| std::cmp::Reverse(x.1));
@@ -1547,7 +1687,8 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions.
     pub fn largest_open_position(&self) -> Option<&Symbol> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .filter(|(_, p)| !p.is_flat())
             .max_by(|(_, a), (_, b)| a.quantity.abs().cmp(&b.quantity.abs()))
             .map(|(sym, _)| sym)
@@ -1557,13 +1698,21 @@ impl PositionLedger {
     ///
     /// Both values are positive (abs). Positions not in `prices` contribute zero.
     pub fn exposure_by_direction(&self, prices: &HashMap<String, Price>) -> (Decimal, Decimal) {
-        let long: Decimal = self.positions.values()
+        let long: Decimal = self
+            .positions
+            .values()
             .filter(|p| p.is_long())
             .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr)))
             .sum();
-        let short: Decimal = self.positions.values()
+        let short: Decimal = self
+            .positions
+            .values()
             .filter(|p| p.is_short())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.market_value(pr).abs()))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.market_value(pr).abs())
+            })
             .sum();
         (long, short)
     }
@@ -1575,7 +1724,10 @@ impl PositionLedger {
 
     /// Returns the number of positions whose realized P&L is strictly below `threshold`.
     pub fn count_with_pnl_below(&self, threshold: Decimal) -> usize {
-        self.positions.values().filter(|p| p.realized_pnl < threshold).count()
+        self.positions
+            .values()
+            .filter(|p| p.realized_pnl < threshold)
+            .count()
     }
 
     /// Returns `true` if the sum of all position quantities is positive (net long exposure).
@@ -1588,15 +1740,22 @@ impl PositionLedger {
     ///
     /// Positions absent from `prices` contribute zero.
     pub fn total_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Decimal {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| !p.is_flat())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.unrealized_pnl(pr))
+            })
             .sum()
     }
 
     /// Returns symbols that have a flat (zero-quantity) position in this ledger, sorted.
     pub fn symbols_flat(&self) -> Vec<&Symbol> {
-        let mut flat: Vec<&Symbol> = self.positions.iter()
+        let mut flat: Vec<&Symbol> = self
+            .positions
+            .iter()
             .filter(|(_, p)| p.is_flat())
             .map(|(sym, _)| sym)
             .collect();
@@ -1609,28 +1768,39 @@ impl PositionLedger {
     /// Each position's unrealized PnL % is `unrealized_pnl / (avg_price * qty).abs() * 100`.
     /// Returns `None` if there are no open positions with valid prices.
     pub fn avg_unrealized_pnl_pct(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        let pcts: Vec<Decimal> = self.positions.values()
+        let pcts: Vec<Decimal> = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
             .filter_map(|p| {
                 prices.get(p.symbol.as_str()).and_then(|&pr| {
                     let cost_basis = (p.avg_cost * p.quantity).abs();
-                    if cost_basis.is_zero() { return None; }
+                    if cost_basis.is_zero() {
+                        return None;
+                    }
                     Some(p.unrealized_pnl(pr) / cost_basis * Decimal::ONE_HUNDRED)
                 })
             })
             .collect();
-        if pcts.is_empty() { return None; }
+        if pcts.is_empty() {
+            return None;
+        }
         Some(pcts.iter().sum::<Decimal>() / Decimal::from(pcts.len()))
     }
 
     /// Returns the symbol with the worst (most negative) unrealized P&L.
     ///
     /// Returns `None` if there are no open positions or none have a price in `prices`.
-    pub fn max_drawdown_symbol<'a>(&'a self, prices: &HashMap<String, Price>) -> Option<&'a Symbol> {
-        self.positions.iter()
+    pub fn max_drawdown_symbol<'a>(
+        &'a self,
+        prices: &HashMap<String, Price>,
+    ) -> Option<&'a Symbol> {
+        self.positions
+            .iter()
             .filter(|(_, p)| !p.is_flat())
             .filter_map(|(sym, p)| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&price| (sym, p.unrealized_pnl(price)))
             })
             .min_by(|(_, a), (_, b)| a.cmp(b))
@@ -1641,11 +1811,19 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions with prices available.
     pub fn avg_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        let pnls: Vec<Decimal> = self.positions.values()
+        let pnls: Vec<Decimal> = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.unrealized_pnl(pr))
+            })
             .collect();
-        if pnls.is_empty() { return None; }
+        if pnls.is_empty() {
+            return None;
+        }
         #[allow(clippy::cast_possible_truncation)]
         Some(pnls.iter().sum::<Decimal>() / Decimal::from(pnls.len() as u32))
     }
@@ -1659,12 +1837,18 @@ impl PositionLedger {
 
     /// Returns the count of positions with strictly positive realized P&L.
     pub fn count_profitable(&self) -> usize {
-        self.positions.values().filter(|p| p.realized_pnl > Decimal::ZERO).count()
+        self.positions
+            .values()
+            .filter(|p| p.realized_pnl > Decimal::ZERO)
+            .count()
     }
 
     /// Returns the count of positions with strictly negative realized P&L.
     pub fn count_losing(&self) -> usize {
-        self.positions.values().filter(|p| p.realized_pnl < Decimal::ZERO).count()
+        self.positions
+            .values()
+            .filter(|p| p.realized_pnl < Decimal::ZERO)
+            .count()
     }
 
     /// Returns the top `n` open positions by absolute notional exposure (`|qty * price|`),
@@ -1674,10 +1858,13 @@ impl PositionLedger {
         prices: &HashMap<String, Price>,
         n: usize,
     ) -> Vec<(&'a Symbol, Decimal)> {
-        let mut exposures: Vec<(&Symbol, Decimal)> = self.positions.iter()
+        let mut exposures: Vec<(&Symbol, Decimal)> = self
+            .positions
+            .iter()
             .filter(|(_, p)| !p.is_flat())
             .filter_map(|(sym, p)| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&pr| (sym, (p.quantity * pr.value()).abs()))
             })
             .collect();
@@ -1693,7 +1880,8 @@ impl PositionLedger {
 
     /// Symbols with a strictly positive (long) quantity.
     pub fn long_symbols(&self) -> Vec<&Symbol> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .filter(|(_, p)| p.quantity > Decimal::ZERO)
             .map(|(sym, _)| sym)
             .collect()
@@ -1701,7 +1889,8 @@ impl PositionLedger {
 
     /// Symbols with a strictly negative (short) quantity.
     pub fn short_symbols(&self) -> Vec<&Symbol> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .filter(|(_, p)| p.quantity < Decimal::ZERO)
             .map(|(sym, _)| sym)
             .collect()
@@ -1713,17 +1902,25 @@ impl PositionLedger {
     /// Returns `None` if there are no open positions with available prices.
     pub fn concentration_ratio(&self, prices: &HashMap<String, Price>) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        let notionals: Vec<Decimal> = self.positions.values()
+        let notionals: Vec<Decimal> = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
             .filter_map(|p| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&pr| (p.quantity * pr.value()).abs())
             })
             .collect();
-        if notionals.is_empty() { return None; }
+        if notionals.is_empty() {
+            return None;
+        }
         let total: Decimal = notionals.iter().sum();
-        if total.is_zero() { return None; }
-        let hhi: f64 = notionals.iter()
+        if total.is_zero() {
+            return None;
+        }
+        let hhi: f64 = notionals
+            .iter()
             .filter_map(|n| (n / total).to_f64())
             .map(|w| w * w)
             .sum();
@@ -1734,9 +1931,14 @@ impl PositionLedger {
     ///
     /// Returns `None` if there are no open positions with a known price.
     pub fn min_unrealized_pnl(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| !p.is_flat())
-            .filter_map(|p| prices.get(p.symbol.as_str()).map(|&pr| p.unrealized_pnl(pr)))
+            .filter_map(|p| {
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| p.unrealized_pnl(pr))
+            })
             .min_by(|a, b| a.cmp(b))
     }
 
@@ -1745,7 +1947,9 @@ impl PositionLedger {
     /// Returns `None` if there are no open positions.
     pub fn pct_long(&self) -> Option<Decimal> {
         let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
-        if open.is_empty() { return None; }
+        if open.is_empty() {
+            return None;
+        }
         let longs = open.iter().filter(|p| p.quantity > Decimal::ZERO).count() as u32;
         Some(Decimal::from(longs) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
     }
@@ -1755,7 +1959,9 @@ impl PositionLedger {
     /// Returns `None` if there are no open positions.
     pub fn pct_short(&self) -> Option<Decimal> {
         let open: Vec<&Position> = self.positions.values().filter(|p| !p.is_flat()).collect();
-        if open.is_empty() { return None; }
+        if open.is_empty() {
+            return None;
+        }
         let shorts = open.iter().filter(|p| p.quantity < Decimal::ZERO).count() as u32;
         Some(Decimal::from(shorts) / Decimal::from(open.len() as u32) * Decimal::ONE_HUNDRED)
     }
@@ -1781,10 +1987,13 @@ impl PositionLedger {
     ///
     /// Returns `None` if no long positions have a price in `prices`.
     pub fn max_long_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| p.quantity > Decimal::ZERO)
             .filter_map(|p| {
-                prices.get(p.symbol.as_str()).map(|&pr| (p.quantity * pr.value()).abs())
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| (p.quantity * pr.value()).abs())
             })
             .max_by(|a, b| a.cmp(b))
     }
@@ -1793,10 +2002,13 @@ impl PositionLedger {
     ///
     /// Returns `None` if no short positions have a price in `prices`.
     pub fn max_short_notional(&self, prices: &HashMap<String, Price>) -> Option<Decimal> {
-        self.positions.values()
+        self.positions
+            .values()
             .filter(|p| p.quantity < Decimal::ZERO)
             .filter_map(|p| {
-                prices.get(p.symbol.as_str()).map(|&pr| (p.quantity * pr.value()).abs())
+                prices
+                    .get(p.symbol.as_str())
+                    .map(|&pr| (p.quantity * pr.value()).abs())
             })
             .max_by(|a, b| a.cmp(b))
     }
@@ -1805,7 +2017,8 @@ impl PositionLedger {
     ///
     /// Returns `None` if no positions have been tracked.
     pub fn max_realized_pnl(&self) -> Option<(&Symbol, Decimal)> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .map(|(sym, p)| (sym, p.realized_pnl))
             .max_by(|(_, a), (_, b)| a.cmp(b))
     }
@@ -1814,7 +2027,8 @@ impl PositionLedger {
     ///
     /// Returns `None` if no positions have been tracked.
     pub fn min_realized_pnl(&self) -> Option<(&Symbol, Decimal)> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .map(|(sym, p)| (sym, p.realized_pnl))
             .min_by(|(_, a), (_, b)| a.cmp(b))
     }
@@ -1824,20 +2038,26 @@ impl PositionLedger {
     /// Uses `current_bar - p.open_bar` for each open position.
     /// Returns `None` if there are no open positions.
     pub fn avg_holding_bars(&self, current_bar: usize) -> Option<f64> {
-        let open: Vec<usize> = self.positions.values()
+        let open: Vec<usize> = self
+            .positions
+            .values()
             .filter(|p| !p.is_flat())
             .map(|p| current_bar.saturating_sub(p.open_bar))
             .collect();
-        if open.is_empty() { return None; }
+        if open.is_empty() {
+            return None;
+        }
         Some(open.iter().sum::<usize>() as f64 / open.len() as f64)
     }
 
     /// Symbols of open positions that currently have a negative unrealized P&L.
     pub fn symbols_with_unrealized_loss(&self, prices: &HashMap<String, Price>) -> Vec<&Symbol> {
-        self.positions.iter()
+        self.positions
+            .iter()
             .filter(|(_, p)| !p.is_flat())
             .filter_map(|(sym, p)| {
-                prices.get(p.symbol.as_str())
+                prices
+                    .get(p.symbol.as_str())
                     .map(|&pr| (sym, p.unrealized_pnl(pr)))
             })
             .filter(|(_, pnl)| *pnl < Decimal::ZERO)
@@ -1848,12 +2068,14 @@ impl PositionLedger {
     /// Volume-weighted average entry price across all open long positions. Returns `None` if
     /// there are no long positions.
     pub fn avg_long_entry_price(&self) -> Option<Decimal> {
-        let longs: Vec<&Position> = self.positions.values()
-            .filter(|p| p.is_long())
-            .collect();
-        if longs.is_empty() { return None; }
+        let longs: Vec<&Position> = self.positions.values().filter(|p| p.is_long()).collect();
+        if longs.is_empty() {
+            return None;
+        }
         let total_qty: Decimal = longs.iter().map(|p| p.quantity.abs()).sum();
-        if total_qty.is_zero() { return None; }
+        if total_qty.is_zero() {
+            return None;
+        }
         let weighted: Decimal = longs.iter().map(|p| p.avg_cost * p.quantity.abs()).sum();
         Some(weighted / total_qty)
     }
@@ -1861,12 +2083,14 @@ impl PositionLedger {
     /// Volume-weighted average entry price across all open short positions. Returns `None` if
     /// there are no short positions.
     pub fn avg_short_entry_price(&self) -> Option<Decimal> {
-        let shorts: Vec<&Position> = self.positions.values()
-            .filter(|p| p.is_short())
-            .collect();
-        if shorts.is_empty() { return None; }
+        let shorts: Vec<&Position> = self.positions.values().filter(|p| p.is_short()).collect();
+        if shorts.is_empty() {
+            return None;
+        }
         let total_qty: Decimal = shorts.iter().map(|p| p.quantity.abs()).sum();
-        if total_qty.is_zero() { return None; }
+        if total_qty.is_zero() {
+            return None;
+        }
         let weighted: Decimal = shorts.iter().map(|p| p.avg_cost * p.quantity.abs()).sum();
         Some(weighted / total_qty)
     }
@@ -2033,20 +2257,26 @@ mod tests {
     #[test]
     fn test_position_ledger_pnl_by_symbol() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_owned(), Price::new(dec!(110)).unwrap());
         prices.insert("GOOG".to_owned(), Price::new(dec!(190)).unwrap());
         let pnl = ledger.pnl_by_symbol(&prices).unwrap();
-        assert_eq!(*pnl.get(&sym("AAPL")).unwrap(), dec!(100));  // (110-100)*10
-        assert_eq!(*pnl.get(&sym("GOOG")).unwrap(), dec!(-50));  // (190-200)*5
+        assert_eq!(*pnl.get(&sym("AAPL")).unwrap(), dec!(100)); // (110-100)*10
+        assert_eq!(*pnl.get(&sym("GOOG")).unwrap(), dec!(-50)); // (190-200)*5
     }
 
     #[test]
     fn test_position_ledger_pnl_by_symbol_missing_price() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let prices: HashMap<String, Price> = HashMap::new();
         assert!(ledger.pnl_by_symbol(&prices).is_err());
     }
@@ -2061,8 +2291,12 @@ mod tests {
     #[test]
     fn test_position_ledger_delta_neutral_long_short_balanced() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("GOOG", Side::Ask, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Ask, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_owned(), Price::new(dec!(100)).unwrap());
         prices.insert("GOOG".to_owned(), Price::new(dec!(100)).unwrap());
@@ -2073,7 +2307,9 @@ mod tests {
     #[test]
     fn test_position_ledger_delta_neutral_one_sided_not_neutral() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_owned(), Price::new(dec!(100)).unwrap());
         // net=1000, gross=1000 → ratio=1 → not neutral
@@ -2088,12 +2324,18 @@ mod tests {
     #[test]
     fn test_position_ledger_open_count_tracks_positions() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert_eq!(ledger.open_count(), 1);
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "5", "200", "0"))
+            .unwrap();
         assert_eq!(ledger.open_count(), 2);
         // close AAPL fully
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "105", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "105", "0"))
+            .unwrap();
         assert_eq!(ledger.open_count(), 1);
     }
 
@@ -2323,10 +2565,16 @@ mod tests {
     fn test_position_ledger_flat_positions() {
         let mut ledger = PositionLedger::new(dec!(10000));
         // open AAPL, then close it
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
         // leave MSFT open
-        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "0"))
+            .unwrap();
         let flat: Vec<_> = ledger.flat_positions().collect();
         assert_eq!(flat.len(), 1);
         assert_eq!(flat[0].symbol, sym("AAPL"));
@@ -2335,7 +2583,9 @@ mod tests {
     #[test]
     fn test_position_ledger_flat_positions_empty_when_all_open() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0"))
+            .unwrap();
         assert_eq!(ledger.flat_positions().count(), 0);
     }
 
@@ -2405,8 +2655,12 @@ mod tests {
     #[test]
     fn test_position_ledger_realized_pnl_after_close() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         assert_eq!(ledger.realized_pnl(&sym("AAPL")), Some(dec!(100)));
     }
 
@@ -2419,16 +2673,24 @@ mod tests {
     #[test]
     fn test_position_ledger_realized_pnl_zero_before_close() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert_eq!(ledger.realized_pnl(&sym("AAPL")), Some(dec!(0)));
     }
 
     #[test]
     fn test_position_ledger_symbols_sorted_order() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("MSFT", Side::Bid, "1", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "1", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "1", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "1", "100", "0"))
+            .unwrap();
         let sorted = ledger.symbols_sorted();
         let names: Vec<&str> = sorted.iter().map(|s| s.as_str()).collect();
         assert_eq!(names, vec!["AAPL", "GOOG", "MSFT"]);
@@ -2466,12 +2728,22 @@ mod tests {
     fn test_position_avg_entry_price_after_partial_close() {
         let sym = Symbol::new("X").unwrap();
         let mut pos = Position::new(sym.clone());
-        pos.apply_fill(&Fill::new(sym.clone(), Side::Bid,
-            Quantity::new(dec!(10)).unwrap(), Price::new(dec!(100)).unwrap(),
-            NanoTimestamp::new(0))).unwrap();
-        pos.apply_fill(&Fill::new(sym.clone(), Side::Ask,
-            Quantity::new(dec!(5)).unwrap(), Price::new(dec!(100)).unwrap(),
-            NanoTimestamp::new(1))).unwrap();
+        pos.apply_fill(&Fill::new(
+            sym.clone(),
+            Side::Bid,
+            Quantity::new(dec!(10)).unwrap(),
+            Price::new(dec!(100)).unwrap(),
+            NanoTimestamp::new(0),
+        ))
+        .unwrap();
+        pos.apply_fill(&Fill::new(
+            sym.clone(),
+            Side::Ask,
+            Quantity::new(dec!(5)).unwrap(),
+            Price::new(dec!(100)).unwrap(),
+            NanoTimestamp::new(1),
+        ))
+        .unwrap();
         // Still long 5 at avg_cost = 100
         assert_eq!(pos.avg_entry_price().unwrap().value(), dec!(100));
     }
@@ -2479,7 +2751,9 @@ mod tests {
     #[test]
     fn test_position_ledger_has_position_true_after_fill() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert!(ledger.has_position(&sym("AAPL")));
     }
 
@@ -2492,8 +2766,12 @@ mod tests {
     #[test]
     fn test_position_ledger_has_position_true_even_when_flat() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "0"))
+            .unwrap();
         // position is flat but still tracked
         assert!(ledger.has_position(&sym("AAPL")));
     }
@@ -2501,8 +2779,12 @@ mod tests {
     #[test]
     fn test_position_ledger_open_symbols_returns_non_flat() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "1")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "1"))
+            .unwrap();
         let symbols: Vec<_> = ledger.open_symbols().collect();
         assert_eq!(symbols.len(), 2);
     }
@@ -2510,9 +2792,15 @@ mod tests {
     #[test]
     fn test_position_ledger_open_symbols_excludes_flat() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1")).unwrap(); // flat
-        ledger.apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "2")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1"))
+            .unwrap(); // flat
+        ledger
+            .apply_fill(make_fill("MSFT", Side::Bid, "5", "200", "2"))
+            .unwrap();
         let symbols: Vec<_> = ledger.open_symbols().collect();
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].as_str(), "MSFT");
@@ -2521,8 +2809,12 @@ mod tests {
     #[test]
     fn test_position_ledger_open_symbols_empty_when_all_flat() {
         let mut ledger = PositionLedger::new(dec!(10000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "100", "1"))
+            .unwrap();
         let symbols: Vec<_> = ledger.open_symbols().collect();
         assert!(symbols.is_empty());
     }
@@ -2530,7 +2822,9 @@ mod tests {
     #[test]
     fn test_position_ledger_total_long_exposure() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         // 10 * avg_cost(100) = 1000
         assert_eq!(ledger.total_long_exposure(), dec!(1000));
     }
@@ -2544,14 +2838,18 @@ mod tests {
     #[test]
     fn test_position_ledger_total_short_exposure_zero_when_no_shorts() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         assert_eq!(ledger.total_short_exposure(), dec!(0));
     }
 
     #[test]
     fn test_allocation_pct_single_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         let sym = Symbol::new("AAPL").unwrap();
         prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
@@ -2573,8 +2871,12 @@ mod tests {
     #[test]
     fn test_positions_sorted_by_pnl_descending() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "1", "200", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "1", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "1", "200", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         // AAPL gained $10, GOOG gained $50
         prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
@@ -2601,22 +2903,30 @@ mod tests {
     #[test]
     fn test_all_flat_false_after_open_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"))
+            .unwrap();
         assert!(!ledger.all_flat());
     }
 
     #[test]
     fn test_all_flat_true_after_close_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "155", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "155", "0"))
+            .unwrap();
         assert!(ledger.all_flat());
     }
 
     #[test]
     fn test_concentration_pct_single_position() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "150", "0"))
+            .unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(150)).unwrap());
@@ -2628,8 +2938,12 @@ mod tests {
     #[test]
     fn test_concentration_pct_two_equal_positions() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(100)).unwrap());
@@ -2641,7 +2955,9 @@ mod tests {
     #[test]
     fn test_concentration_pct_missing_price_returns_none() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let sym = Symbol::new("AAPL").unwrap();
         let prices = HashMap::new(); // empty price map
         assert!(ledger.concentration_pct(&sym, &prices).is_none());
@@ -2657,8 +2973,12 @@ mod tests {
     fn test_avg_realized_pnl_per_symbol_with_closed_trade() {
         let mut ledger = PositionLedger::new(dec!(100000));
         // Buy 10 @ 100, sell 10 @ 110 → realized = +100
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         let avg = ledger.avg_realized_pnl_per_symbol().unwrap();
         assert_eq!(avg, dec!(100));
     }
@@ -2666,7 +2986,9 @@ mod tests {
     #[test]
     fn test_net_exposure_no_prices_returns_none() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let prices = HashMap::new();
         assert!(ledger.net_market_exposure(&prices).is_none());
     }
@@ -2674,7 +2996,9 @@ mod tests {
     #[test]
     fn test_net_exposure_long_only() {
         let mut ledger = PositionLedger::new(dec!(100000));
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let mut prices = HashMap::new();
         prices.insert("AAPL".to_string(), Price::new(dec!(110)).unwrap());
         assert_eq!(ledger.net_market_exposure(&prices).unwrap(), dec!(1100));
@@ -2690,10 +3014,16 @@ mod tests {
     fn test_win_rate_one_winner() {
         let mut ledger = PositionLedger::new(dec!(100000));
         // Buy and sell AAPL for +100 realized
-        ledger.apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0")).unwrap();
-        ledger.apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Bid, "10", "100", "0"))
+            .unwrap();
+        ledger
+            .apply_fill(make_fill("AAPL", Side::Ask, "10", "110", "0"))
+            .unwrap();
         // GOOG still open at cost (realized=0)
-        ledger.apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0")).unwrap();
+        ledger
+            .apply_fill(make_fill("GOOG", Side::Bid, "10", "100", "0"))
+            .unwrap();
         let rate = ledger.win_rate().unwrap();
         // 1 winner (AAPL) out of 2 positions = 50%
         assert_eq!(rate, dec!(50));

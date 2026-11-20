@@ -142,9 +142,17 @@ impl VotingCombiner {
 
         let score = votes.iter().map(|v| v.as_f64()).sum::<f64>() / total as f64;
         let max_side = bulls.max(bears) as f64;
-        let confidence = if total == 0 { 0.0 } else { max_side / total as f64 };
+        let confidence = if total == 0 {
+            0.0
+        } else {
+            max_side / total as f64
+        };
 
-        Ok(EnsembleOutput { direction, score, confidence })
+        Ok(EnsembleOutput {
+            direction,
+            score,
+            confidence,
+        })
     }
 }
 
@@ -228,7 +236,13 @@ impl WeightedCombiner {
                 "bear_threshold must be <= bull_threshold".to_owned(),
             ));
         }
-        Ok(Self { names, weights, bull_threshold, bear_threshold, weight_sum })
+        Ok(Self {
+            names,
+            weights,
+            bull_threshold,
+            bear_threshold,
+            weight_sum,
+        })
     }
 
     /// Returns the signal names.
@@ -274,7 +288,11 @@ impl WeightedCombiner {
         let dist_from_neutral = weighted.abs();
         let confidence = dist_from_neutral.min(1.0);
 
-        Ok(EnsembleOutput { direction, score: weighted, confidence })
+        Ok(EnsembleOutput {
+            direction,
+            score: weighted,
+            confidence,
+        })
     }
 
     /// Returns the number of signals.
@@ -354,7 +372,8 @@ impl BayesianCombiner {
         }
         if names.len() != p_bull_given_bull.len() || names.len() != p_bull_given_bear.len() {
             return Err(FinError::InvalidInput(
-                "names, p_bull_given_bull, and p_bull_given_bear must have the same length".to_owned(),
+                "names, p_bull_given_bull, and p_bull_given_bear must have the same length"
+                    .to_owned(),
             ));
         }
         for (i, (&pb, &pn)) in p_bull_given_bull.iter().zip(&p_bull_given_bear).enumerate() {
@@ -454,7 +473,11 @@ impl BayesianCombiner {
         let score = 2.0 * self.posterior - 1.0;
         let confidence = (self.posterior - 0.5).abs() * 2.0;
 
-        Ok(EnsembleOutput { direction, score, confidence })
+        Ok(EnsembleOutput {
+            direction,
+            score,
+            confidence,
+        })
     }
 }
 
@@ -518,13 +541,8 @@ mod tests {
 
     #[test]
     fn test_weighted_bull() {
-        let wc = WeightedCombiner::new(
-            vec!["a".into(), "b".into()],
-            vec![0.7, 0.3],
-            0.2,
-            -0.2,
-        )
-        .unwrap();
+        let wc =
+            WeightedCombiner::new(vec!["a".into(), "b".into()], vec![0.7, 0.3], 0.2, -0.2).unwrap();
         let out = wc.update(&[1.0, 0.5]).unwrap();
         assert_eq!(out.direction, Vote::Bull);
         assert!(out.score > 0.2);
@@ -532,13 +550,8 @@ mod tests {
 
     #[test]
     fn test_weighted_bear() {
-        let wc = WeightedCombiner::new(
-            vec!["a".into(), "b".into()],
-            vec![0.5, 0.5],
-            0.2,
-            -0.2,
-        )
-        .unwrap();
+        let wc =
+            WeightedCombiner::new(vec!["a".into(), "b".into()], vec![0.5, 0.5], 0.2, -0.2).unwrap();
         let out = wc.update(&[-1.0, -0.8]).unwrap();
         assert_eq!(out.direction, Vote::Bear);
         assert!(out.score < -0.2);
@@ -546,48 +559,27 @@ mod tests {
 
     #[test]
     fn test_weighted_neutral_in_deadzone() {
-        let wc = WeightedCombiner::new(
-            vec!["a".into()],
-            vec![1.0],
-            0.5,
-            -0.5,
-        )
-        .unwrap();
+        let wc = WeightedCombiner::new(vec!["a".into()], vec![1.0], 0.5, -0.5).unwrap();
         let out = wc.update(&[0.1]).unwrap();
         assert_eq!(out.direction, Vote::Neutral);
     }
 
     #[test]
     fn test_weighted_negative_weight_fails() {
-        assert!(WeightedCombiner::new(
-            vec!["a".into()],
-            vec![-0.1],
-            0.2,
-            -0.2,
-        )
-        .is_err());
+        assert!(WeightedCombiner::new(vec!["a".into()], vec![-0.1], 0.2, -0.2,).is_err());
     }
 
     #[test]
     fn test_weighted_zero_total_weight_fails() {
-        assert!(WeightedCombiner::new(
-            vec!["a".into(), "b".into()],
-            vec![0.0, 0.0],
-            0.2,
-            -0.2,
-        )
-        .is_err());
+        assert!(
+            WeightedCombiner::new(vec!["a".into(), "b".into()], vec![0.0, 0.0], 0.2, -0.2,)
+                .is_err()
+        );
     }
 
     #[test]
     fn test_weighted_wrong_length_fails() {
-        let wc = WeightedCombiner::new(
-            vec!["a".into()],
-            vec![1.0],
-            0.2,
-            -0.2,
-        )
-        .unwrap();
+        let wc = WeightedCombiner::new(vec!["a".into()], vec![1.0], 0.2, -0.2).unwrap();
         assert!(wc.update(&[0.5, 0.3]).is_err());
     }
 
@@ -609,13 +601,7 @@ mod tests {
 
     #[test]
     fn test_bayesian_bear_votes_decrease_posterior() {
-        let mut bc = BayesianCombiner::new(
-            vec!["a".into()],
-            vec![0.7],
-            vec![0.3],
-            0.5,
-        )
-        .unwrap();
+        let mut bc = BayesianCombiner::new(vec!["a".into()], vec![0.7], vec![0.3], 0.5).unwrap();
         let out = bc.update(&[Vote::Bear]).unwrap();
         assert_eq!(out.direction, Vote::Bear);
         assert!(bc.posterior() < 0.5);
@@ -623,13 +609,7 @@ mod tests {
 
     #[test]
     fn test_bayesian_neutral_vote_no_change() {
-        let mut bc = BayesianCombiner::new(
-            vec!["a".into()],
-            vec![0.7],
-            vec![0.3],
-            0.6,
-        )
-        .unwrap();
+        let mut bc = BayesianCombiner::new(vec!["a".into()], vec![0.7], vec![0.3], 0.6).unwrap();
         let before = bc.posterior();
         let out = bc.update(&[Vote::Neutral]).unwrap();
         assert!((bc.posterior() - before).abs() < 1e-10);
@@ -650,13 +630,7 @@ mod tests {
 
     #[test]
     fn test_bayesian_reset() {
-        let mut bc = BayesianCombiner::new(
-            vec!["a".into()],
-            vec![0.7],
-            vec![0.3],
-            0.5,
-        )
-        .unwrap();
+        let mut bc = BayesianCombiner::new(vec!["a".into()], vec![0.7], vec![0.3], 0.5).unwrap();
         bc.update(&[Vote::Bull]).unwrap();
         let after_update = bc.posterior();
         bc.reset(0.5);

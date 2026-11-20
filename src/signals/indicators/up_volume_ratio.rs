@@ -1,9 +1,9 @@
 //! Up-Volume Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling fraction of total volume that occurs on up bars (close > open).
 ///
@@ -35,12 +35,16 @@ impl Signal for UpVolumeRatio {
         let is_up = bar.is_bullish();
         self.window.push_back((bar.volume, is_up));
         self.total_vol += bar.volume;
-        if is_up { self.up_vol += bar.volume; }
+        if is_up {
+            self.up_vol += bar.volume;
+        }
 
         if self.window.len() > self.period {
             if let Some((ov, ou)) = self.window.pop_front() {
                 self.total_vol -= ov;
-                if ou { self.up_vol -= ov; }
+                if ou {
+                    self.up_vol -= ov;
+                }
             }
         }
 
@@ -53,10 +57,20 @@ impl Signal for UpVolumeRatio {
         Ok(SignalValue::Scalar(self.up_vol / self.total_vol))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.total_vol = Decimal::ZERO; self.up_vol = Decimal::ZERO; }
-    fn name(&self) -> &str { "UpVolumeRatio" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.total_vol = Decimal::ZERO;
+        self.up_vol = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "UpVolumeRatio"
+    }
 }
 
 #[cfg(test)]
@@ -87,7 +101,7 @@ mod tests {
         let mut sig = UpVolumeRatio::new(2).unwrap();
         sig.update(&bar("100", "110", "1000")).unwrap(); // up 1000
         let v = sig.update(&bar("110", "100", "1000")).unwrap(); // down 1000
-        // up_vol = 1000, total = 2000, ratio = 0.5
+                                                                 // up_vol = 1000, total = 2000, ratio = 0.5
         assert_eq!(v, SignalValue::Scalar(dec!(0.5)));
     }
 }

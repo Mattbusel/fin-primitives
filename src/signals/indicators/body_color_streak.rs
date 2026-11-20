@@ -37,7 +37,7 @@ use rust_decimal::Decimal;
 pub struct BodyColorStreak {
     name: String,
     streak: i32,
-    color: i8,    // 1=bull, -1=bear, 0=neutral, 127=none
+    color: i8, // 1=bull, -1=bear, 0=neutral, 127=none
     seen_bars: usize,
 }
 
@@ -78,7 +78,13 @@ impl crate::signals::Signal for BodyColorStreak {
         };
 
         if self.color == 127 || self.color != cur_color {
-            self.streak = if cur_color == 1 { 1 } else if cur_color == -1 { -1 } else { 0 };
+            self.streak = if cur_color == 1 {
+                1
+            } else if cur_color == -1 {
+                -1
+            } else {
+                0
+            };
         } else {
             // Same color: extend streak
             if cur_color == 1 {
@@ -113,7 +119,10 @@ mod tests {
         let (high, low) = if c >= o { (c, o) } else { (o, c) };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

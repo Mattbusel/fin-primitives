@@ -174,7 +174,11 @@ impl Signal for CompositeSignal {
 
     /// Returns the maximum warm-up period across all constituent signals.
     fn period(&self) -> usize {
-        self.constituents.iter().map(|c| c.signal.period()).max().unwrap_or(0)
+        self.constituents
+            .iter()
+            .map(|c| c.signal.period())
+            .max()
+            .unwrap_or(0)
     }
 
     /// Resets all constituent signals to their initial state.
@@ -247,7 +251,7 @@ impl Signal for CompositeSignal {
             CompositeMode::First => {
                 for (i, c) in self.constituents.iter_mut().enumerate() {
                     let _ = c; // Already updated above; use cached values.
-                    // We reuse the values collected in the first pass.
+                               // We reuse the values collected in the first pass.
                     if let Some((_, v)) = values.get(i) {
                         // Check if this constituent was available (not a placeholder).
                         // We stored zero for unavailable — but we need to distinguish
@@ -354,7 +358,10 @@ mod tests {
     fn weighted_sum_unavailable_before_warmup() {
         let mut sig = warmed_composite(CompositeMode::WeightedSum);
         // SMA-2 needs 2 bars; first bar returns Unavailable.
-        assert_eq!(sig.update(&bar(dec!(10))).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sig.update(&bar(dec!(10))).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

@@ -158,11 +158,14 @@ pub fn bond_cash_flows(
 /// Present value of cash flows discounted by `curve` plus a constant `spread_bps` in basis points.
 pub fn pv_cash_flows(flows: &[CashFlow], curve: &ZeroRateCurve, spread_bps: f64) -> f64 {
     let spread = spread_bps / 10_000.0;
-    flows.iter().map(|cf| {
-        let r = curve.rate_at(cf.time) + spread;
-        let df = (-r * cf.time).exp();
-        cf.amount * df
-    }).sum()
+    flows
+        .iter()
+        .map(|cf| {
+            let r = curve.rate_at(cf.time) + spread;
+            let df = (-r * cf.time).exp();
+            cf.amount * df
+        })
+        .sum()
 }
 
 /// Compute the Z-spread (in bps) via bisection.
@@ -237,21 +240,32 @@ pub struct SpreadResult {
 /// Compute modified duration and convexity of cash flows discounted at `curve + spread_bps`.
 fn duration_convexity(flows: &[CashFlow], curve: &ZeroRateCurve, spread_bps: f64) -> (f64, f64) {
     let spread = spread_bps / 10_000.0;
-    let pv: f64 = flows.iter().map(|cf| {
-        let r = curve.rate_at(cf.time) + spread;
-        cf.amount * (-r * cf.time).exp()
-    }).sum();
+    let pv: f64 = flows
+        .iter()
+        .map(|cf| {
+            let r = curve.rate_at(cf.time) + spread;
+            cf.amount * (-r * cf.time).exp()
+        })
+        .sum();
     if pv.abs() < 1e-12 {
         return (0.0, 0.0);
     }
-    let dur: f64 = flows.iter().map(|cf| {
-        let r = curve.rate_at(cf.time) + spread;
-        cf.time * cf.amount * (-r * cf.time).exp()
-    }).sum::<f64>() / pv;
-    let conv: f64 = flows.iter().map(|cf| {
-        let r = curve.rate_at(cf.time) + spread;
-        cf.time * cf.time * cf.amount * (-r * cf.time).exp()
-    }).sum::<f64>() / pv;
+    let dur: f64 = flows
+        .iter()
+        .map(|cf| {
+            let r = curve.rate_at(cf.time) + spread;
+            cf.time * cf.amount * (-r * cf.time).exp()
+        })
+        .sum::<f64>()
+        / pv;
+    let conv: f64 = flows
+        .iter()
+        .map(|cf| {
+            let r = curve.rate_at(cf.time) + spread;
+            cf.time * cf.time * cf.amount * (-r * cf.time).exp()
+        })
+        .sum::<f64>()
+        / pv;
     (dur, conv)
 }
 
@@ -277,10 +291,30 @@ pub fn analyze_spreads(
     let (dur_asw, conv_asw) = duration_convexity(flows, curve, asw);
 
     vec![
-        SpreadResult { spread_type: SpreadType::ZSpread, spread_bps: zs, duration: dur_z, convexity: conv_z },
-        SpreadResult { spread_type: SpreadType::OAS,     spread_bps: oas, duration: dur_z, convexity: conv_z },
-        SpreadResult { spread_type: SpreadType::ISpread,  spread_bps: is,  duration: dur_i, convexity: conv_i },
-        SpreadResult { spread_type: SpreadType::ASWSpread,spread_bps: asw, duration: dur_asw, convexity: conv_asw },
+        SpreadResult {
+            spread_type: SpreadType::ZSpread,
+            spread_bps: zs,
+            duration: dur_z,
+            convexity: conv_z,
+        },
+        SpreadResult {
+            spread_type: SpreadType::OAS,
+            spread_bps: oas,
+            duration: dur_z,
+            convexity: conv_z,
+        },
+        SpreadResult {
+            spread_type: SpreadType::ISpread,
+            spread_bps: is,
+            duration: dur_i,
+            convexity: conv_i,
+        },
+        SpreadResult {
+            spread_type: SpreadType::ASWSpread,
+            spread_bps: asw,
+            duration: dur_asw,
+            convexity: conv_asw,
+        },
     ]
 }
 
@@ -320,7 +354,10 @@ mod tests {
         let flows = bond_cash_flows(1000.0, rate, 5.0, 2);
         let par_price = pv_cash_flows(&flows, &curve, 0.0);
         let zs = z_spread(&flows, &curve, par_price);
-        assert!(zs.abs() < 0.5, "Z-spread of par bond should be ~0, got {zs}");
+        assert!(
+            zs.abs() < 0.5,
+            "Z-spread of par bond should be ~0, got {zs}"
+        );
     }
 
     #[test]
@@ -331,7 +368,10 @@ mod tests {
         // Market price below par (simulate discount by adding 100 bps to pricing).
         let market_price = pv_cash_flows(&flows, &curve, 100.0);
         let zs = z_spread(&flows, &curve, market_price);
-        assert!(zs > 50.0, "Z-spread should be > 50 bps for discount bond, got {zs}");
+        assert!(
+            zs > 50.0,
+            "Z-spread should be > 50 bps for discount bond, got {zs}"
+        );
     }
 
     #[test]

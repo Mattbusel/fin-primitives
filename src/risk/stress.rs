@@ -287,18 +287,22 @@ impl StressTest {
     ///
     /// Returns `None` if no scenarios were run.
     pub fn worst_case(&self) -> Option<&StressResult> {
-        self.results
-            .iter()
-            .min_by(|a, b| a.pnl.partial_cmp(&b.pnl).unwrap_or(std::cmp::Ordering::Equal))
+        self.results.iter().min_by(|a, b| {
+            a.pnl
+                .partial_cmp(&b.pnl)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Return the scenario result with the most positive P&L.
     ///
     /// Returns `None` if no scenarios were run.
     pub fn best_case(&self) -> Option<&StressResult> {
-        self.results
-            .iter()
-            .max_by(|a, b| a.pnl.partial_cmp(&b.pnl).unwrap_or(std::cmp::Ordering::Equal))
+        self.results.iter().max_by(|a, b| {
+            a.pnl
+                .partial_cmp(&b.pnl)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 }
 
@@ -396,7 +400,11 @@ mod tests {
         // tech: 200_000 * -0.40 = -80_000
         // defensive: 100_000 * 0.05 = +5_000
         // total = -75_000
-        assert!((result.pnl - (-75_000.0)).abs() < 1e-6, "pnl={}", result.pnl);
+        assert!(
+            (result.pnl - (-75_000.0)).abs() < 1e-6,
+            "pnl={}",
+            result.pnl
+        );
     }
 
     #[test]
@@ -406,7 +414,11 @@ mod tests {
         // equities: 100_000 * -0.10 = -10_000
         // bonds:     50_000 * -0.15 = -7_500
         // total = -17_500
-        assert!((result.pnl - (-17_500.0)).abs() < 1e-6, "pnl={}", result.pnl);
+        assert!(
+            (result.pnl - (-17_500.0)).abs() < 1e-6,
+            "pnl={}",
+            result.pnl
+        );
     }
 
     #[test]

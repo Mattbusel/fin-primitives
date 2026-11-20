@@ -32,15 +32,13 @@ pub mod rebalancing;
 /// via Gaussian one-factor copula.
 pub mod structured_products;
 
+pub use attribution::{bf_allocation_effect, BHBAttribution, BHBAttributor, Segment};
+pub use diversification::{
+    calmar_ratio, concentration_ratio, diversification_ratio, effective_n, gini_coefficient,
+    herfindahl_hirschman, information_ratio, max_drawdown_portfolio, sortino_ratio, treynor_ratio,
+    DiversificationReport,
+};
 pub use optimizer::{
     Asset, Constraint, CovarianceMatrix, OptimizationObjective, OptimizedPortfolio,
     PortfolioOptimizer,
-};
-pub use diversification::{
-    DiversificationReport, calmar_ratio, concentration_ratio, diversification_ratio,
-    effective_n, gini_coefficient, herfindahl_hirschman, information_ratio,
-    max_drawdown_portfolio, sortino_ratio, treynor_ratio,
-};
-pub use attribution::{
-    BHBAttribution, BHBAttributor, Segment, bf_allocation_effect,
 };

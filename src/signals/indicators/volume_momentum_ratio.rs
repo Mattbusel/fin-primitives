@@ -59,23 +59,33 @@ impl VolumeMomentumRatio {
 }
 
 impl Signal for VolumeMomentumRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow }
-    fn is_ready(&self) -> bool { self.volumes.len() >= self.slow }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
+    fn is_ready(&self) -> bool {
+        self.volumes.len() >= self.slow
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let v = bar.volume;
         self.sum += v;
         self.volumes.push_back(v);
         if self.volumes.len() > self.slow {
-            let removed = self.volumes.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .volumes
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.volumes.len() < self.slow {
             return Ok(SignalValue::Unavailable);
         }
 
-        let slow_avg = self.sum
+        let slow_avg = self
+            .sum
             .checked_div(Decimal::from(self.slow as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -114,7 +124,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -172,7 +185,9 @@ mod tests {
     #[test]
     fn test_vmr_reset() {
         let mut vmr = VolumeMomentumRatio::new("v", 2, 4).unwrap();
-        for _ in 0..4 { vmr.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            vmr.update_bar(&bar("100")).unwrap();
+        }
         assert!(vmr.is_ready());
         vmr.reset();
         assert!(!vmr.is_ready());

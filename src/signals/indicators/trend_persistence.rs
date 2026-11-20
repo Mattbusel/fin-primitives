@@ -107,7 +107,10 @@ mod tests {
         let l = if o.value() < c.value() { o } else { c };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high: h, low: l, close: c,
+            open: o,
+            high: h,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

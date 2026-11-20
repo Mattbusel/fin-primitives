@@ -101,7 +101,10 @@ mod tests {
         let p = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,8 +120,14 @@ mod tests {
     #[test]
     fn test_nvol_unavailable_before_period() {
         let mut nv = NormalizedVolume::new("nv", 3).unwrap();
-        assert_eq!(nv.update_bar(&bar_with_vol("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(nv.update_bar(&bar_with_vol("200")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            nv.update_bar(&bar_with_vol("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            nv.update_bar(&bar_with_vol("200")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!nv.is_ready());
     }
 
@@ -143,7 +152,10 @@ mod tests {
         let v = nv.update_bar(&bar_with_vol("200")).unwrap();
         if let SignalValue::Scalar(ratio) = v {
             // 200 / ((100+100+200)/3) = 200 / 133.33... = 1.5
-            assert!((ratio - dec!(1.5)).abs() < dec!(0.001), "expected 1.5, got {ratio}");
+            assert!(
+                (ratio - dec!(1.5)).abs() < dec!(0.001),
+                "expected 1.5, got {ratio}"
+            );
         } else {
             panic!("expected Scalar");
         }

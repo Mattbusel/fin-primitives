@@ -41,7 +41,11 @@ impl ShadowPressure {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, pressures: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            pressures: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -115,13 +119,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(ShadowPressure::new("sp", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            ShadowPressure::new("sp", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut sp = ShadowPressure::new("sp", 3).unwrap();
-        assert_eq!(sp.update_bar(&bar("10", "12", "9", "11")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sp.update_bar(&bar("10", "12", "9", "11")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -133,8 +143,11 @@ mod tests {
             sp.update_bar(&bar("15", "16", "10", "15")).unwrap();
         }
         let v = sp.update_bar(&bar("15", "16", "10", "15")).unwrap();
-        if let SignalValue::Scalar(s) = v { assert!(s > dec!(0)); }
-        else { panic!("expected scalar"); }
+        if let SignalValue::Scalar(s) = v {
+            assert!(s > dec!(0));
+        } else {
+            panic!("expected scalar");
+        }
     }
 
     #[test]
@@ -146,8 +159,11 @@ mod tests {
             sp.update_bar(&bar("15", "20", "14", "15")).unwrap();
         }
         let v = sp.update_bar(&bar("15", "20", "14", "15")).unwrap();
-        if let SignalValue::Scalar(s) = v { assert!(s < dec!(0)); }
-        else { panic!("expected scalar"); }
+        if let SignalValue::Scalar(s) = v {
+            assert!(s < dec!(0));
+        } else {
+            panic!("expected scalar");
+        }
     }
 
     #[test]

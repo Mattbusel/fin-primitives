@@ -265,11 +265,9 @@ impl ArbitrageScanner {
                     let key_bc = format!("{}/{}", cb, cc);
                     let key_ca = format!("{}/{}", cc, ca);
 
-                    if let (Some(&rate_ab), Some(&rate_bc), Some(&rate_ca)) = (
-                        rates.get(&key_ab),
-                        rates.get(&key_bc),
-                        rates.get(&key_ca),
-                    ) {
+                    if let (Some(&rate_ab), Some(&rate_bc), Some(&rate_ca)) =
+                        (rates.get(&key_ab), rates.get(&key_bc), rates.get(&key_ca))
+                    {
                         let product = rate_ab * rate_bc * rate_ca;
                         if product > 1.0 {
                             results.push(TriangularArb {

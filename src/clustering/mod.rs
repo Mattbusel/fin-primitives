@@ -51,12 +51,21 @@ impl KMeans {
     /// # Errors
     /// [`FinError::InvalidInput`] if `data` is empty, the rows differ in length, `k` is
     /// zero, or `k` exceeds `data.len()`. (Before 3.0 these cases panicked.)
-    pub fn fit(data: &[Vec<f64>], k: usize, max_iter: u32, seed: u64) -> Result<KMeansResult, FinError> {
+    pub fn fit(
+        data: &[Vec<f64>],
+        k: usize,
+        max_iter: u32,
+        seed: u64,
+    ) -> Result<KMeansResult, FinError> {
         let Some(first) = data.first() else {
-            return Err(FinError::InvalidInput("KMeans::fit: data must be non-empty".to_owned()));
+            return Err(FinError::InvalidInput(
+                "KMeans::fit: data must be non-empty".to_owned(),
+            ));
         };
         if k == 0 {
-            return Err(FinError::InvalidInput("KMeans::fit: k must be > 0".to_owned()));
+            return Err(FinError::InvalidInput(
+                "KMeans::fit: k must be > 0".to_owned(),
+            ));
         }
         if k > data.len() {
             return Err(FinError::InvalidInput(format!(
@@ -77,13 +86,16 @@ impl KMeans {
         let mut lcg = seed;
         let mut centroid_indices: Vec<usize> = Vec::with_capacity(k);
         while centroid_indices.len() < k {
-            lcg = lcg.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+            lcg = lcg
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
             let idx = (lcg >> 33) as usize % n;
             if !centroid_indices.contains(&idx) {
                 centroid_indices.push(idx);
             }
         }
-        let mut centroids: Vec<Vec<f64>> = centroid_indices.iter().map(|&i| data[i].clone()).collect();
+        let mut centroids: Vec<Vec<f64>> =
+            centroid_indices.iter().map(|&i| data[i].clone()).collect();
 
         let mut assignments = vec![0usize; n];
         let mut iterations = 0u32;
@@ -193,7 +205,11 @@ impl CorrelationClusterer {
         }
 
         let symbols = assets.iter().map(|a| a.symbol.clone()).collect();
-        Self { symbols, corr_matrix, last_result: None }
+        Self {
+            symbols,
+            corr_matrix,
+            last_result: None,
+        }
     }
 
     /// Cluster assets into `k` groups using k-means on their correlation rows.
@@ -328,7 +344,11 @@ impl CorrelationClusterer {
             count += 1;
         }
 
-        if count == 0 { 0.0 } else { sil_sum / count as f64 }
+        if count == 0 {
+            0.0
+        } else {
+            sil_sum / count as f64
+        }
     }
 }
 
@@ -358,7 +378,11 @@ fn pearson_correlation(a: &[f64], b: &[f64]) -> f64 {
         var_b += db * db;
     }
     let denom = (var_a * var_b).sqrt();
-    if denom == 0.0 { 0.0 } else { cov / denom }
+    if denom == 0.0 {
+        0.0
+    } else {
+        cov / denom
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +394,10 @@ mod tests {
     use super::*;
 
     fn make_asset(symbol: &str, returns: Vec<f64>) -> AssetReturns {
-        AssetReturns { symbol: symbol.to_string(), returns }
+        AssetReturns {
+            symbol: symbol.to_string(),
+            returns,
+        }
     }
 
     // ---- KMeans ----
@@ -379,8 +406,12 @@ mod tests {
     fn test_kmeans_two_clear_clusters() {
         // Points near 0 and points near 10 should split cleanly
         let data: Vec<Vec<f64>> = vec![
-            vec![0.1], vec![0.2], vec![0.0],
-            vec![10.0], vec![10.1], vec![9.9],
+            vec![0.1],
+            vec![0.2],
+            vec![0.0],
+            vec![10.0],
+            vec![10.1],
+            vec![9.9],
         ];
         let result = KMeans::fit(&data, 2, 100, 42).unwrap();
         assert_eq!(result.centroids.len(), 2);
@@ -492,7 +523,10 @@ mod tests {
         let mut clusterer = CorrelationClusterer::from_returns(&assets);
         let result = clusterer.cluster(2, 5).unwrap();
         let score = clusterer.silhouette_score(&result);
-        assert!((-1.0..=1.0).contains(&score), "Silhouette must be in [-1, 1]");
+        assert!(
+            (-1.0..=1.0).contains(&score),
+            "Silhouette must be in [-1, 1]"
+        );
     }
 
     #[test]
@@ -509,11 +543,23 @@ mod tests {
     #[test]
     fn test_kmeans_rejects_bad_input() {
         let data: Vec<Vec<f64>> = vec![vec![1.0], vec![2.0]];
-        assert!(matches!(KMeans::fit(&[], 1, 10, 0), Err(FinError::InvalidInput(_))));
-        assert!(matches!(KMeans::fit(&data, 0, 10, 0), Err(FinError::InvalidInput(_))));
-        assert!(matches!(KMeans::fit(&data, 3, 10, 0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(
+            KMeans::fit(&[], 1, 10, 0),
+            Err(FinError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            KMeans::fit(&data, 0, 10, 0),
+            Err(FinError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            KMeans::fit(&data, 3, 10, 0),
+            Err(FinError::InvalidInput(_))
+        ));
         let ragged: Vec<Vec<f64>> = vec![vec![1.0], vec![2.0, 3.0]];
-        assert!(matches!(KMeans::fit(&ragged, 1, 10, 0), Err(FinError::InvalidInput(_))));
+        assert!(matches!(
+            KMeans::fit(&ragged, 1, 10, 0),
+            Err(FinError::InvalidInput(_))
+        ));
         let mut empty = CorrelationClusterer::from_returns(&[]);
         assert!(empty.cluster(1, 0).is_err());
     }

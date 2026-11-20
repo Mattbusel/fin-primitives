@@ -63,9 +63,15 @@ impl CloseDistanceFromOpen {
 }
 
 impl Signal for CloseDistanceFromOpen {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.scores.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.scores.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -74,7 +80,10 @@ impl Signal for CloseDistanceFromOpen {
         self.tr_sum += tr;
         self.trs.push_back(tr);
         if self.trs.len() > self.period {
-            let removed = self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .trs
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.tr_sum -= removed;
         }
 
@@ -82,7 +91,8 @@ impl Signal for CloseDistanceFromOpen {
             return Ok(SignalValue::Unavailable);
         }
 
-        let atr = self.tr_sum
+        let atr = self
+            .tr_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -97,7 +107,10 @@ impl Signal for CloseDistanceFromOpen {
         self.score_sum += score;
         self.scores.push_back(score);
         if self.scores.len() > self.period {
-            let removed = self.scores.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .scores
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.score_sum -= removed;
         }
 
@@ -105,7 +118,8 @@ impl Signal for CloseDistanceFromOpen {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg = self.score_sum
+        let avg = self
+            .score_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -136,7 +150,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -166,8 +183,11 @@ mod tests {
         // All bars close above open → positive avg score
         let mut cdfo = CloseDistanceFromOpen::new("cdfo", 2).unwrap();
         let bars = [
-            ("95","110","90","108"),("96","112","92","110"),("97","113","93","111"),
-            ("98","114","94","112"),("99","115","95","113"),
+            ("95", "110", "90", "108"),
+            ("96", "112", "92", "110"),
+            ("97", "113", "93", "111"),
+            ("98", "114", "94", "112"),
+            ("99", "115", "95", "113"),
         ];
         let mut last = SignalValue::Unavailable;
         for &(o, h, l, c) in &bars {
@@ -183,8 +203,12 @@ mod tests {
     #[test]
     fn test_cdfo_reset() {
         let mut cdfo = CloseDistanceFromOpen::new("cdfo", 2).unwrap();
-        for (o, h, l, c) in &[("95","110","90","108"),("96","112","92","110"),
-                               ("97","113","93","111"),("98","114","94","112")] {
+        for (o, h, l, c) in &[
+            ("95", "110", "90", "108"),
+            ("96", "112", "92", "110"),
+            ("97", "113", "93", "111"),
+            ("98", "114", "94", "112"),
+        ] {
             cdfo.update_bar(&bar(o, h, l, c)).unwrap();
         }
         assert!(cdfo.is_ready());

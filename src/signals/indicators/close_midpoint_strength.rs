@@ -34,16 +34,24 @@ impl CloseMidpointStrength {
 }
 
 impl Signal for CloseMidpointStrength {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if bar.range().is_zero() {
             return Ok(SignalValue::Unavailable);
         }
         let strength = bar.close_location_value();
-        Ok(SignalValue::Scalar(strength.clamp(Decimal::NEGATIVE_ONE, Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            strength.clamp(Decimal::NEGATIVE_ONE, Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {}
@@ -63,7 +71,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -95,13 +106,16 @@ mod tests {
     #[test]
     fn test_cms_flat_bar_unavailable() {
         let mut s = CloseMidpointStrength::new("cms");
-        assert_eq!(s.update_bar(&bar("100", "100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_cms_output_in_range() {
         let mut s = CloseMidpointStrength::new("cms");
-        for (h, l, c) in &[("110","90","105"), ("115","85","98")] {
+        for (h, l, c) in &[("110", "90", "105"), ("115", "85", "98")] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(h, l, c)).unwrap() {
                 assert!(v >= dec!(-1) && v <= dec!(1), "out of [-1,1]: {v}");
             }

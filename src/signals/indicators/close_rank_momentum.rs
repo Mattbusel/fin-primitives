@@ -61,16 +61,21 @@ impl CloseRankMomentum {
             return Decimal::new(50, 0);
         }
         let count_below = window.iter().filter(|&&v| v < value).count();
-        Decimal::from(count_below as u32)
-            / Decimal::from(window.len() as u32)
+        Decimal::from(count_below as u32) / Decimal::from(window.len() as u32)
             * Decimal::ONE_HUNDRED
     }
 }
 
 impl Signal for CloseRankMomentum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranks.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranks.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -90,7 +95,10 @@ impl Signal for CloseRankMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let rank_prev = *self.ranks.front().ok_or_else(crate::error::invariant_broken)?;
+        let rank_prev = *self
+            .ranks
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         let momentum = rank_now - rank_prev;
 
         Ok(SignalValue::Scalar(momentum))
@@ -114,7 +122,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,7 +142,10 @@ mod tests {
     fn test_crm_unavailable_during_warmup() {
         let mut crm = CloseRankMomentum::new("crm", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(crm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                crm.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!crm.is_ready());
     }
@@ -140,7 +154,7 @@ mod tests {
     fn test_crm_monotonic_rise_positive() {
         // Rising prices → rank should increase → positive momentum
         let mut crm = CloseRankMomentum::new("crm", 3).unwrap();
-        let prices = ["100","101","102","103","104","105"];
+        let prices = ["100", "101", "102", "103", "104", "105"];
         let mut last = SignalValue::Unavailable;
         for &p in &prices {
             last = crm.update_bar(&bar(p)).unwrap();
@@ -155,7 +169,9 @@ mod tests {
     #[test]
     fn test_crm_reset() {
         let mut crm = CloseRankMomentum::new("crm", 3).unwrap();
-        for i in 0u32..6 { crm.update_bar(&bar(&(100+i).to_string())).unwrap(); }
+        for i in 0u32..6 {
+            crm.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(crm.is_ready());
         crm.reset();
         assert!(!crm.is_ready());

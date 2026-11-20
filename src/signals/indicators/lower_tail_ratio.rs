@@ -44,7 +44,11 @@ impl LowerTailRatio {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, ratios: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ratios: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -60,7 +64,9 @@ impl Signal for LowerTailRatio {
         } else {
             let body_bottom = bar.open.min(bar.close);
             let lower_wick = body_bottom - bar.low;
-            lower_wick.checked_div(range).ok_or(FinError::ArithmeticOverflow)?
+            lower_wick
+                .checked_div(range)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.ratios.push_back(ratio);
@@ -107,7 +113,10 @@ mod tests {
         let cl = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,13 +126,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(LowerTailRatio::new("ltr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            LowerTailRatio::new("ltr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut ltr = LowerTailRatio::new("ltr", 3).unwrap();
-        assert_eq!(ltr.update_bar(&bar("10", "12", "9", "11")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ltr.update_bar(&bar("10", "12", "9", "11")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

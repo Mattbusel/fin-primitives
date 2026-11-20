@@ -40,7 +40,9 @@ impl BarsSince {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -53,9 +55,11 @@ impl BarsSince {
     ///
     /// Returns `None` if fewer than `period` bars have been seen.
     pub fn bars_since(&self) -> Option<(usize, usize)> {
-        if self.highs.len() < self.period { return None; }
+        if self.highs.len() < self.period {
+            return None;
+        }
         let max_high = self.highs.iter().cloned().fold(Decimal::MIN, Decimal::max);
-        let min_low  = self.lows.iter().cloned().fold(Decimal::MAX, Decimal::min);
+        let min_low = self.lows.iter().cloned().fold(Decimal::MAX, Decimal::min);
         // Find last occurrence (rightmost = most recent = smallest bars-ago)
         let bsh = self.highs.iter().rev().position(|&h| h == max_high)?;
         let bsl = self.lows.iter().rev().position(|&l| l == min_low)?;
@@ -64,7 +68,9 @@ impl BarsSince {
 }
 
 impl Signal for BarsSince {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
@@ -84,7 +90,7 @@ impl Signal for BarsSince {
 
         #[allow(clippy::cast_possible_truncation)]
         Ok(SignalValue::Scalar(
-            Decimal::from(bsh as i64) - Decimal::from(bsl as i64)
+            Decimal::from(bsh as i64) - Decimal::from(bsl as i64),
         ))
     }
 
@@ -115,7 +121,10 @@ mod tests {
         let c = hp;
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: c, high: hp, low: lp, close: c,
+            open: c,
+            high: hp,
+            low: lp,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -123,7 +132,9 @@ mod tests {
         }
     }
 
-    fn flat_bar(c: &str) -> OhlcvBar { bar(c, c) }
+    fn flat_bar(c: &str) -> OhlcvBar {
+        bar(c, c)
+    }
 
     #[test]
     fn test_bars_since_invalid() {
@@ -133,18 +144,28 @@ mod tests {
     #[test]
     fn test_bars_since_unavailable_before_period() {
         let mut bs = BarsSince::new("b", 3).unwrap();
-        assert_eq!(bs.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bs.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bs.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bs.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_bars_since_flat_is_zero() {
         let mut bs = BarsSince::new("b", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = bs.update_bar(&flat_bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = bs.update_bar(&flat_bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0), "flat series: bsh == bsl == 0 → diff=0");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -156,13 +177,17 @@ mod tests {
         bs.update_bar(&bar("100", "100")).unwrap();
         if let SignalValue::Scalar(v) = bs.update_bar(&bar("120", "120")).unwrap() {
             assert!(v < dec!(0), "high set most recently → negative: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_bars_since_reset() {
         let mut bs = BarsSince::new("b", 3).unwrap();
-        for _ in 0..3 { bs.update_bar(&flat_bar("100")).unwrap(); }
+        for _ in 0..3 {
+            bs.update_bar(&flat_bar("100")).unwrap();
+        }
         assert!(bs.is_ready());
         bs.reset();
         assert!(!bs.is_ready());

@@ -34,12 +34,17 @@ impl CandlePattern {
     /// # Errors
     /// Always succeeds.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev: None })
+        Ok(Self {
+            name: name.into(),
+            prev: None,
+        })
     }
 }
 
 impl Signal for CandlePattern {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -55,30 +60,44 @@ impl Signal for CandlePattern {
             let prev_bull = p.close > p.open;
             let prev_bear = p.close < p.open;
 
-            if curr_bull && prev_bear
+            if curr_bull
+                && prev_bear
                 && bar.open <= p.close
                 && bar.close >= p.open
                 && body > prev_body
             {
-                Decimal::from(2i32)  // Bullish engulfing
-            } else if curr_bear && prev_bull
+                Decimal::from(2i32) // Bullish engulfing
+            } else if curr_bear
+                && prev_bull
                 && bar.open >= p.close
                 && bar.close <= p.open
                 && body > prev_body
             {
-                Decimal::from(-2i32)  // Bearish engulfing
+                Decimal::from(-2i32) // Bearish engulfing
             } else {
                 // Single-bar patterns (use current bar only)
                 let upper_wick = bar.upper_wick();
                 let lower_wick = bar.lower_wick();
-                let body_pct = if range.is_zero() { Decimal::ZERO } else { body / range };
+                let body_pct = if range.is_zero() {
+                    Decimal::ZERO
+                } else {
+                    body / range
+                };
 
                 if range.is_zero() {
-                    Decimal::ZERO  // No pattern for doji/flat bars
-                } else if body_pct < Decimal::new(3, 1) && lower_wick >= body * Decimal::TWO && upper_wick <= body && lower_wick > Decimal::ZERO {
-                    Decimal::ONE   // Hammer
-                } else if body_pct < Decimal::new(3, 1) && upper_wick >= body * Decimal::TWO && lower_wick <= body && upper_wick > Decimal::ZERO {
-                    -Decimal::ONE  // Shooting star
+                    Decimal::ZERO // No pattern for doji/flat bars
+                } else if body_pct < Decimal::new(3, 1)
+                    && lower_wick >= body * Decimal::TWO
+                    && upper_wick <= body
+                    && lower_wick > Decimal::ZERO
+                {
+                    Decimal::ONE // Hammer
+                } else if body_pct < Decimal::new(3, 1)
+                    && upper_wick >= body * Decimal::TWO
+                    && lower_wick <= body
+                    && upper_wick > Decimal::ZERO
+                {
+                    -Decimal::ONE // Shooting star
                 } else {
                     Decimal::ZERO
                 }
@@ -119,7 +138,7 @@ mod tests {
             symbol: Symbol::new("X").unwrap(),
             open: Price::new(o.parse().unwrap()).unwrap(),
             high: Price::new(h.parse().unwrap()).unwrap(),
-            low:  Price::new(l.parse().unwrap()).unwrap(),
+            low: Price::new(l.parse().unwrap()).unwrap(),
             close: Price::new(c.parse().unwrap()).unwrap(),
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
@@ -128,12 +147,17 @@ mod tests {
         }
     }
 
-    fn flat_bar(c: &str) -> OhlcvBar { bar_ohlc(c, c, c, c) }
+    fn flat_bar(c: &str) -> OhlcvBar {
+        bar_ohlc(c, c, c, c)
+    }
 
     #[test]
     fn test_candle_first_bar_unavailable() {
         let mut cp = CandlePattern::new("cp").unwrap();
-        assert_eq!(cp.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cp.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -142,29 +166,39 @@ mod tests {
         cp.update_bar(&flat_bar("100")).unwrap();
         if let SignalValue::Scalar(v) = cp.update_bar(&flat_bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_bullish_engulfing() {
         let mut cp = CandlePattern::new("cp").unwrap();
         // Prior bearish bar: open=110, close=100
-        cp.update_bar(&bar_ohlc("110", "110", "100", "100")).unwrap();
+        cp.update_bar(&bar_ohlc("110", "110", "100", "100"))
+            .unwrap();
         // Current bullish bar engulfs: open=99, close=111, body > prev body
-        if let SignalValue::Scalar(v) = cp.update_bar(&bar_ohlc("99", "111", "99", "111")).unwrap() {
+        if let SignalValue::Scalar(v) = cp.update_bar(&bar_ohlc("99", "111", "99", "111")).unwrap()
+        {
             assert_eq!(v, dec!(2), "bullish engulfing should be +2: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_bearish_engulfing() {
         let mut cp = CandlePattern::new("cp").unwrap();
         // Prior bullish bar: open=100, close=110
-        cp.update_bar(&bar_ohlc("100", "110", "100", "110")).unwrap();
+        cp.update_bar(&bar_ohlc("100", "110", "100", "110"))
+            .unwrap();
         // Current bearish bar engulfs: open=111, close=99, body > prev body
-        if let SignalValue::Scalar(v) = cp.update_bar(&bar_ohlc("111", "111", "99", "99")).unwrap() {
+        if let SignalValue::Scalar(v) = cp.update_bar(&bar_ohlc("111", "111", "99", "99")).unwrap()
+        {
             assert_eq!(v, dec!(-2), "bearish engulfing should be -2: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -174,6 +208,9 @@ mod tests {
         assert!(cp.is_ready());
         cp.reset();
         assert!(!cp.is_ready());
-        assert_eq!(cp.update_bar(&flat_bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cp.update_bar(&flat_bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

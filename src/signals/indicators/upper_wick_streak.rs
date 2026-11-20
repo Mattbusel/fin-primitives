@@ -54,14 +54,25 @@ impl UpperWickStreak {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>, min_pct: Decimal) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), min_pct, streak: 0, prev_seen: false })
+        Ok(Self {
+            name: name.into(),
+            min_pct,
+            streak: 0,
+            prev_seen: false,
+        })
     }
 }
 
 impl Signal for UpperWickStreak {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_seen }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_seen
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.prev_seen = true;
@@ -143,7 +154,7 @@ mod tests {
         let mut uws = UpperWickStreak::new("uws", dec!(0.3)).unwrap();
         uws.update_bar(&bar("100", "110", "90", "100")).unwrap(); // streak=1
         uws.update_bar(&bar("100", "110", "90", "100")).unwrap(); // streak=2
-        // Close near high: upper_wick=(110-108)=2, range=20, frac=0.1 < 0.3 → reset
+                                                                  // Close near high: upper_wick=(110-108)=2, range=20, frac=0.1 < 0.3 → reset
         let v = uws.update_bar(&bar("100", "110", "90", "108")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }

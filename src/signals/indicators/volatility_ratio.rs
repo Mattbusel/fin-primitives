@@ -40,7 +40,9 @@ impl VolatilityRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -51,11 +53,15 @@ impl VolatilityRatio {
     }
 
     /// Returns the most recent true range value.
-    pub fn current_tr(&self) -> Option<Decimal> { self.current_tr }
+    pub fn current_tr(&self) -> Option<Decimal> {
+        self.current_tr
+    }
 }
 
 impl Signal for VolatilityRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -63,8 +69,12 @@ impl Signal for VolatilityRatio {
         self.prev_close = Some(bar.close);
 
         self.trs.push_back(tr);
-        if self.trs.len() > self.period { self.trs.pop_front(); }
-        if self.trs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.trs.len() > self.period {
+            self.trs.pop_front();
+        }
+        if self.trs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let atr = self.trs.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
 
@@ -74,8 +84,12 @@ impl Signal for VolatilityRatio {
         Ok(SignalValue::Scalar(tr / atr))
     }
 
-    fn is_ready(&self) -> bool { self.trs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.trs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -95,7 +109,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +126,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -135,10 +155,14 @@ mod tests {
         // All flat bars → all TRs = 0 → ATR = 0 → returns 1
         let mut v = VolatilityRatio::new("v", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = v.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -146,26 +170,36 @@ mod tests {
         // All bars same range → TR = ATR → VR = 1
         let mut v = VolatilityRatio::new("v", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = v.update_bar(&bar_hlc("105", "95", "100")).unwrap(); }
+        for _ in 0..5 {
+            last = v.update_bar(&bar_hlc("105", "95", "100")).unwrap();
+        }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vr_spike_above_one() {
         // After stable bars, a spike bar should give VR > 1
         let mut v = VolatilityRatio::new("v", 3).unwrap();
-        for _ in 0..5 { v.update_bar(&bar_hlc("101", "99", "100")).unwrap(); }
+        for _ in 0..5 {
+            v.update_bar(&bar_hlc("101", "99", "100")).unwrap();
+        }
         if let SignalValue::Scalar(val) = v.update_bar(&bar_hlc("120", "80", "100")).unwrap() {
             assert!(val > dec!(1), "expected VR > 1, got {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vr_reset() {
         let mut v = VolatilityRatio::new("v", 3).unwrap();
-        for _ in 0..5 { v.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            v.update_bar(&bar("100")).unwrap();
+        }
         assert!(v.is_ready());
         v.reset();
         assert!(!v.is_ready());

@@ -1,9 +1,9 @@
 //! Chaikin Volatility indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Chaikin Volatility: EMA of (high - low) with rate-of-change.
 /// Returns (current_ema - ema_N_bars_ago) / ema_N_bars_ago * 100.
@@ -22,7 +22,13 @@ impl ChaikinVolatility {
             return Err(FinError::InvalidPeriod(period));
         }
         let k = Decimal::TWO / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { period, ema: None, k, history: VecDeque::with_capacity(period + 1), bars_seen: 0 })
+        Ok(Self {
+            period,
+            ema: None,
+            k,
+            history: VecDeque::with_capacity(period + 1),
+            bars_seen: 0,
+        })
     }
 }
 
@@ -43,21 +49,32 @@ impl Signal for ChaikinVolatility {
         if self.bars_seen <= self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let past = *self.history.front().ok_or_else(crate::error::invariant_broken)?;
+        let past = *self
+            .history
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
         if past.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
-        Ok(SignalValue::Scalar((ema - past) / past * Decimal::ONE_HUNDRED))
+        Ok(SignalValue::Scalar(
+            (ema - past) / past * Decimal::ONE_HUNDRED,
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.bars_seen > self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.bars_seen > self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.ema = None;
         self.history.clear();
         self.bars_seen = 0;
     }
-    fn name(&self) -> &str { "ChaikinVolatility" }
+    fn name(&self) -> &str {
+        "ChaikinVolatility"
+    }
 }
 
 #[cfg(test)]
@@ -79,7 +96,10 @@ mod tests {
     fn test_chaikin_volatility_not_ready_initially() {
         let mut sig = ChaikinVolatility::new(3).unwrap();
         for _ in 0..3 {
-            assert_eq!(sig.update(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                sig.update(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!sig.is_ready());
     }

@@ -38,7 +38,9 @@ impl AbsReturnMean {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -50,9 +52,15 @@ impl AbsReturnMean {
 }
 
 impl Signal for AbsReturnMean {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -60,13 +68,19 @@ impl Signal for AbsReturnMean {
             self.window.push_back(abs_ret);
             self.sum += abs_ret;
             if self.window.len() > self.period {
-                if let Some(old) = self.window.pop_front() { self.sum -= old; }
+                if let Some(old) = self.window.pop_front() {
+                    self.sum -= old;
+                }
             }
         }
         self.prev_close = Some(bar.close);
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
-        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            self.sum / Decimal::from(self.period as u32),
+        ))
     }
 
     fn reset(&mut self) {
@@ -88,7 +102,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,13 +114,21 @@ mod tests {
     }
 
     #[test]
-    fn test_arm_period_0_error() { assert!(AbsReturnMean::new("arm", 0).is_err()); }
+    fn test_arm_period_0_error() {
+        assert!(AbsReturnMean::new("arm", 0).is_err());
+    }
 
     #[test]
     fn test_arm_unavailable_before_period() {
         let mut arm = AbsReturnMean::new("arm", 3).unwrap();
-        assert_eq!(arm.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(arm.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            arm.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            arm.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -133,7 +158,7 @@ mod tests {
         let mut arm = AbsReturnMean::new("arm", 2).unwrap();
         arm.update_bar(&bar("100")).unwrap();
         arm.update_bar(&bar("105")).unwrap(); // |5|
-        arm.update_bar(&bar("95")).unwrap();  // |10| -> mean([5,10]) = 7.5
+        arm.update_bar(&bar("95")).unwrap(); // |10| -> mean([5,10]) = 7.5
         let v = arm.update_bar(&bar("98")).unwrap(); // |3| -> mean([10,3]) = 6.5
         assert_eq!(v, SignalValue::Scalar(dec!(6.5)));
     }
@@ -141,7 +166,9 @@ mod tests {
     #[test]
     fn test_arm_reset() {
         let mut arm = AbsReturnMean::new("arm", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { arm.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            arm.update_bar(&bar(p)).unwrap();
+        }
         assert!(arm.is_ready());
         arm.reset();
         assert!(!arm.is_ready());

@@ -1,8 +1,8 @@
 //! Hull Moving Average (HMA) indicator.
 
 use crate::error::FinError;
-use crate::signals::{BarInput, Signal, SignalValue};
 use crate::signals::indicators::Wma;
+use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
@@ -130,7 +130,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -162,7 +165,10 @@ mod tests {
         assert!(hma.is_ready());
         hma.reset();
         assert!(!hma.is_ready());
-        assert_eq!(hma.update_bar(&bar("50")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hma.update_bar(&bar("50")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

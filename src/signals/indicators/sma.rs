@@ -50,10 +50,16 @@ impl Signal for Sma {
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.values.push_back(bar.close);
-        self.sum = self.sum.checked_add(bar.close).ok_or(FinError::ArithmeticOverflow)?;
+        self.sum = self
+            .sum
+            .checked_add(bar.close)
+            .ok_or(FinError::ArithmeticOverflow)?;
         if self.values.len() > self.period {
             if let Some(old) = self.values.pop_front() {
-                self.sum = self.sum.checked_sub(old).ok_or(FinError::ArithmeticOverflow)?;
+                self.sum = self
+                    .sum
+                    .checked_sub(old)
+                    .ok_or(FinError::ArithmeticOverflow)?;
             }
         }
         if self.values.len() < self.period {

@@ -94,7 +94,11 @@ impl Signal for VolNormalizedReturn {
         }
 
         let sigma = Self::stddev(&self.returns);
-        let normalized = if sigma == 0.0 { 0.0 } else { current_ret / sigma };
+        let normalized = if sigma == 0.0 {
+            0.0
+        } else {
+            current_ret / sigma
+        };
         Decimal::try_from(normalized)
             .map(SignalValue::Scalar)
             .map_err(|_| FinError::ArithmeticOverflow)

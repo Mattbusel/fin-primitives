@@ -71,7 +71,14 @@ impl Kvo {
         })
     }
 
-    fn ema_step(count: &mut usize, seed: &mut Decimal, state: &mut Option<Decimal>, period: usize, k: Decimal, value: Decimal) -> Option<Decimal> {
+    fn ema_step(
+        count: &mut usize,
+        seed: &mut Decimal,
+        state: &mut Option<Decimal>,
+        period: usize,
+        k: Decimal,
+        value: Decimal,
+    ) -> Option<Decimal> {
         *count += 1;
         if *count <= period {
             *seed += value;
@@ -101,8 +108,17 @@ impl Signal for Kvo {
         let vol = bar.volume;
 
         let (trend, cm) = if let Some(pt) = self.prev_typical {
-            let trend = if typical > pt { Decimal::ONE } else { Decimal::NEGATIVE_ONE };
-            let cm = if trend == (if self.prev_cm >= Decimal::ZERO { Decimal::ONE } else { Decimal::NEGATIVE_ONE }) {
+            let trend = if typical > pt {
+                Decimal::ONE
+            } else {
+                Decimal::NEGATIVE_ONE
+            };
+            let cm = if trend
+                == (if self.prev_cm >= Decimal::ZERO {
+                    Decimal::ONE
+                } else {
+                    Decimal::NEGATIVE_ONE
+                }) {
                 self.prev_cm + dm
             } else {
                 dm
@@ -123,8 +139,22 @@ impl Signal for Kvo {
             vol * trend * (Decimal::TWO * dm / cm - Decimal::ONE) * Decimal::ONE_HUNDRED
         };
 
-        let fast = Self::ema_step(&mut self.fast_count, &mut self.fast_seed, &mut self.fast_ema, self.fast_period, self.fast_k, vf);
-        let slow = Self::ema_step(&mut self.slow_count, &mut self.slow_seed, &mut self.slow_ema, self.slow_period, self.slow_k, vf);
+        let fast = Self::ema_step(
+            &mut self.fast_count,
+            &mut self.fast_seed,
+            &mut self.fast_ema,
+            self.fast_period,
+            self.fast_k,
+            vf,
+        );
+        let slow = Self::ema_step(
+            &mut self.slow_count,
+            &mut self.slow_seed,
+            &mut self.slow_ema,
+            self.slow_period,
+            self.slow_k,
+            vf,
+        );
 
         match (fast, slow) {
             (Some(f), Some(s)) => Ok(SignalValue::Scalar(f - s)),
@@ -165,7 +195,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -184,15 +217,23 @@ mod tests {
     fn test_kvo_unavailable_before_slow_period() {
         let mut kvo = Kvo::new("kvo", 4, 8).unwrap();
         for _ in 0..8 {
-            assert_eq!(kvo.update_bar(&bar("110","90","100","1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                kvo.update_bar(&bar("110", "90", "100", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
-        assert!(kvo.update_bar(&bar("110","90","100","1000")).unwrap().is_scalar());
+        assert!(kvo
+            .update_bar(&bar("110", "90", "100", "1000"))
+            .unwrap()
+            .is_scalar());
     }
 
     #[test]
     fn test_kvo_reset() {
         let mut kvo = Kvo::new("kvo", 4, 8).unwrap();
-        for _ in 0..20 { kvo.update_bar(&bar("110","90","100","1000")).unwrap(); }
+        for _ in 0..20 {
+            kvo.update_bar(&bar("110", "90", "100", "1000")).unwrap();
+        }
         assert!(kvo.is_ready());
         kvo.reset();
         assert!(!kvo.is_ready());

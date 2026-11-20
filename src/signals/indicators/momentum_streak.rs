@@ -45,11 +45,15 @@ impl MomentumStreak {
     }
 
     /// Returns the current streak value.
-    pub fn streak(&self) -> Decimal { self.streak }
+    pub fn streak(&self) -> Decimal {
+        self.streak
+    }
 }
 
 impl Signal for MomentumStreak {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -64,9 +68,17 @@ impl Signal for MomentumStreak {
         self.prev_close = Some(close);
 
         if close > prev {
-            self.streak = if self.streak < Decimal::ZERO { Decimal::ONE } else { self.streak + Decimal::ONE };
+            self.streak = if self.streak < Decimal::ZERO {
+                Decimal::ONE
+            } else {
+                self.streak + Decimal::ONE
+            };
         } else if close < prev {
-            self.streak = if self.streak > Decimal::ZERO { -Decimal::ONE } else { self.streak - Decimal::ONE };
+            self.streak = if self.streak > Decimal::ZERO {
+                -Decimal::ONE
+            } else {
+                self.streak - Decimal::ONE
+            };
         } else {
             self.streak = Decimal::ZERO;
         }
@@ -99,7 +111,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,16 +125,28 @@ mod tests {
     #[test]
     fn test_streak_first_bar_unavailable() {
         let mut ms = MomentumStreak::new("ms").unwrap();
-        assert_eq!(ms.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ms.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_streak_up_bars_count() {
         let mut ms = MomentumStreak::new("ms").unwrap();
         ms.update_bar(&bar("100")).unwrap();
-        assert_eq!(ms.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(1)));
-        assert_eq!(ms.update_bar(&bar("102")).unwrap(), SignalValue::Scalar(dec!(2)));
-        assert_eq!(ms.update_bar(&bar("103")).unwrap(), SignalValue::Scalar(dec!(3)));
+        assert_eq!(
+            ms.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
+        assert_eq!(
+            ms.update_bar(&bar("102")).unwrap(),
+            SignalValue::Scalar(dec!(2))
+        );
+        assert_eq!(
+            ms.update_bar(&bar("103")).unwrap(),
+            SignalValue::Scalar(dec!(3))
+        );
     }
 
     #[test]
@@ -128,8 +155,11 @@ mod tests {
         ms.update_bar(&bar("100")).unwrap();
         ms.update_bar(&bar("101")).unwrap(); // streak=1
         ms.update_bar(&bar("102")).unwrap(); // streak=2
-        // Now down bar — streak resets to -1
-        assert_eq!(ms.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(-1)));
+                                             // Now down bar — streak resets to -1
+        assert_eq!(
+            ms.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
     }
 
     #[test]
@@ -137,7 +167,10 @@ mod tests {
         let mut ms = MomentumStreak::new("ms").unwrap();
         ms.update_bar(&bar("100")).unwrap();
         ms.update_bar(&bar("101")).unwrap(); // streak=1
-        assert_eq!(ms.update_bar(&bar("101")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            ms.update_bar(&bar("101")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
@@ -148,6 +181,9 @@ mod tests {
         assert!(ms.is_ready());
         ms.reset();
         assert!(!ms.is_ready());
-        assert_eq!(ms.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ms.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

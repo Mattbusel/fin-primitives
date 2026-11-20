@@ -54,9 +54,15 @@ impl VolumePriceRank {
 }
 
 impl Signal for VolumePriceRank {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.scores.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.scores.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let body = (bar.close - bar.open).abs();
@@ -67,8 +73,7 @@ impl Signal for VolumePriceRank {
             Decimal::ZERO
         } else {
             let count_below = self.scores.iter().filter(|&&s| s < score).count();
-            Decimal::from(count_below as u32)
-                / Decimal::from(self.scores.len() as u32)
+            Decimal::from(count_below as u32) / Decimal::from(self.scores.len() as u32)
                 * Decimal::ONE_HUNDRED
         };
 
@@ -123,8 +128,14 @@ mod tests {
     #[test]
     fn test_vpr_unavailable_during_warmup() {
         let mut vpr = VolumePriceRank::new("vpr", 3).unwrap();
-        assert_eq!(vpr.update_bar(&bar("100", "102", "1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vpr.update_bar(&bar("100", "102", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vpr.update_bar(&bar("100", "102", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vpr.update_bar(&bar("100", "102", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!vpr.is_ready());
     }
 
@@ -160,7 +171,9 @@ mod tests {
     #[test]
     fn test_vpr_reset() {
         let mut vpr = VolumePriceRank::new("vpr", 3).unwrap();
-        for _ in 0..3 { vpr.update_bar(&bar("100", "101", "1000")).unwrap(); }
+        for _ in 0..3 {
+            vpr.update_bar(&bar("100", "101", "1000")).unwrap();
+        }
         assert!(vpr.is_ready());
         vpr.reset();
         assert!(!vpr.is_ready());

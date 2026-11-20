@@ -54,9 +54,15 @@ impl EaseOfMovement {
 }
 
 impl Signal for EaseOfMovement {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.raw_window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.raw_window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let mid = (bar.high + bar.low)
@@ -70,7 +76,8 @@ impl Signal for EaseOfMovement {
                 return Ok(SignalValue::Unavailable);
             }
             let mid_move = mid - prev_mid;
-            let box_ratio = bar.volume
+            let box_ratio = bar
+                .volume
                 .checked_div(range)
                 .ok_or(FinError::ArithmeticOverflow)?;
             mid_move
@@ -86,7 +93,10 @@ impl Signal for EaseOfMovement {
         self.raw_window.push_back(raw_emv);
 
         if self.raw_window.len() > self.period {
-            let removed = self.raw_window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .raw_window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.raw_sum -= removed;
         }
 
@@ -94,7 +104,8 @@ impl Signal for EaseOfMovement {
             return Ok(SignalValue::Unavailable);
         }
 
-        let sma = self.raw_sum
+        let sma = self
+            .raw_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -122,7 +133,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -139,7 +153,10 @@ mod tests {
     fn test_emv_unavailable_initially() {
         let mut s = EaseOfMovement::new("emv", 3).unwrap();
         // First bar: no prev_mid → Unavailable
-        assert_eq!(s.update_bar(&bar("110","90","100","1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90", "100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -147,12 +164,15 @@ mod tests {
     fn test_emv_positive_on_rising_prices() {
         let mut s = EaseOfMovement::new("emv", 2).unwrap();
         // Seed bar
-        s.update_bar(&bar("110","90","100","1000")).unwrap();
+        s.update_bar(&bar("110", "90", "100", "1000")).unwrap();
         // Rising bar: mid goes from 100 to 110, decent range, low volume
-        s.update_bar(&bar("120","100","110","500")).unwrap();
-        let v = s.update_bar(&bar("130","110","120","500")).unwrap();
+        s.update_bar(&bar("120", "100", "110", "500")).unwrap();
+        let v = s.update_bar(&bar("130", "110", "120", "500")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!(r > dec!(0), "rising low-volume should give positive EMV: {r}");
+            assert!(
+                r > dec!(0),
+                "rising low-volume should give positive EMV: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -161,18 +181,18 @@ mod tests {
     #[test]
     fn test_emv_zero_range_gives_unavailable() {
         let mut s = EaseOfMovement::new("emv", 2).unwrap();
-        s.update_bar(&bar("110","90","100","1000")).unwrap();
+        s.update_bar(&bar("110", "90", "100", "1000")).unwrap();
         // Same high and low → range=0 → Unavailable
-        let v = s.update_bar(&bar("100","100","100","1000")).unwrap();
+        let v = s.update_bar(&bar("100", "100", "100", "1000")).unwrap();
         assert_eq!(v, SignalValue::Unavailable);
     }
 
     #[test]
     fn test_emv_reset() {
         let mut s = EaseOfMovement::new("emv", 2).unwrap();
-        s.update_bar(&bar("110","90","100","1000")).unwrap();
-        s.update_bar(&bar("120","100","110","500")).unwrap();
-        s.update_bar(&bar("130","110","120","500")).unwrap();
+        s.update_bar(&bar("110", "90", "100", "1000")).unwrap();
+        s.update_bar(&bar("120", "100", "110", "500")).unwrap();
+        s.update_bar(&bar("130", "110", "120", "500")).unwrap();
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

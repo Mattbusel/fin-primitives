@@ -6,8 +6,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Rolling Pearson correlation between `volume` and `|close - open|`.
@@ -151,7 +151,10 @@ mod tests {
     fn test_vrc_unavailable_during_warmup() {
         let mut vrc = VolumeReturnCorr::new("vrc", 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(vrc.update_bar(&bar("100", "110", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vrc.update_bar(&bar("100", "110", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -159,8 +162,13 @@ mod tests {
     fn test_vrc_perfect_positive_correlation() {
         // volume and |return| always identical → perfect correlation = 1
         let mut vrc = VolumeReturnCorr::new("vrc", 5).unwrap();
-        let pairs = [("100", "101", "10"), ("100", "102", "20"), ("100", "103", "30"),
-                     ("100", "104", "40"), ("100", "105", "50")];
+        let pairs = [
+            ("100", "101", "10"),
+            ("100", "102", "20"),
+            ("100", "103", "30"),
+            ("100", "104", "40"),
+            ("100", "105", "50"),
+        ];
         let mut last = SignalValue::Unavailable;
         for (o, c, v) in pairs {
             last = vrc.update_bar(&bar(o, c, v)).unwrap();
@@ -185,14 +193,21 @@ mod tests {
     #[test]
     fn test_vrc_result_in_range() {
         let mut vrc = VolumeReturnCorr::new("vrc", 4).unwrap();
-        let pairs = [("100", "105", "100"), ("100", "95", "200"),
-                     ("100", "110", "50"), ("100", "90", "400")];
+        let pairs = [
+            ("100", "105", "100"),
+            ("100", "95", "200"),
+            ("100", "110", "50"),
+            ("100", "90", "400"),
+        ];
         let mut last = SignalValue::Unavailable;
         for (o, c, v) in pairs {
             last = vrc.update_bar(&bar(o, c, v)).unwrap();
         }
         if let SignalValue::Scalar(s) = last {
-            assert!(s >= dec!(-1) && s <= dec!(1), "correlation out of [-1,1]: {s}");
+            assert!(
+                s >= dec!(-1) && s <= dec!(1),
+                "correlation out of [-1,1]: {s}"
+            );
         } else {
             panic!("expected Scalar");
         }

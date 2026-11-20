@@ -47,7 +47,10 @@ impl WicksVsBodyRatio {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), ready: false })
+        Ok(Self {
+            name: name.into(),
+            ready: false,
+        })
     }
 }
 

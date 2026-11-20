@@ -39,7 +39,9 @@ pub(crate) fn parse_decimal(text: &str) -> PyResult<Decimal> {
     let t = text.trim();
     let lower = t.to_ascii_lowercase();
     if lower.contains("nan") || lower.contains("inf") {
-        return Err(PyValueError::new_err(format!("{t:?} is not a finite number")));
+        return Err(PyValueError::new_err(format!(
+            "{t:?} is not a finite number"
+        )));
     }
     let mantissa = t.split(['e', 'E']).next().unwrap_or("");
     let nonzero = mantissa.bytes().any(|b| (b'1'..=b'9').contains(&b));
@@ -47,7 +49,11 @@ pub(crate) fn parse_decimal(text: &str) -> PyResult<Decimal> {
         Ok(d) => d,
         // `str(Decimal("0E-30"))` is a zero with an exponent past 28 places: still zero.
         Err(_) if !nonzero && Decimal::from_str(mantissa).is_ok() => Decimal::ZERO,
-        Err(e) => return Err(PyValueError::new_err(format!("cannot read {t:?} as a decimal: {e}"))),
+        Err(e) => {
+            return Err(PyValueError::new_err(format!(
+                "cannot read {t:?} as a decimal: {e}"
+            )))
+        }
     };
     if d.is_zero() && nonzero {
         return Err(PyValueError::new_err(format!(
@@ -72,7 +78,9 @@ pub(crate) fn f64_to_decimal_opt(value: f64) -> Option<Decimal> {
     let mut parsed = None;
     if write!(cursor, "{value}").is_ok() {
         let n = usize::try_from(cursor.position()).unwrap_or(0);
-        parsed = std::str::from_utf8(&buf[..n]).ok().and_then(|s| Decimal::from_str(s).ok());
+        parsed = std::str::from_utf8(&buf[..n])
+            .ok()
+            .and_then(|s| Decimal::from_str(s).ok());
     }
     // `from_str` rounds digits past 28 decimal places; if it failed, fall back to
     // `from_f64`. Either way, never let a non-zero float round all the way to zero.
@@ -139,7 +147,10 @@ pub(crate) fn decimal_to_f64(d: Decimal) -> f64 {
     let mut cursor = std::io::Cursor::new(&mut buf[..]);
     if write!(cursor, "{d}").is_ok() {
         let n = usize::try_from(cursor.position()).unwrap_or(0);
-        if let Some(f) = std::str::from_utf8(&buf[..n]).ok().and_then(|s| s.parse::<f64>().ok()) {
+        if let Some(f) = std::str::from_utf8(&buf[..n])
+            .ok()
+            .and_then(|s| s.parse::<f64>().ok())
+        {
             return f;
         }
     }
@@ -159,22 +170,30 @@ pub(crate) fn check_arity(args: &[Bound<'_, PyAny>], n: usize) -> PyResult<()> {
 }
 
 fn arg<'a, 'py>(args: &'a [Bound<'py, PyAny>], i: usize) -> PyResult<&'a Bound<'py, PyAny>> {
-    args.get(i).ok_or_else(|| PyTypeError::new_err(format!("missing parameter {i}")))
+    args.get(i)
+        .ok_or_else(|| PyTypeError::new_err(format!("missing parameter {i}")))
 }
 
 /// Prefixes an argument error with the parameter name, keeping the exception type.
 fn named<T>(a: &Bound<'_, PyAny>, r: PyResult<T>, name: &str) -> PyResult<T> {
     r.map_err(|e| {
         let py = a.py();
-        PyErr::from_type(e.get_type(py), format!("parameter `{name}`: {}", e.value(py)))
+        PyErr::from_type(
+            e.get_type(py),
+            format!("parameter `{name}`: {}", e.value(py)),
+        )
     })
 }
 
 /// Integer parameter (`usize`).
 pub(crate) fn arg_usize(args: &[Bound<'_, PyAny>], i: usize, name: &str) -> PyResult<usize> {
     let a = arg(args, i)?;
-    if a.is_instance_of::<PyBool>() || !a.is_instance_of::<PyInt>() && a.hasattr("__index__").ok() != Some(true) {
-        return Err(PyTypeError::new_err(format!("parameter `{name}` must be an int")));
+    if a.is_instance_of::<PyBool>()
+        || !a.is_instance_of::<PyInt>() && a.hasattr("__index__").ok() != Some(true)
+    {
+        return Err(PyTypeError::new_err(format!(
+            "parameter `{name}` must be an int"
+        )));
     }
     named(a, a.extract::<usize>(), name)
 }
@@ -198,7 +217,11 @@ pub(crate) fn arg_f64(args: &[Bound<'_, PyAny>], i: usize, name: &str) -> PyResu
 }
 
 /// Optional float parameter (`None` allowed).
-pub(crate) fn arg_opt_f64(args: &[Bound<'_, PyAny>], i: usize, name: &str) -> PyResult<Option<f64>> {
+pub(crate) fn arg_opt_f64(
+    args: &[Bound<'_, PyAny>],
+    i: usize,
+    name: &str,
+) -> PyResult<Option<f64>> {
     let a = arg(args, i)?;
     if a.is_none() {
         return Ok(None);
@@ -226,6 +249,7 @@ pub(crate) fn arg_string(args: &[Bound<'_, PyAny>], i: usize, name: &str) -> PyR
 pub(crate) fn arg_usize4(args: &[Bound<'_, PyAny>], i: usize, name: &str) -> PyResult<[usize; 4]> {
     let a = arg(args, i)?;
     let v: Vec<usize> = named(a, a.extract::<Vec<usize>>(), name)?;
-    <[usize; 4]>::try_from(v)
-        .map_err(|v| PyValueError::new_err(format!("parameter `{name}` needs 4 ints, got {}", v.len())))
+    <[usize; 4]>::try_from(v).map_err(|v| {
+        PyValueError::new_err(format!("parameter `{name}` needs 4 ints, got {}", v.len()))
+    })
 }

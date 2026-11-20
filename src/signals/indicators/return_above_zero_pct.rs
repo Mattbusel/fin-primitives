@@ -47,9 +47,15 @@ impl ReturnAboveZeroPct {
 }
 
 impl Signal for ReturnAboveZeroPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.flags.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.flags.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -57,12 +63,16 @@ impl Signal for ReturnAboveZeroPct {
             Some(pc) => {
                 let positive = bar.close > pc;
                 self.flags.push_back(positive);
-                if self.flags.len() > self.period { self.flags.pop_front(); }
+                if self.flags.len() > self.period {
+                    self.flags.pop_front();
+                }
                 if self.flags.len() < self.period {
                     SignalValue::Unavailable
                 } else {
                     let count = self.flags.iter().filter(|&&f| f).count();
-                    SignalValue::Scalar(Decimal::from(count as u32) / Decimal::from(self.period as u32))
+                    SignalValue::Scalar(
+                        Decimal::from(count as u32) / Decimal::from(self.period as u32),
+                    )
                 }
             }
         };
@@ -88,7 +98,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +146,9 @@ mod tests {
     #[test]
     fn test_razp_reset() {
         let mut r = ReturnAboveZeroPct::new("r", 3).unwrap();
-        for i in 0u32..4 { r.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..4 {
+            r.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(r.is_ready());
         r.reset();
         assert!(!r.is_ready());

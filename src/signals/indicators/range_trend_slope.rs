@@ -51,7 +51,9 @@ impl RangeTrendSlope {
 
 fn ols_slope(data: &VecDeque<Decimal>) -> Option<f64> {
     let n = data.len() as f64;
-    if n < 2.0 { return None; }
+    if n < 2.0 {
+        return None;
+    }
 
     let mean_t = (n - 1.0) / 2.0;
     let mean_y: f64 = data.iter().filter_map(|d| d.to_f64()).sum::<f64>() / n;
@@ -66,13 +68,23 @@ fn ols_slope(data: &VecDeque<Decimal>) -> Option<f64> {
         den += t * t;
     }
 
-    if den == 0.0 { None } else { Some(num / den) }
+    if den == 0.0 {
+        None
+    } else {
+        Some(num / den)
+    }
 }
 
 impl Signal for RangeTrendSlope {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.range());
@@ -110,7 +122,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,8 +142,14 @@ mod tests {
     #[test]
     fn test_rts_unavailable_during_warmup() {
         let mut s = RangeTrendSlope::new("rts", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("112","88")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("112", "88")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -136,9 +157,9 @@ mod tests {
     fn test_rts_expanding_ranges_positive_slope() {
         // Ranges: 10, 20, 30 — steadily expanding → positive slope
         let mut s = RangeTrendSlope::new("rts", 3).unwrap();
-        s.update_bar(&bar("105","95")).unwrap();   // range=10
-        s.update_bar(&bar("110","90")).unwrap();   // range=20
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("115","85")).unwrap() {
+        s.update_bar(&bar("105", "95")).unwrap(); // range=10
+        s.update_bar(&bar("110", "90")).unwrap(); // range=20
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("115", "85")).unwrap() {
             // range=30 → slope > 0
             assert!(v > dec!(0), "expanding ranges → positive slope: {v}");
         } else {
@@ -150,9 +171,9 @@ mod tests {
     fn test_rts_contracting_ranges_negative_slope() {
         // Ranges: 30, 20, 10 — contracting → negative slope
         let mut s = RangeTrendSlope::new("rts", 3).unwrap();
-        s.update_bar(&bar("115","85")).unwrap();   // range=30
-        s.update_bar(&bar("110","90")).unwrap();   // range=20
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("105","95")).unwrap() {
+        s.update_bar(&bar("115", "85")).unwrap(); // range=30
+        s.update_bar(&bar("110", "90")).unwrap(); // range=20
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("105", "95")).unwrap() {
             // range=10 → slope < 0
             assert!(v < dec!(0), "contracting ranges → negative slope: {v}");
         } else {
@@ -164,9 +185,9 @@ mod tests {
     fn test_rts_flat_ranges_near_zero_slope() {
         // Ranges: 20, 20, 20 — flat → slope ≈ 0
         let mut s = RangeTrendSlope::new("rts", 3).unwrap();
-        s.update_bar(&bar("110","90")).unwrap();
-        s.update_bar(&bar("110","90")).unwrap();
-        if let SignalValue::Scalar(v) = s.update_bar(&bar("110","90")).unwrap() {
+        s.update_bar(&bar("110", "90")).unwrap();
+        s.update_bar(&bar("110", "90")).unwrap();
+        if let SignalValue::Scalar(v) = s.update_bar(&bar("110", "90")).unwrap() {
             assert!(v.abs() < dec!(0.001), "flat ranges → ~0 slope: {v}");
         } else {
             panic!("expected Scalar or Unavailable");
@@ -176,7 +197,7 @@ mod tests {
     #[test]
     fn test_rts_reset() {
         let mut s = RangeTrendSlope::new("rts", 3).unwrap();
-        for (h, l) in &[("110","90"),("115","85"),("120","80")] {
+        for (h, l) in &[("110", "90"), ("115", "85"), ("120", "80")] {
             s.update_bar(&bar(h, l)).unwrap();
         }
         assert!(s.is_ready());

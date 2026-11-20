@@ -114,7 +114,10 @@ mod tests {
         let l = if o.value() <= c.value() { o } else { c };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high: h, low: l, close: c,
+            open: o,
+            high: h,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -130,8 +133,14 @@ mod tests {
     #[test]
     fn test_bmi_unavailable_before_period() {
         let mut bmi = BarMomentumIndex::new("bmi", 3).unwrap();
-        assert_eq!(bmi.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bmi.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bmi.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bmi.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!bmi.is_ready());
     }
 
@@ -176,8 +185,12 @@ mod tests {
     fn test_bmi_output_in_unit_interval() {
         let mut bmi = BarMomentumIndex::new("bmi", 5).unwrap();
         let bars = [
-            bar("100", "105"), bar("105", "102"), bar("102", "108"),
-            bar("108", "106"), bar("106", "110"), bar("110", "107"),
+            bar("100", "105"),
+            bar("105", "102"),
+            bar("102", "108"),
+            bar("108", "106"),
+            bar("106", "110"),
+            bar("110", "107"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = bmi.update_bar(b).unwrap() {

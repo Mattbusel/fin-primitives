@@ -49,9 +49,15 @@ impl PriceAboveMaPct {
 }
 
 impl Signal for PriceAboveMaPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.close);
@@ -91,7 +97,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -118,8 +127,13 @@ mod tests {
     fn test_pamp_flat_prices_give_zero() {
         // All equal prices → none above SMA → 0
         let mut s = PriceAboveMaPct::new("p", 4).unwrap();
-        for _ in 0..4 { s.update_bar(&bar("100")).unwrap(); }
-        assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        for _ in 0..4 {
+            s.update_bar(&bar("100")).unwrap();
+        }
+        assert_eq!(
+            s.update_bar(&bar("100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]
@@ -150,7 +164,9 @@ mod tests {
     #[test]
     fn test_pamp_reset() {
         let mut s = PriceAboveMaPct::new("p", 3).unwrap();
-        for p in &["100","101","102"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

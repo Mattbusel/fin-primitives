@@ -47,9 +47,15 @@ impl PriceRangeRank {
 }
 
 impl Signal for PriceRangeRank {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -62,7 +68,8 @@ impl Signal for PriceRangeRank {
         }
 
         // Current range is the last element; compare against all others
-        let count_below = self.ranges
+        let count_below = self
+            .ranges
             .iter()
             .take(self.period - 1) // exclude current bar
             .filter(|&&r| r < range)
@@ -93,7 +100,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,27 +120,33 @@ mod tests {
     #[test]
     fn test_prr_unavailable_before_period() {
         let mut s = PriceRangeRank::new("prr", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("110","90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_prr_widest_bar_gives_one() {
         let mut s = PriceRangeRank::new("prr", 3).unwrap();
-        s.update_bar(&bar("105","95")).unwrap(); // range=10
-        s.update_bar(&bar("106","96")).unwrap(); // range=10
-        // Very wide current bar: range=40, both prior ranges=10 → rank=1.0
-        let v = s.update_bar(&bar("120","80")).unwrap();
+        s.update_bar(&bar("105", "95")).unwrap(); // range=10
+        s.update_bar(&bar("106", "96")).unwrap(); // range=10
+                                                  // Very wide current bar: range=40, both prior ranges=10 → rank=1.0
+        let v = s.update_bar(&bar("120", "80")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
 
     #[test]
     fn test_prr_narrowest_bar_gives_zero() {
         let mut s = PriceRangeRank::new("prr", 3).unwrap();
-        s.update_bar(&bar("120","80")).unwrap(); // range=40
-        s.update_bar(&bar("115","85")).unwrap(); // range=30
-        // Narrow current bar: range=4 → rank=0.0
-        let v = s.update_bar(&bar("102","98")).unwrap();
+        s.update_bar(&bar("120", "80")).unwrap(); // range=40
+        s.update_bar(&bar("115", "85")).unwrap(); // range=30
+                                                  // Narrow current bar: range=4 → rank=0.0
+        let v = s.update_bar(&bar("102", "98")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
@@ -138,8 +154,11 @@ mod tests {
     fn test_prr_output_in_unit_interval() {
         let mut s = PriceRangeRank::new("prr", 4).unwrap();
         let bars = [
-            bar("110","90"), bar("115","85"), bar("108","95"),
-            bar("120","80"), bar("106","98"),
+            bar("110", "90"),
+            bar("115", "85"),
+            bar("108", "95"),
+            bar("120", "80"),
+            bar("106", "98"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {
@@ -151,7 +170,9 @@ mod tests {
     #[test]
     fn test_prr_reset() {
         let mut s = PriceRangeRank::new("prr", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("110","90")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

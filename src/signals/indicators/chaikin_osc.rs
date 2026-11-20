@@ -43,10 +43,16 @@ impl ChaikinOsc {
     /// Returns [`FinError::InvalidPeriod`] if either period is 0.
     /// Returns [`FinError::InvalidInput`] if `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
         if fast >= slow {
-            return Err(FinError::InvalidInput(format!("fast ({fast}) must be < slow ({slow})")));
+            return Err(FinError::InvalidInput(format!(
+                "fast ({fast}) must be < slow ({slow})"
+            )));
         }
         #[allow(clippy::cast_possible_truncation)]
         let fast_k = Decimal::TWO / Decimal::from((fast + 1) as u32);
@@ -68,13 +74,19 @@ impl ChaikinOsc {
 
 impl ChaikinOsc {
     /// Returns the fast EMA period.
-    pub fn fast_period(&self) -> usize { self.fast }
+    pub fn fast_period(&self) -> usize {
+        self.fast
+    }
     /// Returns the slow EMA period.
-    pub fn slow_period(&self) -> usize { self.slow }
+    pub fn slow_period(&self) -> usize {
+        self.slow
+    }
 }
 
 impl Signal for ChaikinOsc {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.bar_count += 1;
@@ -82,12 +94,26 @@ impl Signal for ChaikinOsc {
         self.ad += bar.volume * clv;
 
         let fast = match self.fast_ema {
-            None => { self.fast_ema = Some(self.ad); self.ad }
-            Some(prev) => { let v = prev + self.fast_k * (self.ad - prev); self.fast_ema = Some(v); v }
+            None => {
+                self.fast_ema = Some(self.ad);
+                self.ad
+            }
+            Some(prev) => {
+                let v = prev + self.fast_k * (self.ad - prev);
+                self.fast_ema = Some(v);
+                v
+            }
         };
         let slow = match self.slow_ema {
-            None => { self.slow_ema = Some(self.ad); self.ad }
-            Some(prev) => { let v = prev + self.slow_k * (self.ad - prev); self.slow_ema = Some(v); v }
+            None => {
+                self.slow_ema = Some(self.ad);
+                self.ad
+            }
+            Some(prev) => {
+                let v = prev + self.slow_k * (self.ad - prev);
+                self.slow_ema = Some(v);
+                v
+            }
         };
 
         if self.bar_count < self.slow {
@@ -96,9 +122,13 @@ impl Signal for ChaikinOsc {
         Ok(SignalValue::Scalar(fast - slow))
     }
 
-    fn is_ready(&self) -> bool { self.bar_count >= self.slow }
+    fn is_ready(&self) -> bool {
+        self.bar_count >= self.slow
+    }
 
-    fn period(&self) -> usize { self.slow }
+    fn period(&self) -> usize {
+        self.slow
+    }
 
     fn reset(&mut self) {
         self.ad = Decimal::ZERO;
@@ -133,7 +163,10 @@ mod tests {
     fn test_chaikin_unavailable_before_slow() {
         let mut c = ChaikinOsc::new("c", 3, 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(c.update(&bar("110", "90", "105", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                c.update(&bar("110", "90", "105", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -161,7 +194,9 @@ mod tests {
     #[test]
     fn test_chaikin_reset() {
         let mut c = ChaikinOsc::new("c", 3, 5).unwrap();
-        for _ in 0..5 { c.update(&bar("110", "90", "105", "1000")).unwrap(); }
+        for _ in 0..5 {
+            c.update(&bar("110", "90", "105", "1000")).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

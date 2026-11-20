@@ -128,7 +128,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +149,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_slow_period() {
         let mut plo = PriceLevelOscillator::new("plo", 2, 5).unwrap();
-        assert_eq!(plo.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            plo.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

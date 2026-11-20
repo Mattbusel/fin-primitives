@@ -42,8 +42,9 @@ impl DayCountConvention {
                 // Standard 30/360: clamp d1/d2 at 30.
                 let d1 = d1.min(30);
                 let d2 = if d1 == 30 { d2.min(30) } else { d2 };
-                let days =
-                    360 * (y2 as i64 - y1 as i64) + 30 * (m2 as i64 - m1 as i64) + (d2 as i64 - d1 as i64);
+                let days = 360 * (y2 as i64 - y1 as i64)
+                    + 30 * (m2 as i64 - m1 as i64)
+                    + (d2 as i64 - d1 as i64);
                 days.max(0) as f64 / 360.0
             }
         }
@@ -147,7 +148,9 @@ impl DiscountCurve {
                 discount_factors.len()
             )));
         }
-        Ok(Self::from_pairs(maturities.into_iter().zip(discount_factors).collect()))
+        Ok(Self::from_pairs(
+            maturities.into_iter().zip(discount_factors).collect(),
+        ))
     }
 
     /// Builds the curve from `(maturity, discount factor)` pairs, sorting by maturity.
@@ -242,7 +245,11 @@ pub fn price_fixed_leg(
     day_count: DayCountConvention,
 ) -> f64 {
     let (rate, notional, payment_dates) = match leg {
-        SwapLeg::Fixed { rate, notional, payment_dates } => (*rate, *notional, payment_dates),
+        SwapLeg::Fixed {
+            rate,
+            notional,
+            payment_dates,
+        } => (*rate, *notional, payment_dates),
         SwapLeg::Floating { .. } => return 0.0,
     };
 
@@ -275,9 +282,12 @@ pub fn price_floating_leg(
     day_count: DayCountConvention,
 ) -> f64 {
     let (spread, notional, payment_dates, reset_dates) = match leg {
-        SwapLeg::Floating { spread, notional, payment_dates, reset_dates } => {
-            (*spread, *notional, payment_dates, reset_dates)
-        }
+        SwapLeg::Floating {
+            spread,
+            notional,
+            payment_dates,
+            reset_dates,
+        } => (*spread, *notional, payment_dates, reset_dates),
         SwapLeg::Fixed { .. } => return 0.0,
     };
 
@@ -316,11 +326,7 @@ pub fn price_floating_leg(
 ///
 /// Uses [`DayCountConvention::Actual365`] internally. Returns 0.0 if the
 /// annuity is zero.
-pub fn par_swap_rate(
-    curve: &DiscountCurve,
-    payment_dates: &[u64],
-    valuation_date: u64,
-) -> f64 {
+pub fn par_swap_rate(curve: &DiscountCurve, payment_dates: &[u64], valuation_date: u64) -> f64 {
     let dc = DayCountConvention::Actual365;
     let notional = 1.0_f64;
 
@@ -387,8 +393,14 @@ pub fn dv01(swap: &InterestRateSwap, curve: &DiscountCurve, valuation_date: u64)
         })
         .collect();
 
-    let shifted_curve =
-        DiscountCurve::from_pairs(curve.maturities_years.iter().copied().zip(shifted_dfs).collect());
+    let shifted_curve = DiscountCurve::from_pairs(
+        curve
+            .maturities_years
+            .iter()
+            .copied()
+            .zip(shifted_dfs)
+            .collect(),
+    );
     let shifted_npv = npv(swap, &shifted_curve, valuation_date);
     (shifted_npv - base_npv).abs()
 }
@@ -430,7 +442,10 @@ mod tests {
         for &t in &pillars {
             let expected = (-rate * t).exp();
             let got = curve.interpolate(t);
-            assert!((got - expected).abs() < 1e-10, "pillar {t}: expected {expected}, got {got}");
+            assert!(
+                (got - expected).abs() < 1e-10,
+                "pillar {t}: expected {expected}, got {got}"
+            );
         }
         // Interpolate between pillars
         let mid = curve.interpolate(1.5);
@@ -539,13 +554,19 @@ mod tests {
     fn zero_rate_roundtrip() {
         let curve = flat_curve(0.04, &[1.0, 2.0, 5.0]);
         let z = curve.zero_rate(2.0);
-        assert!((z - 0.04).abs() < 1e-10, "zero rate should recover 4%, got {z}");
+        assert!(
+            (z - 0.04).abs() < 1e-10,
+            "zero rate should recover 4%, got {z}"
+        );
     }
 
     #[test]
     fn forward_rate_flat_curve() {
         let curve = flat_curve(0.05, &[1.0, 2.0, 3.0]);
         let f = curve.forward_rate(1.0, 2.0);
-        assert!((f - 0.05).abs() < 1e-9, "flat curve forward = zero rate, got {f}");
+        assert!(
+            (f - 0.05).abs() < 1e-9,
+            "flat curve forward = zero rate, got {f}"
+        );
     }
 }

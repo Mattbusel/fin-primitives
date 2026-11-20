@@ -66,9 +66,17 @@ fn stress_out_of_order_delta_rejected() {
     book.apply_delta(set_bid(dec!(2000), dec!(5), 1)).unwrap();
 
     // Skip seq 2, jump to seq 3 — should be rejected
-    let err = book.apply_delta(set_bid(dec!(1999), dec!(3), 3)).unwrap_err();
+    let err = book
+        .apply_delta(set_bid(dec!(1999), dec!(3), 3))
+        .unwrap_err();
     assert!(
-        matches!(err, FinError::SequenceMismatch { expected: 2, got: 3 }),
+        matches!(
+            err,
+            FinError::SequenceMismatch {
+                expected: 2,
+                got: 3
+            }
+        ),
         "expected SequenceMismatch(2,3), got {err:?}"
     );
 
@@ -84,8 +92,16 @@ fn stress_duplicate_sequence_rejected() {
     book.apply_delta(set_bid(dec!(50000), dec!(1), 1)).unwrap();
 
     // Re-send seq 1 — must be rejected
-    let err = book.apply_delta(set_bid(dec!(49999), dec!(2), 1)).unwrap_err();
-    assert!(matches!(err, FinError::SequenceMismatch { expected: 2, got: 1 }));
+    let err = book
+        .apply_delta(set_bid(dec!(49999), dec!(2), 1))
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        FinError::SequenceMismatch {
+            expected: 2,
+            got: 1
+        }
+    ));
 
     // Verify state is intact
     assert_eq!(book.sequence(), 1);
@@ -105,7 +121,13 @@ fn stress_recovery_after_gap() {
     // Simulate a gap: seq 4 arrives out of order (seq 5 arrived first but we
     // detected the gap and dropped it). Now we receive seq 4 again and seq 5.
     let err = book.apply_delta(set_bid(dec!(98), dec!(3), 5)).unwrap_err();
-    assert!(matches!(err, FinError::SequenceMismatch { expected: 4, got: 5 }));
+    assert!(matches!(
+        err,
+        FinError::SequenceMismatch {
+            expected: 4,
+            got: 5
+        }
+    ));
 
     // Recovery: apply the missing seq 4, then seq 5
     book.apply_delta(set_ask(dec!(102), dec!(2), 4)).unwrap();
@@ -141,8 +163,15 @@ fn stress_rapid_churn_no_orphan_levels() {
         book.apply_delta(remove_bid(p, seq)).unwrap();
         seq += 1;
     }
-    assert_eq!(book.top_bids(10).len(), 0, "all bid levels should be removed");
-    assert!(book.best_bid().is_none(), "book should be empty on bid side");
+    assert_eq!(
+        book.top_bids(10).len(),
+        0,
+        "all bid levels should be removed"
+    );
+    assert!(
+        book.best_bid().is_none(),
+        "book should be empty on bid side"
+    );
 
     // Round 3: re-add one bid level + one ask level
     book.apply_delta(set_bid(dec!(99), dec!(7), seq)).unwrap();
@@ -217,7 +246,9 @@ fn stress_inverted_spread_rolled_back() {
     book.apply_delta(set_ask(dec!(2800), dec!(1), 1)).unwrap();
 
     // Try to add a bid above the best ask — should trigger InvertedSpread
-    let err = book.apply_delta(set_bid(dec!(2850), dec!(1), 2)).unwrap_err();
+    let err = book
+        .apply_delta(set_bid(dec!(2850), dec!(1), 2))
+        .unwrap_err();
     assert!(
         matches!(err, FinError::InvertedSpread { .. }),
         "expected InvertedSpread, got {err:?}"
@@ -225,7 +256,10 @@ fn stress_inverted_spread_rolled_back() {
 
     // Sequence must have rolled back to 1 (the bid was not committed)
     assert_eq!(book.sequence(), 1);
-    assert!(book.best_bid().is_none(), "bid side must remain empty after rollback");
+    assert!(
+        book.best_bid().is_none(),
+        "bid side must remain empty after rollback"
+    );
     assert_eq!(book.best_ask().unwrap().price.value(), dec!(2800));
 }
 
@@ -259,7 +293,8 @@ fn stress_interleaved_updates_no_inversion() {
     seq += 1;
 
     // Tighten bid up to 199.50 (still valid)
-    book.apply_delta(set_bid(dec!(199.5), dec!(3), seq)).unwrap();
+    book.apply_delta(set_bid(dec!(199.5), dec!(3), seq))
+        .unwrap();
 
     let spread = book.spread().unwrap();
     assert!(spread > dec!(0), "spread must remain positive: {spread}");

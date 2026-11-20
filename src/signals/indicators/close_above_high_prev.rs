@@ -28,14 +28,24 @@ impl CloseAboveHighPrev {
     /// # Errors
     /// Never errors — provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_high: None, prev_low: None })
+        Ok(Self {
+            name: name.into(),
+            prev_high: None,
+            prev_low: None,
+        })
     }
 }
 
 impl Signal for CloseAboveHighPrev {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_high.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_high.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match (self.prev_high, self.prev_low) {
@@ -76,7 +86,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -87,7 +100,10 @@ mod tests {
     #[test]
     fn test_cahp_unavailable_first_bar() {
         let mut c = CloseAboveHighPrev::new("c").unwrap();
-        assert_eq!(c.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            c.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -119,6 +135,9 @@ mod tests {
         let mut c = CloseAboveHighPrev::new("c").unwrap();
         c.update_bar(&bar("100", "110", "90", "105")).unwrap();
         c.reset();
-        assert_eq!(c.update_bar(&bar("100", "110", "90", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            c.update_bar(&bar("100", "110", "90", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

@@ -70,8 +70,14 @@ impl WilliamsFractal {
         // window has exactly 5 bars; index 2 is the middle bar (2 bars ago)
         let mid_high = window[2].high;
         let mid_low = window[2].low;
-        let is_fractal_high = window.iter().enumerate().all(|(i, b)| i == 2 || b.high < mid_high);
-        let is_fractal_low  = window.iter().enumerate().all(|(i, b)| i == 2 || b.low  > mid_low);
+        let is_fractal_high = window
+            .iter()
+            .enumerate()
+            .all(|(i, b)| i == 2 || b.high < mid_high);
+        let is_fractal_low = window
+            .iter()
+            .enumerate()
+            .all(|(i, b)| i == 2 || b.low > mid_low);
         (is_fractal_high, is_fractal_low)
     }
 }
@@ -103,7 +109,7 @@ impl Signal for WilliamsFractal {
             }
             (true, true) => {
                 self.fractal_high = Some(self.window[2].high);
-                self.fractal_low  = Some(self.window[2].low);
+                self.fractal_low = Some(self.window[2].low);
                 SignalValue::Scalar(Decimal::ZERO)
             }
             (false, false) => SignalValue::Scalar(Decimal::ZERO),
@@ -123,8 +129,8 @@ impl Signal for WilliamsFractal {
     fn reset(&mut self) {
         self.window.clear();
         self.fractal_high = None;
-        self.fractal_low  = None;
-        self.last_value   = None;
+        self.fractal_low = None;
+        self.last_value = None;
     }
 }
 
@@ -142,7 +148,10 @@ mod tests {
         let cp = Price::new(h.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -154,7 +163,10 @@ mod tests {
     fn test_fractal_unavailable_before_five_bars() {
         let mut f = WilliamsFractal::new("wf").unwrap();
         for _ in 0..4 {
-            assert_eq!(f.update_bar(&bar("100", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                f.update_bar(&bar("100", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!f.is_ready());
     }

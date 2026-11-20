@@ -27,8 +27,16 @@ use crate::ohlcv::OhlcvBar;
 use crate::signals::BarInput;
 use wickra_core::Candle;
 
-fn candle(open: f64, high: f64, low: f64, close: f64, volume: f64, ts: i64) -> Result<Candle, FinError> {
-    Candle::new(open, high, low, close, volume, ts).map_err(|e| FinError::InvalidInput(e.to_string()))
+fn candle(
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+    ts: i64,
+) -> Result<Candle, FinError> {
+    Candle::new(open, high, low, close, volume, ts)
+        .map_err(|e| FinError::InvalidInput(e.to_string()))
 }
 
 impl TryFrom<&OhlcvBar> for Candle {
@@ -118,7 +126,9 @@ mod tests {
             let close = Decimal::from(1000 + (i * 7919) % 97) / dec!(10);
             let wv = w.update(decimal_to_f64(close));
             match (f.update(&BarInput::from_close(close)).unwrap(), wv) {
-                (SignalValue::Scalar(fv), Some(wv)) => assert!((decimal_to_f64(fv) - wv).abs() < 1e-9),
+                (SignalValue::Scalar(fv), Some(wv)) => {
+                    assert!((decimal_to_f64(fv) - wv).abs() < 1e-9)
+                }
                 (SignalValue::Unavailable, None) => {}
                 (a, b) => panic!("warm-up differs at {i}: fin {a:?} wickra {b:?}"),
             }
@@ -127,7 +137,13 @@ mod tests {
 
     #[test]
     fn invalid_candle_is_an_error_not_a_panic() {
-        let bad = BarInput { open: dec!(10), high: dec!(9), low: dec!(8), close: dec!(9), volume: dec!(1) };
+        let bad = BarInput {
+            open: dec!(10),
+            high: dec!(9),
+            low: dec!(8),
+            close: dec!(9),
+            volume: dec!(1),
+        };
         assert!(Candle::try_from(&bad).is_err()); // high below open
     }
 }

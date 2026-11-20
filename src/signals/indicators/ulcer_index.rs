@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Ulcer Index — measures downside volatility (drawdown pain) over a window.
@@ -38,7 +38,9 @@ impl UlcerIndex {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,21 +50,34 @@ impl UlcerIndex {
 }
 
 impl Signal for UlcerIndex {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
-        if self.closes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let period_high = self.closes.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
+        let period_high = self
+            .closes
+            .iter()
+            .cloned()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if period_high.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
         }
 
         let mean_sq: f64 = {
-            let sum_sq: f64 = self.closes.iter()
+            let sum_sq: f64 = self
+                .closes
+                .iter()
                 .filter_map(|c| {
                     let h = period_high.to_f64()?;
                     let cv = c.to_f64()?;
@@ -75,12 +90,16 @@ impl Signal for UlcerIndex {
 
         let ui = mean_sq.sqrt();
         Ok(SignalValue::Scalar(
-            Decimal::try_from(ui).unwrap_or(Decimal::ZERO)
+            Decimal::try_from(ui).unwrap_or(Decimal::ZERO),
         ))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -98,7 +117,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -124,10 +146,14 @@ mod tests {
         // Flat price: every close equals the period high → all drawdowns = 0 → UI = 0
         let mut u = UlcerIndex::new("u", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = u.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = u.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -140,13 +166,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(0), "expected positive UI, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_ui_reset() {
         let mut u = UlcerIndex::new("u", 3).unwrap();
-        for _ in 0..5 { u.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            u.update_bar(&bar("100")).unwrap();
+        }
         assert!(u.is_ready());
         u.reset();
         assert!(!u.is_ready());

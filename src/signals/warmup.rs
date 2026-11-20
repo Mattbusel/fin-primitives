@@ -155,7 +155,10 @@ pub struct WarmupGuard<S: Signal> {
 impl<S: Signal> WarmupGuard<S> {
     /// Wraps `signal` in a `WarmupGuard`.
     pub fn new(signal: S) -> Self {
-        Self { inner: signal, bars_seen: 0 }
+        Self {
+            inner: signal,
+            bars_seen: 0,
+        }
     }
 
     /// Updates the inner signal and returns its value, or `Err(NotReady)` if not yet ready.
@@ -324,7 +327,11 @@ impl WarmupReport {
     /// This is the number of additional bars needed before the *entire* pipeline
     /// is ready. Returns `0` if all signals are already ready.
     pub fn pipeline_bars_remaining(&self) -> usize {
-        self.statuses.iter().map(|s| s.bars_remaining).max().unwrap_or(0)
+        self.statuses
+            .iter()
+            .map(|s| s.bars_remaining)
+            .max()
+            .unwrap_or(0)
     }
 
     /// Returns an iterator over signals that are ready.
@@ -400,8 +407,16 @@ impl WarmupReporter {
     /// # Panics
     /// Panics in debug builds if `periods.len() != names.len()`.
     pub fn new(periods: Vec<usize>, names: Vec<String>) -> Self {
-        debug_assert_eq!(periods.len(), names.len(), "periods and names must have equal length");
-        Self { names, periods, bars_consumed: 0 }
+        debug_assert_eq!(
+            periods.len(),
+            names.len(),
+            "periods and names must have equal length"
+        );
+        Self {
+            names,
+            periods,
+            bars_consumed: 0,
+        }
     }
 
     /// Advances the bar counter by one.
@@ -447,7 +462,10 @@ impl WarmupReporter {
                 }
             })
             .collect();
-        WarmupReport { statuses, bars_consumed }
+        WarmupReport {
+            statuses,
+            bars_consumed,
+        }
     }
 
     /// Returns the number of signals registered with this reporter.
@@ -658,7 +676,8 @@ mod tests {
 
     #[test]
     fn test_warmup_reporter_pipeline_bars_remaining() {
-        let reporter = WarmupReporter::new(vec![5, 14, 20], vec!["a".into(), "b".into(), "c".into()]);
+        let reporter =
+            WarmupReporter::new(vec![5, 14, 20], vec!["a".into(), "b".into(), "c".into()]);
         let report = reporter.report(10);
         // c needs 20 bars, 10 consumed → 10 remaining
         assert_eq!(report.pipeline_bars_remaining(), 10);
@@ -666,7 +685,8 @@ mod tests {
 
     #[test]
     fn test_warmup_reporter_max_warmup_period() {
-        let reporter = WarmupReporter::new(vec![5, 14, 200], vec!["a".into(), "b".into(), "c".into()]);
+        let reporter =
+            WarmupReporter::new(vec![5, 14, 200], vec!["a".into(), "b".into(), "c".into()]);
         assert_eq!(reporter.max_warmup_period(), 200);
     }
 

@@ -46,11 +46,15 @@ impl PivotDistance {
     }
 
     /// Returns the most recent pivot value.
-    pub fn last_pivot(&self) -> Option<Decimal> { self.last_pivot }
+    pub fn last_pivot(&self) -> Option<Decimal> {
+        self.last_pivot
+    }
 }
 
 impl Signal for PivotDistance {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match (self.prev_high, self.prev_low, self.prev_close) {
@@ -72,8 +76,12 @@ impl Signal for PivotDistance {
         result
     }
 
-    fn is_ready(&self) -> bool { self.last_pivot.is_some() }
-    fn period(&self) -> usize { 1 }
+    fn is_ready(&self) -> bool {
+        self.last_pivot.is_some()
+    }
+    fn period(&self) -> usize {
+        1
+    }
 
     fn reset(&mut self) {
         self.prev_high = None;
@@ -96,7 +104,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -121,7 +132,9 @@ mod tests {
         // bar2: close=100 = pivot → distance=0
         if let SignalValue::Scalar(v) = p.update_bar(&bar_hlc("100", "100", "100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -132,7 +145,9 @@ mod tests {
         // close = 105 → dist = (105-100)/100 * 100 = 5%
         if let SignalValue::Scalar(v) = p.update_bar(&bar_hlc("105", "105", "105")).unwrap() {
             assert_eq!(v, dec!(5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -142,7 +157,9 @@ mod tests {
         // close = 95 → dist = (95-100)/100 * 100 = -5%
         if let SignalValue::Scalar(v) = p.update_bar(&bar_hlc("95", "95", "95")).unwrap() {
             assert_eq!(v, dec!(-5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

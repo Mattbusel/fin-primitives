@@ -1,9 +1,9 @@
 //! Average Loss indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of negative close returns (losses only), returned as positive values.
 ///
@@ -23,14 +23,23 @@ impl AverageLoss {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
 impl Signal for AverageLoss {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let loss = if bar.close < pc { pc - bar.close } else { Decimal::ZERO };
+            let loss = if bar.close < pc {
+                pc - bar.close
+            } else {
+                Decimal::ZERO
+            };
             self.window.push_back(loss);
             self.sum += loss;
             if self.window.len() > self.period {
@@ -48,10 +57,20 @@ impl Signal for AverageLoss {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "AverageLoss" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "AverageLoss"
+    }
 }
 
 #[cfg(test)]

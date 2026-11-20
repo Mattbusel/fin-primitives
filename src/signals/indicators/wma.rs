@@ -129,8 +129,14 @@ mod tests {
     #[test]
     fn test_wma_unavailable_before_period() {
         let mut wma = Wma::new("wma3", 3).unwrap();
-        assert_eq!(wma.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(wma.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            wma.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            wma.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!wma.is_ready());
     }
 
@@ -166,7 +172,10 @@ mod tests {
             _ => panic!("expected scalar"),
         };
         // SMA would be (10+10+100)/3 ≈ 40; WMA = (10+20+300)/6 = 330/6 = 55
-        assert!(wma_val > dec!(40), "WMA {wma_val} should exceed SMA ≈ 40 on recent spike");
+        assert!(
+            wma_val > dec!(40),
+            "WMA {wma_val} should exceed SMA ≈ 40 on recent spike"
+        );
     }
 
     #[test]
@@ -178,6 +187,9 @@ mod tests {
         assert!(wma.is_ready());
         wma.reset();
         assert!(!wma.is_ready());
-        assert_eq!(wma.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            wma.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

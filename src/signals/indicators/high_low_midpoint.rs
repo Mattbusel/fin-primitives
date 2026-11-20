@@ -1,9 +1,9 @@
 //! High-Low Midpoint indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of the bar midpoint: `(high + low) / 2`.
 ///
@@ -21,7 +21,11 @@ impl HighLowMidpoint {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period), sum: Decimal::ZERO })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+            sum: Decimal::ZERO,
+        })
     }
 }
 
@@ -42,10 +46,19 @@ impl Signal for HighLowMidpoint {
         Ok(SignalValue::Scalar(self.sum / len))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "HighLowMidpoint" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "HighLowMidpoint"
+    }
 }
 
 #[cfg(test)]
@@ -66,15 +79,15 @@ mod tests {
     #[test]
     fn test_high_low_midpoint_basic() {
         let mut sig = HighLowMidpoint::new(2).unwrap();
-        sig.update(&bar("110", "90")).unwrap();  // mid = 100
-        let v = sig.update(&bar("120", "80")).unwrap();  // mid = 100
+        sig.update(&bar("110", "90")).unwrap(); // mid = 100
+        let v = sig.update(&bar("120", "80")).unwrap(); // mid = 100
         assert_eq!(v, SignalValue::Scalar(dec!(100)));
     }
 
     #[test]
     fn test_high_low_midpoint_rolling() {
         let mut sig = HighLowMidpoint::new(2).unwrap();
-        sig.update(&bar("110", "90")).unwrap();  // mid=100
+        sig.update(&bar("110", "90")).unwrap(); // mid=100
         sig.update(&bar("120", "100")).unwrap(); // mid=110, avg=(100+110)/2=105
         let v = sig.update(&bar("130", "110")).unwrap(); // mid=120, avg=(110+120)/2=115
         assert_eq!(v, SignalValue::Scalar(dec!(115)));

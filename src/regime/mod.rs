@@ -213,7 +213,14 @@ impl Garch11 {
         }
         // Long-run (unconditional) variance as initial value
         let long_run_var = omega / (1.0 - alpha - beta);
-        Ok(Self { alpha, beta, omega, variance: long_run_var, mean: 0.0, count: 0 })
+        Ok(Self {
+            alpha,
+            beta,
+            omega,
+            variance: long_run_var,
+            mean: 0.0,
+            count: 0,
+        })
     }
 
     /// Updates the model with a new log return and returns the conditional
@@ -225,9 +232,7 @@ impl Garch11 {
         self.mean += delta / self.count as f64;
         let demeaned = log_return - self.mean;
         // GARCH(1,1) recursion
-        self.variance = self.omega
-            + self.alpha * demeaned * demeaned
-            + self.beta * self.variance;
+        self.variance = self.omega + self.alpha * demeaned * demeaned + self.beta * self.variance;
         self.variance.sqrt()
     }
 
@@ -342,7 +347,8 @@ impl CorrelationBreakdownDetector {
     pub fn update(&mut self, asset_idx: usize, log_return: f64) {
         // Expand storage if needed
         while self.returns.len() <= asset_idx {
-            self.returns.push(std::collections::VecDeque::with_capacity(self.window + 1));
+            self.returns
+                .push(std::collections::VecDeque::with_capacity(self.window + 1));
             self.n_assets = self.returns.len();
         }
         let buf = &mut self.returns[asset_idx];
@@ -369,8 +375,18 @@ impl CorrelationBreakdownDetector {
                 }
                 let len = ri.len().min(rj.len());
                 let r = pearson_r(
-                    ri.iter().rev().take(len).copied().collect::<Vec<_>>().as_slice(),
-                    rj.iter().rev().take(len).copied().collect::<Vec<_>>().as_slice(),
+                    ri.iter()
+                        .rev()
+                        .take(len)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                    rj.iter()
+                        .rev()
+                        .take(len)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .as_slice(),
                 );
                 total_pairs += 1;
                 if r.abs() < self.threshold {
@@ -617,7 +633,11 @@ impl RegimeDetector {
 
         // 2. High volatility: realized vol > multiplier × long-run mean
         //    Also check GARCH for persistent vol elevation
-        let vol_ratio = if self.hv_mean > 0.0 { hv_f / self.hv_mean } else { 1.0 };
+        let vol_ratio = if self.hv_mean > 0.0 {
+            hv_f / self.hv_mean
+        } else {
+            1.0
+        };
         let garch_elevated = self.garch.is_vol_elevated(self.config.garch_vol_multiplier);
         if vol_ratio > self.config.vol_high_multiplier || (vol_ratio > 1.5 && garch_elevated) {
             let conf = (vol_ratio - self.config.vol_high_multiplier).abs().min(1.0) * 0.8 + 0.2;
@@ -628,7 +648,11 @@ impl RegimeDetector {
 
         // 3. Trending: Hurst > threshold AND ADX confirms
         if hurst_f > self.config.hurst_trending {
-            let adx_factor = if adx_f > self.config.adx_trend_threshold { 1.0 } else { 0.7 };
+            let adx_factor = if adx_f > self.config.adx_trend_threshold {
+                1.0
+            } else {
+                0.7
+            };
             let conf = ((hurst_f - self.config.hurst_trending)
                 / (1.0 - self.config.hurst_trending))
                 .min(1.0)
@@ -648,7 +672,9 @@ impl RegimeDetector {
 
         // 5. Low volatility: vol < multiplier × mean AND BB width compressed
         if vol_ratio < self.config.vol_low_multiplier || bb_w_f < self.config.bb_width_quiet {
-            let conf = (1.0 - vol_ratio / self.config.vol_low_multiplier).max(0.1).min(1.0);
+            let conf = (1.0 - vol_ratio / self.config.vol_low_multiplier)
+                .max(0.1)
+                .min(1.0);
             self.record_regime(MarketRegime::LowVolatility, conf);
             return Ok((MarketRegime::LowVolatility, conf));
         }
@@ -896,10 +922,7 @@ impl RegimeConditionalSignal {
         neutral_period: usize,
     ) -> Result<Self, FinError> {
         Ok(Self {
-            rsi_trending: crate::signals::indicators::Rsi::new(
-                "rsi_trending",
-                trending_period,
-            )?,
+            rsi_trending: crate::signals::indicators::Rsi::new("rsi_trending", trending_period)?,
             rsi_mean_reverting: crate::signals::indicators::Rsi::new(
                 "rsi_mean_reverting",
                 mean_reverting_period,
@@ -936,9 +959,7 @@ impl RegimeConditionalSignal {
         };
 
         match chosen {
-            Ok(SignalValue::Scalar(v)) => {
-                Some(Ok(v.to_f64().unwrap_or(50.0)))
-            }
+            Ok(SignalValue::Scalar(v)) => Some(Ok(v.to_f64().unwrap_or(50.0))),
             Ok(_) => None,
             Err(e) => Some(Err(e)),
         }
@@ -1151,7 +1172,8 @@ mod tests {
     fn test_detector_bar_count() {
         let mut d = RegimeDetector::new(5, RegimeConfig::default()).unwrap();
         for i in 0..5 {
-            d.update(&bar(100.0 + i as f64, 99.0, 100.0 + i as f64), &[]).unwrap();
+            d.update(&bar(100.0 + i as f64, 99.0, 100.0 + i as f64), &[])
+                .unwrap();
         }
         assert_eq!(d.bar_count(), 5);
     }

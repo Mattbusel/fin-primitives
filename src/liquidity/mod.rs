@@ -126,12 +126,7 @@ impl MarketDepth {
         if total_qty == 0.0 || self.levels.is_empty() {
             return None;
         }
-        let vwap: f64 = self
-            .levels
-            .iter()
-            .map(|(p, q)| p * q)
-            .sum::<f64>()
-            / total_qty;
+        let vwap: f64 = self.levels.iter().map(|(p, q)| p * q).sum::<f64>() / total_qty;
         Some(vwap)
     }
 

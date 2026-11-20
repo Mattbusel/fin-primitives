@@ -48,7 +48,9 @@ impl Envelope {
             return Err(FinError::InvalidPeriod(period));
         }
         if pct <= Decimal::ZERO {
-            return Err(FinError::InvalidInput(format!("pct must be > 0, got {pct}")));
+            return Err(FinError::InvalidInput(format!(
+                "pct must be > 0, got {pct}"
+            )));
         }
         Ok(Self {
             name: name.into(),
@@ -90,8 +92,7 @@ impl Signal for Envelope {
             return Ok(SignalValue::Unavailable);
         }
         #[allow(clippy::cast_possible_truncation)]
-        let sma = self.closes.iter().copied().sum::<Decimal>()
-            / Decimal::from(self.period as u32);
+        let sma = self.closes.iter().copied().sum::<Decimal>() / Decimal::from(self.period as u32);
         let factor = self.pct / Decimal::ONE_HUNDRED;
         self.upper = Some(sma * (Decimal::ONE + factor));
         self.lower = Some(sma * (Decimal::ONE - factor));
@@ -125,7 +126,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -154,7 +158,9 @@ mod tests {
     #[test]
     fn test_env_bands_correct() {
         let mut e = Envelope::new("e", 3, dec!(10)).unwrap();
-        for _ in 0..3 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         assert_eq!(e.upper(), Some(dec!(110)));
         assert_eq!(e.lower(), Some(dec!(90)));
         assert_eq!(e.band_width(), Some(dec!(20)));
@@ -163,7 +169,9 @@ mod tests {
     #[test]
     fn test_env_scalar_is_sma() {
         let mut e = Envelope::new("e", 3, dec!(5)).unwrap();
-        for _ in 0..3 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         let v = e.update_bar(&bar("100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(100)));
     }
@@ -171,7 +179,9 @@ mod tests {
     #[test]
     fn test_env_reset() {
         let mut e = Envelope::new("e", 3, dec!(2)).unwrap();
-        for _ in 0..3 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         assert!(e.is_ready());
         e.reset();
         assert!(!e.is_ready());

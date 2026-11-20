@@ -1,9 +1,9 @@
 //! Range Persistence indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling count of bars where current range exceeds previous range.
 ///
@@ -23,7 +23,12 @@ impl RangePersistence {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_range: None, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            prev_range: None,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
@@ -48,10 +53,20 @@ impl Signal for RangePersistence {
         Ok(SignalValue::Scalar(Decimal::from(self.count as u32)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_range = None; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "RangePersistence" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_range = None;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "RangePersistence"
+    }
 }
 
 #[cfg(test)]
@@ -73,9 +88,9 @@ mod tests {
     fn test_rp_all_expanding() {
         // Each bar's range is larger than previous
         let mut sig = RangePersistence::new(3).unwrap();
-        sig.update(&bar("110", "90")).unwrap();  // range=20, seeds
-        sig.update(&bar("115", "85")).unwrap();  // range=30 > 20 ✓
-        sig.update(&bar("120", "80")).unwrap();  // range=40 > 30 ✓
+        sig.update(&bar("110", "90")).unwrap(); // range=20, seeds
+        sig.update(&bar("115", "85")).unwrap(); // range=30 > 20 ✓
+        sig.update(&bar("120", "80")).unwrap(); // range=40 > 30 ✓
         let v = sig.update(&bar("125", "75")).unwrap(); // range=50 > 40 ✓, count=3
         assert_eq!(v, SignalValue::Scalar(dec!(3)));
     }
@@ -84,9 +99,9 @@ mod tests {
     fn test_rp_no_expansion() {
         // Each bar's range equals previous (not strictly greater)
         let mut sig = RangePersistence::new(3).unwrap();
-        sig.update(&bar("110", "90")).unwrap();  // range=20
-        sig.update(&bar("110", "90")).unwrap();  // range=20, not > 20
-        sig.update(&bar("110", "90")).unwrap();  // range=20
+        sig.update(&bar("110", "90")).unwrap(); // range=20
+        sig.update(&bar("110", "90")).unwrap(); // range=20, not > 20
+        sig.update(&bar("110", "90")).unwrap(); // range=20
         let v = sig.update(&bar("110", "90")).unwrap(); // count=0
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }

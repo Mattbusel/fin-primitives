@@ -1,9 +1,9 @@
 //! Price Change Count indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling count of bars where the close changed (up or down) from previous bar.
 ///
@@ -23,7 +23,12 @@ impl PriceChangeCount {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), count: 0 })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+            count: 0,
+        })
     }
 }
 
@@ -47,10 +52,20 @@ impl Signal for PriceChangeCount {
         Ok(SignalValue::Scalar(Decimal::from(self.count as u32)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.count = 0; }
-    fn name(&self) -> &str { "PriceChangeCount" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+        self.count = 0;
+    }
+    fn name(&self) -> &str {
+        "PriceChangeCount"
+    }
 }
 
 #[cfg(test)]

@@ -45,7 +45,9 @@ impl VolumeWeightedRsi {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -59,7 +61,9 @@ impl VolumeWeightedRsi {
 }
 
 impl Signal for VolumeWeightedRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let prev = match self.prev_close {
@@ -72,17 +76,25 @@ impl Signal for VolumeWeightedRsi {
         self.prev_close = Some(bar.close);
 
         let change = bar.close - prev;
-        let gain = if change > Decimal::ZERO { change * bar.volume } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { (-change) * bar.volume } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change * bar.volume
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            (-change) * bar.volume
+        } else {
+            Decimal::ZERO
+        };
 
         if self.avg_gain.is_none() {
             self.seed_gains.push(gain);
             self.seed_losses.push(loss);
             if self.seed_gains.len() == self.period {
-                let ag = self.seed_gains.iter().sum::<Decimal>()
-                    / Decimal::from(self.period as u32);
-                let al = self.seed_losses.iter().sum::<Decimal>()
-                    / Decimal::from(self.period as u32);
+                let ag =
+                    self.seed_gains.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
+                let al =
+                    self.seed_losses.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
                 self.avg_gain = Some(ag);
                 self.avg_loss = Some(al);
             }
@@ -90,8 +102,10 @@ impl Signal for VolumeWeightedRsi {
         }
 
         let k = Decimal::ONE / Decimal::from(self.period as u32);
-        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + gain * k;
-        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k) + loss * k;
+        let ag = self.avg_gain.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + gain * k;
+        let al = self.avg_loss.ok_or_else(crate::error::invariant_broken)? * (Decimal::ONE - k)
+            + loss * k;
         self.avg_gain = Some(ag);
         self.avg_loss = Some(al);
 
@@ -103,8 +117,12 @@ impl Signal for VolumeWeightedRsi {
         Ok(SignalValue::Scalar(rsi))
     }
 
-    fn is_ready(&self) -> bool { self.avg_gain.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.avg_gain.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -127,7 +145,10 @@ mod tests {
         let vol = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: cp, low: cp, close: cp,
+            open: cp,
+            high: cp,
+            low: cp,
+            close: cp,
             volume: vol,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -135,7 +156,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_cv(c, "1000") }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_cv(c, "1000")
+    }
 
     #[test]
     fn test_vwrsi_invalid() {
@@ -159,14 +182,24 @@ mod tests {
         }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vwrsi_range_0_to_100() {
         let mut v = VolumeWeightedRsi::new("v", 5).unwrap();
-        for (c, vol) in [("100","1000"),("105","2000"),("102","500"),("108","1500"),
-                          ("103","800"),("110","3000"),("106","600"),("112","2500")] {
+        for (c, vol) in [
+            ("100", "1000"),
+            ("105", "2000"),
+            ("102", "500"),
+            ("108", "1500"),
+            ("103", "800"),
+            ("110", "3000"),
+            ("106", "600"),
+            ("112", "2500"),
+        ] {
             if let SignalValue::Scalar(val) = v.update_bar(&bar_cv(c, vol)).unwrap() {
                 assert!(val >= dec!(0) && val <= dec!(100), "out of range: {val}");
             }

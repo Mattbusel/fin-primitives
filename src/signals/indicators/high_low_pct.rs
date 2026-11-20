@@ -41,7 +41,9 @@ impl HighLowPct {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -52,17 +54,35 @@ impl HighLowPct {
 }
 
 impl Signal for HighLowPct {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
-        if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
+        if self.highs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let high_n = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
-        let low_n = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
+        let high_n = self
+            .highs
+            .iter()
+            .cloned()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let low_n = self
+            .lows
+            .iter()
+            .cloned()
+            .min()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if low_n.is_zero() {
             return Ok(SignalValue::Scalar(Decimal::ZERO));
@@ -72,8 +92,12 @@ impl Signal for HighLowPct {
         Ok(SignalValue::Scalar(pct))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.highs.clear();
@@ -94,7 +118,10 @@ mod tests {
         let cp = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -102,7 +129,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hl(c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hl(c, c)
+    }
 
     #[test]
     fn test_hlp_invalid() {
@@ -113,7 +142,10 @@ mod tests {
     fn test_hlp_unavailable_before_warmup() {
         let mut h = HighLowPct::new("h", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(h.update_bar(&bar_hl("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                h.update_bar(&bar_hl("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -122,10 +154,14 @@ mod tests {
         // H=L=100 every bar → range = 0 → pct = 0
         let mut h = HighLowPct::new("h", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = h.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            last = h.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -133,28 +169,38 @@ mod tests {
         // high_n = 110, low_n = 90 → pct = (110-90)/90 × 100 ≈ 22.22
         let mut h = HighLowPct::new("h", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = h.update_bar(&bar_hl("110", "90")).unwrap(); }
+        for _ in 0..5 {
+            last = h.update_bar(&bar_hl("110", "90")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             let expected = (dec!(110) - dec!(90)) / dec!(90) * dec!(100);
             let diff = (v - expected).abs();
             assert!(diff < dec!(0.001), "expected {expected}, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_hlp_positive() {
         let mut h = HighLowPct::new("h", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = h.update_bar(&bar_hl("115", "85")).unwrap(); }
+        for _ in 0..5 {
+            last = h.update_bar(&bar_hl("115", "85")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(0), "expected positive, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_hlp_reset() {
         let mut h = HighLowPct::new("h", 3).unwrap();
-        for _ in 0..5 { h.update_bar(&bar_hl("110", "90")).unwrap(); }
+        for _ in 0..5 {
+            h.update_bar(&bar_hl("110", "90")).unwrap();
+        }
         assert!(h.is_ready());
         h.reset();
         assert!(!h.is_ready());

@@ -43,7 +43,11 @@ impl SuperTrend {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
-    pub fn new(name: impl Into<String>, period: usize, multiplier: Decimal) -> Result<Self, FinError> {
+    pub fn new(
+        name: impl Into<String>,
+        period: usize,
+        multiplier: Decimal,
+    ) -> Result<Self, FinError> {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
@@ -91,7 +95,9 @@ impl SuperTrend {
             tr_sum += tr;
             count += 1;
         }
-        if count == 0 { return Decimal::ZERO; }
+        if count == 0 {
+            return Decimal::ZERO;
+        }
         tr_sum / Decimal::from(count)
     }
 }
@@ -132,7 +138,11 @@ impl Signal for SuperTrend {
 
         let prev_trend = self.trend.unwrap_or(1);
         let new_trend = if prev_trend == 1 {
-            if bar.close < new_lower { -1i8 } else { 1i8 }
+            if bar.close < new_lower {
+                -1i8
+            } else {
+                1i8
+            }
         } else if bar.close > new_upper {
             1i8
         } else {
@@ -143,7 +153,11 @@ impl Signal for SuperTrend {
         self.final_lower = Some(new_lower);
         self.trend = Some(new_trend);
 
-        let signal_val = if new_trend == 1 { Decimal::ONE } else { -Decimal::ONE };
+        let signal_val = if new_trend == 1 {
+            Decimal::ONE
+        } else {
+            -Decimal::ONE
+        };
         Ok(SignalValue::Scalar(signal_val))
     }
 
@@ -177,7 +191,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -193,7 +210,10 @@ mod tests {
     #[test]
     fn test_st_unavailable_before_period() {
         let mut st = SuperTrend::new("st", 3, dec!(3)).unwrap();
-        assert_eq!(st.update_bar(&bar("105", "95", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            st.update_bar(&bar("105", "95", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!st.is_ready());
     }
 
@@ -224,14 +244,18 @@ mod tests {
     #[test]
     fn test_st_trend_line_present_when_ready() {
         let mut st = SuperTrend::new("st", 3, dec!(3)).unwrap();
-        for _ in 0..5 { st.update_bar(&bar("105", "95", "100")).unwrap(); }
+        for _ in 0..5 {
+            st.update_bar(&bar("105", "95", "100")).unwrap();
+        }
         assert!(st.trend_line().is_some());
     }
 
     #[test]
     fn test_st_reset() {
         let mut st = SuperTrend::new("st", 3, dec!(3)).unwrap();
-        for _ in 0..5 { st.update_bar(&bar("105", "95", "100")).unwrap(); }
+        for _ in 0..5 {
+            st.update_bar(&bar("105", "95", "100")).unwrap();
+        }
         assert!(st.is_ready());
         st.reset();
         assert!(!st.is_ready());

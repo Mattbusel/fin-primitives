@@ -70,17 +70,26 @@ impl SignalMap {
 
     /// Returns the number of signals in this map that produced a `Scalar` (i.e. are available).
     pub fn count_available(&self) -> usize {
-        self.values.values().filter(|v| matches!(v, SignalValue::Scalar(_))).count()
+        self.values
+            .values()
+            .filter(|v| matches!(v, SignalValue::Scalar(_)))
+            .count()
     }
 
     /// Returns `true` if every signal in this map has produced a `Scalar` value (none are `Unavailable`).
     pub fn all_available(&self) -> bool {
-        !self.values.is_empty() && self.values.values().all(|v| matches!(v, SignalValue::Scalar(_)))
+        !self.values.is_empty()
+            && self
+                .values
+                .values()
+                .all(|v| matches!(v, SignalValue::Scalar(_)))
     }
 
     /// Returns `true` if at least one signal in this map is `Unavailable`.
     pub fn any_unavailable(&self) -> bool {
-        self.values.values().any(|v| matches!(v, SignalValue::Unavailable))
+        self.values
+            .values()
+            .any(|v| matches!(v, SignalValue::Unavailable))
     }
 
     /// Returns an iterator over `(name, Decimal)` for every signal that produced a `Scalar` value.
@@ -131,7 +140,11 @@ impl SignalMap {
             sum += v;
             count += 1;
         }
-        if count == 0 { None } else { Some(sum / Decimal::from(count)) }
+        if count == 0 {
+            None
+        } else {
+            Some(sum / Decimal::from(count))
+        }
     }
 
     /// Returns names of all signals whose scalar value strictly exceeds `threshold`.
@@ -181,7 +194,9 @@ impl SignalMap {
     pub fn percentile_rank_of(&self, name: &str) -> Option<Decimal> {
         let target = self.get_scalar(name)?;
         let mut all: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
-        if all.is_empty() { return None; }
+        if all.is_empty() {
+            return None;
+        }
         all.sort();
         let below = all.iter().filter(|&&v| v < target).count();
         #[allow(clippy::cast_possible_truncation)]
@@ -228,23 +243,29 @@ impl SignalMap {
     /// value is strictly greater than `threshold`.
     ///
     /// Signals that are `Unavailable` or whose value does not exceed the threshold are excluded.
-    pub fn filter_scalars_above(&self, threshold: Decimal) -> std::collections::HashMap<&str, Decimal> {
-        self.scalars()
-            .filter(|(_, v)| *v > threshold)
-            .collect()
+    pub fn filter_scalars_above(
+        &self,
+        threshold: Decimal,
+    ) -> std::collections::HashMap<&str, Decimal> {
+        self.scalars().filter(|(_, v)| *v > threshold).collect()
     }
 
     /// Returns a `HashMap` of signal names to scalar values for all signals whose scalar
     /// value is strictly less than `threshold`.
-    pub fn filter_scalars_below(&self, threshold: Decimal) -> std::collections::HashMap<&str, Decimal> {
-        self.scalars()
-            .filter(|(_, v)| *v < threshold)
-            .collect()
+    pub fn filter_scalars_below(
+        &self,
+        threshold: Decimal,
+    ) -> std::collections::HashMap<&str, Decimal> {
+        self.scalars().filter(|(_, v)| *v < threshold).collect()
     }
 
     /// Returns a `HashMap` of signal names to scalar values for signals whose value
     /// falls within `[lo, hi]` (inclusive on both ends).
-    pub fn scalars_in_range(&self, lo: Decimal, hi: Decimal) -> std::collections::HashMap<&str, Decimal> {
+    pub fn scalars_in_range(
+        &self,
+        lo: Decimal,
+        hi: Decimal,
+    ) -> std::collections::HashMap<&str, Decimal> {
         self.scalars()
             .filter(|(_, v)| *v >= lo && *v <= hi)
             .collect()
@@ -287,10 +308,14 @@ impl SignalMap {
         }
         let n = Decimal::from(vals.len() as u64);
         let mean = vals.iter().sum::<Decimal>() / n;
-        let variance = vals.iter().map(|v| {
-            let diff = v - mean;
-            diff * diff
-        }).sum::<Decimal>() / n;
+        let variance = vals
+            .iter()
+            .map(|v| {
+                let diff = v - mean;
+                diff * diff
+            })
+            .sum::<Decimal>()
+            / n;
         // Approximate sqrt via f64
         use rust_decimal::prelude::ToPrimitive;
         let var_f = variance.to_f64()?;
@@ -334,7 +359,10 @@ impl SignalMap {
     ///
     /// Only signals present in both the map and `weights` contribute. Signals with
     /// non-positive or zero weight are skipped. Returns `None` if total weight is zero.
-    pub fn weighted_average(&self, weights: &std::collections::HashMap<&str, Decimal>) -> Option<Decimal> {
+    pub fn weighted_average(
+        &self,
+        weights: &std::collections::HashMap<&str, Decimal>,
+    ) -> Option<Decimal> {
         let mut numerator = Decimal::ZERO;
         let mut denominator = Decimal::ZERO;
         for (name, value) in self.scalars() {
@@ -345,7 +373,11 @@ impl SignalMap {
                 }
             }
         }
-        if denominator.is_zero() { None } else { Some(numerator / denominator) }
+        if denominator.is_zero() {
+            None
+        } else {
+            Some(numerator / denominator)
+        }
     }
 
     /// Returns the bottom `n` scalar signals by value, sorted ascending.
@@ -380,17 +412,30 @@ impl SignalMap {
             return HashMap::new();
         }
         use rust_decimal::prelude::ToPrimitive;
-        let floats: Vec<f64> = pairs.iter()
+        let floats: Vec<f64> = pairs
+            .iter()
             .map(|(_, v)| v.to_f64().unwrap_or(0.0))
             .collect();
         let n = floats.len() as f64;
         let mean = floats.iter().sum::<f64>() / n;
-        let variance = floats.iter().map(|&x| { let d = x - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let variance = floats
+            .iter()
+            .map(|&x| {
+                let d = x - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         let std_dev = variance.sqrt();
         if std_dev == 0.0 {
-            return pairs.into_iter().map(|(name, _)| (name.to_string(), 0.0)).collect();
+            return pairs
+                .into_iter()
+                .map(|(name, _)| (name.to_string(), 0.0))
+                .collect();
         }
-        pairs.into_iter().zip(floats)
+        pairs
+            .into_iter()
+            .zip(floats)
             .map(|((name, _), x)| (name.to_string(), (x - mean) / std_dev))
             .collect()
     }
@@ -408,12 +453,17 @@ impl SignalMap {
     /// Returns an empty map if there are fewer than 2 scalars or all values are equal.
     pub fn normalize_all(&self) -> HashMap<String, Decimal> {
         let pairs: Vec<(&str, Decimal)> = self.scalars().collect();
-        if pairs.len() < 2 { return HashMap::new(); }
+        if pairs.len() < 2 {
+            return HashMap::new();
+        }
         let min = pairs.iter().map(|(_, v)| *v).min().unwrap_or(Decimal::ZERO);
         let max = pairs.iter().map(|(_, v)| *v).max().unwrap_or(Decimal::ZERO);
         let range = max - min;
-        if range.is_zero() { return HashMap::new(); }
-        pairs.into_iter()
+        if range.is_zero() {
+            return HashMap::new();
+        }
+        pairs
+            .into_iter()
             .map(|(name, v)| (name.to_string(), (v - min) / range))
             .collect()
     }
@@ -428,10 +478,19 @@ impl SignalMap {
     /// Returns `None` if there are fewer than 2 scalars.
     pub fn variance(&self) -> Option<Decimal> {
         let vals: Vec<Decimal> = self.scalars().map(|(_, v)| v).collect();
-        if vals.len() < 2 { return None; }
+        if vals.len() < 2 {
+            return None;
+        }
         let n = Decimal::from(vals.len() as u32);
         let mean = vals.iter().sum::<Decimal>() / n;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<Decimal>() / n;
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<Decimal>()
+            / n;
         Some(var)
     }
 
@@ -453,7 +512,9 @@ impl SignalMap {
         let mut has_scalars = false;
         for (_, v) in self.scalars() {
             has_scalars = true;
-            if v <= Decimal::ZERO { return false; }
+            if v <= Decimal::ZERO {
+                return false;
+            }
         }
         has_scalars
     }
@@ -463,7 +524,9 @@ impl SignalMap {
         let mut has_scalars = false;
         for (_, v) in self.scalars() {
             has_scalars = true;
-            if v >= Decimal::ZERO { return false; }
+            if v >= Decimal::ZERO {
+                return false;
+            }
         }
         has_scalars
     }
@@ -480,7 +543,9 @@ impl SignalMap {
 
     /// All scalar values as a `HashMap<String, Decimal>` (Unavailable entries excluded).
     pub fn remove_unavailable(&self) -> HashMap<String, Decimal> {
-        self.scalars().map(|(name, v)| (name.to_string(), v)).collect()
+        self.scalars()
+            .map(|(name, v)| (name.to_string(), v))
+            .collect()
     }
 
     /// Ratio of two named scalar signals: `a / b`.
@@ -489,7 +554,9 @@ impl SignalMap {
     pub fn signal_ratio(&self, a: &str, b: &str) -> Option<Decimal> {
         let va = self.get_scalar(a)?;
         let vb = self.get_scalar(b)?;
-        if vb.is_zero() { return None; }
+        if vb.is_zero() {
+            return None;
+        }
         Some(va / vb)
     }
 
@@ -499,7 +566,9 @@ impl SignalMap {
     pub fn spread_pct(&self) -> Option<Decimal> {
         let (_, min) = self.min_scalar()?;
         let (_, max) = self.max_scalar()?;
-        if min.is_zero() { return None; }
+        if min.is_zero() {
+            return None;
+        }
         Some((max - min) / min.abs() * Decimal::ONE_HUNDRED)
     }
 
@@ -514,7 +583,9 @@ impl SignalMap {
 
     /// Multiply all scalar values by `factor`, returning a new `HashMap`.
     pub fn scale_all(&self, factor: Decimal) -> HashMap<String, Decimal> {
-        self.scalars().map(|(name, v)| (name.to_string(), v * factor)).collect()
+        self.scalars()
+            .map(|(name, v)| (name.to_string(), v * factor))
+            .collect()
     }
 
     /// Shannon entropy (bits) of the scalar distribution, treating each value's share of the
@@ -522,15 +593,24 @@ impl SignalMap {
     /// total is zero.
     pub fn entropy(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        let vals: Vec<f64> = self.scalars()
+        let vals: Vec<f64> = self
+            .scalars()
             .map(|(_, v)| v.abs().to_f64().unwrap_or(0.0))
             .collect();
-        if vals.len() < 2 { return None; }
+        if vals.len() < 2 {
+            return None;
+        }
         let total: f64 = vals.iter().sum();
-        if total == 0.0 { return None; }
-        let entropy = vals.iter()
+        if total == 0.0 {
+            return None;
+        }
+        let entropy = vals
+            .iter()
             .filter(|&&x| x > 0.0)
-            .map(|&x| { let p = x / total; -p * p.log2() })
+            .map(|&x| {
+                let p = x / total;
+                -p * p.log2()
+            })
             .sum::<f64>();
         Some(entropy)
     }
@@ -539,15 +619,22 @@ impl SignalMap {
     /// concentration. Returns `None` if there are fewer than 2 scalars.
     pub fn gini_coefficient(&self) -> Option<f64> {
         use rust_decimal::prelude::ToPrimitive;
-        let mut vals: Vec<f64> = self.scalars()
+        let mut vals: Vec<f64> = self
+            .scalars()
             .map(|(_, v)| v.abs().to_f64().unwrap_or(0.0))
             .collect();
-        if vals.len() < 2 { return None; }
+        if vals.len() < 2 {
+            return None;
+        }
         vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let n = vals.len() as f64;
         let total: f64 = vals.iter().sum();
-        if total == 0.0 { return Some(0.0); }
-        let numerator: f64 = vals.iter().enumerate()
+        if total == 0.0 {
+            return Some(0.0);
+        }
+        let numerator: f64 = vals
+            .iter()
+            .enumerate()
             .map(|(i, &x)| (2.0 * (i as f64 + 1.0) - n - 1.0) * x)
             .sum();
         Some(numerator / (n * total))
@@ -721,7 +808,10 @@ impl SignalPipeline {
 
     /// Returns the `(name, period)` pairs for every registered signal, in insertion order.
     pub fn signal_periods(&self) -> Vec<(&str, usize)> {
-        self.signals.iter().map(|s| (s.name(), s.period())).collect()
+        self.signals
+            .iter()
+            .map(|s| (s.name(), s.period()))
+            .collect()
     }
 
     /// Returns the names of all registered signals in insertion order.
@@ -779,7 +869,6 @@ impl SignalPipeline {
         }
         self.ready_count() as f64 / self.signals.len() as f64
     }
-
 }
 
 impl Default for SignalPipeline {
@@ -1306,7 +1395,10 @@ mod tests {
         p.reset_all();
         // After reset, the SMA needs 3 bars again
         let map = p.update(&bar("100"));
-        assert!(matches!(map.get("s3"), Some(crate::signals::SignalValue::Unavailable)));
+        assert!(matches!(
+            map.get("s3"),
+            Some(crate::signals::SignalValue::Unavailable)
+        ));
     }
 
     #[test]

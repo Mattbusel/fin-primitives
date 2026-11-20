@@ -5,8 +5,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use std::collections::VecDeque;
 use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Gap Volatility — rolling standard deviation of `(open - prev_close) / prev_close × 100`.
 ///
@@ -59,9 +59,15 @@ impl GapVolatility {
 }
 
 impl Signal for GapVolatility {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -115,7 +121,10 @@ mod tests {
         let low = if cp < op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high, low, close: cp,
+            open: op,
+            high,
+            low,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -158,7 +167,7 @@ mod tests {
         let mut gv = GapVolatility::new("gv", 3).unwrap();
         gv.update_bar(&bar("100", "100")).unwrap();
         gv.update_bar(&bar("105", "103")).unwrap(); // gap +5%
-        gv.update_bar(&bar("98", "102")).unwrap();  // gap -4.85%
+        gv.update_bar(&bar("98", "102")).unwrap(); // gap -4.85%
         if let SignalValue::Scalar(v) = gv.update_bar(&bar("110", "108")).unwrap() {
             // gap +7.84%; std of [5, -4.85, 7.84] > 0
             assert!(v > dec!(0), "varied gaps → positive std dev: {v}");

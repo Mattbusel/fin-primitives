@@ -1,10 +1,10 @@
 //! Typical Price Deviation indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling standard deviation of typical price `(high + low + close) / 3`.
 ///
@@ -21,7 +21,10 @@ impl TypicalPriceDeviation {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -36,16 +39,21 @@ impl Signal for TypicalPriceDeviation {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vals: Vec<f64> = self.window.iter()
-            .filter_map(|v| v.to_f64())
-            .collect();
+        let vals: Vec<f64> = self.window.iter().filter_map(|v| v.to_f64()).collect();
         if vals.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
         let n = vals.len() as f64;
         let mean = vals.iter().sum::<f64>() / n;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / (n - 1.0);
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / (n - 1.0);
         let std_dev = var.sqrt();
 
         match Decimal::from_f64_retain(std_dev) {
@@ -54,10 +62,18 @@ impl Signal for TypicalPriceDeviation {
         }
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.window.clear(); }
-    fn name(&self) -> &str { "TypicalPriceDeviation" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "TypicalPriceDeviation"
+    }
 }
 
 #[cfg(test)]
@@ -78,8 +94,14 @@ mod tests {
     #[test]
     fn test_typical_price_deviation_not_ready() {
         let mut sig = TypicalPriceDeviation::new(3).unwrap();
-        assert_eq!(sig.update(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(sig.update(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sig.update(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            sig.update(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

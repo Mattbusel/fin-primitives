@@ -39,7 +39,9 @@ impl PriceCompression {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,13 +51,19 @@ impl PriceCompression {
 }
 
 impl Signal for PriceCompression {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
         self.ranges.push_back(range);
-        if self.ranges.len() > self.period { self.ranges.pop_front(); }
-        if self.ranges.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.ranges.len() > self.period {
+            self.ranges.pop_front();
+        }
+        if self.ranges.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.ranges.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         if avg.is_zero() {
@@ -64,8 +72,12 @@ impl Signal for PriceCompression {
         Ok(SignalValue::Scalar(range / avg))
     }
 
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.ranges.clear();
@@ -84,7 +96,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: lp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: lp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -101,7 +116,10 @@ mod tests {
     fn test_pc_unavailable_before_warmup() {
         let mut p = PriceCompression::new("p", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(p.update_bar(&bar_hl("105", "95")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                p.update_bar(&bar_hl("105", "95")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -110,10 +128,14 @@ mod tests {
         // All bars same range → current range = avg → compression = 1
         let mut p = PriceCompression::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..5 { last = p.update_bar(&bar_hl("110", "90")).unwrap(); }
+        for _ in 0..5 {
+            last = p.update_bar(&bar_hl("110", "90")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -125,7 +147,9 @@ mod tests {
         if let SignalValue::Scalar(v) = p.update_bar(&bar_hl("102", "100")).unwrap() {
             // range=2, avg=(40+40+2)/3=27.33 → comp=2/27.33≈0.073
             assert!(v < dec!(1), "expected < 1, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -137,13 +161,17 @@ mod tests {
         if let SignalValue::Scalar(v) = p.update_bar(&bar_hl("120", "80")).unwrap() {
             // range=40, avg=(2+2+40)/3=14.67 → comp≈2.73
             assert!(v > dec!(1), "expected > 1, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pc_reset() {
         let mut p = PriceCompression::new("p", 3).unwrap();
-        for _ in 0..5 { p.update_bar(&bar_hl("105", "95")).unwrap(); }
+        for _ in 0..5 {
+            p.update_bar(&bar_hl("105", "95")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

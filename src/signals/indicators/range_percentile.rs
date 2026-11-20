@@ -42,7 +42,11 @@ impl RangePercentile {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, ranges: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ranges: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -99,7 +103,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,13 +116,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(RangePercentile::new("rp", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            RangePercentile::new("rp", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut rp = RangePercentile::new("rp", 3).unwrap();
-        assert_eq!(rp.update_bar(&bar("12", "10")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rp.update_bar(&bar("12", "10")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -124,7 +137,7 @@ mod tests {
         rp.update_bar(&bar("11", "10")).unwrap(); // range=1
         rp.update_bar(&bar("12", "10")).unwrap(); // range=2
         rp.update_bar(&bar("13", "10")).unwrap(); // range=3
-        // 4th bar: range=5 → 3 strictly below → 3/3 = 1
+                                                  // 4th bar: range=5 → 3 strictly below → 3/3 = 1
         let v = rp.update_bar(&bar("15", "10")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
@@ -135,7 +148,7 @@ mod tests {
         rp.update_bar(&bar("15", "10")).unwrap(); // range=5
         rp.update_bar(&bar("14", "10")).unwrap(); // range=4
         rp.update_bar(&bar("13", "10")).unwrap(); // range=3
-        // 4th bar: range=1 → 0 strictly below → 0/3 = 0
+                                                  // 4th bar: range=1 → 0 strictly below → 0/3 = 0
         let v = rp.update_bar(&bar("11", "10")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }

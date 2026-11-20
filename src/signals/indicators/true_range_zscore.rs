@@ -57,9 +57,15 @@ impl TrueRangeZScore {
 }
 
 impl Signal for TrueRangeZScore {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -70,7 +76,10 @@ impl Signal for TrueRangeZScore {
         self.window.push_back(tr);
 
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
             self.sum_sq -= removed * removed;
         }
@@ -80,12 +89,14 @@ impl Signal for TrueRangeZScore {
         }
 
         let n = Decimal::from(self.period as u32);
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(n)
             .ok_or(FinError::ArithmeticOverflow)?;
 
         // population variance = E[x^2] - (E[x])^2
-        let mean_sq = self.sum_sq
+        let mean_sq = self
+            .sum_sq
             .checked_div(n)
             .ok_or(FinError::ArithmeticOverflow)?;
         let variance = (mean_sq - mean * mean).max(Decimal::ZERO);
@@ -127,7 +138,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -144,8 +158,14 @@ mod tests {
     #[test]
     fn test_trz_unavailable_during_warmup() {
         let mut s = TrueRangeZScore::new("trz", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("105","95","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("106","94","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("105", "95", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("106", "94", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -153,16 +173,16 @@ mod tests {
     fn test_trz_large_bar_gives_positive_z() {
         // 3 bars with range ~10, then a spike bar with range ~50 → z >> 0
         let mut s = TrueRangeZScore::new("trz", 3).unwrap();
-        s.update_bar(&bar("105","95","100")).unwrap();  // TR=10
-        s.update_bar(&bar("106","96","101")).unwrap();  // TR=10
-        s.update_bar(&bar("107","97","102")).unwrap();  // TR=10 → mean=10, std≈0
-        // std=0 → Unavailable for uniform TR; use varying TRs for the window
+        s.update_bar(&bar("105", "95", "100")).unwrap(); // TR=10
+        s.update_bar(&bar("106", "96", "101")).unwrap(); // TR=10
+        s.update_bar(&bar("107", "97", "102")).unwrap(); // TR=10 → mean=10, std≈0
+                                                         // std=0 → Unavailable for uniform TR; use varying TRs for the window
         let mut s2 = TrueRangeZScore::new("trz", 3).unwrap();
-        s2.update_bar(&bar("105","95","100")).unwrap();  // TR=10
-        s2.update_bar(&bar("108","94","101")).unwrap();  // TR=14
-        s2.update_bar(&bar("106","98","102")).unwrap();  // TR=8
-        // Now a large spike bar
-        if let SignalValue::Scalar(z) = s2.update_bar(&bar("130","80","100")).unwrap() {
+        s2.update_bar(&bar("105", "95", "100")).unwrap(); // TR=10
+        s2.update_bar(&bar("108", "94", "101")).unwrap(); // TR=14
+        s2.update_bar(&bar("106", "98", "102")).unwrap(); // TR=8
+                                                          // Now a large spike bar
+        if let SignalValue::Scalar(z) = s2.update_bar(&bar("130", "80", "100")).unwrap() {
             // TR=50, mean of window=[14,8,50]=24, big z expected
             assert!(z > dec!(0), "large spike bar gives positive z: {z}");
         } else {
@@ -174,9 +194,9 @@ mod tests {
     fn test_trz_small_bar_gives_negative_z() {
         // 3 bars with range ~20, then a tiny bar → z < 0
         let mut s = TrueRangeZScore::new("trz", 3).unwrap();
-        s.update_bar(&bar("110","90","100")).unwrap();   // TR=20
-        s.update_bar(&bar("115","85","100")).unwrap();   // TR=30
-        if let SignalValue::Scalar(z) = s.update_bar(&bar("102","98","100")).unwrap() {
+        s.update_bar(&bar("110", "90", "100")).unwrap(); // TR=20
+        s.update_bar(&bar("115", "85", "100")).unwrap(); // TR=30
+        if let SignalValue::Scalar(z) = s.update_bar(&bar("102", "98", "100")).unwrap() {
             // TR=4, mean of [20,30,4]≈18, z < 0
             assert!(z < dec!(0), "tiny bar gives negative z: {z}");
         } else {
@@ -187,7 +207,11 @@ mod tests {
     #[test]
     fn test_trz_reset() {
         let mut s = TrueRangeZScore::new("trz", 3).unwrap();
-        for (h, l, c) in &[("110","90","100"),("115","85","105"),("112","92","108")] {
+        for (h, l, c) in &[
+            ("110", "90", "100"),
+            ("115", "85", "105"),
+            ("112", "92", "108"),
+        ] {
             s.update_bar(&bar(h, l, c)).unwrap();
         }
         assert!(s.is_ready());

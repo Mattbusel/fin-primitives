@@ -123,16 +123,28 @@ impl EventStudy {
             .sum();
 
         // Peak and trough by CAR value
-        let (peak_day, trough_day) = abnormal_returns.iter().fold(
-            (0i32, 0i32),
-            |(peak_d, trough_d), ar| {
-                let peak_car = abnormal_returns.iter().find(|x| x.day == peak_d).map(|x| x.car).unwrap_or(0.0);
-                let trough_car = abnormal_returns.iter().find(|x| x.day == trough_d).map(|x| x.car).unwrap_or(0.0);
-                let new_peak = if ar.car > peak_car { ar.day } else { peak_d };
-                let new_trough = if ar.car < trough_car { ar.day } else { trough_d };
-                (new_peak, new_trough)
-            },
-        );
+        let (peak_day, trough_day) =
+            abnormal_returns
+                .iter()
+                .fold((0i32, 0i32), |(peak_d, trough_d), ar| {
+                    let peak_car = abnormal_returns
+                        .iter()
+                        .find(|x| x.day == peak_d)
+                        .map(|x| x.car)
+                        .unwrap_or(0.0);
+                    let trough_car = abnormal_returns
+                        .iter()
+                        .find(|x| x.day == trough_d)
+                        .map(|x| x.car)
+                        .unwrap_or(0.0);
+                    let new_peak = if ar.car > peak_car { ar.day } else { peak_d };
+                    let new_trough = if ar.car < trough_car {
+                        ar.day
+                    } else {
+                        trough_d
+                    };
+                    (new_peak, new_trough)
+                });
 
         EventResult {
             event: event.clone(),
@@ -160,7 +172,11 @@ impl EventStudy {
         }
         let cars: Vec<f64> = results
             .iter()
-            .map(|r| r.abnormal_returns.last().map_or(r.car_pre + r.car_post, |a| a.car))
+            .map(|r| {
+                r.abnormal_returns
+                    .last()
+                    .map_or(r.car_pre + r.car_post, |a| a.car)
+            })
             .collect();
         let mean = cars.iter().sum::<f64>() / n as f64;
         let variance = cars.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
@@ -176,7 +192,10 @@ impl EventStudy {
 ///
 /// Day 0 is the day whose timestamp is closest to (and not before) `event_date`.
 /// Each subsequent index represents one calendar-day step in the series.
-fn daily_log_returns(series: &[(u64, f64)], event_date: u64) -> std::collections::HashMap<i32, f64> {
+fn daily_log_returns(
+    series: &[(u64, f64)],
+    event_date: u64,
+) -> std::collections::HashMap<i32, f64> {
     use std::collections::HashMap;
 
     if series.len() < 2 {
@@ -245,7 +264,10 @@ mod tests {
         let bench = synthetic_prices(30, 15, 0.0005, 0.003);
         let event_ts = prices[15].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -5, post_days: 5 };
+        let window = EventWindow {
+            pre_days: -5,
+            post_days: 5,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         assert_eq!(result.abnormal_returns.len(), 11); // -5..=+5 inclusive
     }
@@ -256,21 +278,34 @@ mod tests {
         let bench = synthetic_prices(20, 10, 0.001, 0.003); // same → zero AR
         let event_ts = prices[10].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -3, post_days: 3 };
+        let window = EventWindow {
+            pre_days: -3,
+            post_days: 3,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         // When security == benchmark, all ARs ≈ 0, CARs ≈ 0
         for ar in &result.abnormal_returns {
-            assert!(ar.car.abs() < 1e-10, "CAR should be ~0 when security==benchmark");
+            assert!(
+                ar.car.abs() < 1e-10,
+                "CAR should be ~0 when security==benchmark"
+            );
         }
     }
 
     #[test]
     fn test_abnormal_return_equals_raw_minus_expected() {
-        let prices: Vec<(u64, f64)> = (0..20u64).map(|i| (1_000_000 + i * 86_400, 100.0 + i as f64)).collect();
-        let bench: Vec<(u64, f64)>  = (0..20u64).map(|i| (1_000_000 + i * 86_400, 100.0 + i as f64 * 0.5)).collect();
+        let prices: Vec<(u64, f64)> = (0..20u64)
+            .map(|i| (1_000_000 + i * 86_400, 100.0 + i as f64))
+            .collect();
+        let bench: Vec<(u64, f64)> = (0..20u64)
+            .map(|i| (1_000_000 + i * 86_400, 100.0 + i as f64 * 0.5))
+            .collect();
         let event_ts = 1_000_000 + 10 * 86_400;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -2, post_days: 2 };
+        let window = EventWindow {
+            pre_days: -2,
+            post_days: 2,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         for ar in &result.abnormal_returns {
             let diff = (ar.raw_return - ar.expected_return - ar.abnormal_return).abs();
@@ -284,13 +319,20 @@ mod tests {
         let bench = synthetic_prices(25, 12, 0.001, 0.002);
         let event_ts = prices[12].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -5, post_days: 5 };
+        let window = EventWindow {
+            pre_days: -5,
+            post_days: 5,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         // CAR should equal sum of prior ARs
         let mut running = 0.0f64;
         for ar in &result.abnormal_returns {
             running += ar.abnormal_return;
-            assert!((ar.car - running).abs() < 1e-12, "CAR mismatch at day {}", ar.day);
+            assert!(
+                (ar.car - running).abs() < 1e-12,
+                "CAR mismatch at day {}",
+                ar.day
+            );
         }
     }
 
@@ -300,13 +342,20 @@ mod tests {
         let bench = synthetic_prices(25, 12, 0.0005, 0.001);
         let event_ts = prices[12].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -5, post_days: 5 };
+        let window = EventWindow {
+            pre_days: -5,
+            post_days: 5,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
-        let manual_pre: f64 = result.abnormal_returns.iter()
+        let manual_pre: f64 = result
+            .abnormal_returns
+            .iter()
             .filter(|ar| ar.day >= -5 && ar.day < 0)
             .map(|ar| ar.abnormal_return)
             .sum();
-        let manual_post: f64 = result.abnormal_returns.iter()
+        let manual_post: f64 = result
+            .abnormal_returns
+            .iter()
             .filter(|ar| ar.day >= 1 && ar.day <= 5)
             .map(|ar| ar.abnormal_return)
             .sum();
@@ -320,10 +369,22 @@ mod tests {
         let bench = synthetic_prices(25, 12, 0.001, 0.001);
         let event_ts = prices[12].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -5, post_days: 5 };
+        let window = EventWindow {
+            pre_days: -5,
+            post_days: 5,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
-        let max_car = result.abnormal_returns.iter().map(|ar| ar.car).fold(f64::NEG_INFINITY, f64::max);
-        let peak_car = result.abnormal_returns.iter().find(|ar| ar.day == result.peak_day).map(|ar| ar.car).unwrap_or(0.0);
+        let max_car = result
+            .abnormal_returns
+            .iter()
+            .map(|ar| ar.car)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let peak_car = result
+            .abnormal_returns
+            .iter()
+            .find(|ar| ar.day == result.peak_day)
+            .map(|ar| ar.car)
+            .unwrap_or(0.0);
         assert!((peak_car - max_car).abs() < 1e-12);
     }
 
@@ -333,10 +394,22 @@ mod tests {
         let bench = synthetic_prices(25, 12, 0.001, 0.001);
         let event_ts = prices[12].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -5, post_days: 5 };
+        let window = EventWindow {
+            pre_days: -5,
+            post_days: 5,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
-        let min_car = result.abnormal_returns.iter().map(|ar| ar.car).fold(f64::INFINITY, f64::min);
-        let trough_car = result.abnormal_returns.iter().find(|ar| ar.day == result.trough_day).map(|ar| ar.car).unwrap_or(0.0);
+        let min_car = result
+            .abnormal_returns
+            .iter()
+            .map(|ar| ar.car)
+            .fold(f64::INFINITY, f64::min);
+        let trough_car = result
+            .abnormal_returns
+            .iter()
+            .find(|ar| ar.day == result.trough_day)
+            .map(|ar| ar.car)
+            .unwrap_or(0.0);
         assert!((trough_car - min_car).abs() < 1e-12);
     }
 
@@ -345,7 +418,10 @@ mod tests {
         let event = make_event(1_000_000);
         let prices = synthetic_prices(20, 10, 0.001, 0.002);
         let bench = synthetic_prices(20, 10, 0.001, 0.002);
-        let window = EventWindow { pre_days: -3, post_days: 3 };
+        let window = EventWindow {
+            pre_days: -3,
+            post_days: 3,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         assert_eq!(EventStudy::significance(&[result]), 0.0);
         assert_eq!(EventStudy::significance(&[]), 0.0);
@@ -358,18 +434,34 @@ mod tests {
             // Security consistently outperforms benchmark, by a different margin per
             // event (identical events would have zero CAR dispersion and no t-stat).
             let prices: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.01f64 + 0.002 * i as f64).powi(j as i32)))
+                .map(|j| {
+                    (
+                        1_000_000 + i * 1_000_000 + j * 86_400,
+                        100.0 * (1.01f64 + 0.002 * i as f64).powi(j as i32),
+                    )
+                })
                 .collect();
             let bench: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.005f64).powi(j as i32)))
+                .map(|j| {
+                    (
+                        1_000_000 + i * 1_000_000 + j * 86_400,
+                        100.0 * (1.005f64).powi(j as i32),
+                    )
+                })
                 .collect();
             let event_ts = 1_000_000 + i * 1_000_000 + 10 * 86_400;
             let event = make_event(event_ts);
-            let window = EventWindow { pre_days: -3, post_days: 3 };
+            let window = EventWindow {
+                pre_days: -3,
+                post_days: 3,
+            };
             results.push(EventStudy::compute(&event, &prices, &bench, window));
         }
         let t = EventStudy::significance(&results);
-        assert!(t > 0.0, "t-statistic should be positive when CAR is consistently positive");
+        assert!(
+            t > 0.0,
+            "t-statistic should be positive when CAR is consistently positive"
+        );
     }
 
     #[test]
@@ -379,18 +471,34 @@ mod tests {
             // Security consistently underperforms benchmark, by a different margin per
             // event (identical events would have zero CAR dispersion and no t-stat).
             let prices: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (0.99f64 - 0.002 * i as f64).powi(j as i32)))
+                .map(|j| {
+                    (
+                        1_000_000 + i * 1_000_000 + j * 86_400,
+                        100.0 * (0.99f64 - 0.002 * i as f64).powi(j as i32),
+                    )
+                })
                 .collect();
             let bench: Vec<(u64, f64)> = (0..20u64)
-                .map(|j| (1_000_000 + i * 1_000_000 + j * 86_400, 100.0 * (1.005f64).powi(j as i32)))
+                .map(|j| {
+                    (
+                        1_000_000 + i * 1_000_000 + j * 86_400,
+                        100.0 * (1.005f64).powi(j as i32),
+                    )
+                })
                 .collect();
             let event_ts = 1_000_000 + i * 1_000_000 + 10 * 86_400;
             let event = make_event(event_ts);
-            let window = EventWindow { pre_days: -3, post_days: 3 };
+            let window = EventWindow {
+                pre_days: -3,
+                post_days: 3,
+            };
             results.push(EventStudy::compute(&event, &prices, &bench, window));
         }
         let t = EventStudy::significance(&results);
-        assert!(t < 0.0, "t-statistic should be negative when CAR is consistently negative");
+        assert!(
+            t < 0.0,
+            "t-statistic should be negative when CAR is consistently negative"
+        );
     }
 
     #[test]
@@ -399,7 +507,10 @@ mod tests {
         let bench = synthetic_prices(30, 15, 0.001, 0.002);
         let event_ts = prices[15].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -10, post_days: 10 };
+        let window = EventWindow {
+            pre_days: -10,
+            post_days: 10,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         let days: Vec<i32> = result.abnormal_returns.iter().map(|ar| ar.day).collect();
         assert!(days.contains(&-10));
@@ -413,7 +524,10 @@ mod tests {
         let bench = synthetic_prices(20, 10, 0.001, 0.002);
         let event_ts = prices[10].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -2, post_days: 2 };
+        let window = EventWindow {
+            pre_days: -2,
+            post_days: 2,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         assert_eq!(result.event.event_id, "EVT001");
         assert_eq!(result.event.event_type, "earnings");
@@ -443,9 +557,12 @@ mod tests {
     fn test_zero_price_series_gives_zero_returns() {
         // prices of 0 should not panic, returns default to 0
         let prices: Vec<(u64, f64)> = vec![(1_000_000, 0.0), (1_086_400, 0.0)];
-        let bench: Vec<(u64, f64)>  = vec![(1_000_000, 100.0), (1_086_400, 101.0)];
+        let bench: Vec<(u64, f64)> = vec![(1_000_000, 100.0), (1_086_400, 101.0)];
         let event = make_event(1_000_000);
-        let window = EventWindow { pre_days: -1, post_days: 1 };
+        let window = EventWindow {
+            pre_days: -1,
+            post_days: 1,
+        };
         // Should not panic
         let _ = EventStudy::compute(&event, &prices, &bench, window);
     }
@@ -456,7 +573,10 @@ mod tests {
         let bench = synthetic_prices(30, 15, 0.001, 0.002);
         let event_ts = prices[15].0;
         let event = make_event(event_ts);
-        let window = EventWindow { pre_days: -2, post_days: 8 };
+        let window = EventWindow {
+            pre_days: -2,
+            post_days: 8,
+        };
         let result = EventStudy::compute(&event, &prices, &bench, window);
         assert_eq!(result.abnormal_returns.len(), 11); // -2..=8 = 11 days
     }
@@ -474,7 +594,10 @@ mod tests {
             }
         }
         // All identical → std_dev = 0 → return 0
-        let results: Vec<EventResult> = [0.01, 0.01, 0.01].iter().map(|&c| dummy_result(c)).collect();
+        let results: Vec<EventResult> = [0.01, 0.01, 0.01]
+            .iter()
+            .map(|&c| dummy_result(c))
+            .collect();
         assert_eq!(EventStudy::significance(&results), 0.0);
     }
 }

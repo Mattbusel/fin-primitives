@@ -63,8 +63,7 @@ impl PriceMomentumRank {
             return Decimal::new(50, 0);
         }
         let count_below = history.iter().filter(|&&v| v < value).count();
-        Decimal::from(count_below as u32)
-            / Decimal::from(history.len() as u32)
+        Decimal::from(count_below as u32) / Decimal::from(history.len() as u32)
             * Decimal::ONE_HUNDRED
     }
 }
@@ -135,7 +134,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -157,7 +159,10 @@ mod tests {
     fn test_pmr_unavailable_during_warmup() {
         let mut pmr = PriceMomentumRank::new("pmr", 2, 3).unwrap();
         for _ in 0..4 {
-            assert_eq!(pmr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pmr.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

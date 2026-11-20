@@ -51,7 +51,10 @@ impl VolumeAtClose {
     /// # Errors
     /// Never fails; returns `Ok` always.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), ready: false })
+        Ok(Self {
+            name: name.into(),
+            ready: false,
+        })
     }
 }
 
@@ -120,7 +123,9 @@ mod tests {
     #[test]
     fn test_vac_zero_volume_unavailable() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
-        let v = vac.update_bar(&bar("100", "110", "90", "105", "0")).unwrap();
+        let v = vac
+            .update_bar(&bar("100", "110", "90", "105", "0"))
+            .unwrap();
         assert_eq!(v, SignalValue::Unavailable);
     }
 
@@ -128,7 +133,9 @@ mod tests {
     fn test_vac_close_at_high_full_volume() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
         // clv = 1 (close at high), fraction = 1, vac = volume
-        let v = vac.update_bar(&bar("100", "110", "90", "110", "1000")).unwrap();
+        let v = vac
+            .update_bar(&bar("100", "110", "90", "110", "1000"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1000)));
     }
 
@@ -136,7 +143,9 @@ mod tests {
     fn test_vac_close_at_low_zero_volume() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
         // clv = -1 (close at low), fraction = 0, vac = 0
-        let v = vac.update_bar(&bar("100", "110", "90", "90", "1000")).unwrap();
+        let v = vac
+            .update_bar(&bar("100", "110", "90", "90", "1000"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 
@@ -144,7 +153,9 @@ mod tests {
     fn test_vac_close_at_midpoint_half_volume() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
         // clv = 0 (close at mid), fraction = 0.5, vac = 500
-        let v = vac.update_bar(&bar("100", "110", "90", "100", "1000")).unwrap();
+        let v = vac
+            .update_bar(&bar("100", "110", "90", "100", "1000"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(500)));
     }
 
@@ -152,14 +163,17 @@ mod tests {
     fn test_vac_flat_bar_zero_clv() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
         // flat bar: clv = 0, fraction = 0.5, vac = 250
-        let v = vac.update_bar(&bar("100", "100", "100", "100", "500")).unwrap();
+        let v = vac
+            .update_bar(&bar("100", "100", "100", "100", "500"))
+            .unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(250)));
     }
 
     #[test]
     fn test_vac_ready_after_first_bar() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
-        vac.update_bar(&bar("100", "110", "90", "105", "500")).unwrap();
+        vac.update_bar(&bar("100", "110", "90", "105", "500"))
+            .unwrap();
         assert!(vac.is_ready());
     }
 
@@ -172,7 +186,8 @@ mod tests {
     #[test]
     fn test_vac_reset() {
         let mut vac = VolumeAtClose::new("vac").unwrap();
-        vac.update_bar(&bar("100", "110", "90", "105", "500")).unwrap();
+        vac.update_bar(&bar("100", "110", "90", "105", "500"))
+            .unwrap();
         assert!(vac.is_ready());
         vac.reset();
         assert!(!vac.is_ready());

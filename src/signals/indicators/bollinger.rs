@@ -146,7 +146,14 @@ impl BollingerB {
         let n = Decimal::from(self.period as u32);
         let sum: Decimal = self.values.iter().copied().sum();
         let mean = sum.checked_div(n)?;
-        let variance_sum: Decimal = self.values.iter().map(|v| { let d = *v - mean; d * d }).sum();
+        let variance_sum: Decimal = self
+            .values
+            .iter()
+            .map(|v| {
+                let d = *v - mean;
+                d * d
+            })
+            .sum();
         let variance = variance_sum.checked_div(n)?;
         let std_dev = decimal_sqrt(variance).ok()?;
         let band_width = self.multiplier * std_dev;
@@ -190,8 +197,14 @@ mod tests {
     #[test]
     fn test_bollinger_unavailable_before_period() {
         let mut bb = BollingerB::new("bb3", 3, 2u32).unwrap();
-        assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            bb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!bb.is_ready());
     }
 
@@ -216,7 +229,10 @@ mod tests {
         let v = bb.update_bar(&bar("110")).unwrap(); // close above mean
         if let SignalValue::Scalar(pct_b) = v {
             // Close is above the SMA(100), so %B > 0.5
-            assert!(pct_b > dec!(0.5), "close above SMA should yield %B > 0.5, got {pct_b}");
+            assert!(
+                pct_b > dec!(0.5),
+                "close above SMA should yield %B > 0.5, got {pct_b}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -231,14 +247,23 @@ mod tests {
         assert!(bb.is_ready());
         bb.reset();
         assert!(!bb.is_ready());
-        assert_eq!(bb.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            bb.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
     #[test]
     fn test_bollinger_tiny_prices_keep_a_positive_lower_band() {
         // Closes near 1e-8 (micro-cap tokens). The old square root started at max(n/2, 1)
         // and stopped after 20 Newton steps, so the deviation came out near 1e-6 and the
         // lower band went far below zero.
-        let closes = ["0.00000001", "0.000000011", "0.000000009", "0.00000001", "0.000000012"];
+        let closes = [
+            "0.00000001",
+            "0.000000011",
+            "0.000000009",
+            "0.00000001",
+            "0.000000012",
+        ];
         let mut bb = BollingerB::new("bb5", 5, 2u32).unwrap();
         for c in closes {
             bb.update_bar(&bar(c)).unwrap();

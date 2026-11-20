@@ -51,9 +51,15 @@ impl ProfitFactor {
 }
 
 impl Signal for ProfitFactor {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -114,7 +120,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,7 +140,7 @@ mod tests {
     #[test]
     fn test_pf_unavailable_during_warmup() {
         let mut s = ProfitFactor::new("pf", 4).unwrap();
-        for p in &["100","101","99","102"] {
+        for p in &["100", "101", "99", "102"] {
             assert_eq!(s.update_bar(&bar(p)).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
@@ -142,12 +151,15 @@ mod tests {
         // Symmetric: +1%, -1%, +1%, -1% → PF should be close to 1
         let mut s = ProfitFactor::new("pf", 4).unwrap();
         s.update_bar(&bar("100")).unwrap();
-        s.update_bar(&bar("101")).unwrap();  // +1%
+        s.update_bar(&bar("101")).unwrap(); // +1%
         s.update_bar(&bar("99.99")).unwrap(); // ~-1%
         s.update_bar(&bar("100.99")).unwrap(); // ~+1%
         if let SignalValue::Scalar(v) = s.update_bar(&bar("99.98")).unwrap() {
             // ~-1% → PF ≈ 1
-            assert!((v - dec!(1)).abs() < dec!(0.1), "balanced returns → PF ≈ 1: {v}");
+            assert!(
+                (v - dec!(1)).abs() < dec!(0.1),
+                "balanced returns → PF ≈ 1: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -158,9 +170,9 @@ mod tests {
         // Consistent gains → PF >> 1 (or Unavailable if no losses)
         let mut s = ProfitFactor::new("pf", 3).unwrap();
         s.update_bar(&bar("100")).unwrap();
-        s.update_bar(&bar("105")).unwrap();  // +5%
-        s.update_bar(&bar("110")).unwrap();  // +4.76%
-        // Mostly up, add one down bar
+        s.update_bar(&bar("105")).unwrap(); // +5%
+        s.update_bar(&bar("110")).unwrap(); // +4.76%
+                                            // Mostly up, add one down bar
         let result = s.update_bar(&bar("109")).unwrap(); // -0.9%
         if let SignalValue::Scalar(v) = result {
             assert!(v > dec!(1), "mostly up-moves → PF > 1: {v}");
@@ -171,7 +183,9 @@ mod tests {
     #[test]
     fn test_pf_reset() {
         let mut s = ProfitFactor::new("pf", 3).unwrap();
-        for p in &["100","102","101","103","102"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "102", "101", "103", "102"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

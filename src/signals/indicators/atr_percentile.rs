@@ -54,9 +54,15 @@ impl AtrPercentile {
 }
 
 impl Signal for AtrPercentile {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.trs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.trs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -72,9 +78,7 @@ impl Signal for AtrPercentile {
         }
 
         let current_tr = tr;
-        let count_below = self.trs.iter()
-            .filter(|&&t| t < current_tr)
-            .count();
+        let count_below = self.trs.iter().filter(|&&t| t < current_tr).count();
 
         // percentile rank: count below / (n-1) * 100, clamped to [0, 100]
         #[allow(clippy::cast_possible_truncation)]
@@ -105,7 +109,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -123,7 +130,10 @@ mod tests {
     fn test_atr_pct_unavailable_during_warmup() {
         let mut ap = AtrPercentile::new("ap", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(ap.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ap.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ap.is_ready());
     }
@@ -134,7 +144,7 @@ mod tests {
         let mut ap = AtrPercentile::new("ap", 3).unwrap();
         ap.update_bar(&bar("102", "98", "100")).unwrap(); // TR=4
         ap.update_bar(&bar("103", "97", "100")).unwrap(); // TR=6
-        // Last bar: very wide TR=20 — should be percentile=100
+                                                          // Last bar: very wide TR=20 — should be percentile=100
         let result = ap.update_bar(&bar("120", "80", "100")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(100)));
     }
@@ -144,7 +154,7 @@ mod tests {
         let mut ap = AtrPercentile::new("ap", 3).unwrap();
         ap.update_bar(&bar("120", "80", "100")).unwrap(); // TR=40
         ap.update_bar(&bar("115", "85", "100")).unwrap(); // TR=30
-        // Last bar: very narrow TR=2 — should be percentile=0
+                                                          // Last bar: very narrow TR=2 — should be percentile=0
         let result = ap.update_bar(&bar("101", "99", "100")).unwrap();
         assert_eq!(result, SignalValue::Scalar(dec!(0)));
     }
@@ -152,8 +162,13 @@ mod tests {
     #[test]
     fn test_atr_pct_range_0_to_100() {
         let mut ap = AtrPercentile::new("ap", 5).unwrap();
-        let bars = [("110","90","100"),("108","92","100"),("112","88","100"),
-                    ("106","94","100"),("115","85","100")];
+        let bars = [
+            ("110", "90", "100"),
+            ("108", "92", "100"),
+            ("112", "88", "100"),
+            ("106", "94", "100"),
+            ("115", "85", "100"),
+        ];
         for &(h, l, c) in &bars {
             if let SignalValue::Scalar(v) = ap.update_bar(&bar(h, l, c)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(100), "out of range: {v}");
@@ -164,7 +179,11 @@ mod tests {
     #[test]
     fn test_atr_pct_reset() {
         let mut ap = AtrPercentile::new("ap", 3).unwrap();
-        for &(h, l, c) in &[("110","90","100"),("108","92","100"),("112","88","100")] {
+        for &(h, l, c) in &[
+            ("110", "90", "100"),
+            ("108", "92", "100"),
+            ("112", "88", "100"),
+        ] {
             ap.update_bar(&bar(h, l, c)).unwrap();
         }
         assert!(ap.is_ready());

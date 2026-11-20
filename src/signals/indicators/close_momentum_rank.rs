@@ -129,7 +129,10 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(CloseMomentumRank::new("cmr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            CloseMomentumRank::new("cmr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
@@ -168,7 +171,11 @@ mod tests {
         // Large spike
         let v = cmr.update_bar(&bar("200")).unwrap();
         if let SignalValue::Scalar(s) = v {
-            assert!(s > dec!(50), "expected high rank for large return, got {}", s);
+            assert!(
+                s > dec!(50),
+                "expected high rank for large return, got {}",
+                s
+            );
         } else {
             panic!("expected scalar");
         }

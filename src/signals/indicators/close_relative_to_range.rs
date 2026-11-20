@@ -1,9 +1,9 @@
 //! Close Relative to Range indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `(close - rolling_low) / (rolling_high - rolling_low)`.
 ///
@@ -52,10 +52,19 @@ impl Signal for CloseRelativeToRange {
         Ok(SignalValue::Scalar((bar.close - rolling_low) / channel))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.highs.clear(); self.lows.clear(); }
-    fn name(&self) -> &str { "CloseRelativeToRange" }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.highs.clear();
+        self.lows.clear();
+    }
+    fn name(&self) -> &str {
+        "CloseRelativeToRange"
+    }
 }
 
 #[cfg(test)]

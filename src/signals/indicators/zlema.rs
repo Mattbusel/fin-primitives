@@ -69,7 +69,10 @@ impl Signal for Zlema {
 
         // Adjusted input: 2*close - close[lag] (or just close if not enough history)
         let lagged = if self.history.len() > self.lag {
-            *self.history.front().ok_or_else(crate::error::invariant_broken)?
+            *self
+                .history
+                .front()
+                .ok_or_else(crate::error::invariant_broken)?
         } else {
             bar.close
         };
@@ -119,7 +122,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +161,9 @@ mod tests {
     #[test]
     fn test_zlema_reset() {
         let mut z = Zlema::new("z3", 3).unwrap();
-        for _ in 0..5 { z.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            z.update_bar(&bar("100")).unwrap();
+        }
         assert!(z.is_ready());
         z.reset();
         assert!(!z.is_ready());

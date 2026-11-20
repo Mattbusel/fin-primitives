@@ -53,20 +53,31 @@ impl TrendPurity {
 }
 
 impl Signal for TrendPurity {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
 
         if self.closes.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
         let first = self.closes[0];
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let overall_diff = last - first;
 
         if overall_diff.is_zero() {
@@ -75,13 +86,16 @@ impl Signal for TrendPurity {
 
         let up_trend = overall_diff > Decimal::ZERO;
         let n = self.closes.len() - 1;
-        let aligned = self.closes.iter().zip(self.closes.iter().skip(1))
-            .filter(|(&a, &b)| {
-                if up_trend { b > a } else { b < a }
-            })
+        let aligned = self
+            .closes
+            .iter()
+            .zip(self.closes.iter().skip(1))
+            .filter(|(&a, &b)| if up_trend { b > a } else { b < a })
             .count();
 
-        Ok(SignalValue::Scalar(Decimal::from(aligned as u32) / Decimal::from(n as u32)))
+        Ok(SignalValue::Scalar(
+            Decimal::from(aligned as u32) / Decimal::from(n as u32),
+        ))
     }
 
     fn reset(&mut self) {
@@ -101,7 +115,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -119,7 +136,10 @@ mod tests {
     fn test_tp_unavailable_before_warm_up() {
         let mut tp = TrendPurity::new("tp", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(tp.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                tp.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -144,7 +164,11 @@ mod tests {
         }
         // aligned: 100→101 (up ✓), 101→100 (down ✗), 100→103 (up ✓) → 2/3
         if let SignalValue::Scalar(v) = last {
-            assert!(v < dec!(1) && v > dec!(0), "noisy uptrend purity should be in (0,1): {}", v);
+            assert!(
+                v < dec!(1) && v > dec!(0),
+                "noisy uptrend purity should be in (0,1): {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -153,7 +177,9 @@ mod tests {
     #[test]
     fn test_tp_reset() {
         let mut tp = TrendPurity::new("tp", 3).unwrap();
-        for p in ["100", "101", "102"] { tp.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102"] {
+            tp.update_bar(&bar(p)).unwrap();
+        }
         assert!(tp.is_ready());
         tp.reset();
         assert!(!tp.is_ready());

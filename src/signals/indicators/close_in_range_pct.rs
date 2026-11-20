@@ -61,9 +61,15 @@ impl CloseInRangePct {
 }
 
 impl Signal for CloseInRangePct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.values.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.values.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -81,7 +87,10 @@ impl Signal for CloseInRangePct {
         self.sum += pct;
         self.values.push_back(pct);
         if self.values.len() > self.period {
-            let removed = self.values.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .values
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -89,7 +98,8 @@ impl Signal for CloseInRangePct {
             return Ok(SignalValue::Unavailable);
         }
 
-        let mean = self.sum
+        let mean = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(mean))
@@ -131,8 +141,14 @@ mod tests {
     #[test]
     fn test_cirp_unavailable_during_warmup() {
         let mut cirp = CloseInRangePct::new("cirp", 3).unwrap();
-        assert_eq!(cirp.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(cirp.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cirp.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            cirp.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!cirp.is_ready());
     }
 
@@ -140,7 +156,9 @@ mod tests {
     fn test_cirp_close_at_high_100() {
         // close = high → pct = 100
         let mut cirp = CloseInRangePct::new("cirp", 3).unwrap();
-        for _ in 0..3 { cirp.update_bar(&bar("110", "90", "110")).unwrap(); }
+        for _ in 0..3 {
+            cirp.update_bar(&bar("110", "90", "110")).unwrap();
+        }
         if let SignalValue::Scalar(v) = cirp.update_bar(&bar("110", "90", "110")).unwrap() {
             assert_eq!(v, dec!(100));
         } else {
@@ -151,7 +169,9 @@ mod tests {
     #[test]
     fn test_cirp_close_at_low_zero() {
         let mut cirp = CloseInRangePct::new("cirp", 3).unwrap();
-        for _ in 0..3 { cirp.update_bar(&bar("110", "90", "90")).unwrap(); }
+        for _ in 0..3 {
+            cirp.update_bar(&bar("110", "90", "90")).unwrap();
+        }
         if let SignalValue::Scalar(v) = cirp.update_bar(&bar("110", "90", "90")).unwrap() {
             assert_eq!(v, dec!(0));
         } else {

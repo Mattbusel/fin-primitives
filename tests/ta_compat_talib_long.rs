@@ -2,7 +2,11 @@
 //! native Rust port of the C reference) on 20,000 bars, several periods each, including
 //! runs of flat bars where the true range is zero.
 #![cfg(feature = "ta-compat")]
-#![allow(clippy::unwrap_used, clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 
 use fin_primitives::ta_compat::indicators::{
     AverageDirectionalIndex, DirectionalIndex, DoubleExponentialMovingAverage, HullMovingAverage,
@@ -48,7 +52,16 @@ fn bars() -> (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
 
 fn items(o: &[f64], h: &[f64], l: &[f64], c: &[f64]) -> Vec<DataItem> {
     (0..o.len())
-        .map(|i| DataItem::builder().open(o[i]).high(h[i]).low(l[i]).close(c[i]).volume(1.0).build().unwrap())
+        .map(|i| {
+            DataItem::builder()
+                .open(o[i])
+                .high(h[i])
+                .low(l[i])
+                .close(c[i])
+                .volume(1.0)
+                .build()
+                .unwrap()
+        })
         .collect()
 }
 
@@ -68,7 +81,10 @@ fn assert_close(what: &str, got: &[f64], want: &[f64]) {
         if w.is_nan() {
             assert!(g.is_nan(), "{what}[{i}]: expected warm-up NaN, got {g}");
         } else {
-            assert!((g - w).abs() <= 1e-9 * w.abs().max(1.0), "{what}[{i}]: got {g}, TA-Lib {w}");
+            assert!(
+                (g - w).abs() <= 1e-9 * w.abs().max(1.0),
+                "{what}[{i}]: got {g}, TA-Lib {w}"
+            );
             compared += 1;
         }
     }
@@ -98,9 +114,21 @@ fn adx_dx_di_match_talib_on_20k_bars() {
 
         let mut dx = DirectionalIndex::new(period).unwrap();
         let outs: Vec<_> = bars.iter().map(|b| dx.next(b)).collect();
-        assert_close(&format!("DX({period})"), &outs.iter().map(|x| x.dx).collect::<Vec<_>>(), &want_dx);
-        assert_close(&format!("PLUS_DI({period})"), &outs.iter().map(|x| x.plus_di).collect::<Vec<_>>(), &want_pdi);
-        assert_close(&format!("MINUS_DI({period})"), &outs.iter().map(|x| x.minus_di).collect::<Vec<_>>(), &want_mdi);
+        assert_close(
+            &format!("DX({period})"),
+            &outs.iter().map(|x| x.dx).collect::<Vec<_>>(),
+            &want_dx,
+        );
+        assert_close(
+            &format!("PLUS_DI({period})"),
+            &outs.iter().map(|x| x.plus_di).collect::<Vec<_>>(),
+            &want_pdi,
+        );
+        assert_close(
+            &format!("MINUS_DI({period})"),
+            &outs.iter().map(|x| x.minus_di).collect::<Vec<_>>(),
+            &want_mdi,
+        );
     }
 }
 
@@ -109,7 +137,9 @@ fn talib_wma(core: &Core, x: &[f64], period: usize) -> Vec<f64> {
     let first = x.iter().position(|v| !v.is_nan()).unwrap();
     let tail = &x[first..];
     let mut out = vec![0.0; tail.len()];
-    let r = core.wma(0, tail.len() - 1, tail, period as i32, &mut out).unwrap();
+    let r = core
+        .wma(0, tail.len() - 1, tail, period as i32, &mut out)
+        .unwrap();
     full(&out, first + r.beg_idx, r.count, x.len())
 }
 

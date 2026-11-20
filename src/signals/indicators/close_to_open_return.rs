@@ -50,9 +50,15 @@ impl CloseToOpenReturn {
 }
 
 impl Signal for CloseToOpenReturn {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match self.prev_close {
@@ -65,7 +71,10 @@ impl Signal for CloseToOpenReturn {
                     self.returns.push_back(ret);
                     self.sum += ret;
                     if self.returns.len() > self.period {
-                        self.sum -= self.returns.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                        self.sum -= self
+                            .returns
+                            .pop_front()
+                            .ok_or_else(crate::error::invariant_broken)?;
                     }
                     if self.returns.len() < self.period {
                         SignalValue::Unavailable
@@ -100,7 +109,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -116,8 +128,14 @@ mod tests {
     #[test]
     fn test_ctor_unavailable_before_warm_up() {
         let mut ctor = CloseToOpenReturn::new("ctor", 3).unwrap();
-        assert_eq!(ctor.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(ctor.update_bar(&bar("100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ctor.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            ctor.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -130,7 +148,11 @@ mod tests {
             last = ctor.update_bar(&bar("101", "100")).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "positive gap should give positive return: {}", v);
+            assert!(
+                v > dec!(0),
+                "positive gap should give positive return: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -151,7 +173,9 @@ mod tests {
     #[test]
     fn test_ctor_reset() {
         let mut ctor = CloseToOpenReturn::new("ctor", 3).unwrap();
-        for _ in 0..4 { ctor.update_bar(&bar("100", "100")).unwrap(); }
+        for _ in 0..4 {
+            ctor.update_bar(&bar("100", "100")).unwrap();
+        }
         assert!(ctor.is_ready());
         ctor.reset();
         assert!(!ctor.is_ready());

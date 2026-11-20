@@ -53,9 +53,15 @@ impl TrueRangeRatio {
 }
 
 impl Signal for TrueRangeRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.trs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.trs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -64,7 +70,10 @@ impl Signal for TrueRangeRatio {
         self.trs.push_back(tr);
         self.sum += tr;
         if self.trs.len() > self.period {
-            self.sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.sum -= self
+                .trs
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         if self.trs.len() < self.period {
@@ -100,7 +109,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,7 +129,10 @@ mod tests {
     fn test_trr_unavailable_before_warm_up() {
         let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(trr.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                trr.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -151,7 +166,9 @@ mod tests {
     #[test]
     fn test_trr_reset() {
         let mut trr = TrueRangeRatio::new("trr", 3).unwrap();
-        for _ in 0..3 { trr.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..3 {
+            trr.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(trr.is_ready());
         trr.reset();
         assert!(!trr.is_ready());

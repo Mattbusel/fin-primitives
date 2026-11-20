@@ -86,7 +86,7 @@ impl Signal for AtrNormalizedClose {
                 self.prev_close = Some(bar.close);
                 return Ok(SignalValue::Unavailable);
             }
-            Some(pc) => bar.true_range(Some(pc))
+            Some(pc) => bar.true_range(Some(pc)),
         };
         self.prev_close = Some(bar.close);
 
@@ -134,7 +134,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

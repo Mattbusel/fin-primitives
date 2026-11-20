@@ -36,7 +36,9 @@ impl MedianPrice {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -46,13 +48,19 @@ impl MedianPrice {
 }
 
 impl Signal for MedianPrice {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let mid = bar.midpoint();
         self.midpoints.push_back(mid);
-        if self.midpoints.len() > self.period { self.midpoints.pop_front(); }
-        if self.midpoints.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.midpoints.len() > self.period {
+            self.midpoints.pop_front();
+        }
+        if self.midpoints.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let mut sorted: Vec<Decimal> = self.midpoints.iter().cloned().collect();
         sorted.sort();
@@ -66,8 +74,12 @@ impl Signal for MedianPrice {
         Ok(SignalValue::Scalar(median))
     }
 
-    fn is_ready(&self) -> bool { self.midpoints.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.midpoints.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.midpoints.clear();
@@ -87,7 +99,10 @@ mod tests {
         let cp = Price::new(dec!(100)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: hp, low: lp, close: cp,
+            open: cp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -95,7 +110,9 @@ mod tests {
         }
     }
 
-    fn bar(c: &str) -> OhlcvBar { bar_hl(c, c) }
+    fn bar(c: &str) -> OhlcvBar {
+        bar_hl(c, c)
+    }
 
     #[test]
     fn test_mp_invalid() {
@@ -118,7 +135,9 @@ mod tests {
         m.update_bar(&bar_hl("100", "100")).unwrap();
         if let SignalValue::Scalar(v) = m.update_bar(&bar_hl("110", "110")).unwrap() {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -130,7 +149,9 @@ mod tests {
         m.update_bar(&bar_hl("110", "110")).unwrap();
         if let SignalValue::Scalar(v) = m.update_bar(&bar_hl("120", "120")).unwrap() {
             assert_eq!(v, dec!(105));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -139,13 +160,17 @@ mod tests {
         let mut m = MedianPrice::new("m", 1).unwrap();
         if let SignalValue::Scalar(v) = m.update_bar(&bar_hl("110", "90")).unwrap() {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_mp_reset() {
         let mut m = MedianPrice::new("m", 3).unwrap();
-        for _ in 0..5 { m.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            m.update_bar(&bar("100")).unwrap();
+        }
         assert!(m.is_ready());
         m.reset();
         assert!(!m.is_ready());

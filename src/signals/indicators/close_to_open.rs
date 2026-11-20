@@ -38,7 +38,9 @@ impl CloseToOpen {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,26 +51,36 @@ impl CloseToOpen {
 }
 
 impl Signal for CloseToOpen {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             if !pc.is_zero() {
                 let gap = (bar.open - pc) / pc * Decimal::from(100u32);
                 self.gaps.push_back(gap);
-                if self.gaps.len() > self.period { self.gaps.pop_front(); }
+                if self.gaps.len() > self.period {
+                    self.gaps.pop_front();
+                }
             }
         }
         self.prev_close = Some(bar.close);
 
-        if self.gaps.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.gaps.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let avg = self.gaps.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(avg))
     }
 
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -92,7 +104,10 @@ mod tests {
         let lp = Price::new(ov.min(cv)).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +124,10 @@ mod tests {
     fn test_cto_unavailable_before_warmup() {
         let mut c = CloseToOpen::new("c", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(c.update_bar(&bar_oc("100", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                c.update_bar(&bar_oc("100", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -118,10 +136,14 @@ mod tests {
         // open always equals prev close → gap = 0 → mean = 0
         let mut c = CloseToOpen::new("c", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..6 { last = c.update_bar(&bar_oc("100", "100")).unwrap(); }
+        for _ in 0..6 {
+            last = c.update_bar(&bar_oc("100", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -129,17 +151,23 @@ mod tests {
         // close=100, next open=105 → gap = 5% → mean = 5
         let mut c = CloseToOpen::new("c", 3).unwrap();
         c.update_bar(&bar_oc("100", "100")).unwrap();
-        for _ in 0..3 { c.update_bar(&bar_oc("105", "100")).unwrap(); }
+        for _ in 0..3 {
+            c.update_bar(&bar_oc("105", "100")).unwrap();
+        }
         // After 4 total bars, 3 gaps each = 5%
         if let SignalValue::Scalar(v) = c.update_bar(&bar_oc("105", "100")).unwrap() {
             assert_eq!(v, dec!(5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_cto_reset() {
         let mut c = CloseToOpen::new("c", 3).unwrap();
-        for _ in 0..6 { c.update_bar(&bar_oc("100", "100")).unwrap(); }
+        for _ in 0..6 {
+            c.update_bar(&bar_oc("100", "100")).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

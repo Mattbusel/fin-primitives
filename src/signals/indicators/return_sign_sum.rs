@@ -1,9 +1,9 @@
 //! Return Sign Sum indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling sum of return signs: +1 (up bar), -1 (down bar), 0 (flat).
 ///
@@ -22,14 +22,25 @@ impl ReturnSignSum {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period), sum: 0 })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+            sum: 0,
+        })
     }
 }
 
 impl Signal for ReturnSignSum {
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
-            let sign: i8 = if bar.close > pc { 1 } else if bar.close < pc { -1 } else { 0 };
+            let sign: i8 = if bar.close > pc {
+                1
+            } else if bar.close < pc {
+                -1
+            } else {
+                0
+            };
             self.window.push_back(sign);
             self.sum += sign as i32;
             if self.window.len() > self.period {
@@ -46,10 +57,20 @@ impl Signal for ReturnSignSum {
         Ok(SignalValue::Scalar(Decimal::from(self.sum)))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); self.sum = 0; }
-    fn name(&self) -> &str { "ReturnSignSum" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+        self.sum = 0;
+    }
+    fn name(&self) -> &str {
+        "ReturnSignSum"
+    }
 }
 
 #[cfg(test)]

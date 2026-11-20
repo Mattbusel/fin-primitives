@@ -36,7 +36,10 @@ pub struct DeltaVolume {
 impl DeltaVolume {
     /// Constructs a new `DeltaVolume`.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_volume: None })
+        Ok(Self {
+            name: name.into(),
+            prev_volume: None,
+        })
     }
 }
 
@@ -80,7 +83,10 @@ mod tests {
         let v = Quantity::new(volume.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -91,7 +97,10 @@ mod tests {
     #[test]
     fn test_delta_volume_first_bar_unavailable() {
         let mut dv = DeltaVolume::new("dv").unwrap();
-        assert_eq!(dv.update_bar(&bar("100", "500")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dv.update_bar(&bar("100", "500")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(dv.is_ready()); // ready means we have a prev value now
     }
 
@@ -126,7 +135,10 @@ mod tests {
         assert!(dv.is_ready());
         dv.reset();
         assert!(!dv.is_ready());
-        assert_eq!(dv.update_bar(&bar("100", "500")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dv.update_bar(&bar("100", "500")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

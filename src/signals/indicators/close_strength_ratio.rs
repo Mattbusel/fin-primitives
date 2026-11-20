@@ -133,7 +133,10 @@ mod tests {
     fn test_csr_unavailable_during_warmup() {
         let mut csr = CloseStrengthRatio::new("csr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(csr.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                csr.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

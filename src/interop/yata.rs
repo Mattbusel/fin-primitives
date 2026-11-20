@@ -101,10 +101,22 @@ mod tests {
 
     #[test]
     fn yata_candle_converts_exactly() {
-        let c = Candle { open: 1.5, high: 2.25, low: 1.0, close: 2.0, volume: 10.0 };
+        let c = Candle {
+            open: 1.5,
+            high: 2.25,
+            low: 1.0,
+            close: 2.0,
+            volume: 10.0,
+        };
         let b = BarInput::try_from(&c).unwrap();
-        assert_eq!((b.open, b.high, b.low, b.close, b.volume), (dec!(1.5), dec!(2.25), dec!(1), dec!(2), dec!(10)));
-        let bad = Candle { close: f64::NAN, ..c };
+        assert_eq!(
+            (b.open, b.high, b.low, b.close, b.volume),
+            (dec!(1.5), dec!(2.25), dec!(1), dec!(2), dec!(10))
+        );
+        let bad = Candle {
+            close: f64::NAN,
+            ..c
+        };
         assert!(BarInput::try_from(&bad).is_err());
     }
 
@@ -112,7 +124,9 @@ mod tests {
     fn yata_reads_fin_bars_and_ema_agrees_after_warmup() {
         // yata seeds its EMA with the first value, fin-primitives with an SMA of the first
         // `period` values; after the seed washes out (about 10 periods) they agree.
-        let closes: Vec<Decimal> = (0..300).map(|i| Decimal::from(100 + (i * 37 % 23)) / dec!(4)).collect();
+        let closes: Vec<Decimal> = (0..300)
+            .map(|i| Decimal::from(100 + (i * 37 % 23)) / dec!(4))
+            .collect();
         let bars: Vec<BarInput> = closes.iter().map(|&c| BarInput::from_close(c)).collect();
         let mut y = EMA::new(10, &OHLCV::close(&bars[0])).unwrap();
         let mut f = Ema::new("ema", 10).unwrap();
@@ -120,7 +134,10 @@ mod tests {
             let yv = y.next(&OHLCV::close(b));
             if let SignalValue::Scalar(fv) = f.update(b).unwrap() {
                 if i > 150 {
-                    assert!((decimal_to_f64(fv) - yv).abs() < 1e-9, "bar {i}: fin {fv} yata {yv}");
+                    assert!(
+                        (decimal_to_f64(fv) - yv).abs() < 1e-9,
+                        "bar {i}: fin {fv} yata {yv}"
+                    );
                 }
             }
         }

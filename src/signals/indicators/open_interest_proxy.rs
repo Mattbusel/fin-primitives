@@ -69,7 +69,8 @@ impl Signal for OpenInterestProxy {
             Decimal::ZERO
         };
 
-        let signed_vol = bar.volume
+        let signed_vol = bar
+            .volume
             .checked_mul(direction)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -90,7 +91,9 @@ impl Signal for OpenInterestProxy {
         }
 
         let net_vol: Decimal = self.signed_vols.iter().copied().sum();
-        let ratio = net_vol.checked_div(total_vol).ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = net_vol
+            .checked_div(total_vol)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
     }
 
@@ -123,7 +126,10 @@ mod tests {
         let lo = if op < cl { op } else { cl };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,13 +139,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(OpenInterestProxy::new("oip", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            OpenInterestProxy::new("oip", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut oip = OpenInterestProxy::new("oip", 3).unwrap();
-        assert_eq!(oip.update_bar(&bar("10", "12", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            oip.update_bar(&bar("10", "12", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

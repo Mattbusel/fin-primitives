@@ -57,9 +57,15 @@ impl PriceCompressionIndex {
 }
 
 impl Signal for PriceCompressionIndex {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -68,7 +74,10 @@ impl Signal for PriceCompressionIndex {
         self.trs.push_back(tr);
         self.tr_sum += tr;
         if self.trs.len() > self.period {
-            self.tr_sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.tr_sum -= self
+                .trs
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         self.closes.push_back(bar.close);
@@ -91,7 +100,14 @@ impl Signal for PriceCompressionIndex {
             return Ok(SignalValue::Unavailable);
         }
         let mean = vals.iter().sum::<f64>() / vals.len() as f64;
-        let var = vals.iter().map(|v| { let d = v - mean; d * d }).sum::<f64>() / vals.len() as f64;
+        let var = vals
+            .iter()
+            .map(|v| {
+                let d = v - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / vals.len() as f64;
         let std_dev = var.sqrt();
 
         let atr_f = match atr.to_f64() {
@@ -127,7 +143,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -145,7 +164,10 @@ mod tests {
     fn test_pci_unavailable_before_warm_up() {
         let mut pci = PriceCompressionIndex::new("pci", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(pci.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pci.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -170,10 +192,16 @@ mod tests {
         let mut last = SignalValue::Unavailable;
         // Large close range, moderate ATR
         for c in ["90", "100", "110"] {
-            last = pci.update_bar(&bar(&(c.parse::<u32>().unwrap() + 5).to_string(), c, c)).unwrap();
+            last = pci
+                .update_bar(&bar(&(c.parse::<u32>().unwrap() + 5).to_string(), c, c))
+                .unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "dispersed closes should give positive PCI: {}", v);
+            assert!(
+                v > dec!(0),
+                "dispersed closes should give positive PCI: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -182,7 +210,9 @@ mod tests {
     #[test]
     fn test_pci_reset() {
         let mut pci = PriceCompressionIndex::new("pci", 3).unwrap();
-        for _ in 0..3 { pci.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..3 {
+            pci.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(pci.is_ready());
         pci.reset();
         assert!(!pci.is_ready());

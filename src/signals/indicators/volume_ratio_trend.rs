@@ -58,7 +58,11 @@ impl Signal for VolumeRatioTrend {
     }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.close >= bar.open { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.close >= bar.open {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
         self.up_vols.push_back(up_vol);
         self.all_vols.push_back(bar.volume);
 
@@ -81,7 +85,9 @@ impl Signal for VolumeRatioTrend {
             ));
         }
 
-        let ratio = total_up.checked_div(total_all).ok_or(FinError::ArithmeticOverflow)?;
+        let ratio = total_up
+            .checked_div(total_all)
+            .ok_or(FinError::ArithmeticOverflow)?;
         Ok(SignalValue::Scalar(ratio))
     }
 
@@ -114,7 +120,10 @@ mod tests {
         let lo = if op < cl { op } else { cl };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hi, low: lo, close: cl,
+            open: op,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -124,13 +133,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(VolumeRatioTrend::new("vrt", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            VolumeRatioTrend::new("vrt", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut vrt = VolumeRatioTrend::new("vrt", 3).unwrap();
-        assert_eq!(vrt.update_bar(&bar("10", "12", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vrt.update_bar(&bar("10", "12", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

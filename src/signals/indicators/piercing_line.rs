@@ -35,7 +35,10 @@ impl PiercingLine {
     /// # Errors
     /// Never fails; provided for API consistency.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev: None })
+        Ok(Self {
+            name: name.into(),
+            prev: None,
+        })
     }
 }
 
@@ -61,10 +64,7 @@ impl Signal for PiercingLine {
                     // Condition 2: current bar is bullish
                     // Condition 3: current bar opens below prev close
                     // Condition 4: current bar closes above prev midpoint
-                    if bar.close > bar.open
-                        && bar.open < prev.close
-                        && bar.close > midpoint
-                    {
+                    if bar.close > bar.open && bar.open < prev.close && bar.close > midpoint {
                         SignalValue::Scalar(Decimal::ONE)
                     } else {
                         SignalValue::Scalar(Decimal::ZERO)
@@ -117,7 +117,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut pl = PiercingLine::new("pl").unwrap();
-        assert_eq!(pl.update_bar(&bar("20", "21", "9", "10")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pl.update_bar(&bar("20", "21", "9", "10")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

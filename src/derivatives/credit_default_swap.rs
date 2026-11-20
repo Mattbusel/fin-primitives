@@ -20,7 +20,13 @@ pub struct CdsContract {
 impl CdsContract {
     /// Construct a CDS contract (quarterly payments by default).
     pub fn new(notional: f64, spread_bps: f64, maturity: f64, recovery: f64) -> Self {
-        CdsContract { notional, spread_bps, maturity_years: maturity, recovery_rate: recovery, payment_freq: 4 }
+        CdsContract {
+            notional,
+            spread_bps,
+            maturity_years: maturity,
+            recovery_rate: recovery,
+            payment_freq: 4,
+        }
     }
 
     fn discount(t: f64, risk_free_rate: f64) -> f64 {
@@ -70,9 +76,12 @@ impl CdsContract {
         let mut risky_annuity = 0.0f64;
         for i in 1..=n_periods {
             let t = i as f64 * dt;
-            risky_annuity += dt * Self::survival_prob(t, hazard_rate) * Self::discount(t, risk_free_rate);
+            risky_annuity +=
+                dt * Self::survival_prob(t, hazard_rate) * Self::discount(t, risk_free_rate);
         }
-        if risky_annuity < 1e-10 { return 0.0; }
+        if risky_annuity < 1e-10 {
+            return 0.0;
+        }
         (protection / (self.notional * risky_annuity)) * 10000.0
     }
 
@@ -89,10 +98,15 @@ impl CdsContract {
         let mut hi = 0.5f64;
         for _ in 0..50 {
             let mid = (lo + hi) / 2.0;
-            let mut cds = CdsContract::new(self.notional, 0.0, self.maturity_years, self.recovery_rate);
+            let mut cds =
+                CdsContract::new(self.notional, 0.0, self.maturity_years, self.recovery_rate);
             cds.payment_freq = self.payment_freq;
             let spread = cds.par_spread(mid, risk_free_rate);
-            if spread < target_spread { lo = mid; } else { hi = mid; }
+            if spread < target_spread {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
         }
         (lo + hi) / 2.0
     }
@@ -103,15 +117,29 @@ impl CdsContract {
     /// argument is not used; it is kept for signature compatibility.
     pub fn cs01(&self, _hazard_rate: f64, risk_free_rate: f64) -> f64 {
         let v_up = {
-            let mut cds = CdsContract::new(self.notional, self.spread_bps, self.maturity_years, self.recovery_rate);
+            let mut cds = CdsContract::new(
+                self.notional,
+                self.spread_bps,
+                self.maturity_years,
+                self.recovery_rate,
+            );
             cds.payment_freq = self.payment_freq;
-            let h_up = cds.implied_hazard_rate(self.spread_bps * 10000.0 / 10000.0 + 1.0, risk_free_rate);
+            let h_up =
+                cds.implied_hazard_rate(self.spread_bps * 10000.0 / 10000.0 + 1.0, risk_free_rate);
             cds.mtm(h_up, risk_free_rate)
         };
         let v_down = {
-            let mut cds = CdsContract::new(self.notional, self.spread_bps, self.maturity_years, self.recovery_rate);
+            let mut cds = CdsContract::new(
+                self.notional,
+                self.spread_bps,
+                self.maturity_years,
+                self.recovery_rate,
+            );
             cds.payment_freq = self.payment_freq;
-            let h_down = cds.implied_hazard_rate((self.spread_bps * 10000.0 / 10000.0 - 1.0).max(0.1), risk_free_rate);
+            let h_down = cds.implied_hazard_rate(
+                (self.spread_bps * 10000.0 / 10000.0 - 1.0).max(0.1),
+                risk_free_rate,
+            );
             cds.mtm(h_down, risk_free_rate)
         };
         (v_up - v_down) / 2.0

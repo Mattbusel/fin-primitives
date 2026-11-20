@@ -54,7 +54,9 @@ impl VolumeReturnCorrelation {
 
 fn pearson_r(data: &VecDeque<(f64, f64)>) -> Option<f64> {
     let n = data.len() as f64;
-    if n < 2.0 { return None; }
+    if n < 2.0 {
+        return None;
+    }
 
     let sum_x: f64 = data.iter().map(|&(x, _)| x).sum();
     let sum_y: f64 = data.iter().map(|&(_, y)| y).sum();
@@ -81,9 +83,15 @@ fn pearson_r(data: &VecDeque<(f64, f64)>) -> Option<f64> {
 }
 
 impl Signal for VolumeReturnCorrelation {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -108,7 +116,9 @@ impl Signal for VolumeReturnCorrelation {
         match pearson_r(&self.window) {
             Some(r) => {
                 let clamped = r.clamp(-1.0, 1.0);
-                Ok(SignalValue::Scalar(Decimal::try_from(clamped).unwrap_or(Decimal::ZERO)))
+                Ok(SignalValue::Scalar(
+                    Decimal::try_from(clamped).unwrap_or(Decimal::ZERO),
+                ))
             }
             None => Ok(SignalValue::Unavailable),
         }
@@ -132,7 +142,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(Decimal::from(vol)).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -149,8 +162,14 @@ mod tests {
     #[test]
     fn test_vrc_unavailable_during_warmup() {
         let mut s = VolumeReturnCorrelation::new("vrc", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100", 1000)).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("101", 1200)).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", 1000)).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("101", 1200)).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!s.is_ready());
     }
 
@@ -163,16 +182,21 @@ mod tests {
         //              → 107 (+0.94%, low vol)
         // Instead: just use clearly correlated pairs
         let bars = [
-            ("100", 500u64),  // base
-            ("101", 500),     // +1%, vol=500
-            ("103", 1000),    // +1.98%, vol=1000
-            ("107", 2000),    // +3.88%, vol=2000
-            ("115", 4000),    // +7.48%, vol=4000
+            ("100", 500u64), // base
+            ("101", 500),    // +1%, vol=500
+            ("103", 1000),   // +1.98%, vol=1000
+            ("107", 2000),   // +3.88%, vol=2000
+            ("115", 4000),   // +7.48%, vol=4000
         ];
         let mut last = SignalValue::Unavailable;
-        for &(c, v) in &bars { last = s.update_bar(&bar(c, v)).unwrap(); }
+        for &(c, v) in &bars {
+            last = s.update_bar(&bar(c, v)).unwrap();
+        }
         if let SignalValue::Scalar(r) = last {
-            assert!(r > dec!(0), "large returns with large volume → positive correlation: {r}");
+            assert!(
+                r > dec!(0),
+                "large returns with large volume → positive correlation: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -181,10 +205,19 @@ mod tests {
     #[test]
     fn test_vrc_output_in_range() {
         let mut s = VolumeReturnCorrelation::new("vrc", 4).unwrap();
-        let bars = [("100",500u64),("98",2000),("102",300),("99",1800),("103",400)];
+        let bars = [
+            ("100", 500u64),
+            ("98", 2000),
+            ("102", 300),
+            ("99", 1800),
+            ("103", 400),
+        ];
         for &(c, v) in &bars {
             if let SignalValue::Scalar(r) = s.update_bar(&bar(c, v)).unwrap() {
-                assert!(r >= dec!(-1) && r <= dec!(1), "correlation must be in [-1,1]: {r}");
+                assert!(
+                    r >= dec!(-1) && r <= dec!(1),
+                    "correlation must be in [-1,1]: {r}"
+                );
             }
         }
     }
@@ -192,7 +225,12 @@ mod tests {
     #[test]
     fn test_vrc_reset() {
         let mut s = VolumeReturnCorrelation::new("vrc", 3).unwrap();
-        for &(c, v) in &[("100",1000u64),("102",2000),("104",3000),("106",4000)] {
+        for &(c, v) in &[
+            ("100", 1000u64),
+            ("102", 2000),
+            ("104", 3000),
+            ("106", 4000),
+        ] {
             s.update_bar(&bar(c, v)).unwrap();
         }
         assert!(s.is_ready());

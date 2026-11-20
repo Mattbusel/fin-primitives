@@ -142,11 +142,19 @@ impl FactorModel {
             .iter()
             .zip(y.iter())
             .map(|(row, &yi)| {
-                let y_hat: f64 = row.iter().zip(coefficients.iter()).map(|(&xi, &b)| xi * b).sum();
+                let y_hat: f64 = row
+                    .iter()
+                    .zip(coefficients.iter())
+                    .map(|(&xi, &b)| xi * b)
+                    .sum();
                 (yi - y_hat).powi(2)
             })
             .sum();
-        let r_squared = if ss_tot < 1e-14 { 0.0 } else { 1.0 - ss_res / ss_tot };
+        let r_squared = if ss_tot < 1e-14 {
+            0.0
+        } else {
+            1.0 - ss_res / ss_tot
+        };
 
         (coefficients, r_squared)
     }
@@ -230,7 +238,11 @@ impl FactorModel {
         (0..k)
             .map(|i| {
                 let var_i = sigma2 * aug[i][kk + i];
-                if var_i <= 0.0 { 0.0 } else { coefficients[i] / var_i.sqrt() }
+                if var_i <= 0.0 {
+                    0.0
+                } else {
+                    coefficients[i] / var_i.sqrt()
+                }
             })
             .collect()
     }
@@ -346,14 +358,15 @@ impl FactorModel {
     /// Returns 0.0 when tracking_error is (near) zero.
     pub fn information_ratio(alpha: f64, residuals: &[f64]) -> f64 {
         let te = Self::std_dev(residuals);
-        if te < 1e-14 { 0.0 } else { alpha / te * 252.0_f64.sqrt() }
+        if te < 1e-14 {
+            0.0
+        } else {
+            alpha / te * 252.0_f64.sqrt()
+        }
     }
 
     /// Per-period factor contribution: beta_i * factor_return_i for each period.
-    pub fn factor_contribution(
-        exposures: &[FactorExposure],
-        factor_returns: &[f64],
-    ) -> Vec<f64> {
+    pub fn factor_contribution(exposures: &[FactorExposure], factor_returns: &[f64]) -> Vec<f64> {
         exposures
             .iter()
             .zip(factor_returns.iter())
@@ -362,10 +375,7 @@ impl FactorModel {
     }
 
     /// Total systematic return for a single period: sum of beta_i * factor_return_i.
-    pub fn systematic_return(
-        exposures: &[FactorExposure],
-        period_factor_returns: &[f64],
-    ) -> f64 {
+    pub fn systematic_return(exposures: &[FactorExposure], period_factor_returns: &[f64]) -> f64 {
         exposures
             .iter()
             .zip(period_factor_returns.iter())
@@ -453,7 +463,11 @@ mod tests {
         let mkt: Vec<f64> = (0..n).map(|i| 0.01 * (i as f64).sin()).collect();
         let smb: Vec<f64> = (0..n).map(|i| 0.005 * (i as f64).cos()).collect();
         let hml: Vec<f64> = vec![0.002; n];
-        let asset: Vec<f64> = mkt.iter().zip(smb.iter()).map(|(&m, &s)| m + 0.5 * s + 0.001).collect();
+        let asset: Vec<f64> = mkt
+            .iter()
+            .zip(smb.iter())
+            .map(|(&m, &s)| m + 0.5 * s + 0.001)
+            .collect();
         let result = FactorModel::fama_french_3(&asset, &mkt, &smb, &hml, 0.0);
         assert!(result.r_squared >= 0.0 && result.r_squared <= 1.0 + 1e-9);
         assert_eq!(result.exposures.len(), 3);
@@ -469,8 +483,18 @@ mod tests {
     #[test]
     fn test_apt_risk_premium() {
         let exposures = vec![
-            FactorExposure { factor_name: "f1".into(), beta: 1.2, t_stat: 3.0, is_significant: true },
-            FactorExposure { factor_name: "f2".into(), beta: 0.5, t_stat: 1.5, is_significant: false },
+            FactorExposure {
+                factor_name: "f1".into(),
+                beta: 1.2,
+                t_stat: 3.0,
+                is_significant: true,
+            },
+            FactorExposure {
+                factor_name: "f2".into(),
+                beta: 0.5,
+                t_stat: 1.5,
+                is_significant: false,
+            },
         ];
         let premia = vec![0.04, 0.02];
         let rp = AptModel::risk_premium(&exposures, &premia);

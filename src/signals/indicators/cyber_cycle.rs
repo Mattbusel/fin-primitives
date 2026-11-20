@@ -84,7 +84,7 @@ impl Signal for EhlersCyberCycle {
 
         // Smooth = (P + 2P[1] + 2P[2] + P[3]) / 6
         let smooth = if self.prices.len() >= 4 {
-            let p  = self.prices[3];
+            let p = self.prices[3];
             let p1 = self.prices[2];
             let p2 = self.prices[1];
             let p3 = self.prices[0];
@@ -112,8 +112,16 @@ impl Signal for EhlersCyberCycle {
         let one_minus_a_half_sq = one_minus_a_half * one_minus_a_half;
 
         let s0 = self.smoothed[self.smoothed.len() - 1];
-        let s1 = if self.smoothed.len() >= 2 { self.smoothed[self.smoothed.len() - 2] } else { s0 };
-        let s2 = if self.smoothed.len() >= 3 { self.smoothed[self.smoothed.len() - 3] } else { s1 };
+        let s1 = if self.smoothed.len() >= 2 {
+            self.smoothed[self.smoothed.len() - 2]
+        } else {
+            s0
+        };
+        let s2 = if self.smoothed.len() >= 3 {
+            self.smoothed[self.smoothed.len() - 3]
+        } else {
+            s1
+        };
 
         let cycle = if self.cycles.len() < 2 {
             // Warm-up: simple derivative
@@ -121,8 +129,7 @@ impl Signal for EhlersCyberCycle {
         } else {
             let c1 = self.cycles[self.cycles.len() - 1];
             let c2 = self.cycles[self.cycles.len() - 2];
-            one_minus_a_half_sq * (s0 - Decimal::TWO * s1 + s2)
-                + Decimal::TWO * one_minus_a * c1
+            one_minus_a_half_sq * (s0 - Decimal::TWO * s1 + s2) + Decimal::TWO * one_minus_a * c1
                 - one_minus_a_sq * c2
         };
 
@@ -161,7 +168,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -179,7 +189,10 @@ mod tests {
     fn test_cc_unavailable_before_four_bars() {
         let mut cc = EhlersCyberCycle::new("cc", 7).unwrap();
         for _ in 0..3 {
-            assert_eq!(cc.update_bar(&bar("100", "95")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                cc.update_bar(&bar("100", "95")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!cc.is_ready());
     }
@@ -201,7 +214,10 @@ mod tests {
         }
         // Flat prices → cycle should converge to near zero
         if let SignalValue::Scalar(v) = cc.update_bar(&bar("100", "100")).unwrap() {
-            assert!(v.abs() < rust_decimal_macros::dec!(0.01), "expected near-zero cycle, got {v}");
+            assert!(
+                v.abs() < rust_decimal_macros::dec!(0.01),
+                "expected near-zero cycle, got {v}"
+            );
         }
     }
 

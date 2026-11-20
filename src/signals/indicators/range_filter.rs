@@ -49,7 +49,9 @@ impl RangeFilter {
         period: usize,
         multiplier: Decimal,
     ) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         if multiplier <= Decimal::ZERO {
             return Err(FinError::InvalidInput("multiplier must be positive".into()));
         }
@@ -64,19 +66,29 @@ impl RangeFilter {
     }
 
     /// Returns the current filter level.
-    pub fn filter_level(&self) -> Option<Decimal> { self.filter }
+    pub fn filter_level(&self) -> Option<Decimal> {
+        self.filter
+    }
 }
 
 impl Signal for RangeFilter {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period + 1 { self.closes.pop_front(); }
-        if self.closes.len() < self.period + 1 { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period + 1 {
+            self.closes.pop_front();
+        }
+        if self.closes.len() < self.period + 1 {
+            return Ok(SignalValue::Unavailable);
+        }
 
         // Average absolute change over last `period` pairs
-        let avg_range: Decimal = self.closes.iter()
+        let avg_range: Decimal = self
+            .closes
+            .iter()
             .collect::<Vec<_>>()
             .windows(2)
             .map(|w| (*w[1] - *w[0]).abs())
@@ -87,9 +99,13 @@ impl Signal for RangeFilter {
         let current_filter = match self.filter {
             None => bar.close,
             Some(f) => {
-                if bar.close > f + band { bar.close - band }
-                else if bar.close < f - band { bar.close + band }
-                else { f }
+                if bar.close > f + band {
+                    bar.close - band
+                } else if bar.close < f - band {
+                    bar.close + band
+                } else {
+                    f
+                }
             }
         };
         self.filter = Some(current_filter);
@@ -98,8 +114,12 @@ impl Signal for RangeFilter {
         Ok(SignalValue::Scalar(bar.close - current_filter))
     }
 
-    fn is_ready(&self) -> bool { self.filter.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.filter.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -119,7 +139,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -147,10 +170,14 @@ mod tests {
         // Flat price → avg_range=0 → band=0 → filter anchors at close → output=0
         let mut r = RangeFilter::new("r", 3, dec!(1.5)).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..6 { last = r.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            last = r.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -158,7 +185,9 @@ mod tests {
         // Very small price moves within the band → filter stays put → output grows
         let mut r = RangeFilter::new("r", 3, dec!(10)).unwrap();
         // Warm up with steady price
-        for _ in 0..4 { r.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            r.update_bar(&bar("100")).unwrap();
+        }
         // Small +1 move — within band(multiplier=10 × avg_range=1=10) → filter stays
         if let SignalValue::Scalar(v) = r.update_bar(&bar("101")).unwrap() {
             // output = 101 - filter; filter should stay near 100
@@ -170,7 +199,9 @@ mod tests {
     #[test]
     fn test_rf_reset() {
         let mut r = RangeFilter::new("r", 3, dec!(1.5)).unwrap();
-        for _ in 0..6 { r.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..6 {
+            r.update_bar(&bar("100")).unwrap();
+        }
         assert!(r.is_ready());
         r.reset();
         assert!(!r.is_ready());

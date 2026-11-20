@@ -61,16 +61,23 @@ impl RangeVolatilityRatio {
 }
 
 impl Signal for RangeVolatilityRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.prior_ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.prior_ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let current_range = bar.range();
 
         // Compute ratio against the average of PRIOR period bars
         let result = if self.prior_ranges.len() >= self.period {
-            let avg = self.sum
+            let avg = self
+                .sum
                 .checked_div(Decimal::from(self.period as u32))
                 .ok_or(FinError::ArithmeticOverflow)?;
             if avg.is_zero() {
@@ -89,7 +96,10 @@ impl Signal for RangeVolatilityRatio {
         self.sum += current_range;
         self.prior_ranges.push_back(current_range);
         if self.prior_ranges.len() > self.period {
-            let removed = self.prior_ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .prior_ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
 
@@ -115,7 +125,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,12 +145,21 @@ mod tests {
     fn test_rvr_unavailable_during_warmup() {
         // period=3: need 4 bars total for first Scalar (window fills on bar 3, ratio on bar 4)
         let mut rvr = RangeVolatilityRatio::new("rvr", 3).unwrap();
-        assert_eq!(rvr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rvr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rvr.is_ready());
-        assert_eq!(rvr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rvr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rvr.is_ready());
         // After 3rd bar, window is full → is_ready() = true, but update still returned Unavailable
-        assert_eq!(rvr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rvr.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(rvr.is_ready()); // ready for the NEXT bar to produce a Scalar
     }
 
@@ -187,7 +209,9 @@ mod tests {
     #[test]
     fn test_rvr_reset() {
         let mut rvr = RangeVolatilityRatio::new("rvr", 3).unwrap();
-        for _ in 0..4 { rvr.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..4 {
+            rvr.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(rvr.is_ready());
         rvr.reset();
         assert!(!rvr.is_ready());

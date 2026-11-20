@@ -50,11 +50,21 @@ impl VolumeImbalance {
 }
 
 impl Signal for VolumeImbalance {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let up_vol = if bar.is_bullish() { bar.volume } else { Decimal::ZERO };
-        let down_vol = if bar.is_bearish() { bar.volume } else { Decimal::ZERO };
+        let up_vol = if bar.is_bullish() {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
+        let down_vol = if bar.is_bearish() {
+            bar.volume
+        } else {
+            Decimal::ZERO
+        };
 
         self.history.push_back((up_vol, down_vol));
         if self.history.len() > self.period {
@@ -106,7 +116,10 @@ mod tests {
         let lp = if cp <= op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -122,26 +135,40 @@ mod tests {
     #[test]
     fn test_vi_unavailable_early() {
         let mut vi = VolumeImbalance::new("v", 3).unwrap();
-        assert_eq!(vi.update_bar(&bar("100", "105", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(vi.update_bar(&bar("100", "105", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vi.update_bar(&bar("100", "105", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            vi.update_bar(&bar("100", "105", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_vi_all_up_returns_one() {
         let mut vi = VolumeImbalance::new("v", 3).unwrap();
-        for _ in 0..3 { vi.update_bar(&bar("100", "105", "100")).unwrap(); }
+        for _ in 0..3 {
+            vi.update_bar(&bar("100", "105", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = vi.update_bar(&bar("100", "105", "100")).unwrap() {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_vi_all_down_returns_neg_one() {
         let mut vi = VolumeImbalance::new("v", 3).unwrap();
-        for _ in 0..3 { vi.update_bar(&bar("105", "100", "100")).unwrap(); }
+        for _ in 0..3 {
+            vi.update_bar(&bar("105", "100", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = vi.update_bar(&bar("105", "100", "100")).unwrap() {
             assert_eq!(v, dec!(-1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -151,7 +178,9 @@ mod tests {
         if let SignalValue::Scalar(v) = vi.update_bar(&bar("105", "100", "100")).unwrap() {
             // Equal up/down volume → 0
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

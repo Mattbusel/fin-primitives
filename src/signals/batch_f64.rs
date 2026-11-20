@@ -81,7 +81,10 @@ fn pandas_nanmean(a: &[f64]) -> f64 {
     if count == a.len() {
         return numpy_sum(a) / count as f64;
     }
-    let filled: Vec<f64> = a.iter().map(|&v| if v.is_nan() { 0.0 } else { v }).collect();
+    let filled: Vec<f64> = a
+        .iter()
+        .map(|&v| if v.is_nan() { 0.0 } else { v })
+        .collect();
     numpy_sum(&filled) / count as f64
 }
 
@@ -273,7 +276,11 @@ pub fn rsi(x: &[f64], period: usize) -> Vec<f64> {
     let mut out = p;
     for i in 0..n {
         let den = out[i] + q[i].abs();
-        out[i] = if den == 0.0 { 0.0 } else { 100.0 * out[i] / den };
+        out[i] = if den == 0.0 {
+            0.0
+        } else {
+            100.0 * out[i] / den
+        };
     }
     out
 }
@@ -297,7 +304,9 @@ pub fn true_range(high: &[f64], low: &[f64], close: &[f64], first_bar_range: boo
             hl.max((high[i] - pc).abs()).max((pc - low[i]).abs())
         };
     }
-    let start = (0..n).find(|&i| !high[i].is_nan() && !low[i].is_nan() && !close[i].is_nan()).unwrap_or(n);
+    let start = (0..n)
+        .find(|&i| !high[i].is_nan() && !low[i].is_nan() && !close[i].is_nan())
+        .unwrap_or(n);
     let blank = if first_bar_range { start } else { start + 1 };
     for v in out.iter_mut().take(blank.min(close.len())) {
         *v = f64::NAN;
@@ -353,9 +362,18 @@ fn ema_aligned(a: &[f64], period: usize, seed_end: usize, out: &mut [f64]) {
 ///
 /// Rows where `close` is not finite are skipped and read `NaN` in all three outputs;
 /// the averages run over the remaining rows, as pandas-ta does.
-pub fn macd(close: &[f64], fast: usize, slow: usize, signal: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+pub fn macd(
+    close: &[f64],
+    fast: usize,
+    slow: usize,
+    signal: usize,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let n = close.len();
-    let (fast, slow) = if slow < fast { (slow, fast) } else { (fast, slow) };
+    let (fast, slow) = if slow < fast {
+        (slow, fast)
+    } else {
+        (fast, slow)
+    };
     let nan = || vec![f64::NAN; n];
     if fast == 0 || signal == 0 {
         return (nan(), nan(), nan());
@@ -559,7 +577,11 @@ pub fn rolling_sum(x: &[f64], period: usize) -> Vec<f64> {
             prev = v;
         }
         if i + 1 >= period && nobs >= period {
-            out[i] = if same >= nobs { prev * nobs as f64 } else { sum };
+            out[i] = if same >= nobs {
+                prev * nobs as f64
+            } else {
+                sum
+            };
         }
     }
     out
@@ -689,7 +711,10 @@ pub fn wilder_sum(x: &[f64], length: usize) -> Vec<f64> {
     if start + length - 1 > n {
         return out;
     }
-    let filled: Vec<f64> = x[start..start + length - 1].iter().map(|&v| if v.is_nan() { 0.0 } else { v }).collect();
+    let filled: Vec<f64> = x[start..start + length - 1]
+        .iter()
+        .map(|&v| if v.is_nan() { 0.0 } else { v })
+        .collect();
     let mut value = numpy_sum(&filled);
     out[start + length - 2] = value;
     let len_f = length as f64;
@@ -731,7 +756,15 @@ pub type Four = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
 
 /// Parabolic SAR recursion of pandas-ta-classic's `psar`, from its initial state:
 /// `(long, short, af, reversal)`.
-pub fn psar_loop(high: &[f64], low: &[f64], falling: bool, sar: f64, ep: f64, af0: f64, max_af: f64) -> Four {
+pub fn psar_loop(
+    high: &[f64],
+    low: &[f64],
+    falling: bool,
+    sar: f64,
+    ep: f64,
+    af0: f64,
+    max_af: f64,
+) -> Four {
     let (mut falling, mut sar, mut ep) = (falling, sar, ep);
     let m = high.len().min(low.len());
     let mut long = vec![f64::NAN; m];
@@ -797,8 +830,16 @@ pub fn supertrend_loop(close: &[f64], upper: &[f64], lower: &[f64]) -> Four {
             flb[i] = lower[i];
             1.0
         } else {
-            fub[i] = if upper[i] < fub[i - 1] || close[i - 1] > fub[i - 1] { upper[i] } else { fub[i - 1] };
-            flb[i] = if lower[i] > flb[i - 1] || close[i - 1] < flb[i - 1] { lower[i] } else { flb[i - 1] };
+            fub[i] = if upper[i] < fub[i - 1] || close[i - 1] > fub[i - 1] {
+                upper[i]
+            } else {
+                fub[i - 1]
+            };
+            flb[i] = if lower[i] > flb[i - 1] || close[i - 1] < flb[i - 1] {
+                lower[i]
+            } else {
+                flb[i - 1]
+            };
             if close[i] > fub[i - 1] {
                 1.0
             } else if close[i] < flb[i - 1] {
@@ -858,8 +899,16 @@ pub fn qqe_loop(rsi_ma: &[f64], upper: &[f64], lower: &[f64]) -> Qqe {
         let c_short = short[i - 1];
         let p_long = if i >= 2 { long[i - 2] } else { 0.0 };
         let p_short = if i >= 2 { short[i - 2] } else { 0.0 };
-        long[i] = if p_rsi > c_long && c_rsi > c_long { py_max(c_long, lower[i]) } else { lower[i] };
-        short[i] = if p_rsi < c_short && c_rsi < c_short { py_min(c_short, upper[i]) } else { upper[i] };
+        long[i] = if p_rsi > c_long && c_rsi > c_long {
+            py_max(c_long, lower[i])
+        } else {
+            lower[i]
+        };
+        short[i] = if p_rsi < c_short && c_rsi < c_short {
+            py_min(c_short, upper[i])
+        } else {
+            upper[i]
+        };
         if (c_rsi > c_short && p_rsi < p_short) || (c_rsi <= c_short && p_rsi >= p_short) {
             trend[i] = 1.0;
             qqe[i] = long[i];
@@ -879,7 +928,14 @@ pub fn qqe_loop(rsi_ma: &[f64], upper: &[f64], lower: &[f64]) -> Qqe {
             }
         }
     }
-    Qqe { long, short, trend, qqe, qqe_long: ql, qqe_short: qs }
+    Qqe {
+        long,
+        short,
+        trend,
+        qqe,
+        qqe_long: ql,
+        qqe_short: qs,
+    }
 }
 
 /// Chaikin A/D oscillator recursion of pandas-ta-classic's `adosc`: two EMAs of the A/D
@@ -1050,7 +1106,11 @@ mod tests {
         let (mut g, mut l) = (0.0, 0.0);
         for i in 1..=14 {
             let d = x[i] - x[i - 1];
-            if d > 0.0 { g += d } else { l -= d }
+            if d > 0.0 {
+                g += d
+            } else {
+                l -= d
+            }
         }
         g /= 14.0;
         l /= 14.0;
@@ -1084,7 +1144,9 @@ mod tests {
         let tr0 = h[0] - l[0];
         let mut seed = tr0;
         for i in 1..14 {
-            seed += (h[i] - l[i]).max((h[i] - c[i - 1]).abs()).max((c[i - 1] - l[i]).abs());
+            seed += (h[i] - l[i])
+                .max((h[i] - c[i - 1]).abs())
+                .max((c[i - 1] - l[i]).abs());
         }
         assert!(close_enough(b[13], seed / 14.0));
     }
@@ -1131,16 +1193,29 @@ mod tests {
         let mut x = walk(500);
         x[200] = f64::NAN;
         for p in [1usize, 3, 14] {
-            let (sum, mx, mn, w) = (rolling_sum(&x, p), rolling_max(&x, p), rolling_min(&x, p), wma(&x, p));
+            let (sum, mx, mn, w) = (
+                rolling_sum(&x, p),
+                rolling_max(&x, p),
+                rolling_min(&x, p),
+                wma(&x, p),
+            );
             for i in 0..x.len() {
                 if i + 1 < p || (i >= 200 && i < 200 + p) {
-                    assert!(sum[i].is_nan() && mx[i].is_nan() && mn[i].is_nan() && w[i].is_nan(), "{p} {i}");
+                    assert!(
+                        sum[i].is_nan() && mx[i].is_nan() && mn[i].is_nan() && w[i].is_nan(),
+                        "{p} {i}"
+                    );
                     continue;
                 }
                 let win = &x[i + 1 - p..=i];
                 let s: f64 = win.iter().sum();
                 let total = (p * (p + 1)) as f64 / 2.0;
-                let ws: f64 = win.iter().enumerate().map(|(j, v)| (j + 1) as f64 * v).sum::<f64>() / total;
+                let ws: f64 = win
+                    .iter()
+                    .enumerate()
+                    .map(|(j, v)| (j + 1) as f64 * v)
+                    .sum::<f64>()
+                    / total;
                 assert!(close_enough(sum[i], s), "{p} {i}");
                 assert_eq!(mx[i], win.iter().cloned().fold(f64::MIN, f64::max));
                 assert_eq!(mn[i], win.iter().cloned().fold(f64::MAX, f64::min));
@@ -1166,7 +1241,11 @@ mod tests {
         let l: Vec<f64> = c.iter().map(|v| v - 0.5).collect();
         let (a, b, af, r) = psar_loop(&h, &l, false, l[0], h[1], 0.02, 0.2);
         assert!(a.len() == 300 && b.len() == 300 && af.len() == 300 && r.len() == 300);
-        assert!(a.iter().zip(&b).skip(1).all(|(x, y)| x.is_nan() != y.is_nan()));
+        assert!(a
+            .iter()
+            .zip(&b)
+            .skip(1)
+            .all(|(x, y)| x.is_nan() != y.is_nan()));
         assert!(af.iter().all(|v| (0.02..=0.2 + 1e-12).contains(v)));
         let (d, t, _, _) = supertrend_loop(&c, &h, &l);
         assert!(d[0].is_nan() && t.len() == 300 && d[1..].iter().all(|v| *v == 1.0 || *v == -1.0));

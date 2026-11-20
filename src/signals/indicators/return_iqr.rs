@@ -52,7 +52,9 @@ impl ReturnIqr {
 
 fn quantile(sorted: &[Decimal], q: f64) -> Decimal {
     let n = sorted.len();
-    if n == 0 { return Decimal::ZERO; }
+    if n == 0 {
+        return Decimal::ZERO;
+    }
     let pos = q * (n - 1) as f64;
     let lo = pos.floor() as usize;
     let hi = pos.ceil() as usize;
@@ -64,9 +66,15 @@ fn quantile(sorted: &[Decimal], q: f64) -> Decimal {
 }
 
 impl Signal for ReturnIqr {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -115,7 +123,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,7 +143,7 @@ mod tests {
     #[test]
     fn test_iqr_unavailable_during_warmup() {
         let mut s = ReturnIqr::new("iqr", 4).unwrap();
-        for p in &["100","101","102","103"] {
+        for p in &["100", "101", "102", "103"] {
             assert_eq!(s.update_bar(&bar(p)).unwrap(), SignalValue::Unavailable);
         }
         assert!(!s.is_ready());
@@ -141,7 +152,7 @@ mod tests {
     #[test]
     fn test_iqr_non_negative() {
         let mut s = ReturnIqr::new("iqr", 4).unwrap();
-        let prices = ["100","103","99","104","98","105","97","106"];
+        let prices = ["100", "103", "99", "104", "98", "105", "97", "106"];
         for p in &prices {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
                 assert!(v >= dec!(0), "IQR must be non-negative: {v}");
@@ -156,14 +167,18 @@ mod tests {
         let mut s_flat = ReturnIqr::new("iqr", 4).unwrap();
 
         // Volatile: large swings
-        let volatile_prices = ["100","110","90","112","88","115"];
+        let volatile_prices = ["100", "110", "90", "112", "88", "115"];
         // Flat: tiny moves
-        let flat_prices = ["100","100.1","100.2","100.1","100.2","100.1"];
+        let flat_prices = ["100", "100.1", "100.2", "100.1", "100.2", "100.1"];
 
         let mut last_vol = SignalValue::Unavailable;
         let mut last_flat = SignalValue::Unavailable;
-        for p in &volatile_prices { last_vol = s_volatile.update_bar(&bar(p)).unwrap(); }
-        for p in &flat_prices { last_flat = s_flat.update_bar(&bar(p)).unwrap(); }
+        for p in &volatile_prices {
+            last_vol = s_volatile.update_bar(&bar(p)).unwrap();
+        }
+        for p in &flat_prices {
+            last_flat = s_flat.update_bar(&bar(p)).unwrap();
+        }
 
         if let (SignalValue::Scalar(v), SignalValue::Scalar(f)) = (last_vol, last_flat) {
             assert!(v > f, "volatile IQR ({v}) should exceed flat IQR ({f})");
@@ -175,7 +190,9 @@ mod tests {
     #[test]
     fn test_iqr_reset() {
         let mut s = ReturnIqr::new("iqr", 4).unwrap();
-        for p in &["100","102","104","106","108"] { s.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "102", "104", "106", "108"] {
+            s.update_bar(&bar(p)).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

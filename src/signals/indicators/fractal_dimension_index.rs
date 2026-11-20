@@ -42,7 +42,11 @@ impl FractalDimensionIndex {
         if period < 2 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, closes: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            closes: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -72,7 +76,11 @@ impl Signal for FractalDimensionIndex {
         }
 
         // Straight-line range
-        let max_c = self.closes.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let max_c = self
+            .closes
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
         let min_c = self.closes.iter().cloned().fold(f64::INFINITY, f64::min);
         let l2 = max_c - min_c;
 
@@ -174,7 +182,11 @@ mod tests {
         let v = fdi.update_bar(&bar("11")).unwrap();
         if let SignalValue::Scalar(s) = v {
             // Trending: FDI should be < 1.5
-            assert!(s < dec!(1.5), "FDI = {} should be < 1.5 for trending data", s);
+            assert!(
+                s < dec!(1.5),
+                "FDI = {} should be < 1.5 for trending data",
+                s
+            );
         } else {
             panic!("expected scalar");
         }

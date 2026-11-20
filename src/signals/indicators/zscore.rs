@@ -68,7 +68,8 @@ impl Signal for Zscore {
         let sum: Decimal = self.window.iter().copied().sum();
         let mean = sum / n;
 
-        let variance: Decimal = self.window
+        let variance: Decimal = self
+            .window
             .iter()
             .map(|&x| {
                 let diff = x - mean;
@@ -118,7 +119,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -160,7 +164,10 @@ mod tests {
         // Push a high value — z-score should be clearly positive
         let v = z.update_bar(&bar("110")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val > dec!(0), "high close should give positive z-score: {val}");
+            assert!(
+                val > dec!(0),
+                "high close should give positive z-score: {val}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -173,7 +180,10 @@ mod tests {
         z.update_bar(&bar("110")).unwrap();
         let v = z.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(val) = v {
-            assert!(val < dec!(0), "low close should give negative z-score: {val}");
+            assert!(
+                val < dec!(0),
+                "low close should give negative z-score: {val}"
+            );
         } else {
             panic!("expected Scalar");
         }

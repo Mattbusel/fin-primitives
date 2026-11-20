@@ -50,7 +50,12 @@ impl BodyToRangeEma {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 
@@ -162,7 +167,10 @@ mod tests {
         // then doji — EMA should decay toward 0 but stay positive
         let v = btr.update_bar(&bar("100", "110", "90", "100")).unwrap();
         if let SignalValue::Scalar(e) = v {
-            assert!(e > dec!(0) && e < dec!(1), "EMA should be between 0 and 1: {e}");
+            assert!(
+                e > dec!(0) && e < dec!(1),
+                "EMA should be between 0 and 1: {e}"
+            );
         } else {
             panic!("expected Scalar");
         }

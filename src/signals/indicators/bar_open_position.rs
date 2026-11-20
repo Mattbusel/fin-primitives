@@ -32,9 +32,15 @@ impl BarOpenPosition {
 }
 
 impl Signal for BarOpenPosition {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -65,7 +71,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -95,7 +104,10 @@ mod tests {
         // open=100, high=110, low=90 → (100-90)/20 = 0.5
         let v = s.update_bar(&bar("100", "110", "90", "105")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(0.5)).abs() < dec!(0.0001), "expected 0.5, got {r}");
+            assert!(
+                (r - dec!(0.5)).abs() < dec!(0.0001),
+                "expected 0.5, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -104,13 +116,16 @@ mod tests {
     #[test]
     fn test_bop_flat_bar_unavailable() {
         let mut s = BarOpenPosition::new("bop");
-        assert_eq!(s.update_bar(&bar("100", "100", "100", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "100", "100", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_bop_output_in_unit_interval() {
         let mut s = BarOpenPosition::new("bop");
-        for (o, h, l, c) in &[("95","110","90","105"), ("108","115","102","110")] {
+        for (o, h, l, c) in &[("95", "110", "90", "105"), ("108", "115", "102", "110")] {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(o, h, l, c)).unwrap() {
                 assert!(v >= dec!(0) && v <= dec!(1), "out of [0,1]: {v}");
             }

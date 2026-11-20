@@ -95,12 +95,14 @@ impl crate::signals::Signal for PriceRangeOscillator {
 
         // slow SMA = sum / slow_period (window is exactly slow_period here)
         #[allow(clippy::cast_possible_truncation)]
-        let slow_sma = self.sum
+        let slow_sma = self
+            .sum
             .checked_div(Decimal::from(self.slow_period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
         // fast SMA = sum of last fast_period entries / fast_period
-        let fast_sum: Decimal = self.window
+        let fast_sum: Decimal = self
+            .window
             .iter()
             .rev()
             .take(self.fast_period)
@@ -134,7 +136,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -154,7 +159,10 @@ mod tests {
     fn test_pro_unavailable_during_warmup() {
         let mut pro = PriceRangeOscillator::new("pro", 3, 6).unwrap();
         for _ in 0..5 {
-            assert_eq!(pro.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pro.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 

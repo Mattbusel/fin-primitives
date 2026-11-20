@@ -32,15 +32,23 @@ pub struct GapDetector {
 impl GapDetector {
     /// Creates a new `GapDetector`.
     pub fn new(name: impl Into<String>) -> Result<Self, FinError> {
-        Ok(Self { name: name.into(), prev_close: None, last_gap: None })
+        Ok(Self {
+            name: name.into(),
+            prev_close: None,
+            last_gap: None,
+        })
     }
 
     /// Returns the most recent gap percentage.
-    pub fn last_gap(&self) -> Option<Decimal> { self.last_gap }
+    pub fn last_gap(&self) -> Option<Decimal> {
+        self.last_gap
+    }
 }
 
 impl Signal for GapDetector {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let gap = match self.prev_close {
@@ -61,8 +69,12 @@ impl Signal for GapDetector {
         Ok(SignalValue::Scalar(gap))
     }
 
-    fn is_ready(&self) -> bool { self.last_gap.is_some() }
-    fn period(&self) -> usize { 1 }
+    fn is_ready(&self) -> bool {
+        self.last_gap.is_some()
+    }
+    fn period(&self) -> usize {
+        1
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -82,7 +94,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: op, low: op, close: cp,
+            open: op,
+            high: op,
+            low: op,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -103,10 +118,12 @@ mod tests {
     fn test_gap_up() {
         let mut g = GapDetector::new("g").unwrap();
         g.update_bar(&bar_oc("100", "100")).unwrap(); // prev_close = 100
-        // open = 105 → gap = (105-100)/100 * 100 = 5%
+                                                      // open = 105 → gap = (105-100)/100 * 100 = 5%
         if let SignalValue::Scalar(v) = g.update_bar(&bar_oc("105", "105")).unwrap() {
             assert_eq!(v, dec!(5));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -116,7 +133,9 @@ mod tests {
         // open = 90 → gap = (90-100)/100 * 100 = -10%
         if let SignalValue::Scalar(v) = g.update_bar(&bar_oc("90", "90")).unwrap() {
             assert_eq!(v, dec!(-10));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -125,7 +144,9 @@ mod tests {
         g.update_bar(&bar_oc("100", "100")).unwrap();
         if let SignalValue::Scalar(v) = g.update_bar(&bar_oc("100", "100")).unwrap() {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

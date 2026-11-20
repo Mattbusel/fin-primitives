@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-11-20 (Rust crate)
+
+### Changed
+- README answers why it exists, why this instead of TA-Lib or pandas-ta (pandas-ta on PyPI is 0.4.x betas only, Python 3.12+, numba==0.61.2 pinned), why today, who it is for and the trade-offs. No code change; the Python wheel stays at 4.0.0.
+
 ## [4.0.0] - 2026-11-19
 
 ### Why this is a major version

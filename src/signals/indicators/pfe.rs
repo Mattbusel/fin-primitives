@@ -42,8 +42,12 @@ impl Pfe {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0` or `smoothing == 0`.
     pub fn new(name: impl Into<String>, period: usize, smoothing: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
-        if smoothing == 0 { return Err(FinError::InvalidPeriod(smoothing)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
+        if smoothing == 0 {
+            return Err(FinError::InvalidPeriod(smoothing));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let smooth_k = Decimal::TWO / Decimal::from((smoothing + 1) as u32);
         Ok(Self {
@@ -59,11 +63,15 @@ impl Pfe {
 
 impl Pfe {
     /// Returns the EMA smoothing period.
-    pub fn smoothing(&self) -> usize { self.smoothing }
+    pub fn smoothing(&self) -> usize {
+        self.smoothing
+    }
 }
 
 impl Signal for Pfe {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -75,15 +83,28 @@ impl Signal for Pfe {
             return Ok(SignalValue::Unavailable);
         }
 
-        let closes_vec: Vec<f64> = self.closes.iter()
-            .filter_map(|c| c.to_f64())
-            .collect();
+        let closes_vec: Vec<f64> = self.closes.iter().filter_map(|c| c.to_f64()).collect();
         let n = closes_vec.len() as f64 - 1.0;
-        let delta = closes_vec.last().ok_or_else(crate::error::invariant_broken)? - closes_vec.first().ok_or_else(crate::error::invariant_broken)?;
-        let direction = if delta > 0.0 { 1.0f64 } else if delta < 0.0 { -1.0f64 } else { 0.0 };
+        let delta = closes_vec
+            .last()
+            .ok_or_else(crate::error::invariant_broken)?
+            - closes_vec
+                .first()
+                .ok_or_else(crate::error::invariant_broken)?;
+        let direction = if delta > 0.0 {
+            1.0f64
+        } else if delta < 0.0 {
+            -1.0f64
+        } else {
+            0.0
+        };
         let distance = (n * n + delta * delta).sqrt();
-        let path: f64 = closes_vec.windows(2)
-            .map(|w| { let d = w[1] - w[0]; (1.0 + d * d).sqrt() })
+        let path: f64 = closes_vec
+            .windows(2)
+            .map(|w| {
+                let d = w[1] - w[0];
+                (1.0 + d * d).sqrt()
+            })
             .sum();
         let raw_pfe = if path == 0.0 {
             0.0
@@ -100,9 +121,13 @@ impl Signal for Pfe {
         Ok(SignalValue::Scalar(new_ema))
     }
 
-    fn is_ready(&self) -> bool { self.smooth_ema.is_some() }
+    fn is_ready(&self) -> bool {
+        self.smooth_ema.is_some()
+    }
 
-    fn period(&self) -> usize { self.period }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -122,7 +147,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -161,7 +189,10 @@ mod tests {
             last = p.update_bar(&bar("100")).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v.abs() < dec!(1), "PFE should be near 0 for flat market: {v}");
+            assert!(
+                v.abs() < dec!(1),
+                "PFE should be near 0 for flat market: {v}"
+            );
         } else {
             panic!("expected scalar");
         }
@@ -170,7 +201,9 @@ mod tests {
     #[test]
     fn test_pfe_reset() {
         let mut p = Pfe::new("p", 3, 2).unwrap();
-        for _ in 0..10 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

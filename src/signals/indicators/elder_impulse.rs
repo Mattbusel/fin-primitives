@@ -68,31 +68,59 @@ impl ElderImpulse {
         slow: usize,
         signal: usize,
     ) -> Result<Self, FinError> {
-        if ema_period == 0 { return Err(FinError::InvalidPeriod(ema_period)); }
-        if fast == 0       { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0       { return Err(FinError::InvalidPeriod(slow)); }
-        if signal == 0     { return Err(FinError::InvalidPeriod(signal)); }
-        if fast >= slow    { return Err(FinError::InvalidPeriod(fast)); }
+        if ema_period == 0 {
+            return Err(FinError::InvalidPeriod(ema_period));
+        }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
+        if signal == 0 {
+            return Err(FinError::InvalidPeriod(signal));
+        }
+        if fast >= slow {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         #[allow(clippy::cast_possible_truncation)]
-        let ema_k  = Decimal::TWO / Decimal::from((ema_period + 1) as u32);
+        let ema_k = Decimal::TWO / Decimal::from((ema_period + 1) as u32);
         #[allow(clippy::cast_possible_truncation)]
         let fast_k = Decimal::TWO / Decimal::from((fast + 1) as u32);
         #[allow(clippy::cast_possible_truncation)]
         let slow_k = Decimal::TWO / Decimal::from((slow + 1) as u32);
         #[allow(clippy::cast_possible_truncation)]
-        let sig_k  = Decimal::TWO / Decimal::from((signal + 1) as u32);
+        let sig_k = Decimal::TWO / Decimal::from((signal + 1) as u32);
         Ok(Self {
             name: name.into(),
-            ema_k, fast_k, slow_k, sig_k,
-            ema: None, ema_seed: VecDeque::with_capacity(ema_period), ema_period,
-            fast_ema: None, fast_seed: VecDeque::with_capacity(fast), fast_period: fast,
-            slow_ema: None, slow_seed: VecDeque::with_capacity(slow), slow_period: slow,
-            sig_ema: None, sig_seed: VecDeque::with_capacity(signal), sig_period: signal,
-            prev_ema: None, prev_hist: None,
+            ema_k,
+            fast_k,
+            slow_k,
+            sig_k,
+            ema: None,
+            ema_seed: VecDeque::with_capacity(ema_period),
+            ema_period,
+            fast_ema: None,
+            fast_seed: VecDeque::with_capacity(fast),
+            fast_period: fast,
+            slow_ema: None,
+            slow_seed: VecDeque::with_capacity(slow),
+            slow_period: slow,
+            sig_ema: None,
+            sig_seed: VecDeque::with_capacity(signal),
+            sig_period: signal,
+            prev_ema: None,
+            prev_hist: None,
         })
     }
 
-    fn ema_step(prev: &mut Option<Decimal>, seed: &mut VecDeque<Decimal>, period: usize, k: Decimal, val: Decimal) -> Option<Decimal> {
+    fn ema_step(
+        prev: &mut Option<Decimal>,
+        seed: &mut VecDeque<Decimal>,
+        period: usize,
+        k: Decimal,
+        val: Decimal,
+    ) -> Option<Decimal> {
         match *prev {
             None => {
                 seed.push_back(val);
@@ -100,7 +128,9 @@ impl ElderImpulse {
                     let sma = seed.iter().sum::<Decimal>() / Decimal::from(period as u32);
                     *prev = Some(sma);
                     Some(sma)
-                } else { None }
+                } else {
+                    None
+                }
             }
             Some(p) => {
                 let v = val * k + p * (Decimal::ONE - k);
@@ -112,14 +142,34 @@ impl ElderImpulse {
 }
 
 impl Signal for ElderImpulse {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
 
-        let ema_val = Self::ema_step(&mut self.ema, &mut self.ema_seed, self.ema_period, self.ema_k, close);
-        let fast_val = Self::ema_step(&mut self.fast_ema, &mut self.fast_seed, self.fast_period, self.fast_k, close);
-        let slow_val = Self::ema_step(&mut self.slow_ema, &mut self.slow_seed, self.slow_period, self.slow_k, close);
+        let ema_val = Self::ema_step(
+            &mut self.ema,
+            &mut self.ema_seed,
+            self.ema_period,
+            self.ema_k,
+            close,
+        );
+        let fast_val = Self::ema_step(
+            &mut self.fast_ema,
+            &mut self.fast_seed,
+            self.fast_period,
+            self.fast_k,
+            close,
+        );
+        let slow_val = Self::ema_step(
+            &mut self.slow_ema,
+            &mut self.slow_seed,
+            self.slow_period,
+            self.slow_k,
+            close,
+        );
 
         let (ema_val, fast_val, slow_val) = match (ema_val, fast_val, slow_val) {
             (Some(e), Some(f), Some(s)) => (e, f, s),
@@ -127,7 +177,13 @@ impl Signal for ElderImpulse {
         };
 
         let macd_line = fast_val - slow_val;
-        let hist_val = match Self::ema_step(&mut self.sig_ema, &mut self.sig_seed, self.sig_period, self.sig_k, macd_line) {
+        let hist_val = match Self::ema_step(
+            &mut self.sig_ema,
+            &mut self.sig_seed,
+            self.sig_period,
+            self.sig_k,
+            macd_line,
+        ) {
             None => return Ok(SignalValue::Unavailable),
             Some(sig) => macd_line - sig,
         };
@@ -163,11 +219,16 @@ impl Signal for ElderImpulse {
     }
 
     fn reset(&mut self) {
-        self.ema = None; self.ema_seed.clear();
-        self.fast_ema = None; self.fast_seed.clear();
-        self.slow_ema = None; self.slow_seed.clear();
-        self.sig_ema = None; self.sig_seed.clear();
-        self.prev_ema = None; self.prev_hist = None;
+        self.ema = None;
+        self.ema_seed.clear();
+        self.fast_ema = None;
+        self.fast_seed.clear();
+        self.slow_ema = None;
+        self.slow_seed.clear();
+        self.sig_ema = None;
+        self.sig_seed.clear();
+        self.prev_ema = None;
+        self.prev_hist = None;
     }
 }
 
@@ -181,7 +242,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -199,7 +263,10 @@ mod tests {
     fn test_elder_impulse_unavailable_before_warmup() {
         let mut ei = ElderImpulse::new("e", 3, 2, 4, 2).unwrap();
         for _ in 0..4 {
-            assert_eq!(ei.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ei.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -216,7 +283,9 @@ mod tests {
     #[test]
     fn test_elder_impulse_reset() {
         let mut ei = ElderImpulse::new("e", 3, 2, 4, 2).unwrap();
-        for i in 0..30usize { ei.update_bar(&bar(&(100 + i % 5).to_string())).unwrap(); }
+        for i in 0..30usize {
+            ei.update_bar(&bar(&(100 + i % 5).to_string())).unwrap();
+        }
         assert!(ei.is_ready());
         ei.reset();
         assert!(!ei.is_ready());

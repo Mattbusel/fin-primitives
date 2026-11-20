@@ -41,8 +41,12 @@ impl EmaBandWidth {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is 0 or `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 || fast >= slow { return Err(FinError::InvalidPeriod(slow)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 || fast >= slow {
+            return Err(FinError::InvalidPeriod(slow));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let fast_k = Decimal::from(2u32) / (Decimal::from(fast as u32) + Decimal::ONE);
         #[allow(clippy::cast_possible_truncation)]
@@ -60,15 +64,25 @@ impl EmaBandWidth {
     }
 
     /// Returns the fast EMA period.
-    pub fn fast_period(&self) -> usize { self.fast_period }
+    pub fn fast_period(&self) -> usize {
+        self.fast_period
+    }
     /// Returns the slow EMA period.
-    pub fn slow_period(&self) -> usize { self.slow_period }
+    pub fn slow_period(&self) -> usize {
+        self.slow_period
+    }
 }
 
 impl Signal for EmaBandWidth {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow_period }
-    fn is_ready(&self) -> bool { self.bars > self.slow_period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
+    fn is_ready(&self) -> bool {
+        self.bars > self.slow_period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.bars += 1;
@@ -89,8 +103,12 @@ impl Signal for EmaBandWidth {
 
         let fast = self.fast_ema.unwrap_or(Decimal::ZERO);
         let slow = self.slow_ema.unwrap_or(Decimal::ZERO);
-        if slow.is_zero() { return Ok(SignalValue::Unavailable); }
-        Ok(SignalValue::Scalar((fast - slow) / slow * Decimal::ONE_HUNDRED))
+        if slow.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
+        Ok(SignalValue::Scalar(
+            (fast - slow) / slow * Decimal::ONE_HUNDRED,
+        ))
     }
 
     fn reset(&mut self) {
@@ -112,7 +130,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -157,7 +178,10 @@ mod tests {
             e.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
         if let SignalValue::Scalar(v) = e.update_bar(&bar("120")).unwrap() {
-            assert!(v > dec!(0), "expected positive band width in uptrend, got {v}");
+            assert!(
+                v > dec!(0),
+                "expected positive band width in uptrend, got {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -166,7 +190,9 @@ mod tests {
     #[test]
     fn test_ebw_reset() {
         let mut e = EmaBandWidth::new("e", 3, 5).unwrap();
-        for _ in 0..20 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         assert!(e.is_ready());
         e.reset();
         assert!(!e.is_ready());

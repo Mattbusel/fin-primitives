@@ -69,7 +69,13 @@ mod tests {
     fn tiny_magnitudes() {
         // The old Newton loop seeded at max(n / 2, 1) and capped at 20 steps returned
         // about 9.5e-7 for sqrt(1e-16) (true 1e-8).
-        for s in ["1e-16", "2.5e-17", "1e-20", "3e-24", "0.0000000000000000000000000001"] {
+        for s in [
+            "1e-16",
+            "2.5e-17",
+            "1e-20",
+            "3e-24",
+            "0.0000000000000000000000000001",
+        ] {
             let n = Decimal::from_str(s).unwrap_or_else(|_| Decimal::from_scientific(s).unwrap());
             let r = sqrt(n).unwrap();
             let want = n.to_f64().unwrap().sqrt();

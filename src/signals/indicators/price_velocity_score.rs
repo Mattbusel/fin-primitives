@@ -40,7 +40,9 @@ impl PriceVelocityScore {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `fast == 0` or `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 || fast >= slow { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 || fast >= slow {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         Ok(Self {
             name: name.into(),
             fast,
@@ -52,26 +54,48 @@ impl PriceVelocityScore {
 }
 
 impl Signal for PriceVelocityScore {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow }
-    fn is_ready(&self) -> bool { self.velocities.len() >= self.slow }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
+    fn is_ready(&self) -> bool {
+        self.velocities.len() >= self.slow
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.fast + 1 { self.closes.pop_front(); }
+        if self.closes.len() > self.fast + 1 {
+            self.closes.pop_front();
+        }
 
-        if self.closes.len() < self.fast + 1 { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() < self.fast + 1 {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let velocity = *self.closes.back().ok_or_else(crate::error::invariant_broken)? - *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
+        let velocity = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?
+            - *self
+                .closes
+                .front()
+                .ok_or_else(crate::error::invariant_broken)?;
         self.velocities.push_back(velocity.abs());
-        if self.velocities.len() > self.slow { self.velocities.pop_front(); }
+        if self.velocities.len() > self.slow {
+            self.velocities.pop_front();
+        }
 
-        if self.velocities.len() < self.slow { return Ok(SignalValue::Unavailable); }
+        if self.velocities.len() < self.slow {
+            return Ok(SignalValue::Unavailable);
+        }
 
         #[allow(clippy::cast_possible_truncation)]
-        let avg_vel = self.velocities.iter().sum::<Decimal>()
-            / Decimal::from(self.slow as u32);
-        if avg_vel.is_zero() { return Ok(SignalValue::Unavailable); }
+        let avg_vel = self.velocities.iter().sum::<Decimal>() / Decimal::from(self.slow as u32);
+        if avg_vel.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         Ok(SignalValue::Scalar(velocity / avg_vel))
     }
 
@@ -92,7 +116,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -120,14 +147,18 @@ mod tests {
     #[test]
     fn test_pvs_ready_after_warm_up() {
         let mut pvs = PriceVelocityScore::new("p", 2, 5).unwrap();
-        for i in 0u32..8 { pvs.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..8 {
+            pvs.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(pvs.is_ready());
     }
 
     #[test]
     fn test_pvs_reset() {
         let mut pvs = PriceVelocityScore::new("p", 2, 5).unwrap();
-        for i in 0u32..8 { pvs.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..8 {
+            pvs.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         pvs.reset();
         assert!(!pvs.is_ready());
     }

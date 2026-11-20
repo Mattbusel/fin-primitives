@@ -30,12 +30,17 @@ pub struct CandleColor {
 impl CandleColor {
     /// Creates a new `CandleColor`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ready: false }
+        Self {
+            name: name.into(),
+            ready: false,
+        }
     }
 }
 
 impl Signal for CandleColor {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.ready = true;
@@ -49,9 +54,15 @@ impl Signal for CandleColor {
         Ok(SignalValue::Scalar(value))
     }
 
-    fn is_ready(&self) -> bool { self.ready }
-    fn period(&self) -> usize { 1 }
-    fn reset(&mut self) { self.ready = false; }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn reset(&mut self) {
+        self.ready = false;
+    }
 }
 
 #[cfg(test)]
@@ -68,7 +79,10 @@ mod tests {
         let lp = if cp <= op { cp } else { op };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -79,19 +93,28 @@ mod tests {
     #[test]
     fn test_cc_bullish() {
         let mut c = CandleColor::new("cc");
-        assert_eq!(c.update_bar(&bar("100", "105")).unwrap(), SignalValue::Scalar(dec!(1)));
+        assert_eq!(
+            c.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Scalar(dec!(1))
+        );
     }
 
     #[test]
     fn test_cc_bearish() {
         let mut c = CandleColor::new("cc");
-        assert_eq!(c.update_bar(&bar("105", "100")).unwrap(), SignalValue::Scalar(dec!(-1)));
+        assert_eq!(
+            c.update_bar(&bar("105", "100")).unwrap(),
+            SignalValue::Scalar(dec!(-1))
+        );
     }
 
     #[test]
     fn test_cc_doji() {
         let mut c = CandleColor::new("cc");
-        assert_eq!(c.update_bar(&bar("100", "100")).unwrap(), SignalValue::Scalar(dec!(0)));
+        assert_eq!(
+            c.update_bar(&bar("100", "100")).unwrap(),
+            SignalValue::Scalar(dec!(0))
+        );
     }
 
     #[test]

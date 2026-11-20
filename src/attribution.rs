@@ -174,8 +174,8 @@ impl BrinsonHoodBeebower {
             let alloc = (seg.portfolio_weight - seg.benchmark_weight)
                 * (seg.benchmark_return - benchmark_total);
             let select = seg.benchmark_weight * (seg.portfolio_return - seg.benchmark_return);
-            let interact =
-                (seg.portfolio_weight - seg.benchmark_weight) * (seg.portfolio_return - seg.benchmark_return);
+            let interact = (seg.portfolio_weight - seg.benchmark_weight)
+                * (seg.portfolio_return - seg.benchmark_return);
             let total_active = alloc + select + interact;
 
             total_allocation += alloc;
@@ -419,16 +419,19 @@ impl RiskContribution {
 
         // Σw — matrix-vector product
         let sigma_w: Vec<f64> = (0..n)
-            .map(|i| {
-                (0..n).map(|j| cov[i][j] * weights[j]).sum::<f64>()
-            })
+            .map(|i| (0..n).map(|j| cov[i][j] * weights[j]).sum::<f64>())
             .collect();
 
         // Portfolio variance: w' Σ w
-        let port_var: f64 = weights.iter().zip(sigma_w.iter()).map(|(w, sw)| w * sw).sum();
+        let port_var: f64 = weights
+            .iter()
+            .zip(sigma_w.iter())
+            .map(|(w, sw)| w * sw)
+            .sum();
         if port_var <= 0.0 {
             return Err(FinError::InvalidInput(
-                "portfolio variance is zero or negative; cannot compute risk contributions".to_owned(),
+                "portfolio variance is zero or negative; cannot compute risk contributions"
+                    .to_owned(),
             ));
         }
         let port_vol = port_var.sqrt();
@@ -656,7 +659,11 @@ impl PerformanceTearsheet {
         // Volatility (sample std dev, annualised)
         let mean_r = port_returns.iter().sum::<f64>() / n as f64;
         let var_r = if n > 1 {
-            port_returns.iter().map(|r| (r - mean_r).powi(2)).sum::<f64>() / (n - 1) as f64
+            port_returns
+                .iter()
+                .map(|r| (r - mean_r).powi(2))
+                .sum::<f64>()
+                / (n - 1) as f64
         } else {
             0.0
         };
@@ -726,7 +733,10 @@ impl PerformanceTearsheet {
 
         // Return stats
         let return_min = port_returns.iter().cloned().fold(f64::INFINITY, f64::min);
-        let return_max = port_returns.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let return_max = port_returns
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
         let return_mean = mean_r;
 
         Ok(Self {
@@ -928,7 +938,13 @@ mod tests {
     // ── FactorAttribution ─────────────────────────────────────────────────
 
     fn sample_betas() -> FactorReturns {
-        FactorReturns { market: 1.0, size: 0.2, value: -0.1, momentum: 0.3, quality: 0.05 }
+        FactorReturns {
+            market: 1.0,
+            size: 0.2,
+            value: -0.1,
+            momentum: 0.3,
+            quality: 0.05,
+        }
     }
 
     fn sample_factor_returns() -> FactorReturns {
@@ -952,7 +968,13 @@ mod tests {
 
     #[test]
     fn test_factor_attribution_nan_fails() {
-        let b = FactorReturns { market: f64::NAN, size: 0.0, value: 0.0, momentum: 0.0, quality: 0.0 };
+        let b = FactorReturns {
+            market: f64::NAN,
+            size: 0.0,
+            value: 0.0,
+            momentum: 0.0,
+            quality: 0.0,
+        };
         let fr = sample_factor_returns();
         assert!(FactorAttribution::compute(&b, &fr, 0.01).is_err());
     }
@@ -977,7 +999,10 @@ mod tests {
         // Sum of MRC should equal portfolio volatility
         let port_vol = 0.2 * 0.5f64.sqrt(); // sqrt(0.5^2*0.04 + 0.5^2*0.04)
         let mrc_sum: f64 = r.iter().map(|rc| rc.marginal_risk_contribution).sum();
-        assert!((mrc_sum - port_vol).abs() < 1e-10, "mrc_sum={mrc_sum} port_vol={port_vol}");
+        assert!(
+            (mrc_sum - port_vol).abs() < 1e-10,
+            "mrc_sum={mrc_sum} port_vol={port_vol}"
+        );
     }
 
     #[test]
@@ -1032,11 +1057,31 @@ mod tests {
 
     fn daily_obs() -> Vec<ReturnObservation> {
         vec![
-            ReturnObservation { label: "d1".to_owned(), portfolio_return: 0.01, benchmark_return: 0.008 },
-            ReturnObservation { label: "d2".to_owned(), portfolio_return: -0.005, benchmark_return: -0.003 },
-            ReturnObservation { label: "d3".to_owned(), portfolio_return: 0.02, benchmark_return: 0.015 },
-            ReturnObservation { label: "d4".to_owned(), portfolio_return: -0.01, benchmark_return: -0.005 },
-            ReturnObservation { label: "d5".to_owned(), portfolio_return: 0.015, benchmark_return: 0.012 },
+            ReturnObservation {
+                label: "d1".to_owned(),
+                portfolio_return: 0.01,
+                benchmark_return: 0.008,
+            },
+            ReturnObservation {
+                label: "d2".to_owned(),
+                portfolio_return: -0.005,
+                benchmark_return: -0.003,
+            },
+            ReturnObservation {
+                label: "d3".to_owned(),
+                portfolio_return: 0.02,
+                benchmark_return: 0.015,
+            },
+            ReturnObservation {
+                label: "d4".to_owned(),
+                portfolio_return: -0.01,
+                benchmark_return: -0.005,
+            },
+            ReturnObservation {
+                label: "d5".to_owned(),
+                portfolio_return: 0.015,
+                benchmark_return: 0.012,
+            },
         ]
     }
 
@@ -1058,8 +1103,16 @@ mod tests {
     #[test]
     fn test_tearsheet_total_return_compounded() {
         let obs = vec![
-            ReturnObservation { label: "a".to_owned(), portfolio_return: 0.10, benchmark_return: 0.08 },
-            ReturnObservation { label: "b".to_owned(), portfolio_return: 0.10, benchmark_return: 0.08 },
+            ReturnObservation {
+                label: "a".to_owned(),
+                portfolio_return: 0.10,
+                benchmark_return: 0.08,
+            },
+            ReturnObservation {
+                label: "b".to_owned(),
+                portfolio_return: 0.10,
+                benchmark_return: 0.08,
+            },
         ];
         let ts = PerformanceTearsheet::compute(&obs, 252).unwrap();
         let expected = 1.1 * 1.1 - 1.0;
@@ -1107,7 +1160,8 @@ mod tests {
         let mut series = AttributionSeries::new();
         assert!(series.is_empty());
         for i in 0..3u32 {
-            let r = AttributionReport::new(format!("period-{i}"), 0.05, 0.04, None, None, None).unwrap();
+            let r = AttributionReport::new(format!("period-{i}"), 0.05, 0.04, None, None, None)
+                .unwrap();
             series.push(r).unwrap();
         }
         assert_eq!(series.len(), 3);
@@ -1295,7 +1349,15 @@ impl SectorAttributionReport {
     pub fn to_table(&self) -> String {
         let header = format!(
             "{:<18} {:>8} {:>8} {:>9} {:>9} {:>8} {:>8} {:>9} {:>8}",
-            "Sector", "P.Wt%", "B.Wt%", "P.Ret%", "B.Ret%", "Alloc%", "Select%", "Interact%", "Active%"
+            "Sector",
+            "P.Wt%",
+            "B.Wt%",
+            "P.Ret%",
+            "B.Ret%",
+            "Alloc%",
+            "Select%",
+            "Interact%",
+            "Active%"
         );
         let sep = "-".repeat(header.len());
 
@@ -1415,11 +1477,23 @@ mod bhb_sector_tests {
         let report = run_attribution(&sectors);
         let sa = &report.sectors[0];
         // Allocation = (0.50-0.40)*(0.06-0.024) = 0.10*0.036 = 0.0036
-        assert!((sa.allocation_effect - 0.0036).abs() < 1e-10, "alloc={}", sa.allocation_effect);
+        assert!(
+            (sa.allocation_effect - 0.0036).abs() < 1e-10,
+            "alloc={}",
+            sa.allocation_effect
+        );
         // Selection = 0.40*(0.08-0.06) = 0.40*0.02 = 0.008
-        assert!((sa.selection_effect - 0.008).abs() < 1e-10, "sel={}", sa.selection_effect);
+        assert!(
+            (sa.selection_effect - 0.008).abs() < 1e-10,
+            "sel={}",
+            sa.selection_effect
+        );
         // Interaction = (0.50-0.40)*(0.08-0.06) = 0.10*0.02 = 0.002
-        assert!((sa.interaction_effect - 0.002).abs() < 1e-10, "inter={}", sa.interaction_effect);
+        assert!(
+            (sa.interaction_effect - 0.002).abs() < 1e-10,
+            "inter={}",
+            sa.interaction_effect
+        );
         let _ = rb; // used implicitly above
     }
 
@@ -1441,7 +1515,13 @@ mod bhb_sector_tests {
     fn bhb_table_contains_total_row() {
         let report = run_attribution(&two_sector_example());
         let table = report.to_table();
-        assert!(table.contains("TOTAL"), "table should have a TOTAL row:\n{table}");
-        assert!(table.contains("Tech"), "table should have Tech sector:\n{table}");
+        assert!(
+            table.contains("TOTAL"),
+            "table should have a TOTAL row:\n{table}"
+        );
+        assert!(
+            table.contains("Tech"),
+            "table should have Tech sector:\n{table}"
+        );
     }
 }

@@ -1,9 +1,9 @@
 //! Range-Return Ratio indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling average of `|close - open| / (prev_close)` normalized by bar range.
 ///
@@ -53,17 +53,25 @@ impl Signal for RangeReturnRatio {
         if self.window.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        Ok(SignalValue::Scalar(self.sum / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            self.sum / Decimal::from(self.period as u32),
+        ))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
     fn reset(&mut self) {
         self.prev_close = None;
         self.window.clear();
         self.sum = Decimal::ZERO;
     }
-    fn name(&self) -> &str { "RangeReturnRatio" }
+    fn name(&self) -> &str {
+        "RangeReturnRatio"
+    }
 }
 
 #[cfg(test)]

@@ -54,9 +54,15 @@ impl CalmarRatio {
 }
 
 impl Signal for CalmarRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.close);
@@ -84,13 +90,19 @@ impl Signal for CalmarRatio {
         let mut max_dd = Decimal::ZERO;
         let mut peak = prices[0];
         for &p in &prices[1..] {
-            if p > peak { peak = p; }
-            if peak.is_zero() { continue; }
+            if p > peak {
+                peak = p;
+            }
+            if peak.is_zero() {
+                continue;
+            }
             let dd = (peak - p)
                 .checked_div(peak)
                 .ok_or(FinError::ArithmeticOverflow)?
                 * Decimal::ONE_HUNDRED;
-            if dd > max_dd { max_dd = dd; }
+            if dd > max_dd {
+                max_dd = dd;
+            }
         }
 
         if max_dd.is_zero() {
@@ -121,7 +133,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -159,7 +174,7 @@ mod tests {
         // Net positive return with a dip in between
         let mut c = CalmarRatio::new("c", 4).unwrap();
         c.update_bar(&bar("100")).unwrap();
-        c.update_bar(&bar("95")).unwrap();  // drawdown of 5%
+        c.update_bar(&bar("95")).unwrap(); // drawdown of 5%
         c.update_bar(&bar("98")).unwrap();
         c.update_bar(&bar("102")).unwrap();
         if let SignalValue::Scalar(v) = c.update_bar(&bar("110")).unwrap() {
@@ -172,7 +187,9 @@ mod tests {
     #[test]
     fn test_calmar_reset() {
         let mut c = CalmarRatio::new("c", 3).unwrap();
-        for p in &["100", "95", "98", "103"] { c.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "95", "98", "103"] {
+            c.update_bar(&bar(p)).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

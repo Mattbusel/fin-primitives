@@ -37,7 +37,9 @@ impl HlRatio {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -48,17 +50,35 @@ impl HlRatio {
 }
 
 impl Signal for HlRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
-        if self.highs.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
+        if self.highs.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let period_high = self.highs.iter().cloned().max().ok_or_else(crate::error::invariant_broken)?;
-        let period_low = self.lows.iter().cloned().min().ok_or_else(crate::error::invariant_broken)?;
+        let period_high = self
+            .highs
+            .iter()
+            .cloned()
+            .max()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let period_low = self
+            .lows
+            .iter()
+            .cloned()
+            .min()
+            .ok_or_else(crate::error::invariant_broken)?;
 
         if period_low.is_zero() {
             return Ok(SignalValue::Unavailable);
@@ -66,8 +86,12 @@ impl Signal for HlRatio {
         Ok(SignalValue::Scalar(period_high / period_low))
     }
 
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.highs.clear();
@@ -87,7 +111,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: lp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: lp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -104,7 +131,10 @@ mod tests {
     fn test_hlr_unavailable_before_warmup() {
         let mut h = HlRatio::new("h", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(h.update_bar(&bar("105", "95")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                h.update_bar(&bar("105", "95")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -113,10 +143,14 @@ mod tests {
         // h=l → HL ratio = 100/100 = 1
         let mut h = HlRatio::new("h", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..4 { last = h.update_bar(&bar("100", "100")).unwrap(); }
+        for _ in 0..4 {
+            last = h.update_bar(&bar("100", "100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -126,13 +160,17 @@ mod tests {
         h.update_bar(&bar("110", "90")).unwrap();
         if let SignalValue::Scalar(v) = h.update_bar(&bar("110", "90")).unwrap() {
             assert!(v > dec!(1), "expected > 1, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_hlr_reset() {
         let mut h = HlRatio::new("h", 3).unwrap();
-        for _ in 0..5 { h.update_bar(&bar("105", "95")).unwrap(); }
+        for _ in 0..5 {
+            h.update_bar(&bar("105", "95")).unwrap();
+        }
         assert!(h.is_ready());
         h.reset();
         assert!(!h.is_ready());

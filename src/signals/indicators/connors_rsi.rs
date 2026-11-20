@@ -74,9 +74,15 @@ impl ConnorsRsi {
         streak_period: usize,
         rank_period: usize,
     ) -> Result<Self, FinError> {
-        if rsi_period == 0 { return Err(FinError::InvalidPeriod(rsi_period)); }
-        if streak_period == 0 { return Err(FinError::InvalidPeriod(streak_period)); }
-        if rank_period == 0 { return Err(FinError::InvalidPeriod(rank_period)); }
+        if rsi_period == 0 {
+            return Err(FinError::InvalidPeriod(rsi_period));
+        }
+        if streak_period == 0 {
+            return Err(FinError::InvalidPeriod(streak_period));
+        }
+        if rank_period == 0 {
+            return Err(FinError::InvalidPeriod(rank_period));
+        }
         Ok(Self {
             name: name.into(),
             rsi_period,
@@ -110,8 +116,16 @@ impl ConnorsRsi {
         period: usize,
     ) -> Option<Decimal> {
         let change = close - prev;
-        let gain = if change > Decimal::ZERO { change } else { Decimal::ZERO };
-        let loss = if change < Decimal::ZERO { -change } else { Decimal::ZERO };
+        let gain = if change > Decimal::ZERO {
+            change
+        } else {
+            Decimal::ZERO
+        };
+        let loss = if change < Decimal::ZERO {
+            -change
+        } else {
+            Decimal::ZERO
+        };
         *count += 1;
 
         if avg_gain.is_none() {
@@ -137,7 +151,9 @@ impl ConnorsRsi {
 }
 
 impl Signal for ConnorsRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -145,7 +161,8 @@ impl Signal for ConnorsRsi {
         // --- Component 1: RSI(close) ---
         let rsi_c1 = if let Some(pc) = self.prev_close {
             Self::update_rsi_component(
-                close, pc,
+                close,
+                pc,
                 &mut self.rsi_count,
                 &mut self.rsi_seed_gains,
                 &mut self.rsi_seed_losses,
@@ -160,11 +177,17 @@ impl Signal for ConnorsRsi {
         // --- Update streak ---
         let new_streak = if let Some(pc) = self.prev_close {
             if close > pc {
-                if self.streak > Decimal::ZERO { self.streak + Decimal::ONE }
-                else { Decimal::ONE }
+                if self.streak > Decimal::ZERO {
+                    self.streak + Decimal::ONE
+                } else {
+                    Decimal::ONE
+                }
             } else if close < pc {
-                if self.streak < Decimal::ZERO { self.streak - Decimal::ONE }
-                else { -Decimal::ONE }
+                if self.streak < Decimal::ZERO {
+                    self.streak - Decimal::ONE
+                } else {
+                    -Decimal::ONE
+                }
             } else {
                 Decimal::ZERO
             }
@@ -177,7 +200,8 @@ impl Signal for ConnorsRsi {
         // --- Component 2: RSI(streak) ---
         let rsi_c2 = if let Some(ps) = self.prev_streak {
             Self::update_rsi_component(
-                new_streak, ps,
+                new_streak,
+                ps,
                 &mut self.streak_rsi_count,
                 &mut self.streak_seed_gains,
                 &mut self.streak_seed_losses,
@@ -195,16 +219,17 @@ impl Signal for ConnorsRsi {
         // Use streak as the per-bar directional change for ranking (sign + magnitude match ROC)
         let roc_val = new_streak;
         self.rocs.push_back(roc_val);
-        if self.rocs.len() > self.rank_period { self.rocs.pop_front(); }
+        if self.rocs.len() > self.rank_period {
+            self.rocs.pop_front();
+        }
 
         let rsi_c3 = if self.rocs.len() == self.rank_period {
-            let count_below = self.rocs.iter()
-                .filter(|&&r| r < roc_val)
-                .count();
+            let count_below = self.rocs.iter().filter(|&&r| r < roc_val).count();
             #[allow(clippy::cast_possible_truncation)]
-            Some(Decimal::from(count_below as u32)
-                / Decimal::from(self.rank_period as u32)
-                * Decimal::from(100u32))
+            Some(
+                Decimal::from(count_below as u32) / Decimal::from(self.rank_period as u32)
+                    * Decimal::from(100u32),
+            )
         } else {
             None
         };
@@ -224,7 +249,9 @@ impl Signal for ConnorsRsi {
             && self.rocs.len() >= self.rank_period
     }
 
-    fn period(&self) -> usize { self.rank_period }
+    fn period(&self) -> usize {
+        self.rank_period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -254,7 +281,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -285,7 +315,10 @@ mod tests {
         let mut ready = false;
         for p in &prices {
             let _ = c.update_bar(&bar(&p.to_string())).unwrap();
-            if c.is_ready() { ready = true; break; }
+            if c.is_ready() {
+                ready = true;
+                break;
+            }
         }
         assert!(ready);
     }
@@ -294,7 +327,9 @@ mod tests {
     fn test_crsi_reset() {
         let mut c = ConnorsRsi::new("c", 3, 2, 10).unwrap();
         let prices: Vec<u32> = (0..30).map(|i| 100 + (i % 3)).collect();
-        for p in &prices { let _ = c.update_bar(&bar(&p.to_string())).unwrap(); }
+        for p in &prices {
+            let _ = c.update_bar(&bar(&p.to_string())).unwrap();
+        }
         c.reset();
         assert!(!c.is_ready());
     }
@@ -305,8 +340,10 @@ mod tests {
         let prices: Vec<u32> = (0..50).map(|i| 100 + (i % 5)).collect();
         for p in &prices {
             if let SignalValue::Scalar(v) = c.update_bar(&bar(&p.to_string())).unwrap() {
-                assert!(v >= Decimal::ZERO && v <= Decimal::from(100u32),
-                    "CRSI out of range: {v}");
+                assert!(
+                    v >= Decimal::ZERO && v <= Decimal::from(100u32),
+                    "CRSI out of range: {v}"
+                );
             }
         }
     }

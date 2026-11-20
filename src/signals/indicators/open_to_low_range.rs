@@ -51,7 +51,12 @@ impl OpenToLowRange {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 

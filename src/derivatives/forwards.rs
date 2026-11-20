@@ -182,7 +182,13 @@ mod tests {
 
     #[test]
     fn test_equity_forward_fair_forward() {
-        let fwd = EquityForward { spot: 100.0, strike: 102.0, r: 0.05, q: 0.02, t: 1.0 };
+        let fwd = EquityForward {
+            spot: 100.0,
+            strike: 102.0,
+            r: 0.05,
+            q: 0.02,
+            t: 1.0,
+        };
         let f = fwd.fair_forward();
         // F = 100 * e^(0.03) ≈ 103.045
         assert!((f - 103.045).abs() < 0.01, "fair_forward={f}");
@@ -190,20 +196,38 @@ mod tests {
 
     #[test]
     fn test_equity_forward_pnl() {
-        let fwd = EquityForward { spot: 100.0, strike: 100.0, r: 0.05, q: 0.0, t: 1.0 };
+        let fwd = EquityForward {
+            spot: 100.0,
+            strike: 100.0,
+            r: 0.05,
+            q: 0.0,
+            t: 1.0,
+        };
         assert!((fwd.pnl(110.0) - 10.0).abs() < 1e-9);
     }
 
     #[test]
     fn test_equity_forward_delta() {
-        let fwd = EquityForward { spot: 100.0, strike: 100.0, r: 0.05, q: 0.02, t: 1.0 };
+        let fwd = EquityForward {
+            spot: 100.0,
+            strike: 100.0,
+            r: 0.05,
+            q: 0.02,
+            t: 1.0,
+        };
         let d = fwd.delta();
         assert!((d - (-0.02_f64).exp()).abs() < 1e-9);
     }
 
     #[test]
     fn test_fx_forward_rate() {
-        let fx = FxForward { spot_rate: 1.25, domestic_rate: 0.03, foreign_rate: 0.01, t: 1.0, notional_domestic: 1_000_000.0 };
+        let fx = FxForward {
+            spot_rate: 1.25,
+            domestic_rate: 0.03,
+            foreign_rate: 0.01,
+            t: 1.0,
+            notional_domestic: 1_000_000.0,
+        };
         let f = fx.forward_rate();
         // S * e^(0.02) ≈ 1.27528
         assert!((f - 1.25 * (0.02_f64).exp()).abs() < 1e-6);
@@ -211,21 +235,31 @@ mod tests {
 
     #[test]
     fn test_commodity_forward() {
-        let cf = CommodityForward { spot: 50.0, storage_cost: 0.02, convenience_yield: 0.01, r: 0.05, t: 1.0 };
+        let cf = CommodityForward {
+            spot: 50.0,
+            storage_cost: 0.02,
+            convenience_yield: 0.01,
+            r: 0.05,
+            t: 1.0,
+        };
         let f = cf.fair_forward();
         assert!((f - 50.0 * (0.06_f64).exp()).abs() < 0.01);
     }
 
     #[test]
     fn test_forward_curve_contango() {
-        let curve = ForwardCurve { pillars: vec![(0.5, 100.0), (1.0, 102.0), (2.0, 105.0)] };
+        let curve = ForwardCurve {
+            pillars: vec![(0.5, 100.0), (1.0, 102.0), (2.0, 105.0)],
+        };
         assert!(curve.contango());
         assert!(!curve.backwardation());
     }
 
     #[test]
     fn test_forward_curve_interpolate() {
-        let curve = ForwardCurve { pillars: vec![(1.0, 100.0), (2.0, 110.0)] };
+        let curve = ForwardCurve {
+            pillars: vec![(1.0, 100.0), (2.0, 110.0)],
+        };
         let mid = curve.interpolate(1.5);
         // Should be between 100 and 110
         assert!(mid > 100.0 && mid < 110.0);

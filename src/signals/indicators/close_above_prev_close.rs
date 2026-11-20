@@ -39,7 +39,9 @@ impl CloseAbovePrevClose {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -51,9 +53,15 @@ impl CloseAbovePrevClose {
 }
 
 impl Signal for CloseAbovePrevClose {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -61,14 +69,17 @@ impl Signal for CloseAbovePrevClose {
             self.window.push_back(above);
             self.count += above as usize;
             if self.window.len() > self.period {
-                if let Some(old) = self.window.pop_front() { self.count -= old as usize; }
+                if let Some(old) = self.window.pop_front() {
+                    self.count -= old as usize;
+                }
             }
         }
         self.prev_close = Some(bar.close);
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         #[allow(clippy::cast_possible_truncation)]
-        let ratio = Decimal::from(self.count as u32)
-            / Decimal::from(self.period as u32)
+        let ratio = Decimal::from(self.count as u32) / Decimal::from(self.period as u32)
             * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(ratio))
     }
@@ -92,7 +103,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -101,15 +115,23 @@ mod tests {
     }
 
     #[test]
-    fn test_capc_period_0_error() { assert!(CloseAbovePrevClose::new("capc", 0).is_err()); }
+    fn test_capc_period_0_error() {
+        assert!(CloseAbovePrevClose::new("capc", 0).is_err());
+    }
 
     #[test]
     fn test_capc_unavailable_before_period() {
         let mut capc = CloseAbovePrevClose::new("capc", 3).unwrap();
         // bar1: no prev, window=[] -> Unavailable
-        assert_eq!(capc.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            capc.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
         // bar2: prev=100, 101>100, window=[1] -> Unavailable (1 < 3)
-        assert_eq!(capc.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            capc.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -145,7 +167,9 @@ mod tests {
     #[test]
     fn test_capc_reset() {
         let mut capc = CloseAbovePrevClose::new("capc", 3).unwrap();
-        for p in ["100", "101", "102", "103"] { capc.update_bar(&bar(p)).unwrap(); }
+        for p in ["100", "101", "102", "103"] {
+            capc.update_bar(&bar(p)).unwrap();
+        }
         assert!(capc.is_ready());
         capc.reset();
         assert!(!capc.is_ready());

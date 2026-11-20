@@ -25,7 +25,7 @@ pub mod greeks;
 pub mod surface;
 
 pub use greeks::{
-    GreekError, Greeks, OptionParams, OptionType, bsm_greeks, bsm_price, implied_volatility,
+    bsm_greeks, bsm_price, implied_volatility, GreekError, Greeks, OptionParams, OptionType,
 };
 pub use surface::{VolPoint, VolSmile, VolSurface};
 
@@ -150,14 +150,10 @@ impl BlackScholes {
         // Theta per calendar day (divide by 365)
         let theta_f = match spec.kind {
             OptionKind::Call => {
-                (-s * phi(d1) * v / (2.0 * sqrt_t)
-                    - r * k * (-r * t).exp() * big_phi(d2))
-                    / 365.0
+                (-s * phi(d1) * v / (2.0 * sqrt_t) - r * k * (-r * t).exp() * big_phi(d2)) / 365.0
             }
             OptionKind::Put => {
-                (-s * phi(d1) * v / (2.0 * sqrt_t)
-                    + r * k * (-r * t).exp() * big_phi(-d2))
-                    / 365.0
+                (-s * phi(d1) * v / (2.0 * sqrt_t) + r * k * (-r * t).exp() * big_phi(-d2)) / 365.0
             }
         };
         // Vega per 1% move in vol
@@ -293,12 +289,18 @@ mod tests {
         // C - P = S - K * exp(-rT)
         let spec = atm_call();
         let call = BlackScholes::price(&spec).unwrap();
-        let put_spec = OptionSpec { kind: OptionKind::Put, ..spec };
+        let put_spec = OptionSpec {
+            kind: OptionKind::Put,
+            ..spec
+        };
         let put = BlackScholes::price(&put_spec).unwrap();
         // C - P ≈ S - K*e^{-rT}; with ATM S=K this ≈ K*(1 - e^{-rT})
         let diff = (call.price - put.price).abs();
         // Should be roughly K * (1 - e^{-0.05}) ≈ 4.877 for S=K=100, r=0.05, T=1
-        assert!(diff > dec!(4) && diff < dec!(6), "put-call parity failed: {diff}");
+        assert!(
+            diff > dec!(4) && diff < dec!(6),
+            "put-call parity failed: {diff}"
+        );
     }
 
     #[test]
@@ -323,7 +325,10 @@ mod tests {
     fn test_invalid_spot_errors() {
         let mut spec = atm_call();
         spec.spot = dec!(0);
-        assert!(matches!(BlackScholes::price(&spec), Err(FinError::InvalidPrice(_))));
+        assert!(matches!(
+            BlackScholes::price(&spec),
+            Err(FinError::InvalidPrice(_))
+        ));
     }
 
     #[test]

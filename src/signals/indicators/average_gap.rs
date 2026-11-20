@@ -54,15 +54,25 @@ impl AverageGap {
 }
 
 impl Signal for AverageGap {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
 
         if let Some(prev) = self.prev_close {
-            let gap = if bar.open >= prev { bar.open - prev } else { prev - bar.open };
+            let gap = if bar.open >= prev {
+                bar.open - prev
+            } else {
+                prev - bar.open
+            };
 
             self.gap_sum += gap;
             self.range_sum += range;
@@ -70,8 +80,14 @@ impl Signal for AverageGap {
             self.ranges.push_back(range);
 
             if self.gaps.len() > self.period {
-                let og = self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
-                let or_ = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                let og = self
+                    .gaps
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
+                let or_ = self
+                    .ranges
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
                 self.gap_sum -= og;
                 self.range_sum -= or_;
             }
@@ -87,7 +103,8 @@ impl Signal for AverageGap {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg_range = self.range_sum
+        let avg_range = self
+            .range_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -95,7 +112,8 @@ impl Signal for AverageGap {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg_gap = self.gap_sum
+        let avg_gap = self
+            .gap_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -130,7 +148,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,17 +167,23 @@ mod tests {
     #[test]
     fn test_ag_unavailable_before_warm_up() {
         let mut s = AverageGap::new("ag", 2).unwrap();
-        assert_eq!(s.update_bar(&bar("100","110","90","100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("100","110","90","100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_ag_no_gap_gives_zero() {
         let mut s = AverageGap::new("ag", 2).unwrap();
         // Each bar opens at prior close → gaps = 0
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        let v = s.update_bar(&bar("100","110","90","100")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        let v = s.update_bar(&bar("100", "110", "90", "100")).unwrap();
         if let SignalValue::Scalar(r) = v {
             assert_eq!(r, dec!(0));
         } else {
@@ -167,9 +194,9 @@ mod tests {
     #[test]
     fn test_ag_positive_gap() {
         let mut s = AverageGap::new("ag", 1).unwrap();
-        s.update_bar(&bar("100","110","90","100")).unwrap(); // seeds prev_close=100
-        // Next bar opens at 105 → gap=5, range=20 → ratio=0.25
-        let v = s.update_bar(&bar("105","115","95","105")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap(); // seeds prev_close=100
+                                                                // Next bar opens at 105 → gap=5, range=20 → ratio=0.25
+        let v = s.update_bar(&bar("105", "115", "95", "105")).unwrap();
         if let SignalValue::Scalar(r) = v {
             assert!(r > dec!(0), "gap should be positive: {r}");
         } else {
@@ -181,10 +208,10 @@ mod tests {
     fn test_ag_non_negative() {
         let mut s = AverageGap::new("ag", 3).unwrap();
         let bars = [
-            bar("100","110","90","102"),
-            bar("103","112","93","105"),
-            bar("104","115","95","108"),
-            bar("110","120","100","112"),
+            bar("100", "110", "90", "102"),
+            bar("103", "112", "93", "105"),
+            bar("104", "115", "95", "108"),
+            bar("110", "120", "100", "112"),
         ];
         for b in &bars {
             if let SignalValue::Scalar(v) = s.update_bar(b).unwrap() {
@@ -196,7 +223,9 @@ mod tests {
     #[test]
     fn test_ag_reset() {
         let mut s = AverageGap::new("ag", 2).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100","110","90","100")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

@@ -116,7 +116,10 @@ mod tests {
         let low = if c <= o { c } else { o };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -133,7 +136,10 @@ mod tests {
     fn test_vs_unavailable_during_warmup() {
         let mut vs = VolumeSwing::new("vs", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vs.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vs.update_bar(&bar("100", "105", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -170,7 +176,7 @@ mod tests {
     fn test_vs_mixed_bars() {
         let mut vs = VolumeSwing::new("vs", 2).unwrap();
         vs.update_bar(&bar("100", "105", "1000")).unwrap(); // up: +1000
-        let v = vs.update_bar(&bar("105", "100", "600")).unwrap();  // down: -600
+        let v = vs.update_bar(&bar("105", "100", "600")).unwrap(); // down: -600
         assert_eq!(v, SignalValue::Scalar(dec!(400)));
     }
 

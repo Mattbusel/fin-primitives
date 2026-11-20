@@ -35,13 +35,21 @@ impl IntradaySpreadPct {
 }
 
 impl Signal for IntradaySpreadPct {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let mid = bar.high + bar.low;
-        if mid.is_zero() { return Ok(SignalValue::Unavailable); }
+        if mid.is_zero() {
+            return Ok(SignalValue::Unavailable);
+        }
         let spread_pct = (bar.range()) / mid * Decimal::from(200u32);
         Ok(SignalValue::Scalar(spread_pct))
     }
@@ -62,7 +70,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

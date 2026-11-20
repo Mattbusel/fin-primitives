@@ -35,7 +35,11 @@ pub struct VolumePriceTrend {
 impl VolumePriceTrend {
     /// Constructs a new `VolumePriceTrend`.
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), prev_close: None, cumulative: Decimal::ZERO }
+        Self {
+            name: name.into(),
+            prev_close: None,
+            cumulative: Decimal::ZERO,
+        }
     }
 }
 
@@ -52,7 +56,8 @@ impl Signal for VolumePriceTrend {
                 let pct_change = (bar.close - prev_c)
                     .checked_div(prev_c)
                     .ok_or(FinError::ArithmeticOverflow)?;
-                let delta = bar.volume
+                let delta = bar
+                    .volume
                     .checked_mul(pct_change)
                     .ok_or(FinError::ArithmeticOverflow)?;
                 self.cumulative += delta;
@@ -93,7 +98,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -104,7 +112,10 @@ mod tests {
     #[test]
     fn test_first_bar_unavailable() {
         let mut vpt = VolumePriceTrend::new("vpt");
-        assert_eq!(vpt.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vpt.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -147,6 +158,9 @@ mod tests {
         vpt.reset();
         assert!(!vpt.is_ready());
         // After reset, first bar is Unavailable again
-        assert_eq!(vpt.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            vpt.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

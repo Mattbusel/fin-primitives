@@ -51,22 +51,40 @@ impl RollingHighLowRatio {
 }
 
 impl Signal for RollingHighLowRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
 
         if self.highs.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_h = self.highs.iter().copied().fold(self.highs[0], |acc, v| acc.max(v));
-        let min_l = self.lows.iter().copied().fold(self.lows[0], |acc, v| acc.min(v));
+        let max_h = self
+            .highs
+            .iter()
+            .copied()
+            .fold(self.highs[0], |acc, v| acc.max(v));
+        let min_l = self
+            .lows
+            .iter()
+            .copied()
+            .fold(self.lows[0], |acc, v| acc.min(v));
 
         if min_l.is_zero() {
             return Ok(SignalValue::Unavailable);
@@ -93,7 +111,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -110,7 +131,10 @@ mod tests {
     fn test_rhlr_unavailable_before_warm_up() {
         let mut rhlr = RollingHighLowRatio::new("rhlr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(rhlr.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                rhlr.update_bar(&bar("110", "90")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -143,7 +167,9 @@ mod tests {
     #[test]
     fn test_rhlr_reset() {
         let mut rhlr = RollingHighLowRatio::new("rhlr", 3).unwrap();
-        for _ in 0..3 { rhlr.update_bar(&bar("110", "90")).unwrap(); }
+        for _ in 0..3 {
+            rhlr.update_bar(&bar("110", "90")).unwrap();
+        }
         assert!(rhlr.is_ready());
         rhlr.reset();
         assert!(!rhlr.is_ready());

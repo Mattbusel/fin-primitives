@@ -86,7 +86,9 @@ impl Signal for RollingHighLowPosition {
             .checked_div(range)
             .ok_or(FinError::ArithmeticOverflow)?;
 
-        Ok(SignalValue::Scalar(position.clamp(Decimal::ZERO, Decimal::ONE)))
+        Ok(SignalValue::Scalar(
+            position.clamp(Decimal::ZERO, Decimal::ONE),
+        ))
     }
 
     fn reset(&mut self) {
@@ -109,7 +111,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,8 +130,14 @@ mod tests {
     #[test]
     fn test_rhlp_unavailable_before_period() {
         let mut rhlp = RollingHighLowPosition::new("rhlp", 3).unwrap();
-        assert_eq!(rhlp.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(rhlp.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rhlp.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            rhlp.update_bar(&bar("110", "90", "100")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rhlp.is_ready());
     }
 

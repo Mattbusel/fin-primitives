@@ -44,7 +44,11 @@ impl PriceActionIndex {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, scores: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            scores: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -130,13 +134,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(PriceActionIndex::new("pai", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            PriceActionIndex::new("pai", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut pai = PriceActionIndex::new("pai", 3).unwrap();
-        assert_eq!(pai.update_bar(&bar("10", "15", "8", "14")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            pai.update_bar(&bar("10", "15", "8", "14")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

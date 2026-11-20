@@ -31,7 +31,9 @@ impl MedianVolume {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -41,16 +43,24 @@ impl MedianVolume {
 }
 
 impl Signal for MedianVolume {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back(bar.volume);
         if self.window.len() > self.period {
             self.window.pop_front();
         }
-        if self.window.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.window.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
         let mut sorted: Vec<Decimal> = self.window.iter().copied().collect();
         sorted.sort();
         let mid = sorted.len() / 2;
@@ -80,7 +90,11 @@ mod tests {
         let v = Quantity::new(vol.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p, volume: v,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
+            volume: v,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
             tick_count: 1,
@@ -88,18 +102,25 @@ mod tests {
     }
 
     #[test]
-    fn test_mv_period_0_error() { assert!(MedianVolume::new("mv", 0).is_err()); }
+    fn test_mv_period_0_error() {
+        assert!(MedianVolume::new("mv", 0).is_err());
+    }
 
     #[test]
     fn test_mv_unavailable_before_period() {
         let mut mv = MedianVolume::new("mv", 3).unwrap();
-        assert_eq!(mv.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            mv.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_mv_odd_period_median() {
         let mut mv = MedianVolume::new("mv", 5).unwrap();
-        for v in ["100", "200", "300", "400", "500"] { mv.update_bar(&bar(v)).unwrap(); }
+        for v in ["100", "200", "300", "400", "500"] {
+            mv.update_bar(&bar(v)).unwrap();
+        }
         // window now full [100,200,300,400,500]; push 10000 -> slides to [200,300,400,500,10000]
         let r = mv.update_bar(&bar("10000")).unwrap();
         // sorted: [200,300,400,500,10000]; median = 400
@@ -133,7 +154,9 @@ mod tests {
     #[test]
     fn test_mv_reset() {
         let mut mv = MedianVolume::new("mv", 3).unwrap();
-        for v in ["100", "200", "300"] { mv.update_bar(&bar(v)).unwrap(); }
+        for v in ["100", "200", "300"] {
+            mv.update_bar(&bar(v)).unwrap();
+        }
         assert!(mv.is_ready());
         mv.reset();
         assert!(!mv.is_ready());

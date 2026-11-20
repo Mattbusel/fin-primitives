@@ -54,14 +54,25 @@ impl TailAsymmetry {
         }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 }
 
 impl Signal for TailAsymmetry {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ema.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ema.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let upper = bar.high - bar.close;
@@ -70,7 +81,9 @@ impl Signal for TailAsymmetry {
         let raw = if lower.is_zero() {
             Decimal::ONE
         } else {
-            upper.checked_div(lower).ok_or(FinError::ArithmeticOverflow)?
+            upper
+                .checked_div(lower)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         let ema = match self.ema {
@@ -108,7 +121,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),

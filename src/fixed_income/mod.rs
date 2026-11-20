@@ -23,7 +23,6 @@ pub mod mortgage;
 pub use mortgage::{AmortizationRow, MortgageCalculator, MortgageTerms};
 
 pub use bond::{
-    Bond, CouponFrequency,
-    convexity, current_yield, dv01, macaulay_duration, modified_duration,
-    price, price_change_approximation, yield_to_maturity, zero_coupon_bond_price,
+    convexity, current_yield, dv01, macaulay_duration, modified_duration, price,
+    price_change_approximation, yield_to_maturity, zero_coupon_bond_price, Bond, CouponFrequency,
 };

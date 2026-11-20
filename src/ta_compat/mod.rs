@@ -359,7 +359,13 @@ impl DataItemBuilder {
             && volume >= 0.0
             && low >= 0.0
         {
-            Ok(DataItem { open, high, low, close, volume })
+            Ok(DataItem {
+                open,
+                high,
+                low,
+                close,
+                volume,
+            })
         } else {
             Err(TaError::DataItemInvalid)
         }

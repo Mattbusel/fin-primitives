@@ -34,7 +34,6 @@ pub struct FibonacciRetrace {
 }
 
 impl FibonacciRetrace {
-
     /// Constructs a new `FibonacciRetrace` with the given lookback `period`.
     ///
     /// # Errors
@@ -79,15 +78,23 @@ impl FibonacciRetrace {
         self.cached.map(|(_, _, _, _, l, _)| l)
     }
 
-    fn compute(window: &VecDeque<BarInput>) -> (Decimal, Decimal, Decimal, Decimal, Decimal, Decimal) {
-        let swing_high = window.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
-        let swing_low  = window.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
+    fn compute(
+        window: &VecDeque<BarInput>,
+    ) -> (Decimal, Decimal, Decimal, Decimal, Decimal, Decimal) {
+        let swing_high = window
+            .iter()
+            .map(|b| b.high)
+            .fold(Decimal::MIN, Decimal::max);
+        let swing_low = window
+            .iter()
+            .map(|b| b.low)
+            .fold(Decimal::MAX, Decimal::min);
         let range = swing_high - swing_low;
-        let f0    = swing_low;
-        let f236  = swing_high - range * Decimal::new(236, 3);
-        let f382  = swing_high - range * Decimal::new(382, 3);
-        let f500  = swing_low + range / Decimal::TWO;
-        let f618  = swing_high - range * Decimal::new(618, 3);
+        let f0 = swing_low;
+        let f236 = swing_high - range * Decimal::new(236, 3);
+        let f382 = swing_high - range * Decimal::new(382, 3);
+        let f500 = swing_low + range / Decimal::TWO;
+        let f618 = swing_high - range * Decimal::new(618, 3);
         let f1000 = swing_high;
         (f0, f236, f382, f500, f618, f1000)
     }
@@ -139,7 +146,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,8 +165,14 @@ mod tests {
     #[test]
     fn test_fib_unavailable_before_period() {
         let mut f = FibonacciRetrace::new("f", 3).unwrap();
-        assert_eq!(f.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(f.update_bar(&bar("112", "88")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            f.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            f.update_bar(&bar("112", "88")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!f.is_ready());
     }
 
@@ -169,9 +185,9 @@ mod tests {
         let v = f.update_bar(&bar("115", "85")).unwrap();
         assert!(matches!(v, SignalValue::Scalar(_)));
         let (f0, f236, f382, f500, f618, f1000) = f.levels().unwrap();
-        assert_eq!(f0,    dec!(80));
+        assert_eq!(f0, dec!(80));
         assert_eq!(f1000, dec!(120));
-        assert_eq!(f500,  dec!(100));
+        assert_eq!(f500, dec!(100));
         // f618 = 120 - 40 * 0.618 = 120 - 24.72 = 95.28
         assert_eq!(f618, dec!(120) - dec!(40) * dec!(0.618));
         // f236 = 120 - 40 * 0.236 = 120 - 9.44 = 110.56

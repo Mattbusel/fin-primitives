@@ -1,9 +1,9 @@
 //! Price Momentum Oscillator indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Short-period minus long-period rolling close SMA.
 ///
@@ -51,10 +51,19 @@ impl Signal for PriceMomentumOscillator {
         Ok(SignalValue::Scalar(short_sma - long_sma))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.long_period }
-    fn period(&self) -> usize { self.long_period }
-    fn reset(&mut self) { self.window.clear(); self.sum = Decimal::ZERO; }
-    fn name(&self) -> &str { "PriceMomentumOscillator" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.long_period
+    }
+    fn period(&self) -> usize {
+        self.long_period
+    }
+    fn reset(&mut self) {
+        self.window.clear();
+        self.sum = Decimal::ZERO;
+    }
+    fn name(&self) -> &str {
+        "PriceMomentumOscillator"
+    }
 }
 
 #[cfg(test)]

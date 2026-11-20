@@ -43,7 +43,11 @@ impl LowCloseRatio {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, ratios: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            ratios: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -56,7 +60,9 @@ impl Signal for LowCloseRatio {
         let ratio = if bar.close.is_zero() {
             Decimal::ZERO
         } else {
-            bar.low.checked_div(bar.close).ok_or(FinError::ArithmeticOverflow)?
+            bar.low
+                .checked_div(bar.close)
+                .ok_or(FinError::ArithmeticOverflow)?
         };
 
         self.ratios.push_back(ratio);
@@ -102,7 +108,10 @@ mod tests {
         let hi = Price::new("200".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lo, high: hi, low: lo, close: cl,
+            open: lo,
+            high: hi,
+            low: lo,
+            close: cl,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -112,13 +121,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(LowCloseRatio::new("lcr", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            LowCloseRatio::new("lcr", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut lcr = LowCloseRatio::new("lcr", 3).unwrap();
-        assert_eq!(lcr.update_bar(&bar("10", "15")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            lcr.update_bar(&bar("10", "15")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

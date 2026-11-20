@@ -40,9 +40,17 @@ impl CloseAboveEma {
     ///
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is 0.
-    pub fn new(name: impl Into<String>, ema_period: usize, window: usize) -> Result<Self, FinError> {
-        if ema_period == 0 { return Err(FinError::InvalidPeriod(ema_period)); }
-        if window == 0 { return Err(FinError::InvalidPeriod(window)); }
+    pub fn new(
+        name: impl Into<String>,
+        ema_period: usize,
+        window: usize,
+    ) -> Result<Self, FinError> {
+        if ema_period == 0 {
+            return Err(FinError::InvalidPeriod(ema_period));
+        }
+        if window == 0 {
+            return Err(FinError::InvalidPeriod(window));
+        }
         #[allow(clippy::cast_possible_truncation)]
         let k = Decimal::TWO / (Decimal::from(ema_period as u32) + Decimal::ONE);
         Ok(Self {
@@ -58,13 +66,21 @@ impl CloseAboveEma {
     }
 
     /// Returns the EMA period.
-    pub fn ema_period(&self) -> usize { self.ema_period }
+    pub fn ema_period(&self) -> usize {
+        self.ema_period
+    }
 }
 
 impl Signal for CloseAboveEma {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.ema_period }
-    fn is_ready(&self) -> bool { self.results.len() >= self.window_size }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.ema_period
+    }
+    fn is_ready(&self) -> bool {
+        self.results.len() >= self.window_size
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let close = bar.close;
@@ -74,19 +90,28 @@ impl Signal for CloseAboveEma {
         });
         self.ema_bars += 1;
 
-        if self.ema_bars <= self.ema_period { return Ok(SignalValue::Unavailable); }
+        if self.ema_bars <= self.ema_period {
+            return Ok(SignalValue::Unavailable);
+        }
 
-        let above: u8 = if close > self.ema.unwrap_or(Decimal::ZERO) { 1 } else { 0 };
+        let above: u8 = if close > self.ema.unwrap_or(Decimal::ZERO) {
+            1
+        } else {
+            0
+        };
         self.results.push_back(above);
         self.count += above as usize;
         if self.results.len() > self.window_size {
-            if let Some(old) = self.results.pop_front() { self.count -= old as usize; }
+            if let Some(old) = self.results.pop_front() {
+                self.count -= old as usize;
+            }
         }
-        if self.results.len() < self.window_size { return Ok(SignalValue::Unavailable); }
+        if self.results.len() < self.window_size {
+            return Ok(SignalValue::Unavailable);
+        }
 
         #[allow(clippy::cast_possible_truncation)]
-        let ratio = Decimal::from(self.count as u32)
-            / Decimal::from(self.window_size as u32)
+        let ratio = Decimal::from(self.count as u32) / Decimal::from(self.window_size as u32)
             * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(ratio))
     }
@@ -111,7 +136,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -120,9 +148,13 @@ mod tests {
     }
 
     #[test]
-    fn test_cae_period_0_error() { assert!(CloseAboveEma::new("c", 0, 5).is_err()); }
+    fn test_cae_period_0_error() {
+        assert!(CloseAboveEma::new("c", 0, 5).is_err());
+    }
     #[test]
-    fn test_cae_window_0_error() { assert!(CloseAboveEma::new("c", 10, 0).is_err()); }
+    fn test_cae_window_0_error() {
+        assert!(CloseAboveEma::new("c", 10, 0).is_err());
+    }
 
     #[test]
     fn test_cae_unavailable_before_warmup() {
@@ -138,9 +170,13 @@ mod tests {
         // use rising prices to be above
         let mut c = CloseAboveEma::new("c", 3, 3).unwrap();
         // warm up EMA
-        for _ in 0..3 { c.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            c.update_bar(&bar("100")).unwrap();
+        }
         // now push bars well above 100 (EMA will be ~ 100)
-        for _ in 0..3 { c.update_bar(&bar("200")).unwrap(); }
+        for _ in 0..3 {
+            c.update_bar(&bar("200")).unwrap();
+        }
         if let SignalValue::Scalar(v) = c.update_bar(&bar("200")).unwrap() {
             assert_eq!(v, dec!(100));
         } else {
@@ -151,7 +187,9 @@ mod tests {
     #[test]
     fn test_cae_reset() {
         let mut c = CloseAboveEma::new("c", 3, 2).unwrap();
-        for _ in 0..10 { c.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            c.update_bar(&bar("100")).unwrap();
+        }
         assert!(c.is_ready());
         c.reset();
         assert!(!c.is_ready());

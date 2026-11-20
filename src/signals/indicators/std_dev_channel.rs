@@ -50,7 +50,9 @@ impl StdDevChannel {
 }
 
 impl Signal for StdDevChannel {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -64,9 +66,7 @@ impl Signal for StdDevChannel {
         }
 
         let n = self.period as f64;
-        let vals: Vec<f64> = self.history.iter()
-            .filter_map(|c| c.to_f64())
-            .collect();
+        let vals: Vec<f64> = self.history.iter().filter_map(|c| c.to_f64()).collect();
         let mean = vals.iter().sum::<f64>() / n;
         let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
         let std = variance.sqrt();
@@ -106,7 +106,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -131,7 +134,9 @@ mod tests {
     fn test_sdc_flat_unavailable() {
         // Flat prices → std = 0 → Unavailable
         let mut s = StdDevChannel::new("s", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
     }
 
@@ -144,7 +149,9 @@ mod tests {
         if let SignalValue::Scalar(v) = s.update_bar(&bar("104")).unwrap() {
             // window [100,102,104], mean=102, last=104 → above mean → positive
             assert!(v > dec!(0), "above mean should be positive: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -156,13 +163,17 @@ mod tests {
         if let SignalValue::Scalar(v) = s.update_bar(&bar("96")).unwrap() {
             // window [100,102,96], mean=99.33, last=96 → below mean → negative
             assert!(v < dec!(0), "below mean should be negative: {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_sdc_reset() {
         let mut s = StdDevChannel::new("s", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

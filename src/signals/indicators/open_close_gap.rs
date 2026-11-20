@@ -59,9 +59,15 @@ impl OpenCloseGap {
 }
 
 impl Signal for OpenCloseGap {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -131,7 +137,10 @@ mod tests {
     fn test_ocg_unavailable_during_warmup() {
         let mut ocg = OpenCloseGap::new("ocg", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(ocg.update_bar(&bar_oc("100", "101")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ocg.update_bar(&bar_oc("100", "101")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!ocg.is_ready());
     }

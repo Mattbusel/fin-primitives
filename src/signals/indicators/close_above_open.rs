@@ -106,10 +106,13 @@ mod tests {
         let o = Price::new(open.parse().unwrap()).unwrap();
         let c = Price::new(close.parse().unwrap()).unwrap();
         let high = if c.value() > o.value() { c } else { o };
-        let low  = if c.value() < o.value() { c } else { o };
+        let low = if c.value() < o.value() { c } else { o };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,7 +128,10 @@ mod tests {
     #[test]
     fn test_cao_unavailable_before_period() {
         let mut cao = CloseAboveOpen::new("cao3", 3).unwrap();
-        assert_eq!(cao.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cao.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!cao.is_ready());
     }
 
@@ -135,7 +141,10 @@ mod tests {
         for _ in 0..3 {
             cao.update_bar(&bar("100", "105")).unwrap();
         }
-        assert_eq!(cao.update_bar(&bar("100", "110")).unwrap(), SignalValue::Scalar(dec!(100)));
+        assert_eq!(
+            cao.update_bar(&bar("100", "110")).unwrap(),
+            SignalValue::Scalar(dec!(100))
+        );
     }
 
     #[test]
@@ -164,7 +173,7 @@ mod tests {
         cao.update_bar(&bar("100", "105")).unwrap(); // bull
         cao.update_bar(&bar("105", "100")).unwrap(); // bear
         cao.update_bar(&bar("100", "105")).unwrap(); // bull → 2/3 = 66.666...
-        // Now add a bear bar — oldest (bull) rolls out, window = [bear, bull, bear] → 1/3
+                                                     // Now add a bear bar — oldest (bull) rolls out, window = [bear, bull, bear] → 1/3
         let v = cao.update_bar(&bar("105", "100")).unwrap();
         let expected = dec!(100) / dec!(3);
         let diff = (v.as_decimal().unwrap() - expected).abs();
@@ -180,6 +189,9 @@ mod tests {
         assert!(cao.is_ready());
         cao.reset();
         assert!(!cao.is_ready());
-        assert_eq!(cao.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            cao.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

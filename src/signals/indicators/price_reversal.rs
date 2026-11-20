@@ -40,7 +40,9 @@ impl PriceReversal {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 2`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 2 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 2 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -52,18 +54,24 @@ impl PriceReversal {
 }
 
 impl Signal for PriceReversal {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             let change = (bar.close - pc).abs();
             self.changes.push_back(change);
-            if self.changes.len() > self.period { self.changes.pop_front(); }
+            if self.changes.len() > self.period {
+                self.changes.pop_front();
+            }
         }
         self.prev_close = Some(bar.close);
 
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period { self.closes.pop_front(); }
+        if self.closes.len() > self.period {
+            self.closes.pop_front();
+        }
 
         if self.closes.len() < self.period || self.changes.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -91,7 +99,9 @@ impl Signal for PriceReversal {
     fn is_ready(&self) -> bool {
         self.closes.len() >= self.period && self.changes.len() >= self.period
     }
-    fn period(&self) -> usize { self.period }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.closes.clear();
@@ -111,7 +121,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -137,10 +150,14 @@ mod tests {
     fn test_pr_flat_is_zero() {
         let mut p = PriceReversal::new("p", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..8 { last = p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..8 {
+            last = p.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -149,17 +166,23 @@ mod tests {
         // changes=[0,10,10,10], atr=(10+10+10)/3≈10
         // output = (120-110)/10 = 1 > 0
         let mut p = PriceReversal::new("p", 3).unwrap();
-        for _ in 0..3 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..3 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         p.update_bar(&bar("110")).unwrap();
         if let SignalValue::Scalar(v) = p.update_bar(&bar("120")).unwrap() {
             assert!(v > dec!(0), "expected positive, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_pr_reset() {
         let mut p = PriceReversal::new("p", 3).unwrap();
-        for _ in 0..8 { p.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..8 {
+            p.update_bar(&bar("100")).unwrap();
+        }
         assert!(p.is_ready());
         p.reset();
         assert!(!p.is_ready());

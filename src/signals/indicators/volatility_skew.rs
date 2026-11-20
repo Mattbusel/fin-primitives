@@ -2,8 +2,8 @@
 
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
-use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::VecDeque;
 
 /// Volatility Skew — asymmetry between upside and downside volatility.
@@ -45,7 +45,9 @@ impl VolatilitySkew {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -56,7 +58,9 @@ impl VolatilitySkew {
 }
 
 impl Signal for VolatilitySkew {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
@@ -64,12 +68,16 @@ impl Signal for VolatilitySkew {
                 let abs_change = (bar.close - pc).abs();
                 let is_up = bar.close > pc;
                 self.changes.push_back((abs_change, is_up));
-                if self.changes.len() > self.period { self.changes.pop_front(); }
+                if self.changes.len() > self.period {
+                    self.changes.pop_front();
+                }
             }
         }
         self.prev_close = Some(bar.close);
 
-        if self.changes.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.changes.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let mut up_sum = Decimal::ZERO;
         let mut up_count = 0u32;
@@ -104,12 +112,16 @@ impl Signal for VolatilitySkew {
 
         let skew = (up_vol - down_vol) / total * 100.0;
         Ok(SignalValue::Scalar(
-            Decimal::try_from(skew).unwrap_or(Decimal::ZERO)
+            Decimal::try_from(skew).unwrap_or(Decimal::ZERO),
         ))
     }
 
-    fn is_ready(&self) -> bool { self.changes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.changes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -128,7 +140,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -160,7 +175,9 @@ mod tests {
         }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -173,7 +190,9 @@ mod tests {
         }
         if let SignalValue::Scalar(val) = last {
             assert_eq!(val, dec!(-100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -190,7 +209,9 @@ mod tests {
         if let SignalValue::Scalar(val) = last {
             let diff = val.abs();
             assert!(diff < dec!(0.001), "expected ~0, got {val}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

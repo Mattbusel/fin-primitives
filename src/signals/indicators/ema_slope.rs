@@ -39,7 +39,9 @@ impl EmaSlope {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -51,7 +53,9 @@ impl EmaSlope {
 }
 
 impl Signal for EmaSlope {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let k = Decimal::from(2u32) / Decimal::from((self.period + 1) as u32);
@@ -59,15 +63,15 @@ impl Signal for EmaSlope {
         if self.ema.is_none() {
             self.seed.push(bar.close);
             if self.seed.len() == self.period {
-                let sma = self.seed.iter().sum::<Decimal>()
-                    / Decimal::from(self.period as u32);
+                let sma = self.seed.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
                 self.ema = Some(sma);
             }
             return Ok(SignalValue::Unavailable);
         }
 
         self.prev_ema = self.ema;
-        let new_ema = self.ema.ok_or_else(crate::error::invariant_broken)? + k * (bar.close - self.ema.ok_or_else(crate::error::invariant_broken)?);
+        let new_ema = self.ema.ok_or_else(crate::error::invariant_broken)?
+            + k * (bar.close - self.ema.ok_or_else(crate::error::invariant_broken)?);
         self.ema = Some(new_ema);
 
         match self.prev_ema {
@@ -80,8 +84,12 @@ impl Signal for EmaSlope {
         }
     }
 
-    fn is_ready(&self) -> bool { self.prev_ema.is_some() }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.prev_ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.ema = None;
@@ -101,7 +109,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,10 +138,14 @@ mod tests {
         // Flat prices → EMA doesn't change → slope = 0
         let mut e = EmaSlope::new("e", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..10 { last = e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            last = e.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -144,7 +159,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(0), "expected positive slope, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -157,13 +174,17 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert!(v < dec!(0), "expected negative slope, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_ema_slope_reset() {
         let mut e = EmaSlope::new("e", 3).unwrap();
-        for _ in 0..10 { e.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            e.update_bar(&bar("100")).unwrap();
+        }
         assert!(e.is_ready());
         e.reset();
         assert!(!e.is_ready());

@@ -33,8 +33,8 @@ use rust_decimal::Decimal;
 pub struct GapFillDetector {
     name: String,
     prev_close: Option<Decimal>,
-    gap_target: Option<Decimal>,   // level that fills the gap
-    gap_direction: i8,             // +1 = gap up (fill by going down), -1 = gap down
+    gap_target: Option<Decimal>, // level that fills the gap
+    gap_direction: i8,           // +1 = gap up (fill by going down), -1 = gap down
 }
 
 impl GapFillDetector {
@@ -50,9 +50,15 @@ impl GapFillDetector {
 }
 
 impl Signal for GapFillDetector {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = if let Some(pc) = self.prev_close {
@@ -68,7 +74,7 @@ impl Signal for GapFillDetector {
             }
             // Check if current gap is filled
             let filled = match (self.gap_target, self.gap_direction) {
-                (Some(target), 1)  if bar.low  <= target => Decimal::ONE,
+                (Some(target), 1) if bar.low <= target => Decimal::ONE,
                 (Some(target), -1) if bar.high >= target => Decimal::ONE,
                 _ => Decimal::ZERO,
             };
@@ -107,7 +113,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -126,7 +135,7 @@ mod tests {
     fn test_gfd_gap_up_not_filled() {
         let mut gfd = GapFillDetector::new("gfd");
         gfd.update_bar(&bar("100", "105", "95", "100")).unwrap(); // prev_close=100
-        // Gap up: open=105 > prev_close=100, low=102 > 100 -> not filled
+                                                                  // Gap up: open=105 > prev_close=100, low=102 > 100 -> not filled
         let v = gfd.update_bar(&bar("105", "110", "102", "108")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
@@ -135,9 +144,9 @@ mod tests {
     fn test_gfd_gap_up_filled() {
         let mut gfd = GapFillDetector::new("gfd");
         gfd.update_bar(&bar("100", "105", "95", "100")).unwrap(); // prev_close=100
-        // Gap up bar: open=105 > 100, gap target = 100
+                                                                  // Gap up bar: open=105 > 100, gap target = 100
         gfd.update_bar(&bar("105", "110", "102", "108")).unwrap(); // gap set to 100
-        // Fill bar: low=99 <= 100 -> filled!
+                                                                   // Fill bar: low=99 <= 100 -> filled!
         let v = gfd.update_bar(&bar("108", "110", "99", "105")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }
@@ -146,9 +155,9 @@ mod tests {
     fn test_gfd_gap_down_filled() {
         let mut gfd = GapFillDetector::new("gfd");
         gfd.update_bar(&bar("100", "105", "95", "100")).unwrap(); // prev_close=100
-        // Gap down bar: open=95 < 100, gap target = 100
+                                                                  // Gap down bar: open=95 < 100, gap target = 100
         gfd.update_bar(&bar("95", "98", "90", "92")).unwrap(); // gap set to 100
-        // Fill bar: high=101 >= 100 -> filled!
+                                                               // Fill bar: high=101 >= 100 -> filled!
         let v = gfd.update_bar(&bar("92", "101", "90", "100")).unwrap();
         assert_eq!(v, SignalValue::Scalar(dec!(1)));
     }

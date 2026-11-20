@@ -56,7 +56,12 @@ pub fn spearman_correlation(x: &[f64], y: &[f64]) -> Option<f64> {
 fn average_ranks(data: &[f64]) -> Vec<f64> {
     let n = data.len();
     // Create (value, original_index) pairs sorted by value
-    let mut indexed: Vec<(f64, usize)> = data.iter().copied().enumerate().map(|(i, v)| (v, i)).collect();
+    let mut indexed: Vec<(f64, usize)> = data
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(i, v)| (v, i))
+        .collect();
     indexed.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut ranks = vec![0.0_f64; n];
@@ -174,7 +179,13 @@ impl SymbolCorrelationMatrix {
     /// Render the correlation matrix as a plain-text ASCII table.
     pub fn to_table(&self) -> String {
         // Determine column width
-        let col_w = self.symbols.iter().map(|s| s.len()).max().unwrap_or(6).max(6);
+        let col_w = self
+            .symbols
+            .iter()
+            .map(|s| s.len())
+            .max()
+            .unwrap_or(6)
+            .max(6);
         let fmt = |v: f64| format!("{:>width$.4}", v, width = col_w);
         let pad = |s: &str| format!("{:>width$}", s, width = col_w);
 
@@ -315,7 +326,10 @@ pub struct RollingCorrelation {
 impl RollingCorrelation {
     /// Create a new rolling correlation tracker with the given window size.
     pub fn new(window: usize) -> Self {
-        Self { window, series: HashMap::new() }
+        Self {
+            window,
+            series: HashMap::new(),
+        }
     }
 
     /// Push a new value for the given symbol.
@@ -323,7 +337,10 @@ impl RollingCorrelation {
     /// If the symbol is not yet tracked it is initialised automatically.
     /// Once the deque reaches `window` length, the oldest value is evicted.
     pub fn push(&mut self, symbol: &str, value: f64) {
-        let dq = self.series.entry(symbol.to_string()).or_insert_with(|| VecDeque::with_capacity(self.window));
+        let dq = self
+            .series
+            .entry(symbol.to_string())
+            .or_insert_with(|| VecDeque::with_capacity(self.window));
         if dq.len() >= self.window {
             dq.pop_front();
         }
@@ -485,10 +502,7 @@ mod tests {
     #[test]
     fn test_to_table_contains_symbols() {
         let symbols = vec!["BTC".to_string(), "ETH".to_string()];
-        let returns = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![1.0, 2.0, 3.0],
-        ];
+        let returns = vec![vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]];
         let mat = SymbolCorrelationMatrix::from_returns(symbols, returns);
         let table = mat.to_table();
         assert!(table.contains("BTC"));
@@ -571,7 +585,11 @@ mod tests {
         let mat = SymbolCorrelationMatrix::from_returns(symbols, returns);
         let eigs = mat.eigenvalues();
         for i in 0..eigs.len() - 1 {
-            assert!(eigs[i] >= eigs[i + 1] - 1e-9, "eigs not descending: {:?}", eigs);
+            assert!(
+                eigs[i] >= eigs[i + 1] - 1e-9,
+                "eigs not descending: {:?}",
+                eigs
+            );
         }
     }
 }

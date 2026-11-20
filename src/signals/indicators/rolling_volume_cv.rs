@@ -48,15 +48,24 @@ impl RollingVolumeCV {
 }
 
 impl Signal for RollingVolumeCV {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.sum += bar.volume;
         self.window.push_back(bar.volume);
         if self.window.len() > self.period {
-            let removed = self.window.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .window
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.sum -= removed;
         }
         if self.window.len() < self.period {
@@ -64,7 +73,8 @@ impl Signal for RollingVolumeCV {
         }
 
         let n = self.period as f64;
-        let mean_d = self.sum
+        let mean_d = self
+            .sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -110,7 +120,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,8 +140,14 @@ mod tests {
     #[test]
     fn test_rcv_unavailable_before_period() {
         let mut s = RollingVolumeCV::new("cv", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("2000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("2000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -138,7 +157,10 @@ mod tests {
         s.update_bar(&bar("1000")).unwrap();
         let v = s.update_bar(&bar("1000")).unwrap();
         if let SignalValue::Scalar(cv) = v {
-            assert!(cv.abs() < dec!(0.0001), "constant volume should give CV ~0: {cv}");
+            assert!(
+                cv.abs() < dec!(0.0001),
+                "constant volume should give CV ~0: {cv}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -165,7 +187,9 @@ mod tests {
     #[test]
     fn test_rcv_reset() {
         let mut s = RollingVolumeCV::new("cv", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("1000")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("1000")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

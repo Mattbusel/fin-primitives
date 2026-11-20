@@ -38,7 +38,11 @@ impl RogersSatchellVolatility {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { name: name.into(), period, rs_values: VecDeque::with_capacity(period) })
+        Ok(Self {
+            name: name.into(),
+            period,
+            rs_values: VecDeque::with_capacity(period),
+        })
     }
 }
 

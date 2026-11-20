@@ -1,8 +1,8 @@
 //! Higher High Lower Low indicator.
 
-use rust_decimal::Decimal;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
 
 /// Detects bar pattern: +1 if higher high AND lower low (outside bar),
 /// -1 if lower high AND higher low (inside bar), 0 otherwise.
@@ -18,12 +18,17 @@ pub struct HigherHighLowerLow {
 impl HigherHighLowerLow {
     /// Creates a new `HigherHighLowerLow` indicator.
     pub fn new() -> Self {
-        Self { prev_high: None, prev_low: None }
+        Self {
+            prev_high: None,
+            prev_low: None,
+        }
     }
 }
 
 impl Default for HigherHighLowerLow {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Signal for HigherHighLowerLow {
@@ -31,7 +36,13 @@ impl Signal for HigherHighLowerLow {
         let result = if let (Some(ph), Some(pl)) = (self.prev_high, self.prev_low) {
             let outside = bar.high > ph && bar.low < pl;
             let inside = bar.high < ph && bar.low > pl;
-            let val: i32 = if outside { 1 } else if inside { -1 } else { 0 };
+            let val: i32 = if outside {
+                1
+            } else if inside {
+                -1
+            } else {
+                0
+            };
             SignalValue::Scalar(Decimal::from(val))
         } else {
             SignalValue::Unavailable
@@ -41,10 +52,19 @@ impl Signal for HigherHighLowerLow {
         Ok(result)
     }
 
-    fn is_ready(&self) -> bool { self.prev_high.is_some() }
-    fn period(&self) -> usize { 2 }
-    fn reset(&mut self) { self.prev_high = None; self.prev_low = None; }
-    fn name(&self) -> &str { "HigherHighLowerLow" }
+    fn is_ready(&self) -> bool {
+        self.prev_high.is_some()
+    }
+    fn period(&self) -> usize {
+        2
+    }
+    fn reset(&mut self) {
+        self.prev_high = None;
+        self.prev_low = None;
+    }
+    fn name(&self) -> &str {
+        "HigherHighLowerLow"
+    }
 }
 
 #[cfg(test)]

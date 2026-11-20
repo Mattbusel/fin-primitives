@@ -69,18 +69,24 @@ impl EmaAlignment {
 }
 
 impl Signal for EmaAlignment {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.slow_period }
-    fn is_ready(&self) -> bool { true }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
+    fn is_ready(&self) -> bool {
+        true
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let price = bar.close;
-        let fast   = Self::ema_step(self.fast_ema,   price, self.fast_k);
+        let fast = Self::ema_step(self.fast_ema, price, self.fast_k);
         let medium = Self::ema_step(self.medium_ema, price, self.medium_k);
-        let slow   = Self::ema_step(self.slow_ema,   price, self.slow_k);
-        self.fast_ema   = Some(fast);
+        let slow = Self::ema_step(self.slow_ema, price, self.slow_k);
+        self.fast_ema = Some(fast);
         self.medium_ema = Some(medium);
-        self.slow_ema   = Some(slow);
+        self.slow_ema = Some(slow);
 
         let signal = if fast > medium && medium > slow {
             Decimal::ONE
@@ -93,9 +99,9 @@ impl Signal for EmaAlignment {
     }
 
     fn reset(&mut self) {
-        self.fast_ema   = None;
+        self.fast_ema = None;
         self.medium_ema = None;
-        self.slow_ema   = None;
+        self.slow_ema = None;
     }
 }
 
@@ -111,7 +117,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -155,7 +164,9 @@ mod tests {
     #[test]
     fn test_ea_reset() {
         let mut ea = EmaAlignment::new("e", 3, 7, 14).unwrap();
-        for i in 0u32..30 { ea.update_bar(&bar(&(100 + i).to_string())).unwrap(); }
+        for i in 0u32..30 {
+            ea.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         ea.reset();
         assert!(ea.fast_ema.is_none());
     }

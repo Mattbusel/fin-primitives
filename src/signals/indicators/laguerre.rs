@@ -63,7 +63,9 @@ impl LaguerreRsi {
 }
 
 impl Signal for LaguerreRsi {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -111,8 +113,12 @@ impl Signal for LaguerreRsi {
         ))
     }
 
-    fn is_ready(&self) -> bool { self.ready }
-    fn period(&self) -> usize { 4 }
+    fn is_ready(&self) -> bool {
+        self.ready
+    }
+    fn period(&self) -> usize {
+        4
+    }
     fn reset(&mut self) {
         self.l0_prev = None;
         self.l1_prev = 0.0;
@@ -134,7 +140,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -171,7 +180,9 @@ mod tests {
         // from below toward close. RSI converges toward 100 during warm-up and only
         // approaches 50 at true steady state (asymptotically). Check value is in [0,100].
         let mut l = LaguerreRsi::new("l", 0.5).unwrap();
-        for _ in 0..20 { l.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            l.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = l.update_bar(&bar("100")).unwrap() {
             assert!(v >= dec!(0), "value < 0: {v}");
             assert!(v <= dec!(100), "value > 100: {v}");
@@ -185,7 +196,9 @@ mod tests {
         let mut l = LaguerreRsi::new("l", 0.5).unwrap();
         let prices: Vec<String> = (100..120).map(|i| i.to_string()).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = l.update_bar(&bar(p)).unwrap(); }
+        for p in &prices {
+            last = l.update_bar(&bar(p)).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert!(v > dec!(50), "uptrend should give RSI > 50: {v}");
         }
@@ -200,7 +213,9 @@ mod tests {
     #[test]
     fn test_laguerre_reset() {
         let mut l = LaguerreRsi::new("l", 0.5).unwrap();
-        for p in &["100", "101", "102"] { l.update_bar(&bar(p)).unwrap(); }
+        for p in &["100", "101", "102"] {
+            l.update_bar(&bar(p)).unwrap();
+        }
         assert!(l.is_ready());
         l.reset();
         assert!(!l.is_ready());

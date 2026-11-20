@@ -40,7 +40,9 @@ impl Autocorrelation1 {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period < 3` (need at least 3 returns for correlation).
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period < 3 { return Err(FinError::InvalidPeriod(period)); }
+        if period < 3 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -50,10 +52,12 @@ impl Autocorrelation1 {
 
     fn compute_autocorr(returns: &[Decimal]) -> Option<Decimal> {
         let n = returns.len();
-        if n < 2 { return None; }
+        if n < 2 {
+            return None;
+        }
         // x = returns[0..n-1], y = returns[1..n]
         let n1_f = Decimal::from((n - 1) as u32);
-        let sum_x: Decimal = returns[..n-1].iter().copied().sum();
+        let sum_x: Decimal = returns[..n - 1].iter().copied().sum();
         let sum_y: Decimal = returns[1..].iter().copied().sum();
         let mean_x = sum_x / n1_f;
         let mean_y = sum_y / n1_f;
@@ -61,20 +65,24 @@ impl Autocorrelation1 {
         let mut cov = Decimal::ZERO;
         let mut var_x = Decimal::ZERO;
         let mut var_y = Decimal::ZERO;
-        for i in 0..n-1 {
+        for i in 0..n - 1 {
             let dx = returns[i] - mean_x;
-            let dy = returns[i+1] - mean_y;
+            let dy = returns[i + 1] - mean_y;
             cov += dx * dy;
             var_x += dx * dx;
             var_y += dy * dy;
         }
-        if var_x.is_zero() || var_y.is_zero() { return None; }
+        if var_x.is_zero() || var_y.is_zero() {
+            return None;
+        }
 
         use rust_decimal::prelude::ToPrimitive;
         let var_x_f = var_x.to_f64()?;
         let var_y_f = var_y.to_f64()?;
         let denom_f = (var_x_f * var_y_f).sqrt();
-        if denom_f == 0.0 { return None; }
+        if denom_f == 0.0 {
+            return None;
+        }
         let cov_f = cov.to_f64()?;
         let rho_f = cov_f / denom_f;
         Decimal::try_from(rho_f).ok()
@@ -82,14 +90,24 @@ impl Autocorrelation1 {
 }
 
 impl Signal for Autocorrelation1 {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() > self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
-        if self.closes.len() > self.period + 2 { self.closes.pop_front(); }
-        if self.closes.len() <= self.period { return Ok(SignalValue::Unavailable); }
+        if self.closes.len() > self.period + 2 {
+            self.closes.pop_front();
+        }
+        if self.closes.len() <= self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         // Compute returns from the window
         let prices: Vec<Decimal> = self.closes.iter().copied().collect();
@@ -118,7 +136,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -127,13 +148,18 @@ mod tests {
     }
 
     #[test]
-    fn test_ac_period_too_small() { assert!(Autocorrelation1::new("ac", 2).is_err()); }
+    fn test_ac_period_too_small() {
+        assert!(Autocorrelation1::new("ac", 2).is_err());
+    }
 
     #[test]
     fn test_ac_unavailable_before_warmup() {
         let mut ac = Autocorrelation1::new("ac", 5).unwrap();
         for _ in 0..5 {
-            assert_eq!(ac.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ac.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -155,20 +181,25 @@ mod tests {
     fn test_ac_alternating_negative() {
         // Alternating up/down -> negative autocorrelation
         let mut ac = Autocorrelation1::new("ac", 6).unwrap();
-        let prices = ["100","102","100","102","100","102","100","102"];
+        let prices = ["100", "102", "100", "102", "100", "102", "100", "102"];
         let mut last = SignalValue::Unavailable;
         for p in &prices {
             last = ac.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(rho) = last {
-            assert!(rho < dec!(0), "expected negative autocorr for alternating series, got {rho}");
+            assert!(
+                rho < dec!(0),
+                "expected negative autocorr for alternating series, got {rho}"
+            );
         }
     }
 
     #[test]
     fn test_ac_reset() {
         let mut ac = Autocorrelation1::new("ac", 5).unwrap();
-        for i in 0u32..8 { ac.update_bar(&bar(&(100+i).to_string())).unwrap(); }
+        for i in 0u32..8 {
+            ac.update_bar(&bar(&(100 + i).to_string())).unwrap();
+        }
         assert!(ac.is_ready());
         ac.reset();
         assert!(!ac.is_ready());

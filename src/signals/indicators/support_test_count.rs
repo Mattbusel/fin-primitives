@@ -1,9 +1,9 @@
 //! Support Test Count indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling count of bars whose low is within 0.5% of the period's lowest low.
 ///
@@ -21,7 +21,11 @@ impl SupportTestCount {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, lows: VecDeque::with_capacity(period), threshold_pct })
+        Ok(Self {
+            period,
+            lows: VecDeque::with_capacity(period),
+            threshold_pct,
+        })
     }
 }
 
@@ -37,16 +41,26 @@ impl Signal for SupportTestCount {
 
         let period_low = self.lows.iter().copied().fold(Decimal::MAX, Decimal::min);
         let threshold = period_low * self.threshold_pct / Decimal::ONE_HUNDRED;
-        let count = self.lows.iter()
+        let count = self
+            .lows
+            .iter()
             .filter(|&&l| (l - period_low).abs() <= threshold)
             .count();
         Ok(SignalValue::Scalar(Decimal::from(count as u32)))
     }
 
-    fn is_ready(&self) -> bool { self.lows.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.lows.clear(); }
-    fn name(&self) -> &str { "SupportTestCount" }
+    fn is_ready(&self) -> bool {
+        self.lows.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.lows.clear();
+    }
+    fn name(&self) -> &str {
+        "SupportTestCount"
+    }
 }
 
 #[cfg(test)]

@@ -43,9 +43,15 @@ impl NegativeVolumeIndex {
 }
 
 impl Signal for NegativeVolumeIndex {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { 1 }
-    fn is_ready(&self) -> bool { self.prev_close.is_some() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        1
+    }
+    fn is_ready(&self) -> bool {
+        self.prev_close.is_some()
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let result = match (self.prev_close, self.prev_volume) {
@@ -85,7 +91,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -97,7 +106,10 @@ mod tests {
     fn test_nvi_first_bar_unavailable() {
         let mut s = NegativeVolumeIndex::new("nvi");
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -130,7 +142,10 @@ mod tests {
         s.update_bar(&bar("100", "1000")).unwrap();
         // Lower volume + price fall → NVI decreases
         if let SignalValue::Scalar(v) = s.update_bar(&bar("90", "500")).unwrap() {
-            assert!(v < dec!(1000), "NVI should fall on low-volume down day: {v}");
+            assert!(
+                v < dec!(1000),
+                "NVI should fall on low-volume down day: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -144,6 +159,9 @@ mod tests {
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());
-        assert_eq!(s.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

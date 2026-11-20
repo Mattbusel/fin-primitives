@@ -115,7 +115,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,13 +128,19 @@ mod tests {
 
     #[test]
     fn test_period_zero_fails() {
-        assert!(matches!(OnBalanceVolumeMA::new("obvma", 0), Err(FinError::InvalidPeriod(0))));
+        assert!(matches!(
+            OnBalanceVolumeMA::new("obvma", 0),
+            Err(FinError::InvalidPeriod(0))
+        ));
     }
 
     #[test]
     fn test_unavailable_before_period() {
         let mut obvma = OnBalanceVolumeMA::new("obvma", 3).unwrap();
-        assert_eq!(obvma.update_bar(&bar("100", "1000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            obvma.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -141,9 +150,9 @@ mod tests {
         obvma.update_bar(&bar("101", "1000")).unwrap(); // obv=1000
         obvma.update_bar(&bar("102", "1000")).unwrap(); // obv=2000
         obvma.update_bar(&bar("103", "1000")).unwrap(); // obv=3000
-        // obvma history: [1000, 2000, 3000], avg=2000
+                                                        // obvma history: [1000, 2000, 3000], avg=2000
         let v = obvma.update_bar(&bar("104", "1000")).unwrap(); // obv=4000
-        // history: [2000,3000,4000], avg=3000
+                                                                // history: [2000,3000,4000], avg=3000
         if let SignalValue::Scalar(s) = v {
             assert!(s > dec!(0));
         } else {

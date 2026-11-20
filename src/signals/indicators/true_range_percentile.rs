@@ -1,9 +1,9 @@
 //! True Range Percentile indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rolling percentile rank of the current True Range within the period window.
 ///
@@ -21,7 +21,11 @@ impl TrueRangePercentile {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, prev_close: None, window: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            prev_close: None,
+            window: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -40,15 +44,24 @@ impl Signal for TrueRangePercentile {
 
         let current = tr;
         let below = self.window.iter().filter(|&&v| v < current).count();
-        let pct = Decimal::from(below as u32) / Decimal::from(self.period as u32)
-            * Decimal::ONE_HUNDRED;
+        let pct =
+            Decimal::from(below as u32) / Decimal::from(self.period as u32) * Decimal::ONE_HUNDRED;
         Ok(SignalValue::Scalar(pct))
     }
 
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.prev_close = None; self.window.clear(); }
-    fn name(&self) -> &str { "TrueRangePercentile" }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.prev_close = None;
+        self.window.clear();
+    }
+    fn name(&self) -> &str {
+        "TrueRangePercentile"
+    }
 }
 
 #[cfg(test)]
@@ -73,9 +86,13 @@ mod tests {
         sig.update(&bar("110", "90", "100")).unwrap(); // TR=20
         sig.update(&bar("110", "90", "100")).unwrap(); // TR=20
         let v = sig.update(&bar("130", "70", "100")).unwrap(); // TR=60 -> largest
-        // 2 values below 60 out of 3 => 2/3 * 100 ≈ 66.6
+                                                               // 2 values below 60 out of 3 => 2/3 * 100 ≈ 66.6
         if let SignalValue::Scalar(x) = v {
-            assert!(x > dec!(50), "largest TR should be in high percentile, got {}", x);
+            assert!(
+                x > dec!(50),
+                "largest TR should be in high percentile, got {}",
+                x
+            );
         }
     }
 
@@ -85,7 +102,7 @@ mod tests {
         sig.update(&bar("130", "70", "100")).unwrap(); // TR=60
         sig.update(&bar("130", "70", "100")).unwrap(); // TR=60
         let v = sig.update(&bar("110", "90", "100")).unwrap(); // TR=20 -> smallest
-        // 0 values below 20 => 0%
+                                                               // 0 values below 20 => 0%
         assert_eq!(v, SignalValue::Scalar(dec!(0)));
     }
 }

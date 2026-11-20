@@ -38,7 +38,9 @@ impl TrendScore {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -49,25 +51,36 @@ impl TrendScore {
 }
 
 impl Signal for TrendScore {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         if let Some(pc) = self.prev_close {
             let up = if bar.close > pc { 1u8 } else { 0u8 };
             self.up_flags.push_back(up);
-            if self.up_flags.len() > self.period { self.up_flags.pop_front(); }
+            if self.up_flags.len() > self.period {
+                self.up_flags.pop_front();
+            }
         }
         self.prev_close = Some(bar.close);
 
-        if self.up_flags.len() < self.period { return Ok(SignalValue::Unavailable); }
+        if self.up_flags.len() < self.period {
+            return Ok(SignalValue::Unavailable);
+        }
 
         let up_count: u32 = self.up_flags.iter().map(|&f| f as u32).sum();
-        let score = Decimal::from(up_count) / Decimal::from(self.period as u32) * Decimal::from(100u32);
+        let score =
+            Decimal::from(up_count) / Decimal::from(self.period as u32) * Decimal::from(100u32);
         Ok(SignalValue::Scalar(score))
     }
 
-    fn is_ready(&self) -> bool { self.up_flags.len() >= self.period }
-    fn period(&self) -> usize { self.period }
+    fn is_ready(&self) -> bool {
+        self.up_flags.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
 
     fn reset(&mut self) {
         self.prev_close = None;
@@ -86,7 +99,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,7 +133,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(100));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -130,7 +148,9 @@ mod tests {
         }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -138,10 +158,14 @@ mod tests {
         // Flat: close never > prev_close → all flags = 0 → score = 0
         let mut t = TrendScore::new("t", 3).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..7 { last = t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..7 {
+            last = t.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]

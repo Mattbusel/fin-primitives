@@ -47,9 +47,15 @@ impl TrendFollowingFilter {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if either period is zero or `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
-        if slow == 0 { return Err(FinError::InvalidPeriod(slow)); }
-        if fast >= slow { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
+        if slow == 0 {
+            return Err(FinError::InvalidPeriod(slow));
+        }
+        if fast >= slow {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         let fast_k = Decimal::from(2u32) / Decimal::from((fast + 1) as u32);
         let slow_k = Decimal::from(2u32) / Decimal::from((slow + 1) as u32);
         Ok(Self {
@@ -67,7 +73,9 @@ impl TrendFollowingFilter {
     }
 
     /// Returns `(fast_ema - slow_ema) / slow_ema × 100` — the trend spread as %.
-    pub fn trend_strength(&self) -> Option<Decimal> { self.trend_strength }
+    pub fn trend_strength(&self) -> Option<Decimal> {
+        self.trend_strength
+    }
 
     fn ema_update(
         value: Decimal,
@@ -92,28 +100,50 @@ impl TrendFollowingFilter {
 }
 
 impl Signal for TrendFollowingFilter {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
-        let fast = Self::ema_update(bar.close, self.fast_k, self.fast_period, &mut self.fast_ema, &mut self.fast_seed);
-        let slow = Self::ema_update(bar.close, self.slow_k, self.slow_period, &mut self.slow_ema, &mut self.slow_seed);
+        let fast = Self::ema_update(
+            bar.close,
+            self.fast_k,
+            self.fast_period,
+            &mut self.fast_ema,
+            &mut self.fast_seed,
+        );
+        let slow = Self::ema_update(
+            bar.close,
+            self.slow_k,
+            self.slow_period,
+            &mut self.slow_ema,
+            &mut self.slow_seed,
+        );
 
         match (fast, slow) {
             (Some(f), Some(s)) => {
                 if !s.is_zero() {
                     self.trend_strength = Some((f - s) / s * Decimal::from(100u32));
                 }
-                let dir = if f > s { Decimal::ONE }
-                    else if f < s { -Decimal::ONE }
-                    else { Decimal::ZERO };
+                let dir = if f > s {
+                    Decimal::ONE
+                } else if f < s {
+                    -Decimal::ONE
+                } else {
+                    Decimal::ZERO
+                };
                 Ok(SignalValue::Scalar(dir))
             }
             _ => Ok(SignalValue::Unavailable),
         }
     }
 
-    fn is_ready(&self) -> bool { self.slow_ema.is_some() }
-    fn period(&self) -> usize { self.slow_period }
+    fn is_ready(&self) -> bool {
+        self.slow_ema.is_some()
+    }
+    fn period(&self) -> usize {
+        self.slow_period
+    }
 
     fn reset(&mut self) {
         self.fast_ema = None;
@@ -135,7 +165,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -162,10 +195,14 @@ mod tests {
         // Flat price → fast_ema = slow_ema → output = 0
         let mut t = TrendFollowingFilter::new("t", 2, 4).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..10 { last = t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            last = t.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(0));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -174,23 +211,31 @@ mod tests {
         // Rising prices → fast EMA ahead of slow → uptrend
         let prices: Vec<u32> = (100..=120).collect();
         let mut last = SignalValue::Unavailable;
-        for p in &prices { last = t.update_bar(&bar(&p.to_string())).unwrap(); }
+        for p in &prices {
+            last = t.update_bar(&bar(&p.to_string())).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             assert_eq!(v, dec!(1));
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_tff_strength_set_when_ready() {
         let mut t = TrendFollowingFilter::new("t", 2, 4).unwrap();
-        for p in 100..=110u32 { t.update_bar(&bar(&p.to_string())).unwrap(); }
+        for p in 100..=110u32 {
+            t.update_bar(&bar(&p.to_string())).unwrap();
+        }
         assert!(t.trend_strength().is_some());
     }
 
     #[test]
     fn test_tff_reset() {
         let mut t = TrendFollowingFilter::new("t", 2, 4).unwrap();
-        for _ in 0..10 { t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            t.update_bar(&bar("100")).unwrap();
+        }
         assert!(t.is_ready());
         t.reset();
         assert!(!t.is_ready());

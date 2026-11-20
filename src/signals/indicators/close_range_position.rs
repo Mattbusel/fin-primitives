@@ -53,9 +53,13 @@ impl CloseRangePosition {
             return Err(FinError::InvalidPeriod(period));
         }
         #[allow(clippy::cast_possible_truncation)]
-        let k = Decimal::from(2u32)
-            / (Decimal::from(period as u32) + Decimal::ONE);
-        Ok(Self { name: name.into(), period, ema: None, k })
+        let k = Decimal::from(2u32) / (Decimal::from(period as u32) + Decimal::ONE);
+        Ok(Self {
+            name: name.into(),
+            period,
+            ema: None,
+            k,
+        })
     }
 
     fn raw_position(bar: &BarInput) -> Decimal {
@@ -163,10 +167,13 @@ mod tests {
     fn test_crp_ema_decays_toward_new_value() {
         let mut crp = CloseRangePosition::new("crp", 2).unwrap();
         crp.update_bar(&bar("110", "90", "110")).unwrap(); // seed = 1
-        // k = 2/(2+1) = 2/3; pos = 0; ema = 0 * 2/3 + 1 * 1/3 = 1/3
+                                                           // k = 2/(2+1) = 2/3; pos = 0; ema = 0 * 2/3 + 1 * 1/3 = 1/3
         let v = crp.update_bar(&bar("110", "90", "90")).unwrap();
         if let SignalValue::Scalar(e) = v {
-            assert!(e > dec!(0) && e < dec!(1), "EMA should be between 0 and 1: {e}");
+            assert!(
+                e > dec!(0) && e < dec!(1),
+                "EMA should be between 0 and 1: {e}"
+            );
         } else {
             panic!("expected Scalar");
         }

@@ -47,9 +47,15 @@ impl RollingCorrelation {
 }
 
 impl Signal for RollingCorrelation {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.window.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.window.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.window.push_back((bar.close, bar.volume));
@@ -112,7 +118,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: cp, high: cp, low: cp, close: cp,
+            open: cp,
+            high: cp,
+            low: cp,
+            close: cp,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -129,19 +138,28 @@ mod tests {
     #[test]
     fn test_rc_unavailable_before_period() {
         let mut s = RollingCorrelation::new("rc", 3).unwrap();
-        assert_eq!(s.update_bar(&bar("100","1000")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(s.update_bar(&bar("102","2000")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "1000")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            s.update_bar(&bar("102", "2000")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_rc_perfect_positive_correlation() {
         let mut s = RollingCorrelation::new("rc", 3).unwrap();
         // Price and volume both increasing together
-        s.update_bar(&bar("100","1000")).unwrap();
-        s.update_bar(&bar("102","2000")).unwrap();
-        let v = s.update_bar(&bar("104","3000")).unwrap();
+        s.update_bar(&bar("100", "1000")).unwrap();
+        s.update_bar(&bar("102", "2000")).unwrap();
+        let v = s.update_bar(&bar("104", "3000")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r - dec!(1)).abs() < dec!(0.001), "expected correlation ~1, got {r}");
+            assert!(
+                (r - dec!(1)).abs() < dec!(0.001),
+                "expected correlation ~1, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -151,11 +169,14 @@ mod tests {
     fn test_rc_perfect_negative_correlation() {
         let mut s = RollingCorrelation::new("rc", 3).unwrap();
         // Price and volume move inversely
-        s.update_bar(&bar("100","3000")).unwrap();
-        s.update_bar(&bar("102","2000")).unwrap();
-        let v = s.update_bar(&bar("104","1000")).unwrap();
+        s.update_bar(&bar("100", "3000")).unwrap();
+        s.update_bar(&bar("102", "2000")).unwrap();
+        let v = s.update_bar(&bar("104", "1000")).unwrap();
         if let SignalValue::Scalar(r) = v {
-            assert!((r + dec!(1)).abs() < dec!(0.001), "expected correlation ~-1, got {r}");
+            assert!(
+                (r + dec!(1)).abs() < dec!(0.001),
+                "expected correlation ~-1, got {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -164,10 +185,19 @@ mod tests {
     #[test]
     fn test_rc_output_in_range() {
         let mut s = RollingCorrelation::new("rc", 4).unwrap();
-        let data = [("100","1000"),("102","2500"),("101","800"),("103","1500"),("104","3000")];
+        let data = [
+            ("100", "1000"),
+            ("102", "2500"),
+            ("101", "800"),
+            ("103", "1500"),
+            ("104", "3000"),
+        ];
         for (c, v) in &data {
             if let SignalValue::Scalar(r) = s.update_bar(&bar(c, v)).unwrap() {
-                assert!(r >= dec!(-1) && r <= dec!(1), "correlation out of [-1,1]: {r}");
+                assert!(
+                    r >= dec!(-1) && r <= dec!(1),
+                    "correlation out of [-1,1]: {r}"
+                );
             }
         }
     }
@@ -175,7 +205,9 @@ mod tests {
     #[test]
     fn test_rc_reset() {
         let mut s = RollingCorrelation::new("rc", 3).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100","1000")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "1000")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

@@ -90,13 +90,7 @@ pub fn spread_value(cs: &FuturesCalendarSpread) -> f64 {
 }
 
 /// Theoretical calendar spread = fair_value(far) − fair_value(near).
-pub fn theoretical_spread(
-    spot: f64,
-    r: f64,
-    q: f64,
-    u: f64,
-    cs: &FuturesCalendarSpread,
-) -> f64 {
+pub fn theoretical_spread(spot: f64, r: f64, q: f64, u: f64, cs: &FuturesCalendarSpread) -> f64 {
     let make = |t: f64| {
         let c = FuturesContract {
             underlying_price: spot,
@@ -252,17 +246,31 @@ mod tests {
 
     #[test]
     fn roll_yield_sign_contango() {
-        let ry = RollYield { near_price: 100.0, far_price: 105.0, days_between: 30.0 };
+        let ry = RollYield {
+            near_price: 100.0,
+            far_price: 105.0,
+            days_between: 30.0,
+        };
         let ry_val = roll_yield(&ry);
-        assert!(ry_val < 0.0, "contango => negative roll yield, got {ry_val}");
+        assert!(
+            ry_val < 0.0,
+            "contango => negative roll yield, got {ry_val}"
+        );
         assert_eq!(contango_or_backwardation(&ry), "contango");
     }
 
     #[test]
     fn roll_yield_sign_backwardation() {
-        let ry = RollYield { near_price: 105.0, far_price: 100.0, days_between: 30.0 };
+        let ry = RollYield {
+            near_price: 105.0,
+            far_price: 100.0,
+            days_between: 30.0,
+        };
         let ry_val = roll_yield(&ry);
-        assert!(ry_val > 0.0, "backwardation => positive roll yield, got {ry_val}");
+        assert!(
+            ry_val > 0.0,
+            "backwardation => positive roll yield, got {ry_val}"
+        );
         assert_eq!(contango_or_backwardation(&ry), "backwardation");
     }
 }

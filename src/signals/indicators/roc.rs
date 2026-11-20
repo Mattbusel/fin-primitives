@@ -89,7 +89,10 @@ mod tests {
         let p = Price::new(close.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -106,7 +109,10 @@ mod tests {
     fn test_roc_unavailable_before_period_plus_1() {
         let mut roc = Roc::new("roc3", 3).unwrap();
         for _ in 0..3 {
-            assert_eq!(roc.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                roc.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!roc.is_ready());
     }
@@ -142,6 +148,9 @@ mod tests {
         assert!(roc.is_ready());
         roc.reset();
         assert!(!roc.is_ready());
-        assert_eq!(roc.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            roc.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

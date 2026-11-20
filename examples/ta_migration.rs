@@ -35,8 +35,8 @@ fn bars() -> Vec<DataItem> {
     // A small deterministic series: an uptrend, a pullback, another leg up.
     let closes = [
         100.0, 101.2, 102.1, 101.8, 103.0, 104.2, 103.9, 105.1, 106.0, 105.4, 104.1, 103.0, 102.2,
-        102.9, 104.0, 105.3, 106.8, 107.5, 108.9, 109.4, 110.8, 111.2, 112.6, 113.1, 114.0,
-        113.5, 114.9, 116.2, 117.0, 118.3,
+        102.9, 104.0, 105.3, 106.8, 107.5, 108.9, 109.4, 110.8, 111.2, 112.6, 113.1, 114.0, 113.5,
+        114.9, 116.2, 117.0, 118.3,
     ];
     let mut prev: f64 = 99.5;
     closes
@@ -91,6 +91,10 @@ fn main() {
     // A strategy rule written for `ta` keeps working: comparisons with NaN are false, so it
     // does not fire during warm-up.
     adx.reset();
-    let trending = bars.iter().map(|b| adx.next(b)).filter(|&v| v > 25.0).count();
+    let trending = bars
+        .iter()
+        .map(|b| adx.next(b))
+        .filter(|&v| v > 25.0)
+        .count();
     println!("bars with ADX(14) > 25: {trending}");
 }

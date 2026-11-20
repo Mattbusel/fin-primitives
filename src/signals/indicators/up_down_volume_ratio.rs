@@ -49,9 +49,15 @@ impl UpDownVolumeRatio {
 }
 
 impl Signal for UpDownVolumeRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.up_vols.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.up_vols.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let (up, dn) = if bar.is_bullish() {
@@ -64,8 +70,12 @@ impl Signal for UpDownVolumeRatio {
 
         self.up_vols.push_back(up);
         self.dn_vols.push_back(dn);
-        if self.up_vols.len() > self.period { self.up_vols.pop_front(); }
-        if self.dn_vols.len() > self.period { self.dn_vols.pop_front(); }
+        if self.up_vols.len() > self.period {
+            self.up_vols.pop_front();
+        }
+        if self.dn_vols.len() > self.period {
+            self.dn_vols.pop_front();
+        }
 
         if self.up_vols.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -100,7 +110,10 @@ mod tests {
         let vq = Quantity::new(v.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: cp, low: op, close: cp,
+            open: op,
+            high: cp,
+            low: op,
+            close: cp,
             volume: vq,
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -117,7 +130,10 @@ mod tests {
     fn test_uvr_unavailable_before_warm_up() {
         let mut uvr = UpDownVolumeRatio::new("uvr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(uvr.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                uvr.update_bar(&bar("100", "105", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -136,7 +152,9 @@ mod tests {
     #[test]
     fn test_uvr_reset() {
         let mut uvr = UpDownVolumeRatio::new("uvr", 3).unwrap();
-        for _ in 0..3 { uvr.update_bar(&bar("100", "105", "1000")).unwrap(); }
+        for _ in 0..3 {
+            uvr.update_bar(&bar("100", "105", "1000")).unwrap();
+        }
         assert!(uvr.is_ready());
         uvr.reset();
         assert!(!uvr.is_ready());

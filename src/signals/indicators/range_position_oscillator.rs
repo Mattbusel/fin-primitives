@@ -96,7 +96,10 @@ impl crate::signals::Signal for RangePositionOscillator {
         let clv = bar.close_location_value();
 
         let fast = match self.fast_ema {
-            None => { self.fast_ema = Some(clv); clv }
+            None => {
+                self.fast_ema = Some(clv);
+                clv
+            }
             Some(prev) => {
                 let next = clv * self.fast_k + prev * (Decimal::ONE - self.fast_k);
                 self.fast_ema = Some(next);
@@ -105,7 +108,10 @@ impl crate::signals::Signal for RangePositionOscillator {
         };
 
         let slow = match self.slow_ema {
-            None => { self.slow_ema = Some(clv); clv }
+            None => {
+                self.slow_ema = Some(clv);
+                clv
+            }
             Some(prev) => {
                 let next = clv * self.slow_k + prev * (Decimal::ONE - self.slow_k);
                 self.slow_ema = Some(next);

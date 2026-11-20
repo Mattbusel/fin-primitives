@@ -100,7 +100,8 @@ impl crate::signals::Signal for VolumeWeightedReturn {
             return Ok(SignalValue::Unavailable);
         }
 
-        let vwr = self.vol_ret_sum
+        let vwr = self
+            .vol_ret_sum
             .checked_div(self.vol_sum)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -129,7 +130,10 @@ mod tests {
         let (high, low) = if c >= o { (c, o) } else { (o, c) };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high, low, close: c,
+            open: o,
+            high,
+            low,
+            close: c,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +150,10 @@ mod tests {
     fn test_vwr_unavailable_during_warmup() {
         let mut vwr = VolumeWeightedReturn::new("vwr", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(vwr.update_bar(&bar("100", "105", "1000")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                vwr.update_bar(&bar("100", "105", "1000")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -172,7 +179,7 @@ mod tests {
         let mut vwr = VolumeWeightedReturn::new("vwr", 2).unwrap();
         vwr.update_bar(&bar("100", "90", "10")).unwrap(); // -10, vol=10
         let v = vwr.update_bar(&bar("100", "110", "1000")).unwrap(); // +10, vol=1000
-        // VWR should be close to +10
+                                                                     // VWR should be close to +10
         if let SignalValue::Scalar(s) = v {
             assert!(s > dec!(9), "high-vol bullish bar should dominate: {s}");
         } else {

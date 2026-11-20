@@ -48,9 +48,15 @@ impl MaxDrawupWindow {
 }
 
 impl Signal for MaxDrawupWindow {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -101,7 +107,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -129,7 +138,10 @@ mod tests {
         let mut s = MaxDrawupWindow::new("mdu", 2).unwrap();
         s.update_bar(&bar("100")).unwrap();
         if let SignalValue::Scalar(v) = s.update_bar(&bar("110")).unwrap() {
-            assert!((v - dec!(0.1)).abs() < dec!(0.001), "drawup should be 0.1: {v}");
+            assert!(
+                (v - dec!(0.1)).abs() < dec!(0.001),
+                "drawup should be 0.1: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -150,7 +162,7 @@ mod tests {
     #[test]
     fn test_mdu_non_negative() {
         let mut s = MaxDrawupWindow::new("mdu", 3).unwrap();
-        let prices = ["105","95","100","90","110","80","120"];
+        let prices = ["105", "95", "100", "90", "110", "80", "120"];
         for p in &prices {
             if let SignalValue::Scalar(v) = s.update_bar(&bar(p)).unwrap() {
                 assert!(v >= dec!(0), "drawup should be non-negative: {v}");

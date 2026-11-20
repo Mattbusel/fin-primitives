@@ -196,7 +196,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -214,7 +217,10 @@ mod tests {
     fn test_tsi_unavailable_before_warmup() {
         let mut tsi = Tsi::new("tsi", 5, 3).unwrap();
         for _ in 0..6 {
-            assert_eq!(tsi.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                tsi.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!tsi.is_ready());
     }
@@ -238,7 +244,10 @@ mod tests {
             last = tsi.update_bar(&bar(&(100 + i).to_string())).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > Decimal::ZERO, "TSI should be positive in uptrend, got {v}");
+            assert!(
+                v > Decimal::ZERO,
+                "TSI should be positive in uptrend, got {v}"
+            );
         } else {
             panic!("expected Scalar, got Unavailable");
         }

@@ -54,8 +54,16 @@ impl Signal for DonchianMidpoint {
         if self.history.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
-        let highest = self.history.iter().map(|b| b.high).fold(Decimal::MIN, Decimal::max);
-        let lowest = self.history.iter().map(|b| b.low).fold(Decimal::MAX, Decimal::min);
+        let highest = self
+            .history
+            .iter()
+            .map(|b| b.high)
+            .fold(Decimal::MIN, Decimal::max);
+        let lowest = self
+            .history
+            .iter()
+            .map(|b| b.low)
+            .fold(Decimal::MAX, Decimal::min);
         Ok(SignalValue::Scalar((highest + lowest) / Decimal::TWO))
     }
 
@@ -84,7 +92,10 @@ mod tests {
         let l_p = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l_p, high: h_p, low: l_p, close: h_p,
+            open: l_p,
+            high: h_p,
+            low: l_p,
+            close: h_p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -100,7 +111,10 @@ mod tests {
     #[test]
     fn test_donchian_unavailable_before_period() {
         let mut dc = DonchianMidpoint::new("dc2", 2).unwrap();
-        assert_eq!(dc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            dc.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(dc.update_bar(&bar("120", "80")).unwrap().is_scalar());
     }
 

@@ -59,11 +59,15 @@ impl MarketDepth {
         let lower = mid * (1.0 - factor);
         let upper = mid * (1.0 + factor);
 
-        let bid_vol: f64 = self.bid_levels.iter()
+        let bid_vol: f64 = self
+            .bid_levels
+            .iter()
             .filter(|(p, _)| *p >= lower)
             .map(|(_, s)| s)
             .sum();
-        let ask_vol: f64 = self.ask_levels.iter()
+        let ask_vol: f64 = self
+            .ask_levels
+            .iter()
             .filter(|(p, _)| *p <= upper)
             .map(|(_, s)| s)
             .sum();
@@ -90,7 +94,9 @@ impl MarketDepth {
         let mut total_cost = 0.0;
 
         for (price, size) in levels {
-            if remaining <= 0.0 { break; }
+            if remaining <= 0.0 {
+                break;
+            }
             let fill = remaining.min(*size);
             total_cost += fill * price;
             remaining -= fill;
@@ -221,7 +227,11 @@ impl AmihudIlliquidity {
                 count += 1;
             }
         }
-        if count == 0 { 0.0 } else { sum / count as f64 }
+        if count == 0 {
+            0.0
+        } else {
+            sum / count as f64
+        }
     }
 
     /// Rolling Amihud illiquidity with a sliding `window` of observations.
@@ -251,11 +261,7 @@ impl LiquidationCost {
     /// Simple linear liquidation cost model.
     ///
     /// Cost = quantity * (bid_ask_bps/2 + market_impact_bps_per_unit * quantity) / 10_000
-    pub fn linear_cost(
-        quantity: f64,
-        bid_ask_bps: f64,
-        market_impact_bps_per_unit: f64,
-    ) -> f64 {
+    pub fn linear_cost(quantity: f64, bid_ask_bps: f64, market_impact_bps_per_unit: f64) -> f64 {
         quantity * (bid_ask_bps / 2.0 + market_impact_bps_per_unit * quantity) / 10_000.0
     }
 
@@ -288,7 +294,11 @@ impl LiquidationCost {
             // AC formula: x(t) = X * sinh(kappa*(T-t)) / sinh(kappa*T)
             let sell_rate = if kappa * t > 700.0 {
                 // Large kappa: sell everything immediately
-                if day == 0 { quantity } else { 0.0 }
+                if day == 0 {
+                    quantity
+                } else {
+                    0.0
+                }
             } else {
                 let sinh_remaining = (kappa * days_left).sinh();
                 let sinh_total = (kappa * t).sinh();
@@ -361,7 +371,11 @@ impl LiquidityRiskEngine {
     ) -> LiquidityScore {
         let mid = depth.mid_price();
         let spread = depth.bid_ask_spread();
-        let spread_bps = if mid > 0.0 { (spread / mid) * 10_000.0 } else { 9999.0 };
+        let spread_bps = if mid > 0.0 {
+            (spread / mid) * 10_000.0
+        } else {
+            9999.0
+        };
 
         // Spread score: 100 at 0 bps, 0 at 100 bps.
         let spread_score = (100.0 - spread_bps).clamp(0.0, 100.0);
@@ -399,27 +413,23 @@ impl LiquidityRiskEngine {
     ///
     /// Each position contributes a liquidity haircut based on its spread and depth score.
     /// Haircut = position_value * (1 - composite_score/100) * confidence_multiplier.
-    pub fn portfolio_liquidity_var(
-        positions: &[(f64, LiquidityScore)],
-        confidence: f64,
-    ) -> f64 {
+    pub fn portfolio_liquidity_var(positions: &[(f64, LiquidityScore)], confidence: f64) -> f64 {
         // One-sided normal quantile for the confidence level (1.645 at 95%, 2.326 at 99%).
         let z = crate::normal::inv_cdf(confidence.clamp(1e-12, 1.0 - 1e-12));
-        positions.iter().map(|(value, score)| {
-            let haircut = 1.0 - score.composite_score / 100.0;
-            value.abs() * haircut * z
-        }).sum()
+        positions
+            .iter()
+            .map(|(value, score)| {
+                let haircut = 1.0 - score.composite_score / 100.0;
+                value.abs() * haircut * z
+            })
+            .sum()
     }
 
     /// Number of trading days required to liquidate a position.
     ///
     /// `position_value` in currency units, `adv` is average daily volume in same units,
     /// `max_participation` is the maximum fraction of ADV to trade per day (e.g. 0.20).
-    pub fn days_to_liquidate(
-        position_value: f64,
-        adv: f64,
-        max_participation: f64,
-    ) -> f64 {
+    pub fn days_to_liquidate(position_value: f64, adv: f64, max_participation: f64) -> f64 {
         if adv <= 0.0 || max_participation <= 0.0 {
             return f64::INFINITY;
         }
@@ -482,9 +492,7 @@ mod tests {
 
     #[test]
     fn optimal_schedule_sums_to_quantity() {
-        let schedule = LiquidationCost::optimal_liquidation_schedule(
-            1000.0, 200.0, 5, 0.02, 1e-4,
-        );
+        let schedule = LiquidationCost::optimal_liquidation_schedule(1000.0, 200.0, 5, 0.02, 1e-4);
         let total: f64 = schedule.iter().sum();
         assert!((total - 1000.0).abs() < 1e-6);
     }

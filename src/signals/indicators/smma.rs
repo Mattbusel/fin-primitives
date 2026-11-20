@@ -64,8 +64,8 @@ impl Signal for Smma {
                 return Ok(SignalValue::Unavailable);
             }
             // Seed SMMA with SMA of first `period` bars
-            let seed: Decimal = self.seed_buf.iter().copied().sum::<Decimal>()
-                / Decimal::from(self.period as u32);
+            let seed: Decimal =
+                self.seed_buf.iter().copied().sum::<Decimal>() / Decimal::from(self.period as u32);
             self.smma = Some(seed);
             return Ok(SignalValue::Scalar(seed));
         }
@@ -101,7 +101,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -119,7 +122,10 @@ mod tests {
         let mut s = Smma::new("s", 3).unwrap();
         assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
         assert_eq!(s.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert!(matches!(s.update_bar(&bar("100")).unwrap(), SignalValue::Scalar(_)));
+        assert!(matches!(
+            s.update_bar(&bar("100")).unwrap(),
+            SignalValue::Scalar(_)
+        ));
     }
 
     #[test]
@@ -141,7 +147,9 @@ mod tests {
     fn test_smma_seed_equals_sma() {
         // After exactly `period` bars all at the same price, SMMA = that price
         let mut s = Smma::new("s", 4).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("50")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("50")).unwrap();
+        }
         let seed = s.update_bar(&bar("50")).unwrap();
         assert_eq!(seed, SignalValue::Scalar(dec!(50)));
     }
@@ -149,7 +157,9 @@ mod tests {
     #[test]
     fn test_smma_reset() {
         let mut s = Smma::new("s", 3).unwrap();
-        for _ in 0..5 { s.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..5 {
+            s.update_bar(&bar("100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

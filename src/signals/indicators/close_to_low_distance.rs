@@ -55,9 +55,15 @@ impl CloseToLowDistance {
 }
 
 impl Signal for CloseToLowDistance {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.lows.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.lows.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let tr = bar.true_range(self.prev_close);
@@ -66,11 +72,16 @@ impl Signal for CloseToLowDistance {
         self.trs.push_back(tr);
         self.tr_sum += tr;
         if self.trs.len() > self.period {
-            self.tr_sum -= self.trs.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            self.tr_sum -= self
+                .trs
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
         }
 
         self.lows.push_back(bar.low);
-        if self.lows.len() > self.period { self.lows.pop_front(); }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
 
         if self.lows.len() < self.period {
             return Ok(SignalValue::Unavailable);
@@ -82,7 +93,11 @@ impl Signal for CloseToLowDistance {
             return Ok(SignalValue::Unavailable);
         }
 
-        let min_low = self.lows.iter().copied().fold(self.lows[0], |acc, v| acc.min(v));
+        let min_low = self
+            .lows
+            .iter()
+            .copied()
+            .fold(self.lows[0], |acc, v| acc.min(v));
         Ok(SignalValue::Scalar((bar.close - min_low) / atr))
     }
 
@@ -108,7 +123,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -125,7 +143,10 @@ mod tests {
     fn test_ctld_unavailable_before_warm_up() {
         let mut ctld = CloseToLowDistance::new("ctld", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(ctld.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                ctld.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -148,7 +169,11 @@ mod tests {
             last = ctld.update_bar(&bar("110", "90", "105")).unwrap();
         }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(0), "close above min low should give positive distance: {}", v);
+            assert!(
+                v > dec!(0),
+                "close above min low should give positive distance: {}",
+                v
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -157,7 +182,9 @@ mod tests {
     #[test]
     fn test_ctld_reset() {
         let mut ctld = CloseToLowDistance::new("ctld", 3).unwrap();
-        for _ in 0..3 { ctld.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..3 {
+            ctld.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(ctld.is_ready());
         ctld.reset();
         assert!(!ctld.is_ready());

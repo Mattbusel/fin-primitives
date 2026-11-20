@@ -97,7 +97,10 @@ mod tests {
         let l = if o.value() <= c.value() { o } else { c };
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: o, high: h, low: l, close: c,
+            open: o,
+            high: h,
+            low: l,
+            close: c,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -113,8 +116,14 @@ mod tests {
     #[test]
     fn test_rob_unavailable_before_period() {
         let mut rob = RollingOpenBias::new("rob", 3).unwrap();
-        assert_eq!(rob.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(rob.update_bar(&bar("100", "105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            rob.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            rob.update_bar(&bar("100", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!rob.is_ready());
     }
 

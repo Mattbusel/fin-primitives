@@ -53,22 +53,40 @@ impl PriceBandwidth {
 }
 
 impl Signal for PriceBandwidth {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.highs.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.highs.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.highs.push_back(bar.high);
         self.lows.push_back(bar.low);
-        if self.highs.len() > self.period { self.highs.pop_front(); }
-        if self.lows.len() > self.period { self.lows.pop_front(); }
+        if self.highs.len() > self.period {
+            self.highs.pop_front();
+        }
+        if self.lows.len() > self.period {
+            self.lows.pop_front();
+        }
 
         if self.highs.len() < self.period {
             return Ok(SignalValue::Unavailable);
         }
 
-        let max_h = self.highs.iter().copied().fold(self.highs[0], |acc, v| acc.max(v));
-        let min_l = self.lows.iter().copied().fold(self.lows[0], |acc, v| acc.min(v));
+        let max_h = self
+            .highs
+            .iter()
+            .copied()
+            .fold(self.highs[0], |acc, v| acc.max(v));
+        let min_l = self
+            .lows
+            .iter()
+            .copied()
+            .fold(self.lows[0], |acc, v| acc.min(v));
         let channel = max_h - min_l;
 
         if channel.is_zero() {
@@ -98,7 +116,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,7 +136,10 @@ mod tests {
     fn test_pb_unavailable_before_warm_up() {
         let mut pb = PriceBandwidth::new("pb", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(pb.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                pb.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
     }
 
@@ -143,7 +167,9 @@ mod tests {
     #[test]
     fn test_pb_reset() {
         let mut pb = PriceBandwidth::new("pb", 3).unwrap();
-        for _ in 0..3 { pb.update_bar(&bar("110", "90", "100")).unwrap(); }
+        for _ in 0..3 {
+            pb.update_bar(&bar("110", "90", "100")).unwrap();
+        }
         assert!(pb.is_ready());
         pb.reset();
         assert!(!pb.is_ready());

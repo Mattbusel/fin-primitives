@@ -98,7 +98,10 @@ mod tests {
         let lp = Price::new(l.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: hp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: hp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -109,7 +112,10 @@ mod tests {
     #[test]
     fn test_ibc_unavailable_on_first_bar() {
         let mut ibc = InsideBarCounter::new("ibc");
-        assert_eq!(ibc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ibc.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(ibc.is_ready()); // prev bar is stored, next call will yield a scalar
     }
 
@@ -166,7 +172,10 @@ mod tests {
         assert!(ibc.is_ready());
         ibc.reset();
         assert!(!ibc.is_ready());
-        assert_eq!(ibc.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            ibc.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

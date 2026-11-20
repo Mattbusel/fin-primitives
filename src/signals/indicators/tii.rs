@@ -44,7 +44,9 @@ impl Tii {
     /// # Errors
     /// Returns [`FinError::InvalidPeriod`] if `period == 0`.
     pub fn new(name: impl Into<String>, period: usize) -> Result<Self, FinError> {
-        if period == 0 { return Err(FinError::InvalidPeriod(period)); }
+        if period == 0 {
+            return Err(FinError::InvalidPeriod(period));
+        }
         Ok(Self {
             name: name.into(),
             period,
@@ -54,7 +56,9 @@ impl Tii {
 }
 
 impl Signal for Tii {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         self.closes.push_back(bar.close);
@@ -65,12 +69,10 @@ impl Signal for Tii {
             return Ok(SignalValue::Unavailable);
         }
 
-        let sma: Decimal = self.closes.iter().sum::<Decimal>()
-            / Decimal::from(self.period as u32);
+        let sma: Decimal = self.closes.iter().sum::<Decimal>() / Decimal::from(self.period as u32);
 
         let pos_count = self.closes.iter().filter(|&&c| c > sma).count();
-        let tii = Decimal::from(pos_count as u32 * 100)
-            / Decimal::from(self.period as u32);
+        let tii = Decimal::from(pos_count as u32 * 100) / Decimal::from(self.period as u32);
         Ok(SignalValue::Scalar(tii))
     }
 
@@ -98,7 +100,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -115,7 +120,10 @@ mod tests {
     fn test_tii_unavailable_before_period() {
         let mut tii = Tii::new("t", 5).unwrap();
         for _ in 0..4 {
-            assert_eq!(tii.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                tii.update_bar(&bar("100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!tii.is_ready());
     }
@@ -125,7 +133,9 @@ mod tests {
         // All closes equal the SMA → no close is strictly above → TII = 0
         // (equal is not "above", so flat price → 0)
         let mut tii = Tii::new("t", 4).unwrap();
-        for _ in 0..4 { tii.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            tii.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = tii.update_bar(&bar("100")).unwrap() {
             assert_eq!(v, dec!(0));
         }
@@ -138,19 +148,26 @@ mod tests {
         // For TII=75: need 3/4 above SMA. Feed many lows then 3 highs.
         let mut tii = Tii::new("t", 4).unwrap();
         // Start: 4 bars at 100
-        for _ in 0..4 { tii.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..4 {
+            tii.update_bar(&bar("100")).unwrap();
+        }
         // Now push 3 bars well above 100 → window = [100, 200, 200, 200], SMA=175, 3 above → TII=75
         tii.update_bar(&bar("200")).unwrap();
         tii.update_bar(&bar("200")).unwrap();
         if let SignalValue::Scalar(v) = tii.update_bar(&bar("200")).unwrap() {
-            assert!(v >= dec!(50), "expected TII >= 50 with 3/4 above SMA, got {v}");
+            assert!(
+                v >= dec!(50),
+                "expected TII >= 50 with 3/4 above SMA, got {v}"
+            );
         }
     }
 
     #[test]
     fn test_tii_in_range_0_100() {
         let mut tii = Tii::new("t", 5).unwrap();
-        let prices = ["100", "102", "99", "103", "101", "98", "104", "100", "102", "101"];
+        let prices = [
+            "100", "102", "99", "103", "101", "98", "104", "100", "102", "101",
+        ];
         for c in &prices {
             if let SignalValue::Scalar(v) = tii.update_bar(&bar(c)).unwrap() {
                 assert!(v >= dec!(0), "TII below 0: {v}");
@@ -162,7 +179,9 @@ mod tests {
     #[test]
     fn test_tii_reset() {
         let mut tii = Tii::new("t", 4).unwrap();
-        for _ in 0..10 { tii.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            tii.update_bar(&bar("100")).unwrap();
+        }
         assert!(tii.is_ready());
         tii.reset();
         assert!(!tii.is_ready());

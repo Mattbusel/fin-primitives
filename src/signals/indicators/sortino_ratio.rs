@@ -59,9 +59,15 @@ impl SortinoRatio {
 }
 
 impl Signal for SortinoRatio {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.returns.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.returns.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         use rust_decimal::prelude::ToPrimitive;
@@ -87,7 +93,8 @@ impl Signal for SortinoRatio {
         let mean = self.returns.iter().sum::<f64>() / n;
 
         // Downside variance uses all negative returns squared, divided by period
-        let downside_var = self.returns
+        let downside_var = self
+            .returns
             .iter()
             .filter(|&&r| r < 0.0)
             .map(|r| r * r)
@@ -123,7 +130,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -153,7 +163,10 @@ mod tests {
         for p in &["100", "102", "104", "106"] {
             sor.update_bar(&bar(p)).unwrap();
         }
-        assert_eq!(sor.update_bar(&bar("108")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sor.update_bar(&bar("108")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -164,7 +177,10 @@ mod tests {
             sor.update_bar(&bar(p)).unwrap();
         }
         if let SignalValue::Scalar(v) = sor.update_bar(&bar("116")).unwrap() {
-            assert!(v > dec!(0), "net uptrend with low downside → positive Sortino: {v}");
+            assert!(
+                v > dec!(0),
+                "net uptrend with low downside → positive Sortino: {v}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -193,6 +209,9 @@ mod tests {
         assert!(sor.is_ready());
         sor.reset();
         assert!(!sor.is_ready());
-        assert_eq!(sor.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            sor.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 }

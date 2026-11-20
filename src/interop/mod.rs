@@ -44,7 +44,9 @@ pub fn decimal_to_f64(d: Decimal) -> f64 {
 /// [`FinError::InvalidInput`] if `x` is NaN, infinite, or outside `Decimal`'s range.
 pub fn f64_to_decimal(x: f64) -> Result<Decimal, FinError> {
     if !x.is_finite() {
-        return Err(FinError::InvalidInput(format!("cannot convert {x} to a decimal")));
+        return Err(FinError::InvalidInput(format!(
+            "cannot convert {x} to a decimal"
+        )));
     }
     // `Display` for f64 prints the shortest round-trip digits without an exponent.
     Decimal::from_str_exact(&x.to_string())

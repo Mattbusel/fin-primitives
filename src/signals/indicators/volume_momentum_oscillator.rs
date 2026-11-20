@@ -90,7 +90,10 @@ impl crate::signals::Signal for VolumeMomentumOscillator {
         let vol = bar.volume;
 
         let fast = match self.fast_ema {
-            None => { self.fast_ema = Some(vol); vol }
+            None => {
+                self.fast_ema = Some(vol);
+                vol
+            }
             Some(prev) => {
                 let next = vol * self.fast_k + prev * (Decimal::ONE - self.fast_k);
                 self.fast_ema = Some(next);
@@ -99,7 +102,10 @@ impl crate::signals::Signal for VolumeMomentumOscillator {
         };
 
         let slow = match self.slow_ema {
-            None => { self.slow_ema = Some(vol); vol }
+            None => {
+                self.slow_ema = Some(vol);
+                vol
+            }
             Some(prev) => {
                 let next = vol * self.slow_k + prev * (Decimal::ONE - self.slow_k);
                 self.slow_ema = Some(next);
@@ -128,7 +134,10 @@ mod tests {
         let p = Price::new("100".parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::new(vol.parse().unwrap()).unwrap(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -175,7 +184,10 @@ mod tests {
         }
         let v = vmo.update_bar(&bar("10000")).unwrap();
         if let SignalValue::Scalar(s) = v {
-            assert!(s > dec!(0), "high volume spike → fast > slow → positive: {s}");
+            assert!(
+                s > dec!(0),
+                "high volume spike → fast > slow → positive: {s}"
+            );
         } else {
             panic!("expected Scalar");
         }

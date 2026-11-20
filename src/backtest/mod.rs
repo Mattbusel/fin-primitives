@@ -62,7 +62,10 @@ impl BacktestConfig {
                 "commission_rate must be non-negative".to_owned(),
             ));
         }
-        Ok(Self { initial_capital, commission_rate })
+        Ok(Self {
+            initial_capital,
+            commission_rate,
+        })
     }
 }
 
@@ -111,7 +114,10 @@ pub struct Signal {
 impl Signal {
     /// Creates a new signal.
     pub fn new(direction: SignalDirection, quantity: Decimal) -> Self {
-        Self { direction, quantity }
+        Self {
+            direction,
+            quantity,
+        }
     }
 
     /// Convenience constructor for a hold signal with zero quantity.
@@ -159,7 +165,9 @@ impl Backtester {
         strategy: &mut dyn Strategy,
     ) -> Result<BacktestResult, FinError> {
         if bars.is_empty() {
-            return Err(FinError::InvalidInput("bars slice must not be empty".to_owned()));
+            return Err(FinError::InvalidInput(
+                "bars slice must not be empty".to_owned(),
+            ));
         }
 
         let mut ledger = PositionLedger::new(self.config.initial_capital);
@@ -241,7 +249,10 @@ impl Backtester {
             prev_equity = equity;
         }
 
-        let final_equity = equity_curve.last().copied().unwrap_or(self.config.initial_capital);
+        let final_equity = equity_curve
+            .last()
+            .copied()
+            .unwrap_or(self.config.initial_capital);
 
         let total_return = if self.config.initial_capital > Decimal::ZERO {
             (final_equity - self.config.initial_capital) / self.config.initial_capital
@@ -361,7 +372,11 @@ mod tests {
         // Bought 1 unit @ 100 from 10 000 cash; final close = 109.
         // equity = (10 000 - 100) + unrealized_pnl(109) = 9 900 + 9 = 9 909.
         // Assert equity grew relative to first bar (9 900) and trade count is 1.
-        assert!(result.final_equity > dec!(9_900), "final_equity={}", result.final_equity);
+        assert!(
+            result.final_equity > dec!(9_900),
+            "final_equity={}",
+            result.final_equity
+        );
         assert_eq!(result.trade_count, 1);
     }
 

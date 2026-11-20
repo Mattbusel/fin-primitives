@@ -1,9 +1,9 @@
 //! Price Position Rank indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Percentile rank of current close within the rolling window.
 ///
@@ -23,7 +23,10 @@ impl PricePositionRank {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(period) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(period),
+        })
     }
 }
 
@@ -47,10 +50,18 @@ impl Signal for PricePositionRank {
         Ok(SignalValue::Scalar(rank))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() >= self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "PricePositionRank" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() >= self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "PricePositionRank"
+    }
 }
 
 #[cfg(test)]

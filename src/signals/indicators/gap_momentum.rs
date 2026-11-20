@@ -54,9 +54,15 @@ impl GapMomentum {
 }
 
 impl Signal for GapMomentum {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.gaps.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.gaps.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -70,8 +76,14 @@ impl Signal for GapMomentum {
             self.ranges.push_back(range);
 
             if self.gaps.len() > self.period {
-                let og = self.gaps.pop_front().ok_or_else(crate::error::invariant_broken)?;
-                let or_ = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+                let og = self
+                    .gaps
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
+                let or_ = self
+                    .ranges
+                    .pop_front()
+                    .ok_or_else(crate::error::invariant_broken)?;
                 self.gap_sum -= og;
                 self.range_sum -= or_;
             }
@@ -87,7 +99,8 @@ impl Signal for GapMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let avg_range = self.range_sum
+        let avg_range = self
+            .range_sum
             .checked_div(Decimal::from(self.period as u32))
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -95,7 +108,8 @@ impl Signal for GapMomentum {
             return Ok(SignalValue::Unavailable);
         }
 
-        let result = self.gap_sum
+        let result = self
+            .gap_sum
             .checked_div(avg_range)
             .ok_or(FinError::ArithmeticOverflow)?;
 
@@ -126,7 +140,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: op, high: hp, low: lp, close: cp,
+            open: op,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -143,18 +160,24 @@ mod tests {
     fn test_gm_unavailable_before_warm_up() {
         let mut s = GapMomentum::new("gm", 3).unwrap();
         // First bar: seeds prev_close, no gap yet
-        assert_eq!(s.update_bar(&bar("100","105","95","102")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("100", "105", "95", "102")).unwrap(),
+            SignalValue::Unavailable
+        );
         // Second bar: 1 gap, need 3
-        assert_eq!(s.update_bar(&bar("103","108","98","105")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            s.update_bar(&bar("103", "108", "98", "105")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
     fn test_gm_no_gap_gives_zero() {
         let mut s = GapMomentum::new("gm", 2).unwrap();
         // Bars open exactly at prior close → gaps = 0
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        let v = s.update_bar(&bar("100","110","90","100")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        let v = s.update_bar(&bar("100", "110", "90", "100")).unwrap();
         if let SignalValue::Scalar(r) = v {
             assert_eq!(r, dec!(0));
         } else {
@@ -166,11 +189,14 @@ mod tests {
     fn test_gm_positive_gaps() {
         let mut s = GapMomentum::new("gm", 2).unwrap();
         // persistent gap-ups
-        s.update_bar(&bar("100","110","90","100")).unwrap();
-        s.update_bar(&bar("102","112","92","102")).unwrap(); // gap=+2
-        let v = s.update_bar(&bar("104","114","94","104")).unwrap(); // gap=+2; sum=4, avg_range=20
+        s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        s.update_bar(&bar("102", "112", "92", "102")).unwrap(); // gap=+2
+        let v = s.update_bar(&bar("104", "114", "94", "104")).unwrap(); // gap=+2; sum=4, avg_range=20
         if let SignalValue::Scalar(r) = v {
-            assert!(r > dec!(0), "positive gaps should give positive momentum: {r}");
+            assert!(
+                r > dec!(0),
+                "positive gaps should give positive momentum: {r}"
+            );
         } else {
             panic!("expected Scalar");
         }
@@ -179,7 +205,9 @@ mod tests {
     #[test]
     fn test_gm_reset() {
         let mut s = GapMomentum::new("gm", 2).unwrap();
-        for _ in 0..3 { s.update_bar(&bar("100","110","90","100")).unwrap(); }
+        for _ in 0..3 {
+            s.update_bar(&bar("100", "110", "90", "100")).unwrap();
+        }
         assert!(s.is_ready());
         s.reset();
         assert!(!s.is_ready());

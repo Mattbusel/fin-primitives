@@ -79,7 +79,7 @@
 //! # }
 //! ```
 
-use crate::backtest::{BacktestConfig, Backtester, BacktestResult, Strategy};
+use crate::backtest::{BacktestConfig, BacktestResult, Backtester, Strategy};
 use crate::error::FinError;
 use crate::ohlcv::OhlcvBar;
 use std::collections::HashMap;
@@ -152,14 +152,10 @@ impl WalkForwardConfig {
             ));
         }
         if self.test_window == 0 {
-            return Err(FinError::InvalidInput(
-                "test_window must be > 0".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("test_window must be > 0".to_owned()));
         }
         if self.step == 0 {
-            return Err(FinError::InvalidInput(
-                "step must be > 0".to_owned(),
-            ));
+            return Err(FinError::InvalidInput("step must be > 0".to_owned()));
         }
         Ok(())
     }
@@ -221,16 +217,20 @@ impl WalkForwardResult {
 
     /// Returns the period with the highest out-of-sample Sharpe ratio.
     pub fn best_period(&self) -> Option<&WfPeriod> {
-        self.periods
-            .iter()
-            .max_by(|a, b| a.out_of_sample_sharpe.partial_cmp(&b.out_of_sample_sharpe).unwrap_or(std::cmp::Ordering::Equal))
+        self.periods.iter().max_by(|a, b| {
+            a.out_of_sample_sharpe
+                .partial_cmp(&b.out_of_sample_sharpe)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Returns the period with the lowest (worst) out-of-sample Sharpe ratio.
     pub fn worst_period(&self) -> Option<&WfPeriod> {
-        self.periods
-            .iter()
-            .min_by(|a, b| a.out_of_sample_sharpe.partial_cmp(&b.out_of_sample_sharpe).unwrap_or(std::cmp::Ordering::Equal))
+        self.periods.iter().min_by(|a, b| {
+            a.out_of_sample_sharpe
+                .partial_cmp(&b.out_of_sample_sharpe)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 }
 
@@ -362,7 +362,10 @@ impl WalkForwardOptimizer {
         // ── Aggregate metrics ─────────────────────────────────────────────────
         let n = periods.len() as f64;
         let aggregate_sharpe = periods.iter().map(|p| p.out_of_sample_sharpe).sum::<f64>() / n;
-        let positive_count = periods.iter().filter(|p| p.out_of_sample_sharpe > 0.0).count();
+        let positive_count = periods
+            .iter()
+            .filter(|p| p.out_of_sample_sharpe > 0.0)
+            .count();
         let stability_score = positive_count as f64 / n;
 
         let mean_oos_return = periods
@@ -499,7 +502,12 @@ mod tests {
 
     #[test]
     fn test_param_range_values_basic() {
-        let r = ParamRange { name: "x".to_owned(), min: 1.0, max: 3.0, step: 1.0 };
+        let r = ParamRange {
+            name: "x".to_owned(),
+            min: 1.0,
+            max: 3.0,
+            step: 1.0,
+        };
         let vals = r.values();
         assert_eq!(vals.len(), 3);
         assert!((vals[0] - 1.0).abs() < 1e-10);
@@ -508,7 +516,12 @@ mod tests {
 
     #[test]
     fn test_param_range_single_value_when_min_equals_max() {
-        let r = ParamRange { name: "x".to_owned(), min: 5.0, max: 5.0, step: 1.0 };
+        let r = ParamRange {
+            name: "x".to_owned(),
+            min: 5.0,
+            max: 5.0,
+            step: 1.0,
+        };
         let vals = r.values();
         assert_eq!(vals.len(), 1);
         assert!((vals[0] - 5.0).abs() < 1e-10);
@@ -516,7 +529,12 @@ mod tests {
 
     #[test]
     fn test_param_range_degenerate_step() {
-        let r = ParamRange { name: "x".to_owned(), min: 1.0, max: 5.0, step: 0.0 };
+        let r = ParamRange {
+            name: "x".to_owned(),
+            min: 1.0,
+            max: 5.0,
+            step: 0.0,
+        };
         let vals = r.values();
         assert_eq!(vals.len(), 1); // degenerate fallback
     }
@@ -532,7 +550,12 @@ mod tests {
 
     #[test]
     fn test_build_grid_single_param() {
-        let params = vec![ParamRange { name: "p".to_owned(), min: 5.0, max: 15.0, step: 5.0 }];
+        let params = vec![ParamRange {
+            name: "p".to_owned(),
+            min: 5.0,
+            max: 15.0,
+            step: 5.0,
+        }];
         let grid = build_grid(&params);
         assert_eq!(grid.len(), 3); // 5, 10, 15
         for m in &grid {
@@ -543,8 +566,18 @@ mod tests {
     #[test]
     fn test_build_grid_two_params_cartesian() {
         let params = vec![
-            ParamRange { name: "a".to_owned(), min: 1.0, max: 2.0, step: 1.0 },
-            ParamRange { name: "b".to_owned(), min: 10.0, max: 20.0, step: 10.0 },
+            ParamRange {
+                name: "a".to_owned(),
+                min: 1.0,
+                max: 2.0,
+                step: 1.0,
+            },
+            ParamRange {
+                name: "b".to_owned(),
+                min: 10.0,
+                max: 20.0,
+                step: 10.0,
+            },
         ];
         let grid = build_grid(&params);
         assert_eq!(grid.len(), 4); // 2 × 2
@@ -604,7 +637,9 @@ mod tests {
 
     #[test]
     fn test_optimizer_hold_strategy_returns_result() {
-        let bars: Vec<OhlcvBar> = (0..100).map(|i| make_bar(100.0 + i as f64 * 0.1, i)).collect();
+        let bars: Vec<OhlcvBar> = (0..100)
+            .map(|i| make_bar(100.0 + i as f64 * 0.1, i))
+            .collect();
         let cfg = WalkForwardConfig {
             train_window: 40,
             test_window: 20,
@@ -622,18 +657,25 @@ mod tests {
 
     #[test]
     fn test_optimizer_with_param_grid() {
-        let bars: Vec<OhlcvBar> = (0..120).map(|i| make_bar(100.0 + i as f64 * 0.5, i)).collect();
+        let bars: Vec<OhlcvBar> = (0..120)
+            .map(|i| make_bar(100.0 + i as f64 * 0.5, i))
+            .collect();
         let cfg = WalkForwardConfig {
             train_window: 50,
             test_window: 20,
             step: 20,
-            param_space: vec![
-                ParamRange { name: "qty".to_owned(), min: 1.0, max: 3.0, step: 1.0 },
-            ],
+            param_space: vec![ParamRange {
+                name: "qty".to_owned(),
+                min: 1.0,
+                max: 3.0,
+                step: 1.0,
+            }],
         };
         let bt_cfg = BacktestConfig::new(dec!(10_000), dec!(0)).unwrap();
         let opt = WalkForwardOptimizer::new(cfg, bt_cfg).unwrap();
-        let result = opt.run(&bars, |_, params| Box::new(BuyOnce::from_params(params))).unwrap();
+        let result = opt
+            .run(&bars, |_, params| Box::new(BuyOnce::from_params(params)))
+            .unwrap();
         assert!(!result.periods.is_empty());
         for p in &result.periods {
             assert!(!p.best_params.is_empty());
@@ -703,7 +745,9 @@ mod tests {
     #[test]
     fn test_optimizer_step_advances_window() {
         // With step < test_window, windows overlap
-        let bars: Vec<OhlcvBar> = (0..150).map(|i| make_bar(100.0 + i as f64 * 0.1, i)).collect();
+        let bars: Vec<OhlcvBar> = (0..150)
+            .map(|i| make_bar(100.0 + i as f64 * 0.1, i))
+            .collect();
         let cfg = WalkForwardConfig {
             train_window: 50,
             test_window: 30,

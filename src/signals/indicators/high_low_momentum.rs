@@ -94,7 +94,8 @@ impl Signal for HighLowMomentum {
                 SignalValue::Unavailable
             } else {
                 #[allow(clippy::cast_possible_truncation)]
-                let mean = self.sum
+                let mean = self
+                    .sum
                     .checked_div(Decimal::from(self.period as u32))
                     .ok_or(FinError::ArithmeticOverflow)?;
                 SignalValue::Scalar(mean)
@@ -129,7 +130,10 @@ mod tests {
         let l = Price::new(low.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: l, high: h, low: l, close: h,
+            open: l,
+            high: h,
+            low: l,
+            close: h,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -145,9 +149,18 @@ mod tests {
     #[test]
     fn test_hlm_unavailable_during_warmup() {
         let mut hlm = HighLowMomentum::new("hlm", 3).unwrap();
-        assert_eq!(hlm.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hlm.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(hlm.update_bar(&bar("110", "90")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            hlm.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hlm.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            hlm.update_bar(&bar("110", "90")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]
@@ -168,11 +181,14 @@ mod tests {
         let mut h = 110u32;
         let mut l = 90u32;
         for _ in 0..4 {
-            hlm.update_bar(&bar(&h.to_string(), &l.to_string())).unwrap();
+            hlm.update_bar(&bar(&h.to_string(), &l.to_string()))
+                .unwrap();
             h += 2;
             l += 2;
         }
-        let v = hlm.update_bar(&bar(&h.to_string(), &l.to_string())).unwrap();
+        let v = hlm
+            .update_bar(&bar(&h.to_string(), &l.to_string()))
+            .unwrap();
         if let SignalValue::Scalar(s) = v {
             assert_eq!(s, dec!(2), "trending up should give SMA=2: {s}");
         } else {

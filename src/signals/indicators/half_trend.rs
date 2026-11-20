@@ -111,7 +111,7 @@ impl Signal for HalfTrend {
                 self.prev_close = Some(bar.close);
                 return Ok(SignalValue::Unavailable);
             }
-            Some(pc) => bar.true_range(Some(pc))
+            Some(pc) => bar.true_range(Some(pc)),
         };
         self.prev_close = Some(bar.close);
 
@@ -146,7 +146,11 @@ impl Signal for HalfTrend {
             }
         }
 
-        let direction = if self.trend_up { Decimal::ONE } else { -Decimal::ONE };
+        let direction = if self.trend_up {
+            Decimal::ONE
+        } else {
+            -Decimal::ONE
+        };
         Ok(SignalValue::Scalar(direction))
     }
 

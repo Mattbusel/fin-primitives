@@ -165,7 +165,10 @@ mod tests {
     #[test]
     fn test_unavailable_before_three_bars() {
         let mut tbc = ThreeBlackCrows::new("tbc", 60, 30).unwrap();
-        assert_eq!(tbc.update_bar(&bar("20", "21", "13", "14")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            tbc.update_bar(&bar("20", "21", "13", "14")).unwrap(),
+            SignalValue::Unavailable
+        );
     }
 
     #[test]

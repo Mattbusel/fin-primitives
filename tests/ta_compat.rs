@@ -69,23 +69,59 @@ where
 
 #[test]
 fn sma_ema_rsi_match_talib() {
-    assert_series("SMA(10)", &on_closes(|| SimpleMovingAverage::new(10).unwrap()), &SMA_10);
-    assert_series("EMA(10)", &on_closes(|| ExponentialMovingAverage::new(10).unwrap()), &EMA_10);
-    assert_series("RSI(14)", &on_closes(|| RelativeStrengthIndex::new(14).unwrap()), &RSI_14);
+    assert_series(
+        "SMA(10)",
+        &on_closes(|| SimpleMovingAverage::new(10).unwrap()),
+        &SMA_10,
+    );
+    assert_series(
+        "EMA(10)",
+        &on_closes(|| ExponentialMovingAverage::new(10).unwrap()),
+        &EMA_10,
+    );
+    assert_series(
+        "RSI(14)",
+        &on_closes(|| RelativeStrengthIndex::new(14).unwrap()),
+        &RSI_14,
+    );
 }
 
 #[test]
 fn stddev_mad_roc_er_match_reference() {
-    assert_series("SD(20)", &on_closes(|| StandardDeviation::new(20).unwrap()), &STDDEV_20);
-    assert_series("MAD(20)", &on_closes(|| MeanAbsoluteDeviation::new(20).unwrap()), &MAD_20);
-    assert_series("ROC(10)", &on_closes(|| RateOfChange::new(10).unwrap()), &ROC_10);
-    assert_series("ER(10)", &on_closes(|| EfficiencyRatio::new(10).unwrap()), &ER_10);
+    assert_series(
+        "SD(20)",
+        &on_closes(|| StandardDeviation::new(20).unwrap()),
+        &STDDEV_20,
+    );
+    assert_series(
+        "MAD(20)",
+        &on_closes(|| MeanAbsoluteDeviation::new(20).unwrap()),
+        &MAD_20,
+    );
+    assert_series(
+        "ROC(10)",
+        &on_closes(|| RateOfChange::new(10).unwrap()),
+        &ROC_10,
+    );
+    assert_series(
+        "ER(10)",
+        &on_closes(|| EfficiencyRatio::new(10).unwrap()),
+        &ER_10,
+    );
 }
 
 #[test]
 fn maximum_minimum_match_talib() {
-    assert_series("MAX(high, 14)", &on_bars(Maximum::new(14).unwrap()), &MAX_HIGH_14);
-    assert_series("MIN(low, 14)", &on_bars(Minimum::new(14).unwrap()), &MIN_LOW_14);
+    assert_series(
+        "MAX(high, 14)",
+        &on_bars(Maximum::new(14).unwrap()),
+        &MAX_HIGH_14,
+    );
+    assert_series(
+        "MIN(low, 14)",
+        &on_bars(Minimum::new(14).unwrap()),
+        &MIN_LOW_14,
+    );
     let mut mx = Maximum::new(14).unwrap();
     let mut mn = Minimum::new(14).unwrap();
     let mxs: Vec<f64> = CLOSE.iter().map(|&c| mx.next(c)).collect();
@@ -96,7 +132,11 @@ fn maximum_minimum_match_talib() {
 
 #[test]
 fn atr_and_true_range_match_talib() {
-    assert_series("ATR(14)", &on_bars(AverageTrueRange::new(14).unwrap()), &ATR_14);
+    assert_series(
+        "ATR(14)",
+        &on_bars(AverageTrueRange::new(14).unwrap()),
+        &ATR_14,
+    );
     let tr = on_bars(TrueRange::new());
     assert_eq!(tr[0], HIGH[0] - LOW[0]);
     assert_series("TRANGE", &tr[1..], &TRANGE[1..]);
@@ -109,15 +149,31 @@ fn atr_and_true_range_match_talib() {
 
 #[test]
 fn stochastics_match_talib() {
-    assert_series("STOCHF %K(14)", &on_bars(FastStochastic::new(14).unwrap()), &STOCHF_K_14);
-    assert_series("STOCH slow %K(14, EMA 3)", &on_bars(SlowStochastic::new(14, 3).unwrap()), &STOCH_SLOWK_EMA_14_3);
+    assert_series(
+        "STOCHF %K(14)",
+        &on_bars(FastStochastic::new(14).unwrap()),
+        &STOCHF_K_14,
+    );
+    assert_series(
+        "STOCH slow %K(14, EMA 3)",
+        &on_bars(SlowStochastic::new(14, 3).unwrap()),
+        &STOCH_SLOWK_EMA_14_3,
+    );
 }
 
 #[test]
 fn obv_mfi_cci_match_talib() {
     assert_series("OBV", &on_bars(OnBalanceVolume::new()), &OBV);
-    assert_series("MFI(14)", &on_bars(MoneyFlowIndex::new(14).unwrap()), &MFI_14);
-    assert_series("CCI(20)", &on_bars(CommodityChannelIndex::new(20).unwrap()), &CCI_20);
+    assert_series(
+        "MFI(14)",
+        &on_bars(MoneyFlowIndex::new(14).unwrap()),
+        &MFI_14,
+    );
+    assert_series(
+        "CCI(20)",
+        &on_bars(CommodityChannelIndex::new(20).unwrap()),
+        &CCI_20,
+    );
 }
 
 #[test]
@@ -164,9 +220,21 @@ fn ppo_matches_talib() {
 fn bollinger_matches_talib() {
     let mut bb = BollingerBands::new(20, 2.0).unwrap();
     let out: Vec<BollingerBandsOutput> = CLOSE.iter().map(|&c| bb.next(c)).collect();
-    assert_series("BB upper", &out.iter().map(|o| o.upper).collect::<Vec<_>>(), &BB_UPPER);
-    assert_series("BB average", &out.iter().map(|o| o.average).collect::<Vec<_>>(), &BB_MIDDLE);
-    assert_series("BB lower", &out.iter().map(|o| o.lower).collect::<Vec<_>>(), &BB_LOWER);
+    assert_series(
+        "BB upper",
+        &out.iter().map(|o| o.upper).collect::<Vec<_>>(),
+        &BB_UPPER,
+    );
+    assert_series(
+        "BB average",
+        &out.iter().map(|o| o.average).collect::<Vec<_>>(),
+        &BB_MIDDLE,
+    );
+    assert_series(
+        "BB lower",
+        &out.iter().map(|o| o.lower).collect::<Vec<_>>(),
+        &BB_LOWER,
+    );
     assert_eq!(bb.multiplier(), 2.0);
 }
 
@@ -176,9 +244,21 @@ fn keltner_is_talib_ema_of_typical_price_plus_wilder_atr() {
     let out: Vec<KeltnerChannelOutput> = items().iter().map(|b| kc.next(b)).collect();
     let upper: Vec<f64> = (0..N).map(|i| KC_MIDDLE_20[i] + 2.0 * ATR_20[i]).collect();
     let lower: Vec<f64> = (0..N).map(|i| KC_MIDDLE_20[i] - 2.0 * ATR_20[i]).collect();
-    assert_series("KC average", &out.iter().map(|o| o.average).collect::<Vec<_>>(), &KC_MIDDLE_20);
-    assert_series("KC upper", &out.iter().map(|o| o.upper).collect::<Vec<_>>(), &upper);
-    assert_series("KC lower", &out.iter().map(|o| o.lower).collect::<Vec<_>>(), &lower);
+    assert_series(
+        "KC average",
+        &out.iter().map(|o| o.average).collect::<Vec<_>>(),
+        &KC_MIDDLE_20,
+    );
+    assert_series(
+        "KC upper",
+        &out.iter().map(|o| o.upper).collect::<Vec<_>>(),
+        &upper,
+    );
+    assert_series(
+        "KC lower",
+        &out.iter().map(|o| o.lower).collect::<Vec<_>>(),
+        &lower,
+    );
     assert!(kc.is_ready());
 }
 
@@ -188,8 +268,16 @@ fn chandelier_exit_uses_wilder_atr() {
     let out: Vec<ChandelierExitOutput> = items().iter().map(|b| ce.next(b)).collect();
     let long: Vec<f64> = (0..N).map(|i| MAX_HIGH_22[i] - 3.0 * ATR_22[i]).collect();
     let short: Vec<f64> = (0..N).map(|i| MIN_LOW_22[i] + 3.0 * ATR_22[i]).collect();
-    assert_series("CE long", &out.iter().map(|o| o.long).collect::<Vec<_>>(), &long);
-    assert_series("CE short", &out.iter().map(|o| o.short).collect::<Vec<_>>(), &short);
+    assert_series(
+        "CE long",
+        &out.iter().map(|o| o.long).collect::<Vec<_>>(),
+        &long,
+    );
+    assert_series(
+        "CE short",
+        &out.iter().map(|o| o.short).collect::<Vec<_>>(),
+        &short,
+    );
     let (l, s): (f64, f64) = out[N - 1].clone().into();
     assert_eq!((l, s), (out[N - 1].long, out[N - 1].short));
 }
@@ -198,26 +286,77 @@ fn chandelier_exit_uses_wilder_atr() {
 
 #[test]
 fn constructors_reject_bad_parameters_with_invalid_parameter() {
-    assert_eq!(SimpleMovingAverage::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(ExponentialMovingAverage::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(StandardDeviation::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(MeanAbsoluteDeviation::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(RelativeStrengthIndex::new(0).unwrap_err(), TaError::InvalidParameter);
+    assert_eq!(
+        SimpleMovingAverage::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        ExponentialMovingAverage::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        StandardDeviation::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        MeanAbsoluteDeviation::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        RelativeStrengthIndex::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
     assert_eq!(Maximum::new(0).unwrap_err(), TaError::InvalidParameter);
     assert_eq!(Minimum::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(FastStochastic::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(SlowStochastic::new(14, 0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(AverageTrueRange::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(MovingAverageConvergenceDivergence::new(12, 26, 0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(PercentagePriceOscillator::new(0, 26, 9).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(CommodityChannelIndex::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(EfficiencyRatio::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(BollingerBands::new(0, 2.0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(BollingerBands::new(20, f64::NAN).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(KeltnerChannel::new(0, 2.0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(ChandelierExit::new(0, 3.0).unwrap_err(), TaError::InvalidParameter);
+    assert_eq!(
+        FastStochastic::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        SlowStochastic::new(14, 0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        AverageTrueRange::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        MovingAverageConvergenceDivergence::new(12, 26, 0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        PercentagePriceOscillator::new(0, 26, 9).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        CommodityChannelIndex::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        EfficiencyRatio::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        BollingerBands::new(0, 2.0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        BollingerBands::new(20, f64::NAN).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        KeltnerChannel::new(0, 2.0).unwrap_err(),
+        TaError::InvalidParameter
+    );
+    assert_eq!(
+        ChandelierExit::new(0, 3.0).unwrap_err(),
+        TaError::InvalidParameter
+    );
     assert_eq!(RateOfChange::new(0).unwrap_err(), TaError::InvalidParameter);
-    assert_eq!(MoneyFlowIndex::new(0).unwrap_err(), TaError::InvalidParameter);
+    assert_eq!(
+        MoneyFlowIndex::new(0).unwrap_err(),
+        TaError::InvalidParameter
+    );
 }
 
 #[test]
@@ -233,8 +372,14 @@ fn defaults_and_display_match_ta() {
     assert_eq!(SlowStochastic::default().to_string(), "SLOW_STOCH(14, 3)");
     assert_eq!(TrueRange::default().to_string(), "TRUE_RANGE()");
     assert_eq!(AverageTrueRange::default().to_string(), "ATR(14)");
-    assert_eq!(MovingAverageConvergenceDivergence::default().to_string(), "MACD(12, 26, 9)");
-    assert_eq!(PercentagePriceOscillator::default().to_string(), "PPO(12, 26, 9)");
+    assert_eq!(
+        MovingAverageConvergenceDivergence::default().to_string(),
+        "MACD(12, 26, 9)"
+    );
+    assert_eq!(
+        PercentagePriceOscillator::default().to_string(),
+        "PPO(12, 26, 9)"
+    );
     assert_eq!(CommodityChannelIndex::default().to_string(), "CCI(20)");
     assert_eq!(EfficiencyRatio::default().to_string(), "ER(14)");
     assert_eq!(BollingerBands::default().to_string(), "BB(9, 2)");
@@ -373,27 +518,55 @@ fn flat_input_edge_values() {
 
 #[test]
 fn data_item_builder_validates_like_ta() {
-    let ok = DataItemBuilder::new().open(2.0).high(3.0).low(1.0).close(2.5).volume(10.0).build().unwrap();
-    assert_eq!((ok.open(), ok.high(), ok.low(), ok.close(), ok.volume()), (2.0, 3.0, 1.0, 2.5, 10.0));
-    let missing = DataItem::builder().open(2.0).high(3.0).low(1.0).close(2.5).build();
+    let ok = DataItemBuilder::new()
+        .open(2.0)
+        .high(3.0)
+        .low(1.0)
+        .close(2.5)
+        .volume(10.0)
+        .build()
+        .unwrap();
+    assert_eq!(
+        (ok.open(), ok.high(), ok.low(), ok.close(), ok.volume()),
+        (2.0, 3.0, 1.0, 2.5, 10.0)
+    );
+    let missing = DataItem::builder()
+        .open(2.0)
+        .high(3.0)
+        .low(1.0)
+        .close(2.5)
+        .build();
     assert_eq!(missing.unwrap_err(), TaError::DataItemIncomplete);
     let cases = [
-        (2.0, 3.0, 2.5, 2.4, 1.0),  // close below low
-        (3.5, 3.0, 1.0, 2.0, 1.0),  // open above high
-        (2.0, 3.0, 1.0, 2.0, -1.0), // negative volume
+        (2.0, 3.0, 2.5, 2.4, 1.0),   // close below low
+        (3.5, 3.0, 1.0, 2.0, 1.0),   // open above high
+        (2.0, 3.0, 1.0, 2.0, -1.0),  // negative volume
         (-1.0, 3.0, -2.0, 2.0, 1.0), // negative low
         (2.0, 3.0, 1.0, f64::NAN, 1.0),
     ];
     for (o, h, l, c, v) in cases {
-        let r = DataItem::builder().open(o).high(h).low(l).close(c).volume(v).build();
-        assert_eq!(r.unwrap_err(), TaError::DataItemInvalid, "{o} {h} {l} {c} {v}");
+        let r = DataItem::builder()
+            .open(o)
+            .high(h)
+            .low(l)
+            .close(c)
+            .volume(v)
+            .build();
+        assert_eq!(
+            r.unwrap_err(),
+            TaError::DataItemInvalid,
+            "{o} {h} {l} {c} {v}"
+        );
     }
 }
 
 #[test]
 fn errors_display_and_convert() {
     assert_eq!(TaError::InvalidParameter.to_string(), "invalid parameter");
-    assert_eq!(TaError::DataItemIncomplete.to_string(), "data item is incomplete");
+    assert_eq!(
+        TaError::DataItemIncomplete.to_string(),
+        "data item is incomplete"
+    );
     assert_eq!(TaError::DataItemInvalid.to_string(), "data item is invalid");
     let e: FinError = TaError::InvalidParameter.into();
     assert!(matches!(e, FinError::InvalidInput(ref m) if m == "invalid parameter"));
@@ -406,7 +579,10 @@ fn fin_primitives_bars_are_inputs() {
     use fin_primitives::signals::BarInput;
     use rust_decimal_macros::dec;
     let bar = BarInput::new(dec!(10.5), dec!(11), dec!(9.5), dec!(10), dec!(1000));
-    assert_eq!((bar.open(), bar.high(), bar.low(), bar.close(), bar.volume()), (10.0, 11.0, 9.5, 10.5, 1000.0));
+    assert_eq!(
+        (bar.open(), bar.high(), bar.low(), bar.close(), bar.volume()),
+        (10.0, 11.0, 9.5, 10.5, 1000.0)
+    );
     let mut atr = AverageTrueRange::new(1).unwrap();
     assert!(atr.next(&bar).is_nan());
     assert_eq!(atr.next(&bar), 1.5);
@@ -424,7 +600,10 @@ fn fin_primitives_bars_are_inputs() {
         ts_close: NanoTimestamp::new(1),
         tick_count: 1,
     };
-    assert_eq!((ob.open(), ob.high(), ob.low(), ob.close(), ob.volume()), (10.0, 11.0, 9.5, 10.5, 1000.0));
+    assert_eq!(
+        (ob.open(), ob.high(), ob.low(), ob.close(), ob.volume()),
+        (10.0, 11.0, 9.5, 10.5, 1000.0)
+    );
     let mut obv = OnBalanceVolume::new();
     assert_eq!(obv.next(&ob), 1000.0);
 }
@@ -471,7 +650,10 @@ mod against_ta {
         for (i, bar) in ta_items().iter().enumerate() {
             let (a, b) = (ours(bar), theirs(bar));
             if i >= warm_up {
-                assert!((a - b).abs() <= 1e-9 * b.abs().max(1.0), "{what}[{i}]: {a} vs ta {b}");
+                assert!(
+                    (a - b).abs() <= 1e-9 * b.abs().max(1.0),
+                    "{what}[{i}]: {a} vs ta {b}"
+                );
             }
         }
     }
@@ -531,23 +713,63 @@ mod against_ta {
 
 #[test]
 fn adx_dx_and_di_match_talib() {
-    assert_series("ADX(14)", &on_bars(AverageDirectionalIndex::new(14).unwrap()), &ADX_14);
-    assert_series("ADX(5)", &on_bars(AverageDirectionalIndex::new(5).unwrap()), &ADX_5);
+    assert_series(
+        "ADX(14)",
+        &on_bars(AverageDirectionalIndex::new(14).unwrap()),
+        &ADX_14,
+    );
+    assert_series(
+        "ADX(5)",
+        &on_bars(AverageDirectionalIndex::new(5).unwrap()),
+        &ADX_5,
+    );
     let mut dx = DirectionalIndex::new(14).unwrap();
     let out: Vec<DirectionalIndexOutput> = items().iter().map(|b| dx.next(b)).collect();
-    assert_series("DX(14)", &out.iter().map(|o| o.dx).collect::<Vec<_>>(), &DX_14);
-    assert_series("PLUS_DI(14)", &out.iter().map(|o| o.plus_di).collect::<Vec<_>>(), &PLUS_DI_14);
-    assert_series("MINUS_DI(14)", &out.iter().map(|o| o.minus_di).collect::<Vec<_>>(), &MINUS_DI_14);
+    assert_series(
+        "DX(14)",
+        &out.iter().map(|o| o.dx).collect::<Vec<_>>(),
+        &DX_14,
+    );
+    assert_series(
+        "PLUS_DI(14)",
+        &out.iter().map(|o| o.plus_di).collect::<Vec<_>>(),
+        &PLUS_DI_14,
+    );
+    assert_series(
+        "MINUS_DI(14)",
+        &out.iter().map(|o| o.minus_di).collect::<Vec<_>>(),
+        &MINUS_DI_14,
+    );
 }
 
 #[test]
 fn dema_wma_hull_match_talib() {
-    assert_series("DEMA(10)", &on_closes(|| DoubleExponentialMovingAverage::new(10).unwrap()), &DEMA_10);
-    assert_series("DEMA(3)", &on_closes(|| DoubleExponentialMovingAverage::new(3).unwrap()), &DEMA_3);
-    assert_series("WMA(10)", &on_closes(|| WeightedMovingAverage::new(10).unwrap()), &WMA_10);
+    assert_series(
+        "DEMA(10)",
+        &on_closes(|| DoubleExponentialMovingAverage::new(10).unwrap()),
+        &DEMA_10,
+    );
+    assert_series(
+        "DEMA(3)",
+        &on_closes(|| DoubleExponentialMovingAverage::new(3).unwrap()),
+        &DEMA_3,
+    );
+    assert_series(
+        "WMA(10)",
+        &on_closes(|| WeightedMovingAverage::new(10).unwrap()),
+        &WMA_10,
+    );
     // HMA from TA-Lib's WMA: WMA(2 WMA(n/2) - WMA(n), floor(sqrt(n))).
-    assert_series("HMA(16)", &on_closes(|| HullMovingAverage::new(16).unwrap()), &HMA_16);
-    assert_series("HMA(9)", &on_closes(|| HullMovingAverage::new(9).unwrap()), &HMA_9);
+    assert_series(
+        "HMA(16)",
+        &on_closes(|| HullMovingAverage::new(16).unwrap()),
+        &HMA_16,
+    );
+    assert_series(
+        "HMA(9)",
+        &on_closes(|| HullMovingAverage::new(9).unwrap()),
+        &HMA_9,
+    );
 }
 
 #[test]
@@ -559,7 +781,10 @@ fn new_indicators_reset_period_default_display() {
     let second: Vec<f64> = bars.iter().map(|b| adx.next(b)).collect();
     assert_eq!(format!("{first:?}"), format!("{second:?}"));
     for (mut ind, name) in [
-        (Box::new(DoubleExponentialMovingAverage::new(4).unwrap()) as Box<dyn ResetNext>, "DEMA"),
+        (
+            Box::new(DoubleExponentialMovingAverage::new(4).unwrap()) as Box<dyn ResetNext>,
+            "DEMA",
+        ),
         (Box::new(HullMovingAverage::new(6).unwrap()), "HMA"),
         (Box::new(WeightedMovingAverage::new(4).unwrap()), "WMA"),
     ] {
@@ -570,7 +795,10 @@ fn new_indicators_reset_period_default_display() {
     }
     assert_eq!(AverageDirectionalIndex::default().to_string(), "ADX(14)");
     assert_eq!(DirectionalIndex::default().to_string(), "DX(14)");
-    assert_eq!(DoubleExponentialMovingAverage::default().to_string(), "DEMA(9)");
+    assert_eq!(
+        DoubleExponentialMovingAverage::default().to_string(),
+        "DEMA(9)"
+    );
     assert_eq!(HullMovingAverage::default().to_string(), "HMA(9)");
     assert_eq!(WeightedMovingAverage::default().to_string(), "WMA(9)");
     assert_eq!(AverageDirectionalIndex::new(7).unwrap().period(), 7);
@@ -581,7 +809,10 @@ fn new_indicators_reset_period_default_display() {
     assert!(HullMovingAverage::new(1).is_err());
     assert!(WeightedMovingAverage::new(0).is_err());
     // Defaults behave like new(default period).
-    let a: Vec<f64> = bars.iter().map(|b| AverageDirectionalIndex::default().next(b)).collect();
+    let a: Vec<f64> = bars
+        .iter()
+        .map(|b| AverageDirectionalIndex::default().next(b))
+        .collect();
     assert!(a.iter().all(|v| v.is_nan()));
     let mut d1 = HullMovingAverage::default();
     let mut d2 = HullMovingAverage::new(9).unwrap();

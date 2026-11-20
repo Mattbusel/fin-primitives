@@ -67,7 +67,7 @@ pub struct StrategyPnl {
 pub fn intrinsic_value(leg: &OptionLeg, spot: f64) -> f64 {
     let iv = match leg.option_type {
         OptionType::Call => (spot - leg.strike).max(0.0),
-        OptionType::Put  => (leg.strike - spot).max(0.0),
+        OptionType::Put => (leg.strike - spot).max(0.0),
     };
     iv * leg.quantity
 }
@@ -76,37 +76,63 @@ pub fn intrinsic_value(leg: &OptionLeg, spot: f64) -> f64 {
 ///
 /// P&L = sum over legs of quantity * (intrinsic - premium).
 pub fn strategy_pnl_at_expiry(legs: &[OptionLeg], spot: f64) -> f64 {
-    legs.iter().map(|leg| {
-        let iv = match leg.option_type {
-            OptionType::Call => (spot - leg.strike).max(0.0),
-            OptionType::Put  => (leg.strike - spot).max(0.0),
-        };
-        leg.quantity * (iv - leg.premium)
-    }).sum()
+    legs.iter()
+        .map(|leg| {
+            let iv = match leg.option_type {
+                OptionType::Call => (spot - leg.strike).max(0.0),
+                OptionType::Put => (leg.strike - spot).max(0.0),
+            };
+            leg.quantity * (iv - leg.premium)
+        })
+        .sum()
 }
 
 /// Build a P&L profile across a range of spot prices.
 pub fn pnl_profile(legs: &[OptionLeg], spot_range: (f64, f64), points: usize) -> Vec<StrategyPnl> {
     let n = points.max(2);
     let step = (spot_range.1 - spot_range.0) / (n - 1) as f64;
-    (0..n).map(|i| {
-        let spot = spot_range.0 + i as f64 * step;
-        let pnl = strategy_pnl_at_expiry(legs, spot);
-        // Approximate delta: binary — 1 if ITM call or 0.
-        let delta: f64 = legs.iter().map(|leg| {
-            let d = match leg.option_type {
-                OptionType::Call => if spot > leg.strike { 1.0 } else { 0.0 },
-                OptionType::Put  => if spot < leg.strike { -1.0 } else { 0.0 },
-            };
-            leg.quantity * d
-        }).sum();
-        StrategyPnl { price: spot, pnl, delta }
-    }).collect()
+    (0..n)
+        .map(|i| {
+            let spot = spot_range.0 + i as f64 * step;
+            let pnl = strategy_pnl_at_expiry(legs, spot);
+            // Approximate delta: binary — 1 if ITM call or 0.
+            let delta: f64 = legs
+                .iter()
+                .map(|leg| {
+                    let d = match leg.option_type {
+                        OptionType::Call => {
+                            if spot > leg.strike {
+                                1.0
+                            } else {
+                                0.0
+                            }
+                        }
+                        OptionType::Put => {
+                            if spot < leg.strike {
+                                -1.0
+                            } else {
+                                0.0
+                            }
+                        }
+                    };
+                    leg.quantity * d
+                })
+                .sum();
+            StrategyPnl {
+                price: spot,
+                pnl,
+                delta,
+            }
+        })
+        .collect()
 }
 
 /// Maximum P&L from a profile.
 pub fn max_profit(profile: &[StrategyPnl]) -> f64 {
-    profile.iter().map(|p| p.pnl).fold(f64::NEG_INFINITY, f64::max)
+    profile
+        .iter()
+        .map(|p| p.pnl)
+        .fold(f64::NEG_INFINITY, f64::max)
 }
 
 /// Maximum loss (most negative P&L) from a profile, returned as a negative number.
@@ -130,19 +156,25 @@ pub fn breakeven_points(profile: &[StrategyPnl]) -> Vec<f64> {
 }
 
 /// Build a long straddle: long call + long put at the same strike.
-pub fn build_straddle(
-    spot: f64,
-    strike: f64,
-    r: f64,
-    sigma: f64,
-    expiry: f64,
-) -> Vec<OptionLeg> {
+pub fn build_straddle(spot: f64, strike: f64, r: f64, sigma: f64, expiry: f64) -> Vec<OptionLeg> {
     let q = 0.0;
     let call_prem = bsm_call(spot, strike, r, q, sigma, expiry);
-    let put_prem  = bsm_put(spot, strike, r, q, sigma, expiry);
+    let put_prem = bsm_put(spot, strike, r, q, sigma, expiry);
     vec![
-        OptionLeg { option_type: OptionType::Call, strike, expiry, quantity: 1.0, premium: call_prem },
-        OptionLeg { option_type: OptionType::Put,  strike, expiry, quantity: 1.0, premium: put_prem  },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike,
+            expiry,
+            quantity: 1.0,
+            premium: call_prem,
+        },
+        OptionLeg {
+            option_type: OptionType::Put,
+            strike,
+            expiry,
+            quantity: 1.0,
+            premium: put_prem,
+        },
     ]
 }
 
@@ -157,10 +189,22 @@ pub fn build_strangle(
 ) -> Vec<OptionLeg> {
     let q = 0.0;
     let call_prem = bsm_call(spot, call_k, r, q, sigma, expiry);
-    let put_prem  = bsm_put(spot, put_k,  r, q, sigma, expiry);
+    let put_prem = bsm_put(spot, put_k, r, q, sigma, expiry);
     vec![
-        OptionLeg { option_type: OptionType::Call, strike: call_k, expiry, quantity: 1.0, premium: call_prem },
-        OptionLeg { option_type: OptionType::Put,  strike: put_k,  expiry, quantity: 1.0, premium: put_prem  },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike: call_k,
+            expiry,
+            quantity: 1.0,
+            premium: call_prem,
+        },
+        OptionLeg {
+            option_type: OptionType::Put,
+            strike: put_k,
+            expiry,
+            quantity: 1.0,
+            premium: put_prem,
+        },
     ]
 }
 
@@ -174,13 +218,25 @@ pub fn build_collar(
     expiry: f64,
 ) -> Vec<OptionLeg> {
     let q = 0.0;
-    let put_prem  = bsm_put(spot, put_k,   r, q, sigma, expiry);
+    let put_prem = bsm_put(spot, put_k, r, q, sigma, expiry);
     let call_prem = bsm_call(spot, call_k, r, q, sigma, expiry);
     vec![
         // Long put — costs put_prem.
-        OptionLeg { option_type: OptionType::Put,  strike: put_k,  expiry, quantity:  1.0, premium: put_prem  },
+        OptionLeg {
+            option_type: OptionType::Put,
+            strike: put_k,
+            expiry,
+            quantity: 1.0,
+            premium: put_prem,
+        },
         // Short call — receives call_prem (stored as positive premium, negative quantity).
-        OptionLeg { option_type: OptionType::Call, strike: call_k, expiry, quantity: -1.0, premium: call_prem },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike: call_k,
+            expiry,
+            quantity: -1.0,
+            premium: call_prem,
+        },
     ]
 }
 
@@ -195,13 +251,31 @@ pub fn build_butterfly(
     expiry: f64,
 ) -> Vec<OptionLeg> {
     let q = 0.0;
-    let p_low  = bsm_call(spot, k_low,  r, q, sigma, expiry);
-    let p_mid  = bsm_call(spot, k_mid,  r, q, sigma, expiry);
+    let p_low = bsm_call(spot, k_low, r, q, sigma, expiry);
+    let p_mid = bsm_call(spot, k_mid, r, q, sigma, expiry);
     let p_high = bsm_call(spot, k_high, r, q, sigma, expiry);
     vec![
-        OptionLeg { option_type: OptionType::Call, strike: k_low,  expiry, quantity:  1.0, premium: p_low  },
-        OptionLeg { option_type: OptionType::Call, strike: k_mid,  expiry, quantity: -2.0, premium: p_mid  },
-        OptionLeg { option_type: OptionType::Call, strike: k_high, expiry, quantity:  1.0, premium: p_high },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike: k_low,
+            expiry,
+            quantity: 1.0,
+            premium: p_low,
+        },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike: k_mid,
+            expiry,
+            quantity: -2.0,
+            premium: p_mid,
+        },
+        OptionLeg {
+            option_type: OptionType::Call,
+            strike: k_high,
+            expiry,
+            quantity: 1.0,
+            premium: p_high,
+        },
     ]
 }
 
@@ -258,16 +332,23 @@ mod tests {
     #[test]
     fn test_strangle_breakevens_outside_strikes() {
         let call_k = 110.0;
-        let put_k  = 90.0;
+        let put_k = 90.0;
         let legs = build_strangle(100.0, call_k, put_k, 0.05, 0.25, 1.0);
         let profile = pnl_profile(&legs, (60.0, 150.0), 1000);
         let bes = breakeven_points(&profile);
         // At least two breakevens, both outside the inner strikes.
-        assert!(bes.len() >= 2, "Expected at least 2 breakevens, got {:?}", bes);
+        assert!(
+            bes.len() >= 2,
+            "Expected at least 2 breakevens, got {:?}",
+            bes
+        );
         let lo = bes.iter().cloned().fold(f64::INFINITY, f64::min);
         let hi = bes.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         assert!(lo < put_k, "Lower breakeven {lo} should be < put_k {put_k}");
-        assert!(hi > call_k, "Upper breakeven {hi} should be > call_k {call_k}");
+        assert!(
+            hi > call_k,
+            "Upper breakeven {hi} should be > call_k {call_k}"
+        );
     }
 
     #[test]
@@ -280,7 +361,10 @@ mod tests {
         assert!(mp > 0.0, "Butterfly max profit should be positive");
         assert!(ml < 0.0, "Butterfly max loss should be negative");
         // Max profit is bounded (should be much less than, say, 20).
-        assert!(mp < 15.0, "Butterfly max profit should be limited, got {mp}");
+        assert!(
+            mp < 15.0,
+            "Butterfly max profit should be limited, got {mp}"
+        );
     }
 
     #[test]
@@ -289,7 +373,10 @@ mod tests {
         let legs = build_collar(100.0, 95.0, 105.0, 0.05, 0.2, 1.0);
         let net: f64 = legs.iter().map(|l| l.quantity * l.premium).sum();
         // Net premium magnitude should be reasonably small (not exact zero, but < 5).
-        assert!(net.abs() < 6.0, "Collar net premium should be near zero, got {net}");
+        assert!(
+            net.abs() < 6.0,
+            "Collar net premium should be near zero, got {net}"
+        );
     }
 
     #[test]
@@ -304,7 +391,10 @@ mod tests {
             premium: prem,
         };
         let pnl = strategy_pnl_at_expiry(&[leg], 100.0);
-        assert!((pnl + prem).abs() < 1e-9, "P&L at strike should equal -premium");
+        assert!(
+            (pnl + prem).abs() < 1e-9,
+            "P&L at strike should equal -premium"
+        );
     }
 
     #[test]
@@ -316,7 +406,13 @@ mod tests {
 
     #[test]
     fn test_intrinsic_value_call() {
-        let leg = OptionLeg { option_type: OptionType::Call, strike: 100.0, expiry: 1.0, quantity: 2.0, premium: 5.0 };
+        let leg = OptionLeg {
+            option_type: OptionType::Call,
+            strike: 100.0,
+            expiry: 1.0,
+            quantity: 2.0,
+            premium: 5.0,
+        };
         assert!((intrinsic_value(&leg, 110.0) - 20.0).abs() < 1e-9);
         assert!((intrinsic_value(&leg, 90.0) - 0.0).abs() < 1e-9);
     }

@@ -82,11 +82,7 @@ impl Signal for LinRegSlope {
         let sum_i: f64 = (0..self.period).map(|i| i as f64).sum();
         let sum_i2: f64 = (0..self.period).map(|i| (i * i) as f64).sum();
         let sum_y: f64 = y_vals.iter().sum();
-        let sum_iy: f64 = y_vals
-            .iter()
-            .enumerate()
-            .map(|(i, &y)| i as f64 * y)
-            .sum();
+        let sum_iy: f64 = y_vals.iter().enumerate().map(|(i, &y)| i as f64 * y).sum();
 
         let denom = n * sum_i2 - sum_i * sum_i;
         if denom == 0.0 {
@@ -115,7 +111,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -132,8 +131,14 @@ mod tests {
     #[test]
     fn test_linreg_unavailable_before_period() {
         let mut lr = LinRegSlope::new("lr", 3).unwrap();
-        assert_eq!(lr.update_bar(&bar("100")).unwrap(), SignalValue::Unavailable);
-        assert_eq!(lr.update_bar(&bar("101")).unwrap(), SignalValue::Unavailable);
+        assert_eq!(
+            lr.update_bar(&bar("100")).unwrap(),
+            SignalValue::Unavailable
+        );
+        assert_eq!(
+            lr.update_bar(&bar("101")).unwrap(),
+            SignalValue::Unavailable
+        );
         assert!(!lr.is_ready());
     }
 

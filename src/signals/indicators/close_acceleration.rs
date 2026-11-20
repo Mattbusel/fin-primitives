@@ -1,9 +1,9 @@
 //! Close Acceleration indicator.
 
-use rust_decimal::Decimal;
-use std::collections::VecDeque;
 use crate::error::FinError;
 use crate::signals::{BarInput, Signal, SignalValue};
+use rust_decimal::Decimal;
+use std::collections::VecDeque;
 
 /// Rate of change of N-bar momentum: `momentum[t] - momentum[t-1]`.
 ///
@@ -22,7 +22,10 @@ impl CloseAcceleration {
         if period == 0 {
             return Err(FinError::InvalidPeriod(period));
         }
-        Ok(Self { period, closes: VecDeque::with_capacity(2 * period + 1) })
+        Ok(Self {
+            period,
+            closes: VecDeque::with_capacity(2 * period + 1),
+        })
     }
 }
 
@@ -44,10 +47,18 @@ impl Signal for CloseAcceleration {
         Ok(SignalValue::Scalar(mom_t - mom_t1))
     }
 
-    fn is_ready(&self) -> bool { self.closes.len() > 2 * self.period }
-    fn period(&self) -> usize { self.period }
-    fn reset(&mut self) { self.closes.clear(); }
-    fn name(&self) -> &str { "CloseAcceleration" }
+    fn is_ready(&self) -> bool {
+        self.closes.len() > 2 * self.period
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn reset(&mut self) {
+        self.closes.clear();
+    }
+    fn name(&self) -> &str {
+        "CloseAcceleration"
+    }
 }
 
 #[cfg(test)]

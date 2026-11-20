@@ -48,7 +48,9 @@ impl DemaRatio {
     /// Returns [`FinError::InvalidPeriod`] if `fast == 0`.
     /// Returns [`FinError::InvalidInput`] if `fast >= slow`.
     pub fn new(name: impl Into<String>, fast: usize, slow: usize) -> Result<Self, FinError> {
-        if fast == 0 { return Err(FinError::InvalidPeriod(fast)); }
+        if fast == 0 {
+            return Err(FinError::InvalidPeriod(fast));
+        }
         if fast >= slow {
             return Err(FinError::InvalidInput("fast must be less than slow".into()));
         }
@@ -109,20 +111,28 @@ impl DemaRatio {
 }
 
 impl Signal for DemaRatio {
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let fast_dema = Self::ema_update(
-            &mut self.fast_seed, &mut self.fast_seed2,
-            &mut self.fast_ema1, &mut self.fast_ema2,
+            &mut self.fast_seed,
+            &mut self.fast_seed2,
+            &mut self.fast_ema1,
+            &mut self.fast_ema2,
             &mut self.fast_ema1_ready,
-            self.fast, bar.close,
+            self.fast,
+            bar.close,
         );
         let slow_dema = Self::ema_update(
-            &mut self.slow_seed, &mut self.slow_seed2,
-            &mut self.slow_ema1, &mut self.slow_ema2,
+            &mut self.slow_seed,
+            &mut self.slow_seed2,
+            &mut self.slow_ema1,
+            &mut self.slow_ema2,
             &mut self.slow_ema1_ready,
-            self.slow, bar.close,
+            self.slow,
+            bar.close,
         );
 
         match (fast_dema, slow_dema) {
@@ -132,8 +142,12 @@ impl Signal for DemaRatio {
         }
     }
 
-    fn is_ready(&self) -> bool { self.fast_ema2.is_some() && self.slow_ema2.is_some() }
-    fn period(&self) -> usize { self.slow }
+    fn is_ready(&self) -> bool {
+        self.fast_ema2.is_some() && self.slow_ema2.is_some()
+    }
+    fn period(&self) -> usize {
+        self.slow
+    }
 
     fn reset(&mut self) {
         self.fast_ema1 = None;
@@ -160,7 +174,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -188,12 +205,16 @@ mod tests {
         // Flat price: fast_DEMA = slow_DEMA = price → ratio = 1
         let mut d = DemaRatio::new("d", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..20 { last = d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            last = d.update_bar(&bar("100")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
             // Allow small floating point epsilon
             let diff = (v - dec!(1)).abs();
             assert!(diff < dec!(0.0001), "expected ~1, got {v}");
-        } else { panic!("expected Scalar"); }
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
@@ -201,17 +222,28 @@ mod tests {
         // Flat at 100, then 3 bars at 200: fast DEMA reacts faster than slow → ratio > 1
         let mut d = DemaRatio::new("d", 3, 5).unwrap();
         let mut last = SignalValue::Unavailable;
-        for _ in 0..20 { d.update_bar(&bar("100")).unwrap(); }
-        for _ in 0..3 { last = d.update_bar(&bar("200")).unwrap(); }
+        for _ in 0..20 {
+            d.update_bar(&bar("100")).unwrap();
+        }
+        for _ in 0..3 {
+            last = d.update_bar(&bar("200")).unwrap();
+        }
         if let SignalValue::Scalar(v) = last {
-            assert!(v > dec!(1), "expected ratio > 1 right after step-up, got {v}");
-        } else { panic!("expected Scalar"); }
+            assert!(
+                v > dec!(1),
+                "expected ratio > 1 right after step-up, got {v}"
+            );
+        } else {
+            panic!("expected Scalar");
+        }
     }
 
     #[test]
     fn test_dr_reset() {
         let mut d = DemaRatio::new("d", 3, 5).unwrap();
-        for _ in 0..20 { d.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..20 {
+            d.update_bar(&bar("100")).unwrap();
+        }
         assert!(d.is_ready());
         d.reset();
         assert!(!d.is_ready());

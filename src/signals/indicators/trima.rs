@@ -80,7 +80,9 @@ impl Signal for Trima {
         // Second-level SMA of SMAs
         let trima: Decimal = self.sma_values.iter().sum::<Decimal>();
         #[allow(clippy::cast_possible_truncation)]
-        Ok(SignalValue::Scalar(trima / Decimal::from(self.period as u32)))
+        Ok(SignalValue::Scalar(
+            trima / Decimal::from(self.period as u32),
+        ))
     }
 
     fn is_ready(&self) -> bool {
@@ -108,7 +110,10 @@ mod tests {
         let p = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: p, high: p, low: p, close: p,
+            open: p,
+            high: p,
+            low: p,
+            close: p,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -146,7 +151,9 @@ mod tests {
     #[test]
     fn test_trima_reset() {
         let mut t = Trima::new("t3", 3).unwrap();
-        for _ in 0..10 { t.update_bar(&bar("100")).unwrap(); }
+        for _ in 0..10 {
+            t.update_bar(&bar("100")).unwrap();
+        }
         assert!(t.is_ready());
         t.reset();
         assert!(!t.is_ready());

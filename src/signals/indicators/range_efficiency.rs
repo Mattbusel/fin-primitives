@@ -60,9 +60,15 @@ impl RangeEfficiency {
 }
 
 impl Signal for RangeEfficiency {
-    fn name(&self) -> &str { &self.name }
-    fn period(&self) -> usize { self.period }
-    fn is_ready(&self) -> bool { self.ranges.len() >= self.period }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn period(&self) -> usize {
+        self.period
+    }
+    fn is_ready(&self) -> bool {
+        self.ranges.len() >= self.period
+    }
 
     fn update(&mut self, bar: &BarInput) -> Result<SignalValue, FinError> {
         let range = bar.range();
@@ -75,7 +81,10 @@ impl Signal for RangeEfficiency {
         self.range_sum += range;
         self.ranges.push_back(range);
         if self.ranges.len() > self.period {
-            let removed = self.ranges.pop_front().ok_or_else(crate::error::invariant_broken)?;
+            let removed = self
+                .ranges
+                .pop_front()
+                .ok_or_else(crate::error::invariant_broken)?;
             self.range_sum -= removed;
         }
 
@@ -87,8 +96,14 @@ impl Signal for RangeEfficiency {
             return Ok(SignalValue::Unavailable);
         }
 
-        let first = *self.closes.front().ok_or_else(crate::error::invariant_broken)?;
-        let last = *self.closes.back().ok_or_else(crate::error::invariant_broken)?;
+        let first = *self
+            .closes
+            .front()
+            .ok_or_else(crate::error::invariant_broken)?;
+        let last = *self
+            .closes
+            .back()
+            .ok_or_else(crate::error::invariant_broken)?;
         let net_move = (last - first).abs();
 
         let efficiency = net_move
@@ -119,7 +134,10 @@ mod tests {
         let cp = Price::new(c.parse().unwrap()).unwrap();
         OhlcvBar {
             symbol: Symbol::new("X").unwrap(),
-            open: lp, high: hp, low: lp, close: cp,
+            open: lp,
+            high: hp,
+            low: lp,
+            close: cp,
             volume: Quantity::zero(),
             ts_open: NanoTimestamp::new(0),
             ts_close: NanoTimestamp::new(1),
@@ -136,7 +154,10 @@ mod tests {
     fn test_re_unavailable_during_warmup() {
         let mut re = RangeEfficiency::new("re", 3).unwrap();
         for _ in 0..2 {
-            assert_eq!(re.update_bar(&bar("110", "90", "100")).unwrap(), SignalValue::Unavailable);
+            assert_eq!(
+                re.update_bar(&bar("110", "90", "100")).unwrap(),
+                SignalValue::Unavailable
+            );
         }
         assert!(!re.is_ready());
     }
@@ -146,8 +167,8 @@ mod tests {
         // Bars: close 90, 100, 110, 120 — each bar high=close, low=prev_close
         // range per bar = 10, net_move = |120-90| = 30, total_range = 30 → eff = 1
         let mut re = RangeEfficiency::new("re", 3).unwrap();
-        re.update_bar(&bar("90", "90", "90")).unwrap();   // seed
-        re.update_bar(&bar("100", "90", "100")).unwrap();  // range=10, close=100
+        re.update_bar(&bar("90", "90", "90")).unwrap(); // seed
+        re.update_bar(&bar("100", "90", "100")).unwrap(); // range=10, close=100
         re.update_bar(&bar("110", "100", "110")).unwrap(); // range=10, close=110
         let result = re.update_bar(&bar("120", "110", "120")).unwrap(); // range=10, close=120
         assert_eq!(result, SignalValue::Scalar(dec!(1)));
@@ -169,7 +190,8 @@ mod tests {
         let mut re = RangeEfficiency::new("re", 3).unwrap();
         for i in 0u32..4 {
             let c = (100 + i * 10).to_string();
-            re.update_bar(&bar(&(100 + i * 10 + 5).to_string(), &c, &c)).unwrap();
+            re.update_bar(&bar(&(100 + i * 10 + 5).to_string(), &c, &c))
+                .unwrap();
         }
         assert!(re.is_ready());
         re.reset();
